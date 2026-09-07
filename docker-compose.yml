@@ -1,0 +1,16 @@
+# 求道 — Marqdo 原生演示（无 Python）
+services:
+  qdagent:
+    build: .
+    ports:
+      - "7431:7431"
+    env_file:
+      - .env
+    environment:
+      MARQDO_EXT: /root/.marqdo/ext
+      QDAGENT_HOST: "0.0.0.0"
+      QDAGENT_PORT: "7431"
+      QDAGENT_DATA: /data
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
