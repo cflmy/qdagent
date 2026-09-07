@@ -6,7 +6,8 @@
 |------|-----|------|-----|
 | 对话 | / | | auth |
 | 笔记 | /notes | | auth |
-| 设置 | /settings | | auth |
+| 大模型 | /settings/llm | | auth |
+| 接入 | /settings/mcp | | auth |
 | 退出 | /account/logout | | auth |
 
 **`nav`**

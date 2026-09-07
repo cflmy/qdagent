@@ -30,3 +30,12 @@ import run:../lib/run.mq.md
 
 > run.同步库 store=`store`
 **store**
+
+## recent
+    + `limit`=20
+
+返回最近笔记行（在本模块内调用 `store.select`；跨模块持有 db 句柄再 select 会触发宿主限制）。
+
+*store = > open*
+*rows = > store.select table="runs" limit=`limit` order="-created_at"*
+**rows**

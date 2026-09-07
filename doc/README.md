@@ -19,6 +19,7 @@
 8. [**笔记式界面与 MCP 接入**](design/07-notes-ui-and-mcp.md) ← 体验差异化  
 9. [**Docker 部署（推荐）**](design/08-docker-deploy.md) ← 默认交付形态  
 10. [分阶段任务路线图](roadmap/07-task-roadmap.md)  
+11. [**Marqdo 能力缺口（必须阅读）**](gaps/01-marqdo-hard-limits.md) ← 非 Marqdo 脚本的唯一正当理由  
 
 ## 目录结构
 
@@ -26,18 +27,14 @@
 doc/
   README.md
   00-overview.md
+  gaps/
+    01-marqdo-hard-limits.md
   research/
-    01-competitive-openclaw-hermes.md
-    04-models-and-providers.md
+    …
   design/
-    02-marqdo-native-agent.md
-    03-audit-knowledge.md
-    05-openai-compatible-api.md
-    06-web-ui-and-voice.md
-    07-notes-ui-and-mcp.md
-    08-docker-deploy.md
+    …
   roadmap/
-    07-task-roadmap.md
+    …
 ```
 
 ## 一句话产品主张

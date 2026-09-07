@@ -89,17 +89,22 @@ create run skeleton
 
 ---
 
-## 5. 检索平面（首期务实）
+## 5. 检索平面（与 Marqdo 对齐）
 
-不必一上来上重型向量库：
+**已定（纠正）：不做默认 dense embedding / 向量知识库。**
 
-| 阶段 | 方案 |
+知识权威是 **`data/runs/*.mq.md`（及 kb/skills）**：可浏览、可审计、可 `marqdo run` / 晋升。检索优先：
+
+| 方式 | 用途 |
 |------|------|
-| MVP | 文件名 + frontmatter 字段 + `ripgrep` / FTS（SQLite FTS5） |
-| 中期 | 本地 embedding（bge-m3 等）+ 向量索引，命中后仍打开 `.mq.md` |
-| 后期 | 与外部 Mem0/Honcho 可选同步（非真相源） |
+| 笔记 UI / `marqdo view` | 人读 |
+| `marqdo catalog data/runs` | OKF 式索引（可删可再生） |
+| 关键词（MCP `qd_search` / 标题+正文） | 找 **文档句柄**，再 `qd_get_run` 打开全文 |
+| frontmatter / 大纲 | 结构化发现 |
 
-**原则：向量是索引，`.mq.md` 是真相。**
+片段摘录只作 **证据**，不是权威。对话默认 **不** 自动注入向量 top-k。
+
+**原则：`.mq.md` 是真相；索引可丢可再生；向量不是本产品的知识平面。**
 
 ---
 

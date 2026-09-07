@@ -136,7 +136,7 @@
 | E1 | 多步 plan 工作簿 UI |
 | E2 | Skill 自动晋升建议 |
 | E3 | TTS 朗读 / 可选 Realtime |
-| E4 | Embedding 检索 |
+| E4 | Embedding 检索 | **非默认**：与 Marqdo OKF 冲突；仅作远期可选证据层 |
 | E5 | 消息通道 Gateway（学 OpenClaw，可选 Telegram 先） |
 | E6 | ACP 或更多编辑器协议 |
 | E7 | 沙箱 Docker 执行后端（学 Hermes） |

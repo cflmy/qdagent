@@ -36,22 +36,33 @@ import web:ext/web/web.mq.md
     + `task`
     + `result`
     + `slug`
+    + `surface`=""
+    + `session_id`=""
 
 把一次执行写成可被 `marqdo view` 浏览的 `.mq.md` 文本。
 
-**"---\ntitle: " + `title` + "\ndescription: qdagent run " + `slug` + "\n---\n\n# 任务\n\n" + `task` + "\n\n# 结果\n\n" + `result` + "\n"**
+*fm = "---\ntitle: " + `title` + "\ndescription: qdagent run " + `slug`*
+1. `surface`
+  *fm = `fm` + "\nsurface: " + `surface`*
+1. `session_id`
+  *fm = `fm` + "\nsession_id: " + `session_id`*
+*fm = `fm` + "\n---\n\n# 任务\n\n" + `task` + "\n\n# 结果\n\n" + `result` + "\n"*
+**fm**
+
 ## 写出
     + `title`
     + `task`
     + `result`=""
     + `slug`=""
+    + `surface`=""
+    + `session_id`=""
 
 落盘 `data/runs/<slug>.mq.md`，返回相对路径。
 
 *root = > 确保目录*
 1. `slug` == ""
   *slug = > 新标识*
-*`body` = > 装配正文 title=`title` task=`task` result=`result` slug=`slug`*
+*`body` = > 装配正文 title=`title` task=`task` result=`result` slug=`slug` surface=`surface` session_id=`session_id`*
 *path = `root` + "/runs/" + `slug` + ".mq.md"*
 > fs.write_text path=`path` text=`body`
 **path**
@@ -78,12 +89,14 @@ import web:ext/web/web.mq.md
     + `task`
     + `result`=""
     + `slug`=""
+    + `surface`=""
+    + `session_id`=""
 
-写盘 + 写入笔记库索引；返回 `{slug,path}` 风格文本。
+写盘 + 写入笔记库索引；返回路径。
 
 1. `slug` == ""
   *slug = > 新标识*
-*`path` = > 写出 title=`title` task=`task` result=`result` slug=`slug`*
+*`path` = > 写出 title=`title` task=`task` result=`result` slug=`slug` surface=`surface` session_id=`session_id`*
 *`body` = > fs.read_text path=`path`*
 *summary = `task`*
 1. `result`

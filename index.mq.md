@@ -59,46 +59,71 @@ import sys:lib/sys.mq.md
 | title | required | 标题不能为空 |
 | body | required | 正文不能为空 |
 
-`设置字段` =
+`大模型字段` =
 
 | 字段 | 标签 | 类型 | 必填 | 默认 |
 |------|------|------|------|------|
-| llm_api_key | 大模型 API Key | password | false | |
-| llm_base_url | 大模型 Base URL | text | false | https://api.openai.com/v1 |
-| llm_model | 大模型 Model | text | false | gpt-4o-mini |
-| asr_api_key | 语音识别 ASR Key | password | false | |
-| asr_base_url | ASR Base URL | text | false | https://api.openai.com/v1 |
-| asr_model | ASR Model | text | false | whisper-1 |
-| tts_api_key | 语音合成 TTS Key | password | false | |
-| tts_base_url | TTS Base URL | text | false | https://api.openai.com/v1 |
-| tts_model | TTS Model | text | false | tts-1 |
+| llm_api_key | API Key | text | true | |
+| llm_base_url | Base URL | text | true | https://api.openai.com/v1 |
+| llm_model | Model | text | true | gpt-4o-mini |
 
-`设置规则` =
+`大模型规则` =
 
 | 字段 | 规则 | 消息 |
 |------|------|------|
+| llm_api_key | required | 请填写 API Key |
+| llm_base_url | required | 请填写 Base URL |
+| llm_model | required | 请填写模型名 |
 | llm_base_url | max:500 | Base URL 太长 |
 | llm_model | max:120 | 模型名太长 |
 
+`语音字段` =
+
+| 字段 | 标签 | 类型 | 必填 | 默认 |
+|------|------|------|------|------|
+| asr_api_key | ASR API Key | text | false | |
+| asr_base_url | ASR Base URL | text | false | https://api.openai.com/v1 |
+| asr_model | ASR Model | text | false | whisper-1 |
+| tts_api_key | TTS API Key | text | false | |
+| tts_base_url | TTS Base URL | text | false | https://api.openai.com/v1 |
+| tts_model | TTS Model | text | false | tts-1 |
+
+`语音规则` =
+
+| 字段 | 规则 | 消息 |
+|------|------|------|
+| asr_base_url | max:500 | ASR Base URL 太长 |
+| tts_base_url | max:500 | TTS Base URL 太长 |
+
 `头资源` =
 
-| 关系 | 地址 | 类型 |
-|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" |
+| 关系 | 地址 | 类型 | 推迟 | 版本 |
+|------|------|------|------|------|
+| stylesheet | "/static/theme.css" | "text/css" | | 7 |
 
 `聊天头` =
 
-| 关系 | 地址 | 类型 |
-|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" |
-| script | "/static/chat.js" | |
+| 关系 | 地址 | 类型 | 推迟 | 版本 |
+|------|------|------|------|------|
+| stylesheet | "/static/theme.css" | "text/css" | | 7 |
+| script | "/static/qd-api.js" | | true | 7 |
+| script | "/static/chat.js" | | true | 7 |
 
 `设置头` =
 
-| 关系 | 地址 | 类型 |
-|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" |
-| script | "/static/settings.js" | |
+| 关系 | 地址 | 类型 | 推迟 | 版本 |
+|------|------|------|------|------|
+| stylesheet | "/static/theme.css" | "text/css" | | 7 |
+| script | "/static/qd-api.js" | | true | 7 |
+| script | "/static/settings.js" | | true | 7 |
+
+`接入头` =
+
+| 关系 | 地址 | 类型 | 推迟 | 版本 |
+|------|------|------|------|------|
+| stylesheet | "/static/theme.css" | "text/css" | | 7 |
+| script | "/static/qd-api.js" | | true | 7 |
+| script | "/static/mcp.js" | | true | 7 |
 
 `用户` =
 
@@ -122,20 +147,20 @@ import sys:lib/sys.mq.md
 
 *store = > db.open*
 
-*chat_intro = "<div class=\"qd-chat\"><h1>求道</h1><p>登录后即可对话。结论可沉淀为笔记，供之后检索。</p><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><button type=\"button\" id=\"qd-mic\">语音输入</button><button type=\"button\" id=\"qd-speak\">朗读回复</button><button type=\"button\" id=\"qd-save\" class=\"primary\">沉淀为本轮笔记</button></div><div id=\"qd-log\"></div><div class=\"qd-sendrow\"><textarea id=\"qd-input\" placeholder=\"输入消息，Enter 发送；Shift+Enter 换行\"></textarea><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button></div></div>"*
+*chat_intro = "<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>流式对话 · 自动沉淀为可审计 .mq.md</p></header><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><button type=\"button\" id=\"qd-mic\">语音输入</button><button type=\"button\" id=\"qd-speak\">朗读回复</button><button type=\"button\" id=\"qd-save\">再存一份</button><button type=\"button\" id=\"qd-stop\" class=\"danger\" hidden>停止</button></div><div id=\"qd-log\" aria-live=\"polite\"></div><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"3\" placeholder=\"输入消息，Enter 发送；Shift+Enter 换行\"></textarea><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button></div></div></div>"*
 
 *page = > 网页.页面 标题="求道 · 对话" 引言=`chat_intro`*
-*page = > page.布局 布局="stacked"*
+*page = > page.布局 布局="sidebar"*
 *page = > page.组件装配 组件=`壳`*
 *page = > page.头装配 表=`聊天头`*
-*page = > page.样式 样式=".site-main .site-form{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}"*
+*page = > page.样式 样式="main.main>.site-form{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;border:0!important;white-space:nowrap!important}.side-label{display:none!important}main.main{display:flex;flex-direction:column;min-height:0}main.main>.main-intro{flex:1;display:flex;flex-direction:column;min-height:0;padding:0;height:100%}"*
 
 *note_form = > 网页.表单 表="runs" 动作="插入"*
 *note_form = > note_form.字段 字段=`笔记字段`*
 *note_form = > note_form.规则 规则=`笔记规则`*
 *page = > page.表单装配 id="note" 表单=note_form*
 
-*notes = > 网页.页面 标题="笔记库" 引言="<h1>笔记库</h1><p>每次执行与对话沉淀都在这里。正文是 .mq.md。</p>"*
+*notes = > 网页.页面 标题="笔记库" 引言="<h1>笔记库</h1><p>对话回合结束后会<strong>自动沉淀</strong>到这里；也可手动记一笔。正文是 .mq.md。</p>"*
 *notes = > notes.组件装配 组件=`壳`*
 *notes = > notes.主体装配 主体=`列表`*
 *notes = > notes.排序 排序="-created_at"*
@@ -149,25 +174,45 @@ import sys:lib/sys.mq.md
 *detail = > detail.详情 详情=True*
 *detail = > detail.头装配 表=`头资源`*
 
-*new = > 网页.页面 标题="记一笔" 引言="<h1>记一笔</h1><p>直接写入笔记库；也可用对话里的「沉淀为本轮笔记」。</p>"*
+*new = > 网页.页面 标题="记一笔" 引言="<h1>记一笔</h1><p>直接写入笔记库。对话默认已自动沉淀，此处用于补充手记。</p>"*
 *new = > new.组件装配 组件=`壳`*
 *new = > new.表单装配 id="manual-note" 表单=note_form*
 *new = > new.头装配 表=`头资源`*
 
-*set_form = > 网页.表单 表="settings" 动作="更新" id="1"*
-*set_form = > set_form.字段 字段=`设置字段`*
-*set_form = > set_form.规则 规则=`设置规则`*
+*set_llm = > 网页.表单 表="settings" 动作="更新" id="1"*
+*set_llm = > set_llm.字段 字段=`大模型字段`*
+*set_llm = > set_llm.规则 规则=`大模型规则`*
 
-*settings = > 网页.页面 标题="模型设置" 引言="<h1>模型设置</h1><p>配置大模型与语音（ASR / TTS）的 OpenAI 兼容 API。密钥仅保存在本机数据卷，对话页通过登录后的接口读取。</p>"*
-*settings = > settings.组件装配 组件=`壳`*
-*settings = > settings.表单装配 id="settings" 表单=set_form*
-*settings = > settings.头装配 表=`设置头`*
+*set_voice = > 网页.表单 表="settings" 动作="更新" id="1"*
+*set_voice = > set_voice.字段 字段=`语音字段`*
+*set_voice = > set_voice.规则 规则=`语音规则`*
+
+*settings_hub = > 网页.页面 标题="设置" 引言="<h1>设置</h1><p>大模型、语音与 MCP 接入。知识本体是 <code>data/runs/*.mq.md</code>；可用 <code>marqdo catalog data/runs</code> / <code>marqdo view</code> 浏览，不用向量库。</p><ul class=\"qd-settings-links\"><li><a href=\"/settings/llm\">大模型设置</a></li><li><a href=\"/settings/voice\">语音设置</a></li><li><a href=\"/settings/mcp\">MCP 接入</a> — Cursor / Claude Desktop</li></ul>"*
+*settings_hub = > settings_hub.组件装配 组件=`壳`*
+*settings_hub = > settings_hub.头装配 表=`头资源`*
+
+*settings_llm = > 网页.页面 标题="大模型设置" 引言="<h1>大模型设置</h1><p>OpenAI 兼容 Chat API。点击保存时会先发送一条 ping 测试，失败则不写入。</p><p id=\"qd-settings-status\" class=\"qd-settings-status\"></p>"*
+*settings_llm = > settings_llm.组件装配 组件=`壳`*
+*settings_llm = > settings_llm.表单装配 id="settings-llm" 表单=set_llm*
+*settings_llm = > settings_llm.头装配 表=`设置头`*
+
+*settings_voice = > 网页.页面 标题="语音设置" 引言="<h1>语音设置</h1><p>ASR（识别）与 TTS（合成）独立于大模型。保存前会用 Key 请求 <code>/v1/models</code> 做连通性测试。</p><p id=\"qd-settings-status\" class=\"qd-settings-status\"></p>"*
+*settings_voice = > settings_voice.组件装配 组件=`壳`*
+*settings_voice = > settings_voice.表单装配 id="settings-voice" 表单=set_voice*
+*settings_voice = > settings_voice.头装配 表=`设置头`*
+
+*settings_mcp = > 网页.页面 标题="MCP 接入" 引言="<h1>MCP 接入</h1><p>把求道接进 Cursor / Claude Desktop：编辑器用自己的模型，经 MCP 读写你的 <strong>.mq.md 笔记</strong>。工具实现走 Marqdo（<code>求道-捕捉/列出/搜索</code>）；stdio 宿主暂为 Python，见 <code>doc/gaps/01-marqdo-hard-limits.md</code>（GAP-03）。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_capture</code>。写盘请在编辑器侧批准。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查代理健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\">本机：<code>marqdo catalog data/runs</code>、<code>marqdo view data/runs</code>。流式 CORS 中继见 GAP-01。</p>"*
+*settings_mcp = > settings_mcp.组件装配 组件=`壳`*
+*settings_mcp = > settings_mcp.头装配 表=`接入头`*
 
 *app = > 网页.应用 页面=page 数据库=store 后台=True 后台前缀="/account" 主机=`host` 端口=`port` 登录回跳="/" 登出回跳="/account/login"*
 *app = > app.路由 路径="/notes" 页面=notes*
 *app = > app.路由 路径="/notes/new" 页面=new*
 *app = > app.路由 路径="/run/{slug}" 页面=detail*
-*app = > app.路由 路径="/settings" 页面=settings*
+*app = > app.路由 路径="/settings" 页面=settings_hub*
+*app = > app.路由 路径="/settings/llm" 页面=settings_llm*
+*app = > app.路由 路径="/settings/voice" 页面=settings_voice*
+*app = > app.路由 路径="/settings/mcp" 页面=settings_mcp*
 *app = > app.静态 目录="public" 挂载="/static"*
 *app = > app.装配 接口=`接口` 访问日志=True*
 *app = > app.鉴权 用户表=`用户` 会话时长=86400 登录回跳="/" 登出回跳="/account/login"*

@@ -122,13 +122,17 @@ Agent 工具形态：`## 看图` 上传/路径 → Provider Hub `vlm.complete`�
 
 ## 6. Embeddings（检索）
 
+**求道默认不做 dense embedding。** 知识检索对齐 Marqdo：`.mq.md` + catalog/view + 关键词找文档句柄。
+
+若将来作可选证据层（非权威）：
+
 | 方案 | 备注 |
 |------|------|
 | OpenAI `text-embedding-3-*` | 兼容 |
 | bge-m3 / gte / jina-embeddings | 本地多语 |
 | 云厂商 embedding | 按兼容接口 |
 
-首期可用 FTS，embedding 为增强。
+首期与产品默认：**FTS / 关键词 / catalog**。
 
 ---
 

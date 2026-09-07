@@ -43,7 +43,6 @@ MODEL=qdagent
 |------|------|
 | `POST /v1/audio/transcriptions` | 代理到 ASR Provider |
 | `POST /v1/audio/speech` | 代理到 TTS Provider |
-| `POST /v1/embeddings` | 可选 |
 
 ---
 
