@@ -1,9 +1,10 @@
-/* qdagent notes shell accents */
 :root {
   --mq-ink: #1c1917;
   --mq-muted: #5c5346;
   --mq-paper: #f7f3ec;
   --mq-accent: #0f4c5c;
+  --mq-user: #e8f2f4;
+  --mq-bot: #fff;
 }
 body {
   font-family: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -23,4 +24,88 @@ a {
 .mq-card {
   border-left: 3px solid var(--mq-accent);
   background: rgba(255, 255, 255, 0.72);
+}
+
+.qd-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 52rem;
+}
+.qd-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.qd-toolbar button,
+.qd-sendrow button {
+  font: inherit;
+  border: 1px solid #d6cfc4;
+  background: #fff;
+  color: var(--mq-ink);
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+}
+.qd-toolbar button.primary,
+.qd-sendrow button.primary {
+  background: var(--mq-accent);
+  border-color: var(--mq-accent);
+  color: #fff;
+}
+#qd-status {
+  color: var(--mq-muted);
+  font-size: 0.9rem;
+}
+#qd-log {
+  min-height: 22rem;
+  max-height: 55vh;
+  overflow: auto;
+  border: 1px solid #d6cfc4;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.qd-msg {
+  padding: 0.65rem 0.85rem;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  max-width: 92%;
+}
+.qd-user {
+  align-self: flex-end;
+  background: var(--mq-user);
+}
+.qd-assistant {
+  align-self: flex-start;
+  background: var(--mq-bot);
+  border: 1px solid #e7e0d6;
+}
+.qd-system {
+  align-self: center;
+  color: var(--mq-muted);
+  font-size: 0.92rem;
+  background: transparent;
+}
+.qd-sendrow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+#qd-input {
+  min-height: 4.5rem;
+  resize: vertical;
+  font: inherit;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d6cfc4;
+  background: #fff;
+}
+.qd-hidden-form {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
 }

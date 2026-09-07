@@ -4,7 +4,7 @@
 
 | 属性 | 值 | 样式 |
 |------|-----|------|
-| 求道 · qdagent | https://github.com/cflmy/qdagent | |
-| Marqdo | https://github.com/cflmy/marqdo | |
+| 求道 qdagent | https://github.com/cflmy/qdagent | |
+| 退出登录 | /account/logout | |
 
 **`foot`**
