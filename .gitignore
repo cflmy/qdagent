@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# Secrets / local env
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Runtime / logs (data/ also ignores via data/.gitignore)
+*.log
+*.pid
+*.db
+*.db-shm
+*.db-wal
+
+# Local scratch
+_t.mq.md
+_s.mq.md
+*.ck
