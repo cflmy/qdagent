@@ -1,0 +1,36 @@
+--- a/src/host/plugin.rs
++++ b/src/host/plugin.rs
+@@ -571,17 +571,28 @@ pub fn call_registered(
+     let mut out_ptr: *mut c_char = std::ptr::null_mut();
+     let mut err_ptr: *mut c_char = std::ptr::null_mut();
+ 
+-    CURRENT_HOST.with(|c| c.set(ctx as *mut HostContext));
+-    {
+-        let mut g = global_host_slot().lock().unwrap_or_else(|e| e.into_inner());
+-        g.0 = ctx as *mut HostContext;
+-    }
++    // Nested-safe: restore prior GLOBAL_HOST / TLS. Clearing to null broke
++    // `web_listen` HTTP invoke — nested plugin calls (e.g. web_db) wiped the
++    // listen-scoped host pointer that Tokio workers need for host_query.
++    let prev_tls = CURRENT_HOST.with(|c| {
++        let prev = c.get();
++        c.set(ctx as *mut HostContext);
++        prev
++    });
++    let prev_g = {
++        let mut g = global_host_slot()
++            .lock()
++            .unwrap_or_else(|e| e.into_inner());
++        std::mem::replace(&mut g.0, ctx as *mut HostContext)
++    };
+     let rc = unsafe { (reg.fn_ptr)(c_args.as_ptr(), &mut out_ptr, &mut err_ptr) };
+     {
+-        let mut g = global_host_slot().lock().unwrap_or_else(|e| e.into_inner());
+-        g.0 = std::ptr::null_mut();
++        let mut g = global_host_slot()
++            .lock()
++            .unwrap_or_else(|e| e.into_inner());
++        g.0 = prev_g;
+     }
+-    CURRENT_HOST.with(|c| c.set(std::ptr::null_mut()));
++    CURRENT_HOST.with(|c| c.set(prev_tls));

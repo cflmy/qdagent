@@ -1,4 +1,4 @@
-/* MCP 接入页：复制配置 + 健康检查 */
+/* MCP 接入页：复制 Marqdo mcp_server 配置 */
 (function () {
   function boot() {
     var pre = document.getElementById("qd-mcp-json");
@@ -7,38 +7,43 @@
     var healthBtn = document.getElementById("qd-mcp-health");
     if (!pre) return;
 
-    var rootHint = (window.QDAGENT_ROOT_HINT || "").trim();
-    var scriptPath =
-      rootHint ||
-      "/home/cflmy/work/qdagent/scripts/qdagent_mcp.py";
+    var repo =
+      (window.QDAGENT_ROOT_HINT || "").trim() || "/home/cflmy/work/qdagent";
     var dataPath =
-      (window.QDAGENT_DATA_HINT || "").trim() ||
-      "/home/cflmy/work/qdagent/data";
+      (window.QDAGENT_DATA_HINT || "").trim() || repo + "/data";
 
     var cfg = {
       mcpServers: {
         qdagent: {
-          command: "python3",
-          args: [scriptPath],
+          command: "marqdo",
+          args: ["run", repo + "/求道-mcp.mq.md"],
           env: {
+            MARQDO_EXT: (window.MARQDO_EXT_HINT || "~/.marqdo/ext").replace(
+              /^~/,
+              ""
+            ),
             QDAGENT_DATA: dataPath,
           },
         },
       },
     };
+    // Expand ~ for display if needed
+    if (!window.MARQDO_EXT_HINT) {
+      cfg.mcpServers.qdagent.env.MARQDO_EXT = "/home/cflmy/.marqdo/ext";
+    }
     pre.textContent = JSON.stringify(cfg, null, 2);
 
-    fetch(QdApi.proxyBase() + "/health")
+    fetch("/api/health", { credentials: "same-origin" })
       .then(function (r) {
         return r.json();
       })
       .then(function (j) {
         if (j && j.data_root) {
-          dataPath = j.data_root;
-          var repo = dataPath.replace(/\/data\/?$/, "");
-          scriptPath = repo + "/scripts/qdagent_mcp.py";
-          cfg.mcpServers.qdagent.args = [scriptPath];
-          cfg.mcpServers.qdagent.env.QDAGENT_DATA = dataPath;
+          cfg.mcpServers.qdagent.env.QDAGENT_DATA = j.data_root;
+          var root = j.data_root.replace(/\/data\/?$/, "");
+          if (root) {
+            cfg.mcpServers.qdagent.args = ["run", root + "/求道-mcp.mq.md"];
+          }
           pre.textContent = JSON.stringify(cfg, null, 2);
         }
       })
@@ -56,27 +61,23 @@
               if (status) status.textContent = "复制失败，请手动全选";
             }
           );
-        } else {
-          if (status) status.textContent = "请手动全选复制";
-        }
+        } else if (status) status.textContent = "请手动全选复制";
       });
     }
 
-    if (healthBtn && window.QdApi) {
+    if (healthBtn) {
       healthBtn.addEventListener("click", function () {
-        fetch(QdApi.proxyBase() + "/health")
+        fetch("/api/health", { credentials: "same-origin" })
           .then(function (r) {
             return r.json();
           })
           .then(function (j) {
             if (status)
               status.textContent =
-                "代理健康：" +
-                JSON.stringify(j) +
-                " · MCP 请在 Cursor 侧 Tools 列表确认 qd_*";
+                "宿主健康：" + JSON.stringify(j) + " · MCP 用 marqdo run 求道-mcp.mq.md";
           })
           .catch(function (e) {
-            if (status) status.textContent = "代理不可用：" + e.message;
+            if (status) status.textContent = "不可用：" + e.message;
           });
       });
     }

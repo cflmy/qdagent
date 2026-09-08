@@ -1,12 +1,7 @@
-/* shared helpers for chat + settings */
+/* shared helpers — Marqdo 0.3.7 same-origin proxy + invoke (no :7432) */
 (function (w) {
-  function proxyBase() {
-    var fromEnv = w.QDAGENT_PROXY;
-    if (fromEnv) return fromEnv.replace(/\/+$/, "");
-    var host = location.hostname || "127.0.0.1";
-    var proto = location.protocol === "https:" ? "https:" : "http:";
-    var port = w.QDAGENT_PROXY_PORT || "7432";
-    return proto + "//" + host + ":" + port;
+  function apiRoot() {
+    return "";
   }
 
   function normalizeBase(url) {
@@ -14,36 +9,62 @@
     return u || "https://api.openai.com/v1";
   }
 
+  /** Same-origin LLM reverse proxy mount (/llm → settings llm_base_url). */
+  function llmPath(path) {
+    if (!path) path = "/";
+    if (path.charAt(0) !== "/") path = "/" + path;
+    return "/llm" + path;
+  }
+
+  function asrPath(path) {
+    if (!path) path = "/";
+    if (path.charAt(0) !== "/") path = "/" + path;
+    return "/asr" + path;
+  }
+
   async function relay(opts) {
-    var res = await fetch(proxyBase() + "/proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(opts),
-    });
-    var json = await res.json().catch(function () {
-      return { ok: false, error: "proxy returned non-JSON (" + res.status + ")" };
-    });
-    if (!res.ok && !json.status) {
-      throw new Error(json.error || "代理不可用：请先启动 scripts/llm_proxy.py（端口 7432）");
+    var path = opts.path || "/";
+    var method = (opts.method || "POST").toUpperCase();
+    var mount = opts.mount === "asr" ? asrPath : llmPath;
+    var url = mount(path);
+    var headers = Object.assign({ Accept: "application/json" }, opts.headers || {});
+    var init = { method: method, headers: headers, credentials: "same-origin" };
+    if (opts.body != null && method !== "GET" && method !== "HEAD") {
+      headers["Content-Type"] = opts.content_type || "application/json";
+      init.body = typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body);
     }
-    return json;
+    var res = await fetch(url, init);
+    var ctype = res.headers.get("Content-Type") || "";
+    var data;
+    if (ctype.indexOf("application/json") >= 0) {
+      data = await res.json().catch(function () {
+        return null;
+      });
+    } else {
+      data = await res.text();
+    }
+    return { ok: res.ok, status: res.status, url: url, data: data };
   }
 
   /**
-   * Stream chat completions via /proxy/stream.
-   * onDelta(textChunk) for each token; returns full assistant text.
+   * Stream chat completions via same-origin /llm/chat/completions (app.proxy SSE).
    */
   async function relayStream(opts, onDelta, signal) {
     var body = Object.assign({}, opts.body || {}, { stream: true });
-    var res = await fetch(proxyBase() + "/proxy/stream", {
+    var headers = Object.assign(
+      { "Content-Type": "application/json", Accept: "text/event-stream" },
+      opts.headers || {}
+    );
+    var res = await fetch(llmPath("/chat/completions"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.assign({}, opts, { body: body })),
+      headers: headers,
+      body: JSON.stringify(body),
+      credentials: "same-origin",
       signal: signal,
     });
     if (!res.ok) {
       var errText = await res.text();
-      throw new Error("流式代理 HTTP " + res.status + "：" + errText.slice(0, 240));
+      throw new Error("流式 LLM HTTP " + res.status + "：" + errText.slice(0, 240));
     }
     if (!res.body || !res.body.getReader) {
       throw new Error("浏览器不支持 ReadableStream");
@@ -79,24 +100,19 @@
           obj.choices[0] &&
           obj.choices[0].delta &&
           obj.choices[0].delta.content) ||
-        (obj.choices &&
-          obj.choices[0] &&
-          obj.choices[0].message &&
-          obj.choices[0].message.content) ||
-        obj.content ||
         "";
       if (delta) {
         full += delta;
-        if (onDelta) onDelta(delta, full);
+        if (onDelta) onDelta(delta);
       }
     }
 
     while (true) {
-      var step = await reader.read();
-      if (step.done) break;
-      buffer += decoder.decode(step.value, { stream: true });
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
       var parts = buffer.split("\n");
-      buffer = parts.pop() || "";
+      buffer = parts.pop();
       for (var i = 0; i < parts.length; i++) {
         var rawLine = parts[i].replace(/\r$/, "");
         if (!rawLine) continue;
@@ -126,9 +142,7 @@
   async function testLlm(cfg) {
     var key = (cfg.llm_api_key || "").trim();
     if (!key) throw new Error("请填写大模型 API Key");
-    var base = normalizeBase(cfg.llm_base_url);
     var out = await relay({
-      base_url: base,
       path: "/chat/completions",
       method: "POST",
       headers: { Authorization: "Bearer " + key },
@@ -153,9 +167,8 @@
   async function testVoice(cfg) {
     var key = (cfg.asr_api_key || cfg.tts_api_key || "").trim();
     if (!key) throw new Error("请至少填写 ASR 或 TTS 的 API Key");
-    var base = normalizeBase(cfg.asr_base_url || cfg.tts_base_url || cfg.llm_base_url);
     var out = await relay({
-      base_url: base,
+      mount: "asr",
       path: "/models",
       method: "GET",
       headers: { Authorization: "Bearer " + key },
@@ -174,10 +187,10 @@
   }
 
   async function storeRun(payload) {
-    /* Triggers marqdo run 求道-捕捉 via proxy (GAP-02). */
-    var res = await fetch(proxyBase() + "/store/run", {
+    var res = await fetch("/api/store/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify(payload),
     });
     var json = await res.json().catch(function () {
@@ -188,58 +201,30 @@
   }
 
   async function storeSync() {
-    var res = await fetch(proxyBase() + "/store/sync", {
+    var res = await fetch("/api/store/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: "{}",
     });
     return res.json();
   }
 
-  /**
-   * Prefer Marqdo web form /_form/note (same-origin), then sync files via Marqdo.
-   * Falls back to storeRun (求道-捕捉) if form missing.
-   */
   async function precipitateNote(fields) {
-    var form =
-      document.querySelector('form[action="/_form/note"]') ||
-      document.querySelector('form[action*="/_form/note"]');
-    if (!form) {
-      return storeRun({
-        title: fields.title,
-        task: fields.task || fields.summary || "",
-        result: fields.body || fields.result || "",
-        slug: fields.slug || "",
-        session_id: fields.session_id || "",
-        surface: fields.surface || "web",
-      });
-    }
-    var fd = new FormData(form);
-    if (fields.slug) fd.set("slug", fields.slug);
-    if (fields.title) fd.set("title", fields.title);
-    if (fields.summary != null) fd.set("summary", fields.summary);
-    if (fields.body) fd.set("body", fields.body);
-    var action = form.getAttribute("action") || "/_form/note";
-    var res = await fetch(action, {
-      method: "POST",
-      body: fd,
-      credentials: "same-origin",
-      headers: { Accept: "application/json, text/html" },
-      redirect: "follow",
+    return storeRun({
+      title: fields.title,
+      task: fields.task || fields.summary || "",
+      result: fields.body || fields.result || "",
+      slug: fields.slug || "",
+      session_id: fields.session_id || "",
+      surface: fields.surface || "web",
     });
-    if (!res.ok && res.status !== 303 && res.status !== 302) {
-      throw new Error("Marqdo 表单沉淀失败 HTTP " + res.status);
-    }
-    try {
-      await storeSync();
-    } catch (e) {
-      /* file sync best-effort */
-    }
-    return { ok: true, slug: fields.slug, path: "data/runs/" + fields.slug + ".mq.md", via: "form+sync" };
   }
 
   w.QdApi = {
-    proxyBase: proxyBase,
+    proxyBase: function () {
+      return apiRoot() || location.origin;
+    },
     normalizeBase: normalizeBase,
     relay: relay,
     relayStream: relayStream,

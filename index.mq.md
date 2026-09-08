@@ -7,6 +7,7 @@ import nav:components/nav.mq.md
 import side:components/side.mq.md
 import foot:components/foot.mq.md
 import db:db/index.mq.md
+import api:lib/api.mq.md
 import sys:lib/sys.mq.md
 ---
 
@@ -99,31 +100,31 @@ import sys:lib/sys.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 7 |
+| stylesheet | "/static/theme.css" | "text/css" | | 9 |
 
 `聊天头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 7 |
-| script | "/static/qd-api.js" | | true | 7 |
-| script | "/static/chat.js" | | true | 7 |
+| stylesheet | "/static/theme.css" | "text/css" | | 9 |
+| script | "/static/qd-api.js" | | true | 9 |
+| script | "/static/chat.js" | | true | 9 |
 
 `设置头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 7 |
-| script | "/static/qd-api.js" | | true | 7 |
-| script | "/static/settings.js" | | true | 7 |
+| stylesheet | "/static/theme.css" | "text/css" | | 9 |
+| script | "/static/qd-api.js" | | true | 9 |
+| script | "/static/settings.js" | | true | 9 |
 
 `接入头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 7 |
-| script | "/static/qd-api.js" | | true | 7 |
-| script | "/static/mcp.js" | | true | 7 |
+| stylesheet | "/static/theme.css" | "text/css" | | 9 |
+| script | "/static/qd-api.js" | | true | 9 |
+| script | "/static/mcp.js" | | true | 9 |
 
 `用户` =
 
@@ -187,23 +188,58 @@ import sys:lib/sys.mq.md
 *set_voice = > set_voice.字段 字段=`语音字段`*
 *set_voice = > set_voice.规则 规则=`语音规则`*
 
-*settings_hub = > 网页.页面 标题="设置" 引言="<h1>设置</h1><p>大模型、语音与 MCP 接入。知识本体是 <code>data/runs/*.mq.md</code>；可用 <code>marqdo catalog data/runs</code> / <code>marqdo view</code> 浏览，不用向量库。</p><ul class=\"qd-settings-links\"><li><a href=\"/settings/llm\">大模型设置</a></li><li><a href=\"/settings/voice\">语音设置</a></li><li><a href=\"/settings/mcp\">MCP 接入</a> — Cursor / Claude Desktop</li></ul>"*
+*settings_hub = > 网页.页面 标题="设置" 引言="<h1>设置</h1><p>大模型、语音与 MCP。知识本体是 <code>data/runs/*.mq.md</code>。LLM 同域中继与沉淀 API 已由 Marqdo <code>代理</code>/<code>调用</code> 提供（需重启以应用新的 Base URL）。</p><ul class=\"qd-settings-links\"><li><a href=\"/settings/llm\">大模型设置</a></li><li><a href=\"/settings/voice\">语音设置</a></li><li><a href=\"/settings/mcp\">MCP 接入</a></li></ul>"*
 *settings_hub = > settings_hub.组件装配 组件=`壳`*
 *settings_hub = > settings_hub.头装配 表=`头资源`*
 
-*settings_llm = > 网页.页面 标题="大模型设置" 引言="<h1>大模型设置</h1><p>OpenAI 兼容 Chat API。点击保存时会先发送一条 ping 测试，失败则不写入。</p><p id=\"qd-settings-status\" class=\"qd-settings-status\"></p>"*
+*settings_llm = > 网页.页面 标题="大模型设置" 引言="<h1>大模型设置</h1><p>OpenAI 兼容 Chat API。保存前会 ping；改 Base URL 后请重启 <code>marqdo run index.mq.md</code> 使同域 <code>/llm</code> 代理生效。</p><p id=\"qd-settings-status\" class=\"qd-settings-status\"></p>"*
 *settings_llm = > settings_llm.组件装配 组件=`壳`*
 *settings_llm = > settings_llm.表单装配 id="settings-llm" 表单=set_llm*
 *settings_llm = > settings_llm.头装配 表=`设置头`*
 
-*settings_voice = > 网页.页面 标题="语音设置" 引言="<h1>语音设置</h1><p>ASR（识别）与 TTS（合成）独立于大模型。保存前会用 Key 请求 <code>/v1/models</code> 做连通性测试。</p><p id=\"qd-settings-status\" class=\"qd-settings-status\"></p>"*
+*settings_voice = > 网页.页面 标题="语音设置" 引言="<h1>语音设置</h1><p>ASR / TTS 独立配置；同域 <code>/asr</code>、<code>/tts</code> 代理（改 URL 后需重启）。</p><p id=\"qd-settings-status\" class=\"qd-settings-status\"></p>"*
 *settings_voice = > settings_voice.组件装配 组件=`壳`*
 *settings_voice = > settings_voice.表单装配 id="settings-voice" 表单=set_voice*
 *settings_voice = > settings_voice.头装配 表=`设置头`*
 
-*settings_mcp = > 网页.页面 标题="MCP 接入" 引言="<h1>MCP 接入</h1><p>把求道接进 Cursor / Claude Desktop：编辑器用自己的模型，经 MCP 读写你的 <strong>.mq.md 笔记</strong>。工具实现走 Marqdo（<code>求道-捕捉/列出/搜索</code>）；stdio 宿主暂为 Python，见 <code>doc/gaps/01-marqdo-hard-limits.md</code>（GAP-03）。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_capture</code>。写盘请在编辑器侧批准。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查代理健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\">本机：<code>marqdo catalog data/runs</code>、<code>marqdo view data/runs</code>。流式 CORS 中继见 GAP-01。</p>"*
+*settings_mcp = > 网页.页面 标题="MCP 接入" 引言="<h1>MCP 接入</h1><p>Cursor / Claude Desktop 经 MCP 读写笔记。宿主为 <code>marqdo run 求道-mcp.mq.md</code>（Marqdo 0.3.7 <code>agent.mcp_server</code>）。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_capture</code>。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\"><code>marqdo catalog data/runs</code> · <code>marqdo view data/runs</code></p>"*
 *settings_mcp = > settings_mcp.组件装配 组件=`壳`*
 *settings_mcp = > settings_mcp.头装配 表=`接入头`*
+
+*cfg_rows = > store.select table="settings" limit=1*
+*cfg = cfg_rows[^1]*
+*llm_base = cfg[^llm_base_url]*
+1. not `llm_base`
+  *llm_base = "https://api.openai.com/v1"*
+*asr_base = cfg[^asr_base_url]*
+1. not `asr_base`
+  *asr_base = `llm_base`*
+*tts_base = cfg[^tts_base_url]*
+1. not `tts_base`
+  *tts_base = `llm_base`*
+
+`代理表` =
+
+| 路径 | 上游 | 流式 | 去前缀 | 方法 | 环境头 | 超时 |
+|------|------|------|--------|------|--------|------|
+| /llm/chat/completions | `llm_base` | 真 | /llm | POST | | 120000 |
+| /llm/models | `llm_base` | 真 | /llm | GET | | 60000 |
+| /asr/models | `asr_base` | 真 | /asr | GET | | 60000 |
+| /asr/audio/transcriptions | `asr_base` | 真 | /asr | POST | | 120000 |
+| /tts/audio/speech | `tts_base` | 真 | /tts | POST | | 120000 |
+| /tts/models | `tts_base` | 真 | /tts | GET | | 60000 |
+
+`调用表` =
+
+| 路径 | 方法 | 函数 | 正文 | 返回 |
+|------|------|------|------|------|
+| /api/health | GET | api.health | query | json |
+| /api/store/run | POST | api.capture | json | json |
+| /api/store/sync | POST | api.sync | json | json |
+| /api/store/search | POST | api.search | json | json |
+| /api/store/list | POST | api.list | json | json |
+| /api/store/runs | GET | api.list | query | json |
+| /api/store/get | POST | api.get_run | json | json |
 
 *app = > 网页.应用 页面=page 数据库=store 后台=True 后台前缀="/account" 主机=`host` 端口=`port` 登录回跳="/" 登出回跳="/account/login"*
 *app = > app.路由 路径="/notes" 页面=notes*
@@ -214,7 +250,7 @@ import sys:lib/sys.mq.md
 *app = > app.路由 路径="/settings/voice" 页面=settings_voice*
 *app = > app.路由 路径="/settings/mcp" 页面=settings_mcp*
 *app = > app.静态 目录="public" 挂载="/static"*
-*app = > app.装配 接口=`接口` 访问日志=True*
+*app = > app.装配 接口=`接口` 访问日志=True 代理=`代理表` 调用=`调用表`*
 *app = > app.鉴权 用户表=`用户` 会话时长=86400 登录回跳="/" 登出回跳="/account/login"*
 *app = > app.门禁 路径="/" 角色="user,admin" 匹配="exact" 拒绝="redirect"*
 *app = > app.门禁 路径="/notes" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
@@ -222,4 +258,7 @@ import sys:lib/sys.mq.md
 *app = > app.门禁 路径="/settings" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
 *app = > app.门禁 路径="/_form" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
 *app = > app.门禁 路径="/api" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
+*app = > app.门禁 路径="/llm" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
+*app = > app.门禁 路径="/asr" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
+*app = > app.门禁 路径="/tts" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
 > `app`.监听

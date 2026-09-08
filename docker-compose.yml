@@ -1,4 +1,4 @@
-# 求道 — Marqdo UI + LLM 代理（浏览器 CORS 中继）
+# 求道 — Marqdo 0.3.7+（proxy + invoke 同端口 :7431）
 services:
   qdagent:
     build: .
@@ -11,31 +11,6 @@ services:
       QDAGENT_HOST: "0.0.0.0"
       QDAGENT_PORT: "7431"
       QDAGENT_DATA: /data
-      QDAGENT_NO_PROXY: "1"
     volumes:
       - ./data:/data
-    restart: unless-stopped
-
-  llm-proxy:
-    image: python:3.12-slim
-    command: ["python3", "/app/scripts/llm_proxy.py"]
-    working_dir: /app
-    ports:
-      - "7432:7432"
-    environment:
-      QDAGENT_PROXY_HOST: "0.0.0.0"
-      QDAGENT_PROXY_PORT: "7432"
-      QDAGENT_PROXY_CORS: "*"
-      QDAGENT_DATA: /data
-    volumes:
-      - ./scripts/llm_proxy.py:/app/scripts/llm_proxy.py:ro
-      - ./scripts/mq_bridge.py:/app/scripts/mq_bridge.py:ro
-      - ./求道-捕捉.mq.md:/app/求道-捕捉.mq.md:ro
-      - ./求道-同步.mq.md:/app/求道-同步.mq.md:ro
-      - ./求道-列出.mq.md:/app/求道-列出.mq.md:ro
-      - ./求道-搜索.mq.md:/app/求道-搜索.mq.md:ro
-      - ./lib:/app/lib:ro
-      - ./db:/app/db:ro
-      - ./data:/data
-      # Marqdo gap GAP-01/02/04: proxy is temporary host — see doc/gaps/01-marqdo-hard-limits.md
     restart: unless-stopped

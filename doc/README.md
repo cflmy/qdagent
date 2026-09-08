@@ -5,7 +5,7 @@
 | 产品 | **qdagent** — 基于 [Marqdo](https://github.com/cflmy/marqdo) 的文档驱动智能体助手 |
 | 对标 | [OpenClaw](https://github.com/openclaw/openclaw) · [Hermes Agent](https://github.com/NousResearch/hermes-agent) |
 | 日期 | 2026-09-07 |
-| 语言运行时 | Marqdo v0.3.5（本机已装） |
+| 语言运行时 | Marqdo ≥ 0.3.7（本机已装） |
 
 ## 阅读顺序（建议）
 

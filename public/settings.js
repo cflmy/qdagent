@@ -48,7 +48,7 @@
       ev.preventDefault();
       ev.stopPropagation();
       var cfg = readCfg();
-      status("正在测试配置（经本地代理 7432）…", true);
+      status("正在测试配置（同域 /llm · /asr）…", true);
       var btn = form.querySelector('button[type="submit"]');
       if (btn) btn.disabled = true;
 
