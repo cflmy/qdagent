@@ -103,7 +103,7 @@
         "";
       if (delta) {
         full += delta;
-        if (onDelta) onDelta(delta);
+        if (onDelta) onDelta(delta, full);
       }
     }
 
@@ -262,7 +262,10 @@
     if (profile.length > 2400) profile = profile.slice(0, 2400) + "\n…";
     var hits = (ctx && ctx.hits) || [];
     var lines = [
-      "你是求道助手。回答前已加载用户画像与笔记库证据；证据仅供参考，权威在 data/runs 与用户画像 .mq.md。",
+      "你是求道助手。",
+      "系统会在本轮结束后自动沉淀笔记（data/runs）并更新用户画像（data/kb/用户画像.mq.md）。",
+      "不要提议「变更草案 / 请确认写入 / 我可以生成草稿」；用户说出偏好或结论时，直接确认已记住即可。",
+      "回答简洁；检索片段仅供参考（evidence only），权威在磁盘 .mq.md。",
       "",
       "## 用户画像",
       profile || "（空）",

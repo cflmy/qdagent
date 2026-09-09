@@ -1,6 +1,6 @@
 ---
 title: lib/profile
-description: 用户画像 — 多维度可读模板与按章追加（权威 data/kb/用户画像.mq.md）。
+description: 用户画像 — 多维度可读模板与自动追加（权威 data/kb/用户画像.mq.md）。
 import run:lib/run.mq.md
 import fs:lib/fs.mq.md
 import time:lib/time.mq.md
@@ -28,8 +28,6 @@ import time:lib/time.mq.md
 
 ## 重建
 
-用当前维度模板覆盖画像（保留路径）。
-
 *path = > 路径*
 *body = > 默认正文*
 > fs.write_text path=`path` text=`body`
@@ -50,7 +48,6 @@ import time:lib/time.mq.md
 
 ## 截断句
     + `text`=""
-    + `max`=80
 
 *s = `text`*
 1. not `s`
@@ -59,38 +56,51 @@ import time:lib/time.mq.md
 *first = parts[^1]*
 1. not `first`
   *first = `s`*
-*n = > len value=`first`*
-1. `n` > `max`
-  **`first` + "…"**
 **`first`**
 
 ## 轻量追加
     + `task`=""
     + `result`=""
 
-只写入「近期焦点」与「变更日志」短句；不写入 JSON / 长回复。
+自动写入近期焦点；若任务含「喜欢/偏好/不喜欢/记住」则写入沟通偏好。不写 JSON。
 
 *path = > 确保*
 *body = > fs.read_text path=`path`*
 *u = > time.now_unix*
 *day = > time.format unix=`u` pattern="%Y-%m-%d"*
-*focus = > 截断句 text=`task` max=80*
+*focus = > 截断句 text=`task`*
 1. not `focus`
   *focus = "（空任务）"*
-*line = "- [" + `day` + "] " + `focus`*
-*note = > 截断句 text=`result` max=60*
 
-*body = `body` + "\n" + `line`*
-1. `note`
-  *body = `body` + "\n- [" + `day` + "] 沉淀要点：" + `note`*
+*pref = ""*
+*p1 = > split value=`focus` sep="喜欢"*
+1. `p1`[^1]
+  *pref = `focus`*
+1. not `pref`
+  *p2 = > split value=`focus` sep="偏好"*
+  1. `p2`[^1]
+    *pref = `focus`*
+1. not `pref`
+  *p3 = > split value=`focus` sep="不喜欢"*
+  1. `p3`[^1]
+    *pref = `focus`*
+1. not `pref`
+  *p4 = > split value=`focus` sep="记住"*
+  1. `p4`[^1]
+    *pref = `focus`*
+
+*body = `body` + "\n- [" + `day` + "] 焦点：" + `focus`*
+1. `pref`
+  *body = `body` + "\n- [" + `day` + "] 偏好：" + `pref`*
+*body = `body` + "\n- [" + `day` + "] 自动沉淀\n"*
 
 *parts = > split value=`body` sep="\n"*
 *n = > len value=`parts`*
 1. `n` > 180
   *fresh = > 默认正文*
-  *body = `fresh` + "\n- [" + `day` + "] （截断后保留）" + `focus`*
-  1. `note`
-    *body = `body` + "\n- [" + `day` + "] 沉淀要点：" + `note`*
+  *body = `fresh` + "\n- [" + `day` + "] 焦点：" + `focus`*
+  1. `pref`
+    *body = `body` + "\n- [" + `day` + "] 偏好：" + `pref`*
 
 > fs.write_text path=`path` text=`body`
 **path**

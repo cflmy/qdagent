@@ -278,7 +278,7 @@
             },
           },
           function (delta, all) {
-            pending.textContent = all;
+            pending.textContent = all || (pending.textContent || "") + (delta || "");
             log.scrollTop = log.scrollHeight;
           },
           abortCtrl ? abortCtrl.signal : undefined
@@ -295,18 +295,23 @@
         s.messages.push({ role: "assistant", content: full });
         persist();
         await autoPrecipitate(s, text, full);
+        var precipOk = !!(s && s.lastRunSlug);
         try {
           await QdApi.storeProfileUpdate({
             task: text.slice(0, 200),
-            result: String(full).slice(0, 240),
+            result: String(full).slice(0, 120),
           });
           setStatus(
-            (status.textContent || "") +
-              (hitCount ? " · 已引用 " + hitCount + " 条" : "") +
-              " · 画像已更新"
+            (precipOk ? "已自动沉淀 · " + s.lastRunSlug : "沉淀未确认") +
+              (hitCount ? " · 引用 " + hitCount + " 条" : "") +
+              " · 画像已自动更新"
           );
         } catch (pe) {
-          /* profile update best-effort */
+          setStatus(
+            (precipOk ? "已自动沉淀 · " + s.lastRunSlug : "沉淀未确认") +
+              " · 画像更新失败：" +
+              (pe && pe.message ? pe.message : pe)
+          );
         }
       } catch (e) {
         if (e && e.name === "AbortError") {

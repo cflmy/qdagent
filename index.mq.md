@@ -100,39 +100,39 @@ import sys:lib/sys.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 11 |
+| stylesheet | "/static/theme.css" | "text/css" | | 12 |
 
 `聊天头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 11 |
-| script | "/static/qd-api.js" | | true | 11 |
-| script | "/static/chat.js" | | true | 11 |
+| stylesheet | "/static/theme.css" | "text/css" | | 12 |
+| script | "/static/qd-api.js" | | true | 12 |
+| script | "/static/chat.js" | | true | 12 |
 
 `设置头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 11 |
-| script | "/static/qd-api.js" | | true | 11 |
-| script | "/static/settings.js" | | true | 11 |
+| stylesheet | "/static/theme.css" | "text/css" | | 12 |
+| script | "/static/qd-api.js" | | true | 12 |
+| script | "/static/settings.js" | | true | 12 |
 
 `接入头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 11 |
-| script | "/static/qd-api.js" | | true | 11 |
-| script | "/static/mcp.js" | | true | 11 |
+| stylesheet | "/static/theme.css" | "text/css" | | 12 |
+| script | "/static/qd-api.js" | | true | 12 |
+| script | "/static/mcp.js" | | true | 12 |
 
 `记忆头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 11 |
-| script | "/static/qd-api.js" | | true | 11 |
-| script | "/static/memory.js" | | true | 11 |
+| stylesheet | "/static/theme.css" | "text/css" | | 12 |
+| script | "/static/qd-api.js" | | true | 12 |
+| script | "/static/memory.js" | | true | 12 |
 
 `用户` =
 
