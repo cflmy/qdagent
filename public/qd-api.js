@@ -151,11 +151,18 @@
       var rest = buffer.trim();
       if (rest.indexOf("data:") === 0) handleData(rest.slice(5).trim());
     }
-    // Some vendors put the whole answer in reasoning only — surface it.
+    // Some vendors put the whole answer in reasoning only — surface it,
+    // but never promote tool-call / thinker JSON blobs as the user-visible answer.
     if (!answer && reasoning) {
-      answer = reasoning;
-      reasoning = "";
-      emit(answer, "", "content");
+      var looksTool =
+        /^\s*\{[\s\S]*"tool_name"\s*:/.test(reasoning) ||
+        /^\s*\{[\s\S]*"name"\s*:\s*"thinker"/.test(reasoning) ||
+        /"arguments"\s*:\s*\{/.test(reasoning);
+      if (!looksTool) {
+        answer = reasoning;
+        reasoning = "";
+        emit(answer, "", "content");
+      }
     }
     return answer;
   }
@@ -292,21 +299,42 @@
   }
 
   /** Build system message from profile + corpus hits (+ optional web) — evidence only. */
-  function contextSystemMessage(ctx, web) {
+  function contextSystemMessage(ctx, web, opts) {
     var profile = (ctx && ctx.profile) || "";
     if (profile.length > 2400) profile = profile.slice(0, 2400) + "\n…";
     var hits = (ctx && ctx.hits) || [];
+    var wantWeb = !!(opts && opts.wantWeb);
+    var webHits = (web && web.hits) || [];
+    var provider = (web && web.provider) || "";
     var lines = [
       "你是求道助手。",
       "系统会在本轮结束后自动沉淀笔记（data/runs）并更新用户画像（data/kb/用户画像.mq.md）。",
       "不要提议「变更草案 / 请确认写入 / 我可以生成草稿」；用户说出偏好或结论时，直接确认已记住即可。",
       "回答简洁；检索片段与联网结果仅供参考（evidence only），权威在磁盘 .mq.md；联网内容需交叉验证。",
-      "",
-      "## 用户画像",
-      profile || "（空）",
-      "",
-      "## 笔记证据（evidence only）",
+      "不要输出 tool_name / thinker / function call 的 JSON；直接用自然语言回答。",
     ];
+    if (wantWeb) {
+      lines.push(
+        "【联网状态】本轮用户已开启联网检索。" +
+          (webHits.length
+            ? "已检索到 " +
+              webHits.length +
+              " 条网页证据（provider=" +
+              (provider || "?") +
+              "）。请基于下列「联网证据」回答，并明确告诉用户：当前可以联网检索。"
+            : "检索已执行但无命中或失败" +
+              (web && web.error ? "（" + String(web.error).slice(0, 160) + "）" : "") +
+              "。仍要明确告诉用户：联网开关已开，只是本轮未拿到可用网页片段；不要说「不能联网」。")
+      );
+      lines.push(
+        "若历史消息或笔记曾写「不能检索网络」，以本轮【联网状态】为准，那些是过时信息。"
+      );
+    } else {
+      lines.push(
+        "【联网状态】本轮未开启联网。若用户问能否联网，告知可勾选工具栏「联网」，或在问题里写「搜索一下」。"
+      );
+    }
+    lines.push("", "## 用户画像", profile || "（空）", "", "## 笔记证据（evidence only）");
     if (!hits.length) {
       lines.push("（无命中）");
     } else {
@@ -323,20 +351,26 @@
         );
       }
     }
-    var webHits = (web && web.hits) || [];
-    if (webHits.length) {
-      lines.push("", "## 联网证据（DuckDuckGo · evidence only）");
-      for (var j = 0; j < webHits.length; j++) {
-        var w = webHits[j] || {};
-        lines.push(
-          j +
-            1 +
-            ". " +
-            (w.title || "hit") +
-            (w.url ? " · " + w.url : "") +
-            "\n" +
-            String(w.snippet || "").slice(0, 400)
-        );
+    if (wantWeb) {
+      lines.push(
+        "",
+        "## 联网证据（" + (provider || "web") + " · evidence only）"
+      );
+      if (!webHits.length) {
+        lines.push("（无命中）");
+      } else {
+        for (var j = 0; j < webHits.length; j++) {
+          var w = webHits[j] || {};
+          lines.push(
+            j +
+              1 +
+              ". " +
+              (w.title || "hit") +
+              (w.url ? " · " + w.url : "") +
+              "\n" +
+              String(w.snippet || "").slice(0, 400)
+          );
+        }
       }
     }
     return lines.join("\n");

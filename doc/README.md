@@ -20,6 +20,7 @@
 9. [**Docker 部署（推荐）**](design/08-docker-deploy.md) ← 默认交付形态  
 10. [分阶段任务路线图](roadmap/07-task-roadmap.md)  
 11. [**Marqdo 能力缺口（必须阅读）**](gaps/01-marqdo-hard-limits.md) ← 非 Marqdo 脚本的唯一正当理由  
+12. [**Marqdo 解析 / 运行时缺陷**](gaps/02-marqdo-parser-and-runtime.md) ← 0.3.7 开发中确认的 Open bug  
 
 ## 目录结构
 
@@ -29,6 +30,7 @@ doc/
   00-overview.md
   gaps/
     01-marqdo-hard-limits.md
+    02-marqdo-parser-and-runtime.md
   research/
     …
   design/

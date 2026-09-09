@@ -55,6 +55,21 @@
       if (status) status.textContent = t;
     }
 
+    /** Scroll only the message pane (not the document), stick-to-bottom. */
+    function logNearBottom() {
+      return log.scrollHeight - log.scrollTop - log.clientHeight < 96;
+    }
+    function scrollLog(force) {
+      if (force || logNearBottom()) log.scrollTop = log.scrollHeight;
+    }
+
+    function autoSizeInput() {
+      if (!input) return;
+      input.style.height = "auto";
+      var h = Math.min(input.scrollHeight, 144);
+      input.style.height = Math.max(h, 44) + "px";
+    }
+
     function current() {
       return store.sessions.find(function (s) {
         return s.id === store.currentId;
@@ -231,7 +246,7 @@
       el.className = "qd-msg qd-" + role;
       setMsgContent(el, text || "", role);
       log.appendChild(el);
-      log.scrollTop = log.scrollHeight;
+      scrollLog(true);
       return el;
     }
 
@@ -331,6 +346,7 @@
       try {
         if (!(await ensureCfg())) return;
         input.value = "";
+        autoSizeInput();
         bubble("user", text);
         s.messages.push({ role: "user", content: text });
         persist();
@@ -345,12 +361,7 @@
         var web = null;
         var hitCount = 0;
         var webCount = 0;
-        var wantWeb =
-          (document.getElementById("qd-web") &&
-            document.getElementById("qd-web").checked) ||
-          /联网|搜索一下|查一下|最新|今天|今日|新闻|什么是|wikipedia|http/i.test(
-            text
-          );
+        var wantWeb = true;
         try {
           ctx = await QdApi.storeContext({ query: text, top_k: 5 });
           hitCount = (ctx.hits && ctx.hits.length) || 0;
@@ -359,15 +370,31 @@
         }
         if (wantWeb) {
           setStatus("联网搜索…");
+          var searchQ = text;
+          if (
+            /^(现在)?(可以|能)?(联网|检索网络|上网|搜索)(了|了吗|吗|么)?[？?！!\.。]*$/i.test(
+              text.trim()
+            ) ||
+            /你现在可以检索网络/.test(text)
+          ) {
+            searchQ = "求道 Marqdo 智能体 联网检索";
+          }
           try {
-            web = await QdApi.storeWebSearch({ query: text, limit: 5 });
+            web = await QdApi.storeWebSearch({ query: searchQ, limit: 5 });
             webCount = (web.hits && web.hits.length) || 0;
+            if (web && web.ok === false && !webCount) {
+              setStatus("联网无结果：" + (web.error || web.provider || ""));
+            }
           } catch (we) {
-            setStatus("联网跳过：" + (we && we.message ? we.message : we));
+            web = { ok: false, hits: [], error: String(we && we.message ? we.message : we) };
+            setStatus("联网跳过：" + web.error);
           }
         }
         apiMessages = [
-          { role: "system", content: QdApi.contextSystemMessage(ctx, web) },
+          {
+            role: "system",
+            content: QdApi.contextSystemMessage(ctx, web, { wantWeb: wantWeb }),
+          },
         ].concat(apiMessages);
 
         var base = QdApi.normalizeBase(cfg.llm_base_url);
@@ -390,14 +417,18 @@
           },
           function (delta, all, meta) {
             updateStreamBubble(pending, meta || { answer: all || "", reasoning: "" });
-            log.scrollTop = log.scrollHeight;
+            scrollLog(false);
           },
           abortCtrl ? abortCtrl.signal : undefined
         );
 
         pending.classList.remove("qd-streaming");
         if (!full) {
-          setMsgContent(pending, "（模型未返回内容）", "assistant");
+          var fallback =
+            "（模型未返回正文。若上方「思考过程」里出现 tool JSON，请再发一轮；联网已" +
+            (wantWeb ? (webCount ? "命中 " + webCount + " 条" : "开启但无命中") : "关闭") +
+            "。）";
+          setMsgContent(pending, fallback, "assistant");
           setStatus("空回复");
           return;
         }
@@ -579,6 +610,10 @@
     ensureSession();
     renderSessions();
     renderMessages();
+    autoSizeInput();
+    if (input) {
+      input.addEventListener("input", autoSizeInput);
+    }
     ensureCfg().catch(function (e) {
       setStatus("加载设置失败：" + e.message);
     });

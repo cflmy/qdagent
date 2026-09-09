@@ -80,3 +80,5 @@
 | 2026-09-07 | 升级 0.3.7；H1–H4 关闭 GAP-01…05；Python 迁入 `scripts/legacy/` |
 | 2026-09-07 | 修 Marqdo `GLOBAL_HOST` 嵌套清空；`api.search` 改 `corpus_search`；Docker 去掉 :7432 |
 | 2026-09-08 | 记忆闭环：画像 · context 查库 · 手动 organize |
+| 2026-09-09 | 另见 [02-marqdo-parser-and-runtime.md](02-marqdo-parser-and-runtime.md)：解析截断 / invoke Null / exec stdout / SSE 头 |
+

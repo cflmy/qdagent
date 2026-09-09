@@ -100,39 +100,39 @@ import sys:lib/sys.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 14 |
+| stylesheet | "/static/theme.css" | "text/css" | | 16 |
 
 `聊天头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 14 |
-| script | "/static/qd-api.js" | | true | 14 |
-| script | "/static/chat.js" | | true | 14 |
+| stylesheet | "/static/theme.css" | "text/css" | | 16 |
+| script | "/static/qd-api.js" | | true | 16 |
+| script | "/static/chat.js" | | true | 16 |
 
 `设置头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 14 |
-| script | "/static/qd-api.js" | | true | 14 |
-| script | "/static/settings.js" | | true | 14 |
+| stylesheet | "/static/theme.css" | "text/css" | | 16 |
+| script | "/static/qd-api.js" | | true | 16 |
+| script | "/static/settings.js" | | true | 16 |
 
 `接入头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 14 |
-| script | "/static/qd-api.js" | | true | 14 |
-| script | "/static/mcp.js" | | true | 14 |
+| stylesheet | "/static/theme.css" | "text/css" | | 16 |
+| script | "/static/qd-api.js" | | true | 16 |
+| script | "/static/mcp.js" | | true | 16 |
 
 `记忆头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 14 |
-| script | "/static/qd-api.js" | | true | 14 |
-| script | "/static/memory.js" | | true | 14 |
+| stylesheet | "/static/theme.css" | "text/css" | | 16 |
+| script | "/static/qd-api.js" | | true | 16 |
+| script | "/static/memory.js" | | true | 16 |
 
 `用户` =
 
@@ -156,13 +156,13 @@ import sys:lib/sys.mq.md
 
 *store = > db.open*
 
-*chat_intro = "<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>流式对话 · 自动沉淀为可审计 .mq.md</p></header><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><label class=\"qd-web-toggle\" title=\"勾选后本轮先 DuckDuckGo 检索再回答\"><input type=\"checkbox\" id=\"qd-web\">联网</label><button type=\"button\" id=\"qd-mic\">语音输入</button><button type=\"button\" id=\"qd-speak\">朗读回复</button><button type=\"button\" id=\"qd-save\">再存一份</button><button type=\"button\" id=\"qd-stop\" class=\"danger\" hidden>停止</button></div><div id=\"qd-log\" aria-live=\"polite\"></div><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"3\" placeholder=\"输入消息，Enter 发送；Shift+Enter 换行\"></textarea><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button></div></div></div>"*
+*chat_intro = "<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-chat-top\"><div class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>流式对话 · 自动联网 · 自动沉淀</p></div><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><button type=\"button\" id=\"qd-mic\">语音</button><button type=\"button\" id=\"qd-speak\">朗读</button><button type=\"button\" id=\"qd-save\">再存</button><button type=\"button\" id=\"qd-stop\" class=\"danger\" hidden>停止</button></div></header><div id=\"qd-log\" class=\"qd-log\" aria-live=\"polite\"></div><footer class=\"qd-composer\"><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"1\" placeholder=\"发送消息… Enter 发送，Shift+Enter 换行\"></textarea><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button></div></footer></div></div>"*
 
 *page = > 网页.页面 标题="求道 · 对话" 引言=`chat_intro`*
 *page = > page.布局 布局="sidebar"*
 *page = > page.组件装配 组件=`壳`*
 *page = > page.头装配 表=`聊天头`*
-*page = > page.样式 样式="main.main>.site-form{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;border:0!important;white-space:nowrap!important}.side-label{display:none!important}main.main{display:flex;flex-direction:column;min-height:0}main.main>.main-intro{flex:1;display:flex;flex-direction:column;min-height:0;padding:0;height:100%}"*
+*page = > page.样式 样式="html,body{height:100%;overflow:hidden}body{display:flex;flex-direction:column}header.topnav{flex-shrink:0}aside.side{display:none!important}.layout,.site-layout,body>.wrap,body>.container,#app,.page-shell{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}main.main{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:0!important;margin:0!important}main.main>.site-form{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;border:0!important;white-space:nowrap!important}.side-label{display:none!important}main.main>.main-intro{flex:1;min-height:0;display:flex;flex-direction:column;padding:0!important;overflow:hidden}footer.foot,.site-footer{display:none!important}"*
 
 *note_form = > 网页.表单 表="runs" 动作="插入"*
 *note_form = > note_form.字段 字段=`笔记字段`*

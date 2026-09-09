@@ -6,5 +6,6 @@ Enable only with `QDAGENT_LEGACY_PROXY=1 ./scripts/mq.sh run index.mq.md`.
 
 ## web_search.py
 
-Still used by `lib/web_search.mq.md` for DuckDuckGo Instant Answer with Bing CN HTML fallback
-(when DDG is unreachable). Invoked via `sys.exec`; writes `data/tmp/last_web_search.json`.
+Used by `lib/web_search.mq.md`. Prefer **Baidu** HTML, then 360 so.com; Bing CN is last
+resort (datacenter IPs often get SEO spam). Strips chat fluff from the query before search.
+Writes `data/tmp/last_web_search.json`. Set `QDAGENT_SKIP_DDG=1` to skip DDG Instant Answer.
