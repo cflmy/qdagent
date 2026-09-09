@@ -9,6 +9,61 @@
     return u || "https://api.openai.com/v1";
   }
 
+  var DICTATION_LANG_KEY = "qdagent.dictation_lang";
+
+  var DICTATION_LANGS = [
+    { value: "zh-CN", label: "中文（普通话）" },
+    { value: "en-US", label: "English (US)" },
+    { value: "en-GB", label: "English (UK)" },
+    { value: "zh-TW", label: "中文（台湾）" },
+    { value: "yue-HK", label: "粤语（香港）" },
+    { value: "auto", label: "跟随浏览器" },
+  ];
+
+  function getStoredDictationLang() {
+    try {
+      return (localStorage.getItem(DICTATION_LANG_KEY) || "").trim();
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function setStoredDictationLang(code) {
+    try {
+      if (code) localStorage.setItem(DICTATION_LANG_KEY, code);
+      else localStorage.removeItem(DICTATION_LANG_KEY);
+    } catch (e) {}
+  }
+
+  /** Resolve BCP-47 tag for Web Speech. Prefer local override, then settings, default zh-CN. */
+  function resolveDictationLang(cfg) {
+    var raw = (getStoredDictationLang() || (cfg && cfg.dictation_lang) || "zh-CN").trim();
+    if (!raw || raw === "auto") {
+      return (navigator.language || "zh-CN").trim() || "zh-CN";
+    }
+    return raw;
+  }
+
+  function fillDictationLangSelect(sel, preferred) {
+    if (!sel) return;
+    var cur = preferred || getStoredDictationLang() || "zh-CN";
+    sel.innerHTML = "";
+    for (var i = 0; i < DICTATION_LANGS.length; i++) {
+      var o = document.createElement("option");
+      o.value = DICTATION_LANGS[i].value;
+      o.textContent = DICTATION_LANGS[i].label;
+      if (DICTATION_LANGS[i].value === cur) o.selected = true;
+      sel.appendChild(o);
+    }
+    if (sel.value !== cur) {
+      var custom = document.createElement("option");
+      custom.value = cur;
+      custom.textContent = cur;
+      custom.selected = true;
+      sel.appendChild(custom);
+    }
+  }
+
   /** Same-origin LLM reverse proxy mount (/llm → settings llm_base_url). */
   function llmPath(path) {
     if (!path) path = "/";
@@ -22,16 +77,35 @@
     return "/asr" + path;
   }
 
+  function ttsPath(path) {
+    if (!path) path = "/";
+    if (path.charAt(0) !== "/") path = "/" + path;
+    return "/tts" + path;
+  }
+
+  function mountFn(mount) {
+    if (mount === "asr") return asrPath;
+    if (mount === "tts") return ttsPath;
+    return llmPath;
+  }
+
   async function relay(opts) {
     var path = opts.path || "/";
     var method = (opts.method || "POST").toUpperCase();
-    var mount = opts.mount === "asr" ? asrPath : llmPath;
-    var url = mount(path);
+    var url = mountFn(opts.mount)(path);
     var headers = Object.assign({ Accept: "application/json" }, opts.headers || {});
     var init = { method: method, headers: headers, credentials: "same-origin" };
+    if (opts.signal) init.signal = opts.signal;
     if (opts.body != null && method !== "GET" && method !== "HEAD") {
-      headers["Content-Type"] = opts.content_type || "application/json";
-      init.body = typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body);
+      if (typeof FormData !== "undefined" && opts.body instanceof FormData) {
+        // Let browser set multipart boundary — do not set Content-Type.
+        delete headers["Content-Type"];
+        init.body = opts.body;
+      } else {
+        headers["Content-Type"] = opts.content_type || "application/json";
+        init.body =
+          typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body);
+      }
     }
     var res = await fetch(url, init);
     var ctype = res.headers.get("Content-Type") || "";
@@ -40,10 +114,56 @@
       data = await res.json().catch(function () {
         return null;
       });
+    } else if (opts.as === "arrayBuffer" || ctype.indexOf("audio/") === 0) {
+      data = await res.arrayBuffer();
     } else {
       data = await res.text();
     }
-    return { ok: res.ok, status: res.status, url: url, data: data };
+    return {
+      ok: res.ok,
+      status: res.status,
+      url: url,
+      data: data,
+      content_type: ctype,
+    };
+  }
+
+  /**
+   * OpenAI-compatible POST /audio/transcriptions (multipart).
+   * Compatible with SiliconFlow SenseVoice / Whisper-style endpoints.
+   * https://api-docs.siliconflow.cn/docs/api/audio-transcriptions-post
+   */
+  async function transcribeAudio(opts) {
+    var blob = opts.blob || opts.file;
+    if (!blob) throw new Error("缺少音频文件");
+    var key = (opts.api_key || "").trim();
+    if (!key) throw new Error("请配置 ASR API Key");
+    var model = opts.model || "whisper-1";
+    var filename = opts.filename || "audio.webm";
+    var fd = new FormData();
+    fd.append("file", blob, filename);
+    fd.append("model", model);
+    if (opts.language) fd.append("language", opts.language);
+    if (opts.prompt) fd.append("prompt", opts.prompt);
+    if (opts.response_format) fd.append("response_format", opts.response_format);
+    var out = await relay({
+      mount: "asr",
+      path: "/audio/transcriptions",
+      method: "POST",
+      headers: { Authorization: "Bearer " + key },
+      body: fd,
+      signal: opts.signal,
+    });
+    if (!out.ok) {
+      var err =
+        (out.data && (out.data.message || (out.data.error && out.data.error.message))) ||
+        (typeof out.data === "string" ? out.data : JSON.stringify(out.data || {})).slice(0, 240);
+      throw new Error("ASR HTTP " + out.status + "：" + err);
+    }
+    var text =
+      (out.data && (out.data.text || out.data.transcript || out.data.result)) ||
+      (typeof out.data === "string" ? out.data : "");
+    return { text: String(text || "").trim(), raw: out.data, status: out.status };
   }
 
   /**
@@ -203,10 +323,15 @@
   }
 
   async function testVoice(cfg) {
-    var key = (cfg.asr_api_key || cfg.tts_api_key || "").trim();
-    if (!key) throw new Error("请至少填写 ASR 或 TTS 的 API Key");
+    var lang = (cfg.dictation_lang || "zh-CN").trim();
+    if (!lang) throw new Error("请填写听写语言（如 zh-CN / en-US / auto）");
+    var key = (cfg.tts_api_key || "").trim();
+    if (!key) {
+      // Dictation is browser-native — no upstream ASR to ping.
+      return { ok: true, skipped: "tts", dictation_lang: lang };
+    }
     var out = await relay({
-      mount: "asr",
+      mount: "tts",
       path: "/models",
       method: "GET",
       headers: { Authorization: "Bearer " + key },
@@ -219,9 +344,40 @@
           : (out.data && (out.data.error && (out.data.error.message || out.data.error))) ||
             out.error ||
             JSON.stringify(out.data || out).slice(0, 240);
-      throw new Error("语音接口测试失败 HTTP " + out.status + "：" + msg);
+      throw new Error("TTS 测试失败 HTTP " + out.status + "：" + msg);
     }
     return out;
+  }
+
+  /** OpenAI-compatible POST /audio/speech → ArrayBuffer. */
+  async function synthesizeSpeech(opts) {
+    var key = (opts.api_key || "").trim();
+    if (!key) throw new Error("请配置 TTS API Key");
+    var out = await relay({
+      mount: "tts",
+      path: "/audio/speech",
+      method: "POST",
+      headers: { Authorization: "Bearer " + key },
+      body: {
+        model: opts.model || "tts-1",
+        input: String(opts.input || "").slice(0, 4000),
+        voice: opts.voice || "alloy",
+      },
+      as: "arrayBuffer",
+    });
+    if (!out.ok) {
+      var err =
+        (out.data && out.data.byteLength == null &&
+          (out.data.message || (out.data.error && out.data.error.message))) ||
+        (typeof out.data === "string" ? out.data : "").slice(0, 240) ||
+        "TTS failed";
+      throw new Error("TTS HTTP " + out.status + "：" + err);
+    }
+    return {
+      buffer: out.data,
+      content_type: out.content_type || "audio/mpeg",
+      status: out.status,
+    };
   }
 
   async function storeRun(payload) {
@@ -264,13 +420,15 @@
     });
   }
 
-  async function storePost(path, payload) {
-    var res = await fetch(path, {
+  async function storePost(path, payload, opts) {
+    var init = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       body: JSON.stringify(payload || {}),
-    });
+    };
+    if (opts && opts.signal) init.signal = opts.signal;
+    var res = await fetch(path, init);
     var json = await res.json().catch(function () {
       return { ok: false, error: "store non-JSON" };
     });
@@ -278,8 +436,8 @@
     return json;
   }
 
-  async function storeContext(payload) {
-    return storePost("/api/store/context", payload || {});
+  async function storeContext(payload, opts) {
+    return storePost("/api/store/context", payload || {}, opts);
   }
 
   async function storeProfile() {
@@ -294,8 +452,40 @@
     return storePost("/api/store/organize", payload || {});
   }
 
-  async function storeWebSearch(payload) {
-    return storePost("/api/store/web_search", payload || {});
+  async function storeWebSearch(payload, opts) {
+    return storePost("/api/store/web_search", payload || {}, opts);
+  }
+
+  async function storeChangePropose(payload) {
+    return storePost("/api/store/changes/propose", payload || {});
+  }
+
+  async function storeChangeList(payload) {
+    return storePost("/api/store/changes/list", payload || {});
+  }
+
+  async function storeChangeGet(payload) {
+    return storePost("/api/store/changes/get", payload || {});
+  }
+
+  async function storeChangeApply(payload) {
+    return storePost("/api/store/changes/apply", payload || {});
+  }
+
+  async function storeChangeReject(payload) {
+    return storePost("/api/store/changes/reject", payload || {});
+  }
+
+  async function storeGitLog(payload) {
+    return storePost("/api/store/git/log", payload || {});
+  }
+
+  async function storeGitShow(payload) {
+    return storePost("/api/store/git/show", payload || {});
+  }
+
+  async function storeGitRevert(payload) {
+    return storePost("/api/store/git/revert", payload || {});
   }
 
   /** Build system message from profile + corpus hits (+ optional web) — evidence only. */
@@ -308,10 +498,18 @@
     var provider = (web && web.provider) || "";
     var lines = [
       "你是求道助手。",
-      "系统会在本轮结束后自动沉淀笔记（data/runs）并更新用户画像（data/kb/用户画像.mq.md）。",
-      "不要提议「变更草案 / 请确认写入 / 我可以生成草稿」；用户说出偏好或结论时，直接确认已记住即可。",
-      "回答简洁；检索片段与联网结果仅供参考（evidence only），权威在磁盘 .mq.md；联网内容需交叉验证。",
-      "不要输出 tool_name / thinker / function call 的 JSON；直接用自然语言回答。",
+      "系统会在本轮结束后自动沉淀新笔记到 data/runs（只追加，不改写历史 runs）。",
+      "清理/改写用户画像或既有笔记时：先用自然语言说明结论，然后必须附带一个可执行的变更块（界面会显示「同意应用」按钮，用户一点即写入磁盘）。",
+      "变更块格式（务必完整给出目标文件的新全文，不要只给 diff 片段）：",
+      "```qd-change",
+      "target: kb/用户画像.mq.md",
+      "title: 简短标题",
+      "reason: 一句话原因",
+      "---",
+      "（这里是改写后的完整 Markdown 正文）",
+      "```",
+      "在用户点击同意前，不得声称已经改写磁盘。用户说喜欢/偏好/记住时，同样用 qd-change 给出更新后的完整画像。",
+      "回答简洁；检索与联网仅供参考（evidence only）。不要输出 tool_name / thinker JSON。",
     ];
     if (wantWeb) {
       lines.push(
@@ -383,6 +581,13 @@
     normalizeBase: normalizeBase,
     relay: relay,
     relayStream: relayStream,
+    transcribeAudio: transcribeAudio,
+    synthesizeSpeech: synthesizeSpeech,
+    DICTATION_LANGS: DICTATION_LANGS,
+    resolveDictationLang: resolveDictationLang,
+    getStoredDictationLang: getStoredDictationLang,
+    setStoredDictationLang: setStoredDictationLang,
+    fillDictationLangSelect: fillDictationLangSelect,
     loadSettings: loadSettings,
     testLlm: testLlm,
     testVoice: testVoice,
@@ -394,6 +599,14 @@
     storeProfileUpdate: storeProfileUpdate,
     storeOrganize: storeOrganize,
     storeWebSearch: storeWebSearch,
+    storeChangePropose: storeChangePropose,
+    storeChangeList: storeChangeList,
+    storeChangeGet: storeChangeGet,
+    storeChangeApply: storeChangeApply,
+    storeChangeReject: storeChangeReject,
+    storeGitLog: storeGitLog,
+    storeGitShow: storeGitShow,
+    storeGitRevert: storeGitRevert,
     contextSystemMessage: contextSystemMessage,
   };
 })(window);

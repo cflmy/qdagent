@@ -82,10 +82,8 @@ import sys:lib/sys.mq.md
 
 | 字段 | 标签 | 类型 | 必填 | 默认 |
 |------|------|------|------|------|
-| asr_api_key | ASR API Key | text | false | |
-| asr_base_url | ASR Base URL | text | false | https://api.openai.com/v1 |
-| asr_model | ASR Model | text | false | whisper-1 |
-| tts_api_key | TTS API Key | text | false | |
+| dictation_lang | 听写语言（zh-CN 中文 / en-US 英文 / auto 跟随浏览器） | text | false | zh-CN |
+| tts_api_key | TTS API Key（仅朗读需要） | text | false | |
 | tts_base_url | TTS Base URL | text | false | https://api.openai.com/v1 |
 | tts_model | TTS Model | text | false | tts-1 |
 
@@ -93,46 +91,56 @@ import sys:lib/sys.mq.md
 
 | 字段 | 规则 | 消息 |
 |------|------|------|
-| asr_base_url | max:500 | ASR Base URL 太长 |
+| dictation_lang | max:32 | 听写语言代码过长 |
 | tts_base_url | max:500 | TTS Base URL 太长 |
 
 `头资源` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 16 |
+| stylesheet | "/static/theme.css" | "text/css" | | 24 |
 
 `聊天头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 16 |
-| script | "/static/qd-api.js" | | true | 16 |
-| script | "/static/chat.js" | | true | 16 |
+| stylesheet | "/static/theme.css" | "text/css" | | 24 |
+| script | "/static/qd-api.js" | | true | 24 |
+| script | "/static/qd-voice.js" | | true | 24 |
+| script | "/static/chat.js" | | true | 24 |
+
+`记一笔头` =
+
+| 关系 | 地址 | 类型 | 推迟 | 版本 |
+|------|------|------|------|------|
+| stylesheet | "/static/theme.css" | "text/css" | | 24 |
+| script | "/static/qd-api.js" | | true | 24 |
+| script | "/static/qd-voice.js" | | true | 24 |
+| script | "/static/notes-voice.js" | | true | 24 |
 
 `设置头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 16 |
-| script | "/static/qd-api.js" | | true | 16 |
-| script | "/static/settings.js" | | true | 16 |
+| stylesheet | "/static/theme.css" | "text/css" | | 24 |
+| script | "/static/qd-api.js" | | true | 24 |
+| script | "/static/settings.js" | | true | 24 |
 
 `接入头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 16 |
-| script | "/static/qd-api.js" | | true | 16 |
-| script | "/static/mcp.js" | | true | 16 |
+| stylesheet | "/static/theme.css" | "text/css" | | 24 |
+| script | "/static/qd-api.js" | | true | 24 |
+| script | "/static/mcp.js" | | true | 24 |
 
 `记忆头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 16 |
-| script | "/static/qd-api.js" | | true | 16 |
-| script | "/static/memory.js" | | true | 16 |
+| stylesheet | "/static/theme.css" | "text/css" | | 24 |
+| script | "/static/qd-api.js" | | true | 24 |
+| script | "/static/memory.js" | | true | 24 |
 
 `用户` =
 
@@ -156,7 +164,7 @@ import sys:lib/sys.mq.md
 
 *store = > db.open*
 
-*chat_intro = "<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-chat-top\"><div class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>流式对话 · 自动联网 · 自动沉淀</p></div><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><button type=\"button\" id=\"qd-mic\">语音</button><button type=\"button\" id=\"qd-speak\">朗读</button><button type=\"button\" id=\"qd-save\">再存</button><button type=\"button\" id=\"qd-stop\" class=\"danger\" hidden>停止</button></div></header><div id=\"qd-log\" class=\"qd-log\" aria-live=\"polite\"></div><footer class=\"qd-composer\"><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"1\" placeholder=\"发送消息… Enter 发送，Shift+Enter 换行\"></textarea><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button></div></footer></div></div>"*
+*chat_intro = "<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-chat-top\"><div class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>流式对话 · 自动联网 · 自动沉淀</p></div><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><button type=\"button\" id=\"qd-mic\">语音</button><button type=\"button\" id=\"qd-speak\">朗读</button><button type=\"button\" id=\"qd-save\">再存</button></div></header><div id=\"qd-log\" class=\"qd-log\" aria-live=\"polite\"></div><footer class=\"qd-composer\"><div id=\"qd-runbar\" class=\"qd-runbar\" hidden><span class=\"qd-runbar-pulse\" aria-hidden=\"true\"></span><div class=\"qd-runbar-main\"><strong id=\"qd-runbar-label\">进行中</strong><ol id=\"qd-run-steps\" class=\"qd-run-steps\"></ol></div><button type=\"button\" id=\"qd-stop-bar\" class=\"danger\">停止</button></div><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"1\" placeholder=\"发送消息… Enter 发送，Shift+Enter 换行，Esc 停止\"></textarea><div class=\"qd-send-slot\"><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button><button type=\"button\" id=\"qd-stop\" class=\"danger qd-stop-main\" hidden title=\"停止生成 (Esc)\" aria-label=\"停止生成\">停止</button></div></div></footer></div></div>"*
 
 *page = > 网页.页面 标题="求道 · 对话" 引言=`chat_intro`*
 *page = > page.布局 布局="sidebar"*
@@ -169,7 +177,7 @@ import sys:lib/sys.mq.md
 *note_form = > note_form.规则 规则=`笔记规则`*
 *page = > page.表单装配 id="note" 表单=note_form*
 
-*notes = > 网页.页面 标题="笔记库" 引言="<h1>笔记库</h1><p>对话回合结束后会<strong>自动沉淀</strong>到这里；回答前会检索本库与 <code>data/kb/用户画像.mq.md</code>。手动整理生成 <code>data/kb/整理-*.mq.md</code>，<strong>不改写</strong>历史 runs。也可<a href=\"/notes/new\">记一笔</a>或打开<a href=\"/settings/memory\">记忆</a>。</p>"*
+*notes = > 网页.页面 标题="笔记库" 引言="<h1>笔记库</h1><p>对话回合结束后会<strong>自动沉淀</strong>新 runs；回答前检索本库与画像。手动「生成整理索引」写出 <code>data/kb/整理-*.mq.md</code>，<strong>不改写</strong>历史 runs。清理/改写请到<a href=\"/settings/memory\">记忆 · 变更审查</a>（git 提案）。也可<a href=\"/notes/new\">记一笔</a>。</p>"*
 *notes = > notes.组件装配 组件=`壳`*
 *notes = > notes.主体装配 主体=`列表`*
 *notes = > notes.排序 排序="-created_at"*
@@ -183,10 +191,11 @@ import sys:lib/sys.mq.md
 *detail = > detail.详情 详情=True*
 *detail = > detail.头装配 表=`头资源`*
 
-*new = > 网页.页面 标题="记一笔" 引言="<h1>记一笔</h1><p>直接写入笔记库。对话默认已自动沉淀，此处用于补充手记。</p>"*
+*new = > 网页.页面 标题="记一笔" 引言="<h1>记一笔</h1><p>左栏实时语音转写，右栏自己写；小助手可据转写协作改写右侧。</p><div id=\"qd-note-split\" class=\"qd-note-split\"><section class=\"qd-note-col qd-note-voice-col\" aria-label=\"语音转写\"><header><h2>语音转写</h2><p class=\"qd-muted\">浏览器实时听写（Web Speech）。Win+H 为系统听写，网页无法直接调用；请用 Chrome/Edge，并以 https 或 127.0.0.1 打开。</p></header><div class=\"qd-notes-voice-row\"><button type=\"button\" id=\"qd-note-mic\" class=\"primary\">开始听写</button> <button type=\"button\" id=\"qd-note-clear-tx\">清空转写</button> <label class=\"qd-dictation-lang-wrap\">语言 <select id=\"qd-note-lang\" class=\"qd-dictation-lang\"></select></label> <span id=\"qd-note-voice-status\" class=\"qd-muted\"></span></div><div id=\"qd-note-vu\" class=\"qd-vu\" aria-live=\"polite\"><div class=\"qd-vu-track\"><div class=\"qd-vu-fill\" id=\"qd-note-vu-fill\"></div></div><span class=\"qd-vu-label\" id=\"qd-note-vu-label\">音量（听写时显示）</span></div><div id=\"qd-note-transcript\" class=\"qd-note-transcript\" contenteditable=\"true\" role=\"textbox\" aria-label=\"转写文本\"></div><p id=\"qd-note-interim\" class=\"qd-note-interim qd-muted\" aria-live=\"polite\"></p></section><section class=\"qd-note-col qd-note-write-col\" aria-label=\"自己写\"><header><h2>自己写</h2><p class=\"qd-muted\">可手写；点「小助手协作」根据左侧转写整理右侧标题/摘要/正文。</p></header><div class=\"qd-notes-voice-row\"><button type=\"button\" id=\"qd-note-assist\" class=\"primary\">小助手协作</button> <label class=\"qd-note-auto\"><input type=\"checkbox\" id=\"qd-note-auto-assist\"/> 停说后自动协作</label> <span id=\"qd-note-assist-status\" class=\"qd-muted\"></span></div><div id=\"qd-note-form-mount\"></div></section></div>"*
 *new = > new.组件装配 组件=`壳`*
 *new = > new.表单装配 id="manual-note" 表单=note_form*
-*new = > new.头装配 表=`头资源`*
+*new = > new.头装配 表=`记一笔头`*
+*new = > new.样式 样式=".qd-note-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;align-items:stretch;margin:0.75rem 0 1rem}@media(max-width:900px){.qd-note-split{grid-template-columns:1fr}}.qd-note-col{border:1px solid #d6cfc4;background:rgba(247,243,236,.45);padding:.85rem .95rem 1rem;min-height:16rem}.qd-note-col h2{margin:0 0 .25rem;font-size:1.05rem}.qd-note-transcript{min-height:12rem;max-height:28rem;overflow:auto;border:1px solid #d6cfc4;background:#fff;padding:.65rem .75rem;white-space:pre-wrap}"*
 
 *set_llm = > 网页.表单 表="settings" 动作="更新" id="1"*
 *set_llm = > set_llm.字段 字段=`大模型字段`*
@@ -205,7 +214,7 @@ import sys:lib/sys.mq.md
 *settings_llm = > settings_llm.表单装配 id="settings-llm" 表单=set_llm*
 *settings_llm = > settings_llm.头装配 表=`设置头`*
 
-*settings_voice = > 网页.页面 标题="语音设置" 引言="<h1>语音设置</h1><p>ASR / TTS 独立配置；同域 <code>/asr</code>、<code>/tts</code> 代理（改 URL 后需重启）。</p><p id=\"qd-settings-status\" class=\"qd-settings-status\"></p>"*
+*settings_voice = > 网页.页面 标题="语音设置" 引言="<h1>语音设置</h1><p><strong>实时听写</strong>使用浏览器 Web Speech（Chrome/Edge），<strong>无需外配 ASR</strong>。可设听写语言（中文 <code>zh-CN</code>、英文 <code>en-US</code> 等；浏览器 API 每次只能一种语言，中英混说请切换语言后重开听写）。TTS 仅用于「朗读」，同域 <code>/tts</code>（改 Base URL 后需重启）。</p><p id=\"qd-settings-status\" class=\"qd-settings-status\"></p>"*
 *settings_voice = > settings_voice.组件装配 组件=`壳`*
 *settings_voice = > settings_voice.表单装配 id="settings-voice" 表单=set_voice*
 *settings_voice = > settings_voice.头装配 表=`设置头`*
@@ -214,7 +223,7 @@ import sys:lib/sys.mq.md
 *settings_mcp = > settings_mcp.组件装配 组件=`壳`*
 *settings_mcp = > settings_mcp.头装配 表=`接入头`*
 
-*settings_memory = > 网页.页面 标题="记忆" 引言="<h1>记忆 · 画像与整理</h1><p>用户画像权威文件：<code>data/kb/用户画像.mq.md</code>（维度：身份、目标、沟通、习惯、工具、近期焦点、禁忌、变更日志）。对话会在回答前检索笔记，并在沉淀后<strong>短句</strong>追加焦点。整理为手动操作，写出可读 Markdown 索引（GFM 表格），不改写历史 runs。</p><p id=\"qd-memory-status\" class=\"qd-settings-status\"></p><p><button type=\"button\" id=\"qd-profile-refresh\" class=\"primary\">刷新画像</button> <button type=\"button\" id=\"qd-profile-reset\">重置画像模板</button> <input id=\"qd-organize-query\" type=\"text\" placeholder=\"整理关键词，默认求道\" style=\"max-width:14rem\"/> <button type=\"button\" id=\"qd-organize\">整理笔记库</button></p><pre id=\"qd-profile-body\" class=\"qd-profile-body\"></pre>"*
+*settings_memory = > 网页.页面 标题="记忆" 引言="<h1>记忆 · 画像与变更审查</h1><p>权威文件：<code>data/kb/用户画像.mq.md</code>；笔记在 <code>data/runs</code>。知识库使用独立 git（<code>data/.git</code>）。清理/改写须经<strong>变更提案</strong>审查后应用。「整理笔记库」只新增索引，不改写历史 runs。</p><p id=\"qd-memory-status\" class=\"qd-settings-status\"></p><p><button type=\"button\" id=\"qd-profile-refresh\" class=\"primary\">刷新画像</button> <button type=\"button\" id=\"qd-profile-reset\">提案：重置画像模板</button> <input id=\"qd-organize-query\" type=\"text\" placeholder=\"整理关键词，默认求道\" style=\"max-width:14rem\"/> <button type=\"button\" id=\"qd-organize\">生成整理索引</button></p><h2>待审变更</h2><div id=\"qd-changes-list\" class=\"qd-changes-list\"></div><pre id=\"qd-change-diff\" class=\"qd-change-diff\" hidden></pre><p class=\"qd-changes-actions\"><button type=\"button\" id=\"qd-change-apply\" class=\"primary\" disabled>应用选中</button> <button type=\"button\" id=\"qd-change-reject\" disabled>拒绝选中</button> <button type=\"button\" id=\"qd-changes-refresh\">刷新提案</button></p><h2>Git 历史</h2><div id=\"qd-git-log\" class=\"qd-git-log\"></div><p><button type=\"button\" id=\"qd-git-refresh\">刷新提交</button> <button type=\"button\" id=\"qd-git-revert\" disabled>回滚选中提交</button></p><h2>当前画像</h2><pre id=\"qd-profile-body\" class=\"qd-profile-body\"></pre>"*
 *settings_memory = > settings_memory.组件装配 组件=`壳`*
 *settings_memory = > settings_memory.头装配 表=`记忆头`*
 
@@ -223,9 +232,6 @@ import sys:lib/sys.mq.md
 *llm_base = cfg[^llm_base_url]*
 1. not `llm_base`
   *llm_base = "https://api.openai.com/v1"*
-*asr_base = cfg[^asr_base_url]*
-1. not `asr_base`
-  *asr_base = `llm_base`*
 *tts_base = cfg[^tts_base_url]*
 1. not `tts_base`
   *tts_base = `llm_base`*
@@ -236,8 +242,6 @@ import sys:lib/sys.mq.md
 |------|------|------|--------|------|--------|------|
 | /llm/chat/completions | `llm_base` | 真 | /llm | POST | | 120000 |
 | /llm/models | `llm_base` | 真 | /llm | GET | | 60000 |
-| /asr/models | `asr_base` | 真 | /asr | GET | | 60000 |
-| /asr/audio/transcriptions | `asr_base` | 真 | /asr | POST | | 120000 |
 | /tts/audio/speech | `tts_base` | 真 | /tts | POST | | 120000 |
 | /tts/models | `tts_base` | 真 | /tts | GET | | 60000 |
 
@@ -258,6 +262,14 @@ import sys:lib/sys.mq.md
 | /api/store/profile/reset | POST | api.profile_reset | json | json |
 | /api/store/organize | POST | api.organize | json | json |
 | /api/store/web_search | POST | api.web_search | json | json |
+| /api/store/changes/propose | POST | api.change_propose | json | json |
+| /api/store/changes/list | POST | api.change_list | json | json |
+| /api/store/changes/get | POST | api.change_get | json | json |
+| /api/store/changes/apply | POST | api.change_apply | json | json |
+| /api/store/changes/reject | POST | api.change_reject | json | json |
+| /api/store/git/log | POST | api.git_log | json | json |
+| /api/store/git/show | POST | api.git_show | json | json |
+| /api/store/git/revert | POST | api.git_revert | json | json |
 
 *app = > 网页.应用 页面=page 数据库=store 后台=True 后台前缀="/account" 主机=`host` 端口=`port` 登录回跳="/" 登出回跳="/account/login"*
 *app = > app.路由 路径="/notes" 页面=notes*
@@ -278,6 +290,5 @@ import sys:lib/sys.mq.md
 *app = > app.门禁 路径="/_form" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
 *app = > app.门禁 路径="/api" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
 *app = > app.门禁 路径="/llm" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
-*app = > app.门禁 路径="/asr" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
 *app = > app.门禁 路径="/tts" 角色="user,admin" 匹配="prefix" 拒绝="redirect"*
 > `app`.监听

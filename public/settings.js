@@ -26,6 +26,33 @@
         var el = form.querySelector('[name="' + k + '"]');
         if (el && row[k] != null && String(row[k]) !== "") el.value = row[k];
       });
+      if (kind === "voice") {
+        var langInput = form.querySelector('[name="dictation_lang"]');
+        var preferred =
+          QdApi.getStoredDictationLang() ||
+          (row && row.dictation_lang) ||
+          "zh-CN";
+        if (langInput) langInput.value = preferred;
+        enhanceLangSelect(langInput, preferred);
+      }
+    }
+
+    function enhanceLangSelect(langInput, preferred) {
+      if (!langInput || langInput.dataset.qdEnhanced) return;
+      langInput.dataset.qdEnhanced = "1";
+      var wrap = document.createElement("label");
+      wrap.className = "qd-dictation-lang-wrap";
+      wrap.innerHTML =
+        '听写语言（可随时改；中英请切换后重新听写）' +
+        '<select id="qd-settings-dictation-lang" class="qd-dictation-lang"></select>';
+      langInput.style.display = "none";
+      langInput.parentNode.insertBefore(wrap, langInput);
+      var sel = wrap.querySelector("select");
+      QdApi.fillDictationLangSelect(sel, preferred || langInput.value || "zh-CN");
+      sel.addEventListener("change", function () {
+        langInput.value = sel.value;
+        QdApi.setStoredDictationLang(sel.value);
+      });
     }
 
     function readCfg() {
@@ -48,7 +75,15 @@
       ev.preventDefault();
       ev.stopPropagation();
       var cfg = readCfg();
-      status("正在测试配置（同域 /llm · /asr）…", true);
+      if (kind === "voice") {
+        QdApi.setStoredDictationLang(cfg.dictation_lang || "zh-CN");
+      }
+      status(
+        kind === "voice"
+          ? "正在校验（听写用浏览器；若填了 TTS 则测 /tts）…"
+          : "正在测试配置（同域 /llm）…",
+        true
+      );
       var btn = form.querySelector('button[type="submit"]');
       if (btn) btn.disabled = true;
 

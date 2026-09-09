@@ -108,6 +108,25 @@ create run skeleton
 
 ---
 
+## 5.1 知识库 Git 与变更审查（2026-09-09）
+
+权威笔记在 **`data/`**（应用仓库的 `data/.gitignore` 忽略内容）。`data/` 使用**嵌套 git**：
+
+| 路径 | 作用 |
+|------|------|
+| `data/.git` | 知识库时间线（commit / revert） |
+| `data/runs/*.mq.md` | 只追加的执行沉淀 |
+| `data/kb/用户画像.mq.md` | 画像权威 |
+| `data/kb/整理-*.mq.md` | 只新增的主题索引 |
+| `data/kb/changes/*` | 变更提案（open → apply/reject） |
+
+**自动允许：** 新建 run / 新建整理索引 → 写盘后 `git commit`。  
+**必须审查：** 改写画像、重置模板、改既有 runs → `POST /api/store/changes/propose`，在「设置 → 记忆」看 diff 后 apply；可用 `git revert` 回滚。
+
+封装：`scripts/legacy/kb_git.py` · `kb_changes.py`（stdout 经临时 JSON，见 GAP-09）。
+
+---
+
 ## 6. 外部 API 的审计挂钩
 
 对 `POST /v1/chat/completions`：

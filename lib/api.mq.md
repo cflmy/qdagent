@@ -1,6 +1,6 @@
 ---
 title: lib/api
-description: HTTP invoke 入口 — 沉淀 / 同步 / 列表 / 搜索 / 画像 / 整理（供 app.invoke 与 MCP 共用）。
+description: HTTP invoke 入口 — 沉淀 / 同步 / 列表 / 搜索 / 画像 / 整理 / 变更提案（供 app.invoke 与 MCP 共用）。
 import run:lib/run.mq.md
 import db:../db/index.mq.md
 import fs:lib/fs.mq.md
@@ -11,13 +11,17 @@ import profile:lib/profile.mq.md
 import time:lib/time.mq.md
 import fmt:lib/kb_format.mq.md
 import websearch:lib/web_search.mq.md
+import kbgit:lib/kb_git.mq.md
+import changes:lib/changes.mq.md
 ---
 
 ## health
 
 *root = > run.确保目录*
+*git = > kbgit.确保*
 *out = > json.parse text={"ok":true,"role":"marqdo-host","marqdo":"0.3.7"}*
 *out = > json.set map=`out` key="data_root" value=`root`*
+*out = > json.set map=`out` key="git" value=`git`*
 **out**
 
 ## capture
@@ -58,9 +62,11 @@ import websearch:lib/web_search.mq.md
 
 *store = > db.open*
 *path = > run.沉淀 store=`store` title=`title` task=`task` result=`result` summary=`summary` slug=`slug` surface=`surface` session_id=`session_id`*
+*git = > kbgit.提交 message="capture: " + `slug`*
 *out = > json.parse text={"ok":true}*
 *out = > json.set map=`out` key="slug" value=`slug`*
 *out = > json.set map=`out` key="path" value=`path`*
+*out = > json.set map=`out` key="git" value=`git`*
 **out**
 
 ## sync
@@ -179,6 +185,8 @@ import websearch:lib/web_search.mq.md
     + `result`=""
     + `payload`=None
 
+偏好/焦点不再静默写盘：生成对「用户画像」的变更提案，待记忆页审查后应用。
+
 1. `payload`
   *pt = > json.get value=`payload` key="task"*
   1. `pt`
@@ -187,11 +195,20 @@ import websearch:lib/web_search.mq.md
   1. `pr`
     *result = `pr`*
 
-*path = > profile.轻量追加 task=`task` result=`result`*
-*body = > fs.read_text path=`path`*
-*out = > json.parse text={"ok":true}*
-*out = > json.set map=`out` key="path" value=`path`*
-*out = > json.set map=`out` key="body" value=`body`*
+*draft = > profile.试算追加 task=`task` result=`result`*
+*body = draft[^body]*
+*ppath = draft[^path]*
+*root = > run.确保目录*
+*payload_path = `root` + "/tmp/propose_payload.json"*
+*prop = > json.parse text={"target":"kb/用户画像.mq.md","source":"profile_update"}*
+*prop = > json.set map=`prop` key="title" value="画像追加 · " + `task`*
+*prop = > json.set map=`prop` key="reason" value="对话偏好/焦点提案（未自动应用）"*
+*prop = > json.set map=`prop` key="body" value=`body`*
+*raw = > json.stringify value=`prop`*
+> fs.write_text path=`payload_path` text=`raw`
+*out = > changes.提案 payload_path=`payload_path`*
+*out = > json.set map=`out` key="profile_path" value=`ppath`*
+*out = > json.set map=`out` key="mode" value="propose"*
 **out**
 
 ## organize
@@ -222,25 +239,129 @@ import websearch:lib/web_search.mq.md
 *kb_path = `root` + "/kb/整理-" + `stamp` + ".mq.md"*
 *plan = > fmt.整理文稿 query=`query` day=`day` hits=`hits` rows=`rows`*
 > fs.write_text path=`kb_path` text=`plan`
-*brief = "整理完成：主题「" + `query` + "」。可读索引已写入 kb/整理-" + `stamp` + ".mq.md（表格摘要，无 JSON dump）。历史 runs 未改写。"*
+*brief = "整理完成：主题「" + `query` + "」。可读索引已写入 kb/整理-" + `stamp` + ".mq.md（表格摘要，无 JSON dump）。历史 runs 未改写。清理画像请走变更提案。"*
 *store = > db.open*
 *run_path = > run.沉淀 store=`store` title="笔记整理 · " + `query` task=`query` result=`brief` summary=`brief` slug=`slug` surface="organize"*
+*git = > kbgit.提交 message="organize: " + `query`*
 *out = > json.parse text={"ok":true}*
 *out = > json.set map=`out` key="kb_path" value=`kb_path`*
 *out = > json.set map=`out` key="slug" value=`slug`*
 *out = > json.set map=`out` key="path" value=`run_path`*
 *out = > json.set map=`out` key="summary" value=`brief`*
 *out = > json.set map=`out` key="hits" value=`hits`*
+*out = > json.set map=`out` key="git" value=`git`*
 **out**
 
 ## profile_reset
     + `payload`=None
 
-*path = > profile.重建*
-*body = > fs.read_text path=`path`*
-*out = > json.parse text={"ok":true}*
-*out = > json.set map=`out` key="path" value=`path`*
-*out = > json.set map=`out` key="body" value=`body`*
+重置改为变更提案（完整模板正文），不直接覆盖权威画像。
+
+*root = > run.确保目录*
+*tpl = > profile.默认正文*
+*payload_path = `root` + "/tmp/propose_payload.json"*
+*prop = > json.parse text={"target":"kb/用户画像.mq.md","source":"profile_reset","title":"重置用户画像模板"}*
+*prop = > json.set map=`prop` key="reason" value="重置为多维度模板（需审查后应用）"*
+*prop = > json.set map=`prop` key="body" value=`tpl`*
+*raw = > json.stringify value=`prop`*
+> fs.write_text path=`payload_path` text=`raw`
+*out = > changes.提案 payload_path=`payload_path`*
+*out = > json.set map=`out` key="mode" value="propose"*
+**out**
+
+## change_propose
+    + `payload`=None
+
+*root = > run.确保目录*
+*payload_path = `root` + "/tmp/propose_payload.json"*
+*raw = > json.stringify value=`payload`*
+> fs.write_text path=`payload_path` text=`raw`
+*out = > changes.提案 payload_path=`payload_path`*
+**out**
+
+## change_list
+    + `status`=""
+    + `payload`=None
+
+1. `payload`
+  *ps = > json.get value=`payload` key="status"*
+  1. `ps`
+    *status = `ps`*
+
+*out = > changes.列表 status=`status`*
+**out**
+
+## change_get
+    + `id`=""
+    + `payload`=None
+
+1. `payload`
+  *pid = > json.get value=`payload` key="id"*
+  1. `pid`
+    *id = `pid`*
+
+*out = > changes.详情 id=`id`*
+**out**
+
+## change_apply
+    + `id`=""
+    + `payload`=None
+
+1. `payload`
+  *pid = > json.get value=`payload` key="id"*
+  1. `pid`
+    *id = `pid`*
+
+*out = > changes.应用 id=`id`*
+**out**
+
+## change_reject
+    + `id`=""
+    + `payload`=None
+
+1. `payload`
+  *pid = > json.get value=`payload` key="id"*
+  1. `pid`
+    *id = `pid`*
+
+*out = > changes.拒绝 id=`id`*
+**out**
+
+## git_log
+    + `limit`=20
+    + `payload`=None
+
+1. `payload`
+  *pl = > json.get value=`payload` key="limit"*
+  1. `pl`
+    *limit = `pl`*
+
+*lim = "" + `limit`*
+*out = > kbgit.日志 limit=`lim`*
+**out**
+
+## git_show
+    + `rev`="HEAD"
+    + `payload`=None
+
+1. `payload`
+  *pr = > json.get value=`payload` key="rev"*
+  1. `pr`
+    *rev = `pr`*
+
+*out = > kbgit.查看 rev=`rev`*
+**out**
+
+## git_revert
+    + `rev`=""
+    + `payload`=None
+
+1. `payload`
+  *pr = > json.get value=`payload` key="rev"*
+  1. `pr`
+    *rev = `pr`*
+
+*out = > kbgit.回滚 rev=`rev`*
 **out**
 
 ## web_search

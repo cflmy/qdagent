@@ -21,8 +21,10 @@ import web:ext/web/web.mq.md
 > fs.make_dir path=`root`
 > fs.make_dir path=`root` + "/runs"
 > fs.make_dir path=`root` + "/kb"
+> fs.make_dir path=`root` + "/kb/changes"
 > fs.make_dir path=`root` + "/skills"
 > fs.make_dir path=`root` + "/sessions"
+> fs.make_dir path=`root` + "/tmp"
 **root**
 
 ## 新标识

@@ -30,3 +30,10 @@ Thumbs.db
 _t.mq.md
 _s.mq.md
 *.ck
+
+# Local knowledge vault (nested git under data/; do not push user notes)
+/data/kb/
+/data/runs/
+/data/sessions/
+/data/skills/
+/data/tmp/
