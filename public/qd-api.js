@@ -48,6 +48,11 @@
 
   /**
    * Stream chat completions via same-origin /llm/chat/completions (app.proxy SSE).
+   * Industry pattern (vLLM / Qwen / DeepSeek): consume both delta.content and
+   * delta.reasoning_content; answer channel may stay empty until reasoning ends.
+   * onDelta(contentDelta, answerFull, meta) where meta =
+   *   { reasoningDelta, reasoning, answer, phase: "reasoning"|"content" }
+   * Returns answer text only (not reasoning).
    */
   async function relayStream(opts, onDelta, signal) {
     var body = Object.assign({}, opts.body || {}, { stream: true });
@@ -73,8 +78,19 @@
     var reader = res.body.getReader();
     var decoder = new TextDecoder("utf-8");
     var buffer = "";
-    var full = "";
+    var answer = "";
+    var reasoning = "";
     var sawDone = false;
+
+    function emit(contentDelta, reasoningDelta, phase) {
+      if (!onDelta) return;
+      onDelta(contentDelta || "", answer, {
+        reasoningDelta: reasoningDelta || "",
+        reasoning: reasoning,
+        answer: answer,
+        phase: phase,
+      });
+    }
 
     function handleData(payload) {
       var line = payload.trim();
@@ -96,14 +112,22 @@
         throw new Error(em);
       }
       var delta =
-        (obj.choices &&
-          obj.choices[0] &&
-          obj.choices[0].delta &&
-          obj.choices[0].delta.content) ||
+        (obj.choices && obj.choices[0] && obj.choices[0].delta) || {};
+      var r =
+        delta.reasoning_content ||
+        delta.reasoning ||
+        delta.thinking ||
         "";
-      if (delta) {
-        full += delta;
-        if (onDelta) onDelta(delta, full);
+      var c = delta.content || "";
+      if (typeof r !== "string") r = "";
+      if (typeof c !== "string") c = "";
+      if (r) {
+        reasoning += r;
+        emit("", r, "reasoning");
+      }
+      if (c) {
+        answer += c;
+        emit(c, "", "content");
       }
     }
 
@@ -111,6 +135,7 @@
       var chunk = await reader.read();
       if (chunk.done) break;
       buffer += decoder.decode(chunk.value, { stream: true });
+      // SSE events are blank-line delimited; also split by \n for data: lines.
       var parts = buffer.split("\n");
       buffer = parts.pop();
       for (var i = 0; i < parts.length; i++) {
@@ -126,7 +151,13 @@
       var rest = buffer.trim();
       if (rest.indexOf("data:") === 0) handleData(rest.slice(5).trim());
     }
-    return full;
+    // Some vendors put the whole answer in reasoning only — surface it.
+    if (!answer && reasoning) {
+      answer = reasoning;
+      reasoning = "";
+      emit(answer, "", "content");
+    }
+    return answer;
   }
 
   async function loadSettings() {
@@ -256,8 +287,12 @@
     return storePost("/api/store/organize", payload || {});
   }
 
-  /** Build system message from profile + corpus hits (evidence only). */
-  function contextSystemMessage(ctx) {
+  async function storeWebSearch(payload) {
+    return storePost("/api/store/web_search", payload || {});
+  }
+
+  /** Build system message from profile + corpus hits (+ optional web) — evidence only. */
+  function contextSystemMessage(ctx, web) {
     var profile = (ctx && ctx.profile) || "";
     if (profile.length > 2400) profile = profile.slice(0, 2400) + "\n…";
     var hits = (ctx && ctx.hits) || [];
@@ -265,7 +300,7 @@
       "你是求道助手。",
       "系统会在本轮结束后自动沉淀笔记（data/runs）并更新用户画像（data/kb/用户画像.mq.md）。",
       "不要提议「变更草案 / 请确认写入 / 我可以生成草稿」；用户说出偏好或结论时，直接确认已记住即可。",
-      "回答简洁；检索片段仅供参考（evidence only），权威在磁盘 .mq.md。",
+      "回答简洁；检索片段与联网结果仅供参考（evidence only），权威在磁盘 .mq.md；联网内容需交叉验证。",
       "",
       "## 用户画像",
       profile || "（空）",
@@ -285,6 +320,22 @@
             (h.score != null ? h.score : "") +
             "\n" +
             String(h.excerpt || "").slice(0, 400)
+        );
+      }
+    }
+    var webHits = (web && web.hits) || [];
+    if (webHits.length) {
+      lines.push("", "## 联网证据（DuckDuckGo · evidence only）");
+      for (var j = 0; j < webHits.length; j++) {
+        var w = webHits[j] || {};
+        lines.push(
+          j +
+            1 +
+            ". " +
+            (w.title || "hit") +
+            (w.url ? " · " + w.url : "") +
+            "\n" +
+            String(w.snippet || "").slice(0, 400)
         );
       }
     }
@@ -308,6 +359,7 @@
     storeProfile: storeProfile,
     storeProfileUpdate: storeProfileUpdate,
     storeOrganize: storeOrganize,
+    storeWebSearch: storeWebSearch,
     contextSystemMessage: contextSystemMessage,
   };
 })(window);

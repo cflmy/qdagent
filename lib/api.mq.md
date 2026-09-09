@@ -10,6 +10,7 @@ import agent:ext/ai/agent.mq.md
 import profile:lib/profile.mq.md
 import time:lib/time.mq.md
 import fmt:lib/kb_format.mq.md
+import websearch:lib/web_search.mq.md
 ---
 
 ## health
@@ -240,4 +241,20 @@ import fmt:lib/kb_format.mq.md
 *out = > json.parse text={"ok":true}*
 *out = > json.set map=`out` key="path" value=`path`*
 *out = > json.set map=`out` key="body" value=`body`*
+**out**
+
+## web_search
+    + `query`=""
+    + `limit`=5
+    + `payload`=None
+
+1. `payload`
+  *pq = > json.get value=`payload` key="query"*
+  1. `pq`
+    *query = `pq`*
+  *pl = > json.get value=`payload` key="limit"*
+  1. `pl`
+    *limit = `pl`*
+
+*out = > websearch.search query=`query` limit=`limit`*
 **out**

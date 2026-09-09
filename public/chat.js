@@ -169,11 +169,61 @@
     function setMsgContent(el, text, role) {
       var t = text || "";
       el.dataset.raw = t;
+      var answerEl = el.querySelector(".qd-answer");
+      if (answerEl) {
+        if (role === "assistant" || el.classList.contains("qd-assistant")) {
+          answerEl.innerHTML = formatMsgHtml(t);
+        } else {
+          answerEl.textContent = t;
+        }
+        return;
+      }
       if (role === "assistant" || el.classList.contains("qd-assistant")) {
         el.innerHTML = formatMsgHtml(t);
       } else {
         el.textContent = t;
       }
+    }
+
+    function ensureStreamLayout(el) {
+      if (el.querySelector(".qd-answer")) return el;
+      el.innerHTML = "";
+      var think = document.createElement("details");
+      think.className = "qd-think";
+      think.open = true;
+      var sum = document.createElement("summary");
+      sum.textContent = "思考中…";
+      var body = document.createElement("div");
+      body.className = "qd-think-body";
+      think.appendChild(sum);
+      think.appendChild(body);
+      think.hidden = true;
+      var answer = document.createElement("div");
+      answer.className = "qd-answer";
+      el.appendChild(think);
+      el.appendChild(answer);
+      return el;
+    }
+
+    function updateStreamBubble(el, meta) {
+      ensureStreamLayout(el);
+      var think = el.querySelector(".qd-think");
+      var body = el.querySelector(".qd-think-body");
+      var sum = think && think.querySelector("summary");
+      var answer = el.querySelector(".qd-answer");
+      var reasoning = (meta && meta.reasoning) || "";
+      var text = (meta && meta.answer) || "";
+      el.dataset.raw = text;
+      if (reasoning) {
+        think.hidden = false;
+        body.textContent = reasoning;
+        if (sum) {
+          sum.textContent =
+            meta.phase === "content" || text ? "思考过程" : "思考中…";
+        }
+        if (meta.phase === "content" && text) think.open = false;
+      }
+      answer.innerHTML = formatMsgHtml(text);
     }
 
     function bubble(role, text) {
@@ -287,26 +337,44 @@
 
         var pending = bubble("assistant", "");
         pending.classList.add("qd-streaming");
+        ensureStreamLayout(pending);
         var apiMessages = buildApiMessages(s);
 
         setStatus("检索笔记…");
         var ctx = null;
+        var web = null;
         var hitCount = 0;
+        var webCount = 0;
+        var wantWeb =
+          (document.getElementById("qd-web") &&
+            document.getElementById("qd-web").checked) ||
+          /联网|搜索一下|查一下|最新|今天|今日|新闻|什么是|wikipedia|http/i.test(
+            text
+          );
         try {
           ctx = await QdApi.storeContext({ query: text, top_k: 5 });
           hitCount = (ctx.hits && ctx.hits.length) || 0;
-          apiMessages = [
-            { role: "system", content: QdApi.contextSystemMessage(ctx) },
-          ].concat(apiMessages);
         } catch (ce) {
           setStatus("检索跳过：" + (ce && ce.message ? ce.message : ce));
         }
+        if (wantWeb) {
+          setStatus("联网搜索…");
+          try {
+            web = await QdApi.storeWebSearch({ query: text, limit: 5 });
+            webCount = (web.hits && web.hits.length) || 0;
+          } catch (we) {
+            setStatus("联网跳过：" + (we && we.message ? we.message : we));
+          }
+        }
+        apiMessages = [
+          { role: "system", content: QdApi.contextSystemMessage(ctx, web) },
+        ].concat(apiMessages);
 
         var base = QdApi.normalizeBase(cfg.llm_base_url);
         setStatus(
-          hitCount
-            ? "生成中…（已引用 " + hitCount + " 条笔记）"
-            : "生成中…"
+          (hitCount ? "笔记 " + hitCount : "无笔记") +
+            (webCount ? " · 联网 " + webCount : wantWeb ? " · 联网无结果" : "") +
+            " · 生成中…"
         );
         var full = await QdApi.relayStream(
           {
@@ -320,9 +388,8 @@
               stream: true,
             },
           },
-          function (delta, all) {
-            var t = all || ((pending.dataset.raw || "") + (delta || ""));
-            setMsgContent(pending, t, "assistant");
+          function (delta, all, meta) {
+            updateStreamBubble(pending, meta || { answer: all || "", reasoning: "" });
             log.scrollTop = log.scrollHeight;
           },
           abortCtrl ? abortCtrl.signal : undefined
@@ -335,6 +402,13 @@
           return;
         }
         setMsgContent(pending, full, "assistant");
+        var thinkDone = pending.querySelector(".qd-think");
+        if (thinkDone && thinkDone.querySelector(".qd-think-body") &&
+            thinkDone.querySelector(".qd-think-body").textContent) {
+          thinkDone.open = false;
+          var sumDone = thinkDone.querySelector("summary");
+          if (sumDone) sumDone.textContent = "思考过程";
+        }
         lastAssistant = full;
         s.messages.push({ role: "assistant", content: full });
         persist();
@@ -348,6 +422,7 @@
           setStatus(
             (precipOk ? "已自动沉淀 · " + s.lastRunSlug : "沉淀未确认") +
               (hitCount ? " · 引用 " + hitCount + " 条" : "") +
+              (webCount ? " · 联网 " + webCount : "") +
               " · 画像已自动更新"
           );
         } catch (pe) {

@@ -1,0 +1,14 @@
+--- a/plugins/web/src/proxy.rs
++++ b/plugins/web/src/proxy.rs
+@@ stream response headers
+     if route.stream {
++        // Industry SSE practice: disable reverse-proxy buffering (Nginx etc.).
++        out_headers.insert(
++            HeaderName::from_static("cache-control"),
++            HeaderValue::from_static("no-cache, no-transform"),
++        );
++        out_headers.insert(
++            HeaderName::from_static("x-accel-buffering"),
++            HeaderValue::from_static("no"),
++        );
+         let stream = upstream.bytes_stream()...

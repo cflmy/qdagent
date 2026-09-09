@@ -100,39 +100,39 @@ import sys:lib/sys.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 13 |
+| stylesheet | "/static/theme.css" | "text/css" | | 14 |
 
 `聊天头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 13 |
-| script | "/static/qd-api.js" | | true | 13 |
-| script | "/static/chat.js" | | true | 13 |
+| stylesheet | "/static/theme.css" | "text/css" | | 14 |
+| script | "/static/qd-api.js" | | true | 14 |
+| script | "/static/chat.js" | | true | 14 |
 
 `设置头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 13 |
-| script | "/static/qd-api.js" | | true | 13 |
-| script | "/static/settings.js" | | true | 13 |
+| stylesheet | "/static/theme.css" | "text/css" | | 14 |
+| script | "/static/qd-api.js" | | true | 14 |
+| script | "/static/settings.js" | | true | 14 |
 
 `接入头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 13 |
-| script | "/static/qd-api.js" | | true | 13 |
-| script | "/static/mcp.js" | | true | 13 |
+| stylesheet | "/static/theme.css" | "text/css" | | 14 |
+| script | "/static/qd-api.js" | | true | 14 |
+| script | "/static/mcp.js" | | true | 14 |
 
 `记忆头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 13 |
-| script | "/static/qd-api.js" | | true | 13 |
-| script | "/static/memory.js" | | true | 13 |
+| stylesheet | "/static/theme.css" | "text/css" | | 14 |
+| script | "/static/qd-api.js" | | true | 14 |
+| script | "/static/memory.js" | | true | 14 |
 
 `用户` =
 
@@ -156,7 +156,7 @@ import sys:lib/sys.mq.md
 
 *store = > db.open*
 
-*chat_intro = "<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>流式对话 · 自动沉淀为可审计 .mq.md</p></header><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><button type=\"button\" id=\"qd-mic\">语音输入</button><button type=\"button\" id=\"qd-speak\">朗读回复</button><button type=\"button\" id=\"qd-save\">再存一份</button><button type=\"button\" id=\"qd-stop\" class=\"danger\" hidden>停止</button></div><div id=\"qd-log\" aria-live=\"polite\"></div><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"3\" placeholder=\"输入消息，Enter 发送；Shift+Enter 换行\"></textarea><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button></div></div></div>"*
+*chat_intro = "<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>流式对话 · 自动沉淀为可审计 .mq.md</p></header><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><label class=\"qd-web-toggle\" title=\"勾选后本轮先 DuckDuckGo 检索再回答\"><input type=\"checkbox\" id=\"qd-web\">联网</label><button type=\"button\" id=\"qd-mic\">语音输入</button><button type=\"button\" id=\"qd-speak\">朗读回复</button><button type=\"button\" id=\"qd-save\">再存一份</button><button type=\"button\" id=\"qd-stop\" class=\"danger\" hidden>停止</button></div><div id=\"qd-log\" aria-live=\"polite\"></div><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"3\" placeholder=\"输入消息，Enter 发送；Shift+Enter 换行\"></textarea><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button></div></div></div>"*
 
 *page = > 网页.页面 标题="求道 · 对话" 引言=`chat_intro`*
 *page = > page.布局 布局="sidebar"*
@@ -257,6 +257,7 @@ import sys:lib/sys.mq.md
 | /api/store/profile/update | POST | api.profile_update | json | json |
 | /api/store/profile/reset | POST | api.profile_reset | json | json |
 | /api/store/organize | POST | api.organize | json | json |
+| /api/store/web_search | POST | api.web_search | json | json |
 
 *app = > 网页.应用 页面=page 数据库=store 后台=True 后台前缀="/account" 主机=`host` 端口=`port` 登录回跳="/" 登出回跳="/account/login"*
 *app = > app.路由 路径="/notes" 页面=notes*
