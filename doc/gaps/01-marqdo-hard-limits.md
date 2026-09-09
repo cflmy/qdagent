@@ -61,14 +61,16 @@
 |------|------|
 | Web UI | `index.mq.md` |
 | LLM/语音同域中继 | `网页.代理` → `/llm` `/asr` `/tts` |
-| 沉淀 / 检索 API | `网页.调用` → `lib/api.*` |
-| MCP stdio | `求道-mcp.mq.md` |
-| CLI 捕捉 | `求道-捕捉.mq.md` |
+| 沉淀 / 检索 / 画像 / 整理 | `网页.调用` → `lib/api.*` |
+| 用户画像 | `data/kb/用户画像.mq.md` · `/settings/memory` |
+| MCP stdio | `求道-mcp.mq.md`（含 context/profile/organize） |
+| CLI 捕捉 / 询问 / 整理 | `求道-捕捉` · `求道-询问` · `求道-整理` |
 
 ## 4. 非目标
 
 - 默认 dense embedding / 向量知识库  
 - Python 编排或知识权威平面  
+- 静默改写历史 `data/runs/*.mq.md`  
 
 ## 5. 修订记录
 
@@ -77,3 +79,4 @@
 | 2026-09-07 | 初版 GAP-01…05（0.3.5 旁路） |
 | 2026-09-07 | 升级 0.3.7；H1–H4 关闭 GAP-01…05；Python 迁入 `scripts/legacy/` |
 | 2026-09-07 | 修 Marqdo `GLOBAL_HOST` 嵌套清空；`api.search` 改 `corpus_search`；Docker 去掉 :7432 |
+| 2026-09-08 | 记忆闭环：画像 · context 查库 · 手动 organize |

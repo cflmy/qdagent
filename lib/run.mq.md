@@ -91,17 +91,27 @@ import web:ext/web/web.mq.md
     + `slug`=""
     + `surface`=""
     + `session_id`=""
+    + `summary`=""
 
-写盘 + 写入笔记库索引；返回路径。
+写盘 + 写入笔记库索引；返回路径。列表摘要优先用短 `summary`，避免把长正文塞进卡片。
 
 1. `slug` == ""
   *slug = > 新标识*
 *`path` = > 写出 title=`title` task=`task` result=`result` slug=`slug` surface=`surface` session_id=`session_id`*
 *`body` = > fs.read_text path=`path`*
-*summary = `task`*
-1. `result`
-  *summary = `result`*
-*`row` = > 库行 slug=`slug` title=`title` summary=`summary` body=`body`*
+*sum = `summary`*
+1. not `sum`
+  *sum = `task`*
+1. not `sum`
+  *sum = `result`*
+*parts = > split value=`sum` sep="\n"*
+*sum1 = parts[^1]*
+1. not `sum1`
+  *sum1 = `sum`*
+*n = > len value=`sum1`*
+1. `n` > 140
+  *sum1 = `sum1` + "…"*
+*`row` = > 库行 slug=`slug` title=`title` summary=`sum1` body=`body`*
 > `store`.insert table=runs rows=`row`
 **`path`**
 

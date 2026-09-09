@@ -40,5 +40,9 @@
 | color | #5c5346 |
 | margin | "0" |
 | white-space | pre-wrap |
+| line-height | 1.55 |
+| max-height | 6.5rem |
+| overflow | hidden |
+| font-size | 0.95rem |
 
 **`card_body`**

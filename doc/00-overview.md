@@ -75,6 +75,16 @@
 
 **Capture Core** 与 Agent Core 分离：MCP 场景可以 **只沉淀不推理**。
 
+### 3.1 记忆闭环（已实现）
+
+| 能力 | 权威 / 入口 |
+|------|-------------|
+| 用户画像 | `data/kb/用户画像.mq.md` · 维度：身份与角色、目标与动机、沟通偏好、工作习惯、常用工具与环境、近期焦点、禁忌与边界、变更日志 |
+| 回答前查库 | `/api/store/context`（画像 + `corpus_search`）→ Web system / CLI standing |
+| 笔记整理 | 手动：可读 **GFM 表格索引**（PARA 风格）→ `data/kb/整理-*.mq.md`；笔记库卡片只用短 `summary`，禁止 JSON dump |
+
+仍 **不做** 默认向量 RAG。
+
 ---
 
 ## 4. 与 Marqdo 官方能力的边界

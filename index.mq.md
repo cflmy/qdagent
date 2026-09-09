@@ -100,31 +100,39 @@ import sys:lib/sys.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 9 |
+| stylesheet | "/static/theme.css" | "text/css" | | 11 |
 
 `聊天头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 9 |
-| script | "/static/qd-api.js" | | true | 9 |
-| script | "/static/chat.js" | | true | 9 |
+| stylesheet | "/static/theme.css" | "text/css" | | 11 |
+| script | "/static/qd-api.js" | | true | 11 |
+| script | "/static/chat.js" | | true | 11 |
 
 `设置头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 9 |
-| script | "/static/qd-api.js" | | true | 9 |
-| script | "/static/settings.js" | | true | 9 |
+| stylesheet | "/static/theme.css" | "text/css" | | 11 |
+| script | "/static/qd-api.js" | | true | 11 |
+| script | "/static/settings.js" | | true | 11 |
 
 `接入头` =
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
-| stylesheet | "/static/theme.css" | "text/css" | | 9 |
-| script | "/static/qd-api.js" | | true | 9 |
-| script | "/static/mcp.js" | | true | 9 |
+| stylesheet | "/static/theme.css" | "text/css" | | 11 |
+| script | "/static/qd-api.js" | | true | 11 |
+| script | "/static/mcp.js" | | true | 11 |
+
+`记忆头` =
+
+| 关系 | 地址 | 类型 | 推迟 | 版本 |
+|------|------|------|------|------|
+| stylesheet | "/static/theme.css" | "text/css" | | 11 |
+| script | "/static/qd-api.js" | | true | 11 |
+| script | "/static/memory.js" | | true | 11 |
 
 `用户` =
 
@@ -161,7 +169,7 @@ import sys:lib/sys.mq.md
 *note_form = > note_form.规则 规则=`笔记规则`*
 *page = > page.表单装配 id="note" 表单=note_form*
 
-*notes = > 网页.页面 标题="笔记库" 引言="<h1>笔记库</h1><p>对话回合结束后会<strong>自动沉淀</strong>到这里；也可手动记一笔。正文是 .mq.md。</p>"*
+*notes = > 网页.页面 标题="笔记库" 引言="<h1>笔记库</h1><p>对话回合结束后会<strong>自动沉淀</strong>到这里；回答前会检索本库与 <code>data/kb/用户画像.mq.md</code>。手动整理生成 <code>data/kb/整理-*.mq.md</code>，<strong>不改写</strong>历史 runs。也可<a href=\"/notes/new\">记一笔</a>或打开<a href=\"/settings/memory\">记忆</a>。</p>"*
 *notes = > notes.组件装配 组件=`壳`*
 *notes = > notes.主体装配 主体=`列表`*
 *notes = > notes.排序 排序="-created_at"*
@@ -188,7 +196,7 @@ import sys:lib/sys.mq.md
 *set_voice = > set_voice.字段 字段=`语音字段`*
 *set_voice = > set_voice.规则 规则=`语音规则`*
 
-*settings_hub = > 网页.页面 标题="设置" 引言="<h1>设置</h1><p>大模型、语音与 MCP。知识本体是 <code>data/runs/*.mq.md</code>。LLM 同域中继与沉淀 API 已由 Marqdo <code>代理</code>/<code>调用</code> 提供（需重启以应用新的 Base URL）。</p><ul class=\"qd-settings-links\"><li><a href=\"/settings/llm\">大模型设置</a></li><li><a href=\"/settings/voice\">语音设置</a></li><li><a href=\"/settings/mcp\">MCP 接入</a></li></ul>"*
+*settings_hub = > 网页.页面 标题="设置" 引言="<h1>设置</h1><p>大模型、语音、记忆与 MCP。知识本体是 <code>data/runs/*.mq.md</code>；用户画像在 <code>data/kb/用户画像.mq.md</code>。LLM 同域中继与沉淀 API 由 Marqdo <code>代理</code>/<code>调用</code> 提供。</p><ul class=\"qd-settings-links\"><li><a href=\"/settings/llm\">大模型设置</a></li><li><a href=\"/settings/voice\">语音设置</a></li><li><a href=\"/settings/memory\">记忆 · 画像与整理</a></li><li><a href=\"/settings/mcp\">MCP 接入</a></li></ul>"*
 *settings_hub = > settings_hub.组件装配 组件=`壳`*
 *settings_hub = > settings_hub.头装配 表=`头资源`*
 
@@ -202,9 +210,13 @@ import sys:lib/sys.mq.md
 *settings_voice = > settings_voice.表单装配 id="settings-voice" 表单=set_voice*
 *settings_voice = > settings_voice.头装配 表=`设置头`*
 
-*settings_mcp = > 网页.页面 标题="MCP 接入" 引言="<h1>MCP 接入</h1><p>Cursor / Claude Desktop 经 MCP 读写笔记。宿主为 <code>marqdo run 求道-mcp.mq.md</code>（Marqdo 0.3.7 <code>agent.mcp_server</code>）。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_capture</code>。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\"><code>marqdo catalog data/runs</code> · <code>marqdo view data/runs</code></p>"*
+*settings_mcp = > 网页.页面 标题="MCP 接入" 引言="<h1>MCP 接入</h1><p>Cursor / Claude Desktop 经 MCP 读写笔记。宿主为 <code>marqdo run 求道-mcp.mq.md</code>。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_context</code>、<code>qd_profile</code>、<code>qd_organize</code>、<code>qd_capture</code>。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\"><code>marqdo catalog data/runs</code> · <code>marqdo view data/runs</code></p>"*
 *settings_mcp = > settings_mcp.组件装配 组件=`壳`*
 *settings_mcp = > settings_mcp.头装配 表=`接入头`*
+
+*settings_memory = > 网页.页面 标题="记忆" 引言="<h1>记忆 · 画像与整理</h1><p>用户画像权威文件：<code>data/kb/用户画像.mq.md</code>（维度：身份、目标、沟通、习惯、工具、近期焦点、禁忌、变更日志）。对话会在回答前检索笔记，并在沉淀后<strong>短句</strong>追加焦点。整理为手动操作，写出可读 Markdown 索引（GFM 表格），不改写历史 runs。</p><p id=\"qd-memory-status\" class=\"qd-settings-status\"></p><p><button type=\"button\" id=\"qd-profile-refresh\" class=\"primary\">刷新画像</button> <button type=\"button\" id=\"qd-profile-reset\">重置画像模板</button> <input id=\"qd-organize-query\" type=\"text\" placeholder=\"整理关键词，默认求道\" style=\"max-width:14rem\"/> <button type=\"button\" id=\"qd-organize\">整理笔记库</button></p><pre id=\"qd-profile-body\" class=\"qd-profile-body\"></pre>"*
+*settings_memory = > settings_memory.组件装配 组件=`壳`*
+*settings_memory = > settings_memory.头装配 表=`记忆头`*
 
 *cfg_rows = > store.select table="settings" limit=1*
 *cfg = cfg_rows[^1]*
@@ -240,6 +252,11 @@ import sys:lib/sys.mq.md
 | /api/store/list | POST | api.list | json | json |
 | /api/store/runs | GET | api.list | query | json |
 | /api/store/get | POST | api.get_run | json | json |
+| /api/store/context | POST | api.context | json | json |
+| /api/store/profile | POST | api.profile_get | json | json |
+| /api/store/profile/update | POST | api.profile_update | json | json |
+| /api/store/profile/reset | POST | api.profile_reset | json | json |
+| /api/store/organize | POST | api.organize | json | json |
 
 *app = > 网页.应用 页面=page 数据库=store 后台=True 后台前缀="/account" 主机=`host` 端口=`port` 登录回跳="/" 登出回跳="/account/login"*
 *app = > app.路由 路径="/notes" 页面=notes*
@@ -248,6 +265,7 @@ import sys:lib/sys.mq.md
 *app = > app.路由 路径="/settings" 页面=settings_hub*
 *app = > app.路由 路径="/settings/llm" 页面=settings_llm*
 *app = > app.路由 路径="/settings/voice" 页面=settings_voice*
+*app = > app.路由 路径="/settings/memory" 页面=settings_memory*
 *app = > app.路由 路径="/settings/mcp" 页面=settings_mcp*
 *app = > app.静态 目录="public" 挂载="/static"*
 *app = > app.装配 接口=`接口` 访问日志=True 代理=`代理表` 调用=`调用表`*

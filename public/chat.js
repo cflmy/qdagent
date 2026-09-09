@@ -187,14 +187,12 @@
           new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14) +
           "-" +
           String(Math.floor(Math.random() * 1000)).padStart(3, "0");
-        var body =
-          "---\ntitle: " +
-          title.replace(/\n/g, " ") +
-          "\ndescription: qdagent run " +
-          slug +
-          "\nsurface: web\n---\n\n# 任务\n\n" +
-          (userText || "对话回合") +
-          "\n\n# 结果\n\n## user\n\n" +
+        var summary =
+          ((userText || "").trim().slice(0, 40) || "对话") +
+          " → " +
+          ((assistantText || "").trim().slice(0, 80) || "（空回复）");
+        var resultText =
+          "## user\n\n" +
           (userText || "") +
           "\n\n## assistant\n\n" +
           (assistantText || "") +
@@ -202,9 +200,9 @@
         var out = await QdApi.precipitateNote({
           slug: slug,
           title: title,
-          summary: (assistantText || userText || "").slice(0, 200),
-          body: body,
+          summary: summary,
           task: userText || "对话回合",
+          result: resultText,
           session_id: s && s.id,
           surface: "web",
         });
@@ -248,8 +246,25 @@
         pending.classList.add("qd-streaming");
         var apiMessages = buildApiMessages(s);
 
+        setStatus("检索笔记…");
+        var ctx = null;
+        var hitCount = 0;
+        try {
+          ctx = await QdApi.storeContext({ query: text, top_k: 5 });
+          hitCount = (ctx.hits && ctx.hits.length) || 0;
+          apiMessages = [
+            { role: "system", content: QdApi.contextSystemMessage(ctx) },
+          ].concat(apiMessages);
+        } catch (ce) {
+          setStatus("检索跳过：" + (ce && ce.message ? ce.message : ce));
+        }
+
         var base = QdApi.normalizeBase(cfg.llm_base_url);
-        setStatus("生成中…");
+        setStatus(
+          hitCount
+            ? "生成中…（已引用 " + hitCount + " 条笔记）"
+            : "生成中…"
+        );
         var full = await QdApi.relayStream(
           {
             base_url: base,
@@ -280,6 +295,19 @@
         s.messages.push({ role: "assistant", content: full });
         persist();
         await autoPrecipitate(s, text, full);
+        try {
+          await QdApi.storeProfileUpdate({
+            task: text.slice(0, 200),
+            result: String(full).slice(0, 240),
+          });
+          setStatus(
+            (status.textContent || "") +
+              (hitCount ? " · 已引用 " + hitCount + " 条" : "") +
+              " · 画像已更新"
+          );
+        } catch (pe) {
+          /* profile update best-effort */
+        }
       } catch (e) {
         if (e && e.name === "AbortError") {
           setStatus("已停止");

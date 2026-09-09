@@ -211,14 +211,81 @@
   }
 
   async function precipitateNote(fields) {
+    var result =
+      fields.result ||
+      fields.body ||
+      "";
     return storeRun({
       title: fields.title,
       task: fields.task || fields.summary || "",
-      result: fields.body || fields.result || "",
+      result: result,
+      summary: fields.summary || "",
       slug: fields.slug || "",
       session_id: fields.session_id || "",
       surface: fields.surface || "web",
     });
+  }
+
+  async function storePost(path, payload) {
+    var res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(payload || {}),
+    });
+    var json = await res.json().catch(function () {
+      return { ok: false, error: "store non-JSON" };
+    });
+    if (!res.ok || json.ok === false) throw new Error(json.error || path + " failed");
+    return json;
+  }
+
+  async function storeContext(payload) {
+    return storePost("/api/store/context", payload || {});
+  }
+
+  async function storeProfile() {
+    return storePost("/api/store/profile", {});
+  }
+
+  async function storeProfileUpdate(payload) {
+    return storePost("/api/store/profile/update", payload || {});
+  }
+
+  async function storeOrganize(payload) {
+    return storePost("/api/store/organize", payload || {});
+  }
+
+  /** Build system message from profile + corpus hits (evidence only). */
+  function contextSystemMessage(ctx) {
+    var profile = (ctx && ctx.profile) || "";
+    if (profile.length > 2400) profile = profile.slice(0, 2400) + "\n…";
+    var hits = (ctx && ctx.hits) || [];
+    var lines = [
+      "你是求道助手。回答前已加载用户画像与笔记库证据；证据仅供参考，权威在 data/runs 与用户画像 .mq.md。",
+      "",
+      "## 用户画像",
+      profile || "（空）",
+      "",
+      "## 笔记证据（evidence only）",
+    ];
+    if (!hits.length) {
+      lines.push("（无命中）");
+    } else {
+      for (var i = 0; i < hits.length; i++) {
+        var h = hits[i] || {};
+        lines.push(
+          (i + 1) +
+            ". " +
+            (h.path || h.slug || "?") +
+            " score=" +
+            (h.score != null ? h.score : "") +
+            "\n" +
+            String(h.excerpt || "").slice(0, 400)
+        );
+      }
+    }
+    return lines.join("\n");
   }
 
   w.QdApi = {
@@ -234,5 +301,10 @@
     storeRun: storeRun,
     storeSync: storeSync,
     precipitateNote: precipitateNote,
+    storeContext: storeContext,
+    storeProfile: storeProfile,
+    storeProfileUpdate: storeProfileUpdate,
+    storeOrganize: storeOrganize,
+    contextSystemMessage: contextSystemMessage,
   };
 })(window);

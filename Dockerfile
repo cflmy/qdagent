@@ -13,7 +13,7 @@ RUN chmod +x /usr/local/bin/marqdo
 COPY docker/marqdo-home /root/.marqdo
 
 WORKDIR /app
-COPY index.mq.md 求道-询问.mq.md 求道-捕捉.mq.md 求道-同步.mq.md ./
+COPY index.mq.md 求道-询问.mq.md 求道-捕捉.mq.md 求道-同步.mq.md 求道-整理.mq.md 求道-mcp.mq.md ./
 COPY lib ./lib
 COPY db ./db
 COPY components ./components
