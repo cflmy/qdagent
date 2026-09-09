@@ -133,10 +133,53 @@
       });
     }
 
+    function escapeHtml(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    /** Lightweight Markdown → safe HTML (bold/italic/code/fences/breaks). */
+    function formatMsgHtml(text) {
+      var raw = String(text || "");
+      var fences = [];
+      raw = raw.replace(/```([\w-]*)\n?([\s\S]*?)```/g, function (_, lang, code) {
+        var i = fences.length;
+        fences.push(
+          '<pre class="qd-code"><code>' + escapeHtml(code.replace(/\n$/, "")) + "</code></pre>"
+        );
+        return "\u0000FENCE" + i + "\u0000";
+      });
+      var html = escapeHtml(raw);
+      html = html.replace(/`([^`\n]+)`/g, '<code class="qd-inline">$1</code>');
+      html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      html = html.replace(/(^|[^*\n])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+      html = html.replace(/^### (.+)$/gm, "<strong>$1</strong>");
+      html = html.replace(/^## (.+)$/gm, "<strong>$1</strong>");
+      html = html.replace(/^# (.+)$/gm, "<strong>$1</strong>");
+      html = html.replace(/\n/g, "<br>");
+      html = html.replace(/\u0000FENCE(\d+)\u0000/g, function (_, i) {
+        return fences[Number(i)] || "";
+      });
+      return html;
+    }
+
+    function setMsgContent(el, text, role) {
+      var t = text || "";
+      el.dataset.raw = t;
+      if (role === "assistant" || el.classList.contains("qd-assistant")) {
+        el.innerHTML = formatMsgHtml(t);
+      } else {
+        el.textContent = t;
+      }
+    }
+
     function bubble(role, text) {
       var el = document.createElement("div");
       el.className = "qd-msg qd-" + role;
-      el.textContent = text || "";
+      setMsgContent(el, text || "", role);
       log.appendChild(el);
       log.scrollTop = log.scrollHeight;
       return el;
@@ -278,7 +321,8 @@
             },
           },
           function (delta, all) {
-            pending.textContent = all || (pending.textContent || "") + (delta || "");
+            var t = all || ((pending.dataset.raw || "") + (delta || ""));
+            setMsgContent(pending, t, "assistant");
             log.scrollTop = log.scrollHeight;
           },
           abortCtrl ? abortCtrl.signal : undefined
@@ -286,11 +330,11 @@
 
         pending.classList.remove("qd-streaming");
         if (!full) {
-          pending.textContent = "（模型未返回内容）";
+          setMsgContent(pending, "（模型未返回内容）", "assistant");
           setStatus("空回复");
           return;
         }
-        pending.textContent = full;
+        setMsgContent(pending, full, "assistant");
         lastAssistant = full;
         s.messages.push({ role: "assistant", content: full });
         persist();
@@ -319,14 +363,14 @@
           var cur = log.querySelector(".qd-streaming");
           if (cur) {
             cur.classList.remove("qd-streaming");
-            var partial = cur.textContent || "";
+            var partial = cur.dataset.raw || "";
             if (partial) {
               lastAssistant = partial;
               s.messages.push({ role: "assistant", content: partial });
               persist();
               await autoPrecipitate(s, text, partial);
             } else {
-              cur.textContent = "（已停止）";
+              setMsgContent(cur, "（已停止）", "assistant");
             }
           }
         } else {
