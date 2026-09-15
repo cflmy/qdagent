@@ -106,7 +106,7 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 28 |
+| stylesheet | "/static/theme.css" | "text/css" | | 30 |
 
 `聊天头` =
 
@@ -115,10 +115,10 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 28 |
-| script | "/static/qd-api.js" | | true | 28 |
-| script | "/static/qd-voice.js" | | true | 28 |
-| script | "/static/chat.js" | | true | 28 |
+| stylesheet | "/static/theme.css" | "text/css" | | 30 |
+| script | "/static/qd-api.js" | | true | 30 |
+| script | "/static/qd-voice.js" | | true | 30 |
+| script | "/static/chat.js" | | true | 30 |
 
 `记一笔头` =
 
@@ -127,10 +127,10 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 28 |
-| script | "/static/qd-api.js" | | true | 28 |
-| script | "/static/qd-voice.js" | | true | 28 |
-| script | "/static/notes-voice.js" | | true | 28 |
+| stylesheet | "/static/theme.css" | "text/css" | | 30 |
+| script | "/static/qd-api.js" | | true | 30 |
+| script | "/static/qd-voice.js" | | true | 30 |
+| script | "/static/notes-voice.js" | | true | 30 |
 
 `笔记库头` =
 
@@ -139,9 +139,9 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 28 |
-| script | "/static/qd-api.js" | | true | 28 |
-| script | "/static/notes-kb.js" | | true | 28 |
+| stylesheet | "/static/theme.css" | "text/css" | | 30 |
+| script | "/static/qd-api.js" | | true | 30 |
+| script | "/static/notes-kb.js" | | true | 30 |
 
 `设置头` =
 
@@ -150,9 +150,9 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 28 |
-| script | "/static/qd-api.js" | | true | 28 |
-| script | "/static/settings.js" | | true | 28 |
+| stylesheet | "/static/theme.css" | "text/css" | | 30 |
+| script | "/static/qd-api.js" | | true | 30 |
+| script | "/static/settings.js" | | true | 30 |
 
 `接入头` =
 
@@ -161,9 +161,9 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 28 |
-| script | "/static/qd-api.js" | | true | 28 |
-| script | "/static/mcp.js" | | true | 28 |
+| stylesheet | "/static/theme.css" | "text/css" | | 30 |
+| script | "/static/qd-api.js" | | true | 30 |
+| script | "/static/mcp.js" | | true | 30 |
 
 `记忆头` =
 
@@ -172,9 +172,9 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 28 |
-| script | "/static/qd-api.js" | | true | 28 |
-| script | "/static/memory.js" | | true | 28 |
+| stylesheet | "/static/theme.css" | "text/css" | | 30 |
+| script | "/static/qd-api.js" | | true | 30 |
+| script | "/static/memory.js" | | true | 30 |
 
 `用户` =
 
