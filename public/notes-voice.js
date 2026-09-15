@@ -44,7 +44,7 @@
       shell.innerHTML =
         '<section class="qd-note-col qd-note-voice-col" aria-label="语音转写">' +
         "<header><h2>语音转写</h2>" +
-        '<p class="qd-muted">浏览器实时听写（Web Speech）。Win+H 为系统听写，网页无法直接调用；Chrome/Edge 体验接近。</p></header>' +
+        '<p class="qd-muted">优先浏览器实时听写；国内常报 network，将自动改用录音→云端 ASR（复用大模型 Key 即可）。</p></header>' +
         '<div class="qd-notes-voice-row">' +
         '<button type="button" id="qd-note-mic" class="primary">开始听写</button>' +
         '<button type="button" id="qd-note-clear-tx">清空转写</button>' +
@@ -106,12 +106,88 @@
 
     var diag = QdVoice.diagnose();
     var dictation = null;
+    var streamAsr = null;
+    var preferStreamAsr = false;
+    var fileBusy = false;
     var assistBusy = false;
     var assistTimer = null;
     var settingsRow = {};
 
     function currentLang() {
       return QdApi.resolveDictationLang(settingsRow);
+    }
+
+    async function ensureAsrReady() {
+      var cfg = await QdApi.loadSettings();
+      settingsRow = cfg || settingsRow;
+      var asr = QdApi.resolveAsrConfig(cfg);
+      if (!asr.ok) {
+        throw new Error(
+          "云端听写需要 API Key：请在「设置 → 大模型」填写，或在「语音」单独填 ASR。"
+        );
+      }
+      if (!(asr.base_url || "").trim()) {
+        throw new Error("缺少 ASR / 大模型 Base URL");
+      }
+      return { cfg: cfg, asr: asr };
+    }
+
+    function makeTranscribe(asr) {
+      return async function (blob, meta) {
+        meta = meta || {};
+        return QdApi.transcribeAudio({
+          blob: blob,
+          filename: meta.filename || "audio.webm",
+          api_key: asr.api_key,
+          base_url: asr.base_url,
+          model: asr.model,
+          language: QdApi.asrLanguageCode(currentLang()) || undefined,
+          via_proxy: !!meta.via_proxy,
+        });
+      };
+    }
+
+    async function startStreamingAsr(seedText) {
+      if (fileBusy) return;
+      var ready = await ensureAsrReady();
+      preferStreamAsr = true;
+      if (streamAsr && streamAsr.isListening()) streamAsr.stop();
+      var base = seedText != null ? String(seedText) : transcriptText();
+      streamAsr = QdVoice.createStreamingAsr({
+        via_proxy: false,
+        chunkMs: 2800,
+        transcribe: makeTranscribe(ready.asr),
+        onPartial: function (p) {
+          var live = p.finalText || "";
+          setTranscript(base ? base.replace(/\s+$/, "") + live : live);
+        },
+        onFinal: function () {
+          scheduleAssist();
+        },
+        onLevel: function (level, meta) {
+          onVu(level, meta);
+        },
+        onStatus: function (msg) {
+          status(msg || "");
+        },
+        onError: function (err) {
+          setMicUi(false);
+          onVu(0, { silent: true, speaking: false });
+          status("云端听写失败：" + (err.message || err));
+        },
+        onEnd: function () {
+          setMicUi(false);
+          onVu(0, { silent: true, speaking: false });
+          status("云端听写已结束");
+          scheduleAssist();
+        },
+      });
+      setMicUi(true);
+      status(
+        "云端实时听写中（分段转写；失败会走 proxy.cflmy.top）…" +
+          (ready.asr.reused_llm ? " · 复用大模型 Key" : "")
+      );
+      await streamAsr.start();
     }
 
     function rebuildDictation() {
@@ -132,15 +208,22 @@
           onVu(level, meta);
         },
         onError: function (err) {
-          status(err.message || String(err));
           setMicUi(false);
           onVu(0, { silent: true, speaking: false });
+          if (err && err.fallbackAsr) {
+            status(err.message || "浏览器听写失败，改用云端实时听写…");
+            startStreamingAsr(transcriptText()).catch(function (e2) {
+              status((err.message || "") + " · " + (e2.message || e2));
+            });
+            return;
+          }
+          status(err.message || String(err));
         },
         onEnd: function () {
           if (dictation && !dictation.isListening()) {
             setMicUi(false);
             if (interimEl) interimEl.textContent = "";
-            status("听写已结束");
+            if (!(streamAsr && streamAsr.isListening())) status("听写已结束");
             onVu(0, { silent: true, speaking: false });
             scheduleAssist();
           }
@@ -276,14 +359,17 @@
     if (micBtn) {
       micBtn.addEventListener("click", async function () {
         try {
-          if (!dictation) {
-            status(
-              diag.reason ||
-                "当前环境不支持实时听写。请用 Chrome/Edge，并通过 https:// 或 http://127.0.0.1 打开。"
-            );
+          if (fileBusy) return;
+          if (streamAsr && streamAsr.isListening()) {
+            streamAsr.stop();
+            setMicUi(false);
+            if (interimEl) interimEl.textContent = "";
+            status("已停止");
+            onVu(0, { silent: true, speaking: false });
+            scheduleAssist();
             return;
           }
-          if (dictation.isListening()) {
+          if (dictation && dictation.isListening()) {
             dictation.stop();
             setMicUi(false);
             if (interimEl) interimEl.textContent = "";
@@ -292,9 +378,21 @@
             scheduleAssist();
             return;
           }
-          setMicUi(true);
-          status("听写中（" + currentLang() + "）…看音量条");
-          await dictation.start();
+          // Always try browser realtime first when available
+          if (diag.realtimeOk && dictation) {
+            setMicUi(true);
+            status("实时听写（" + currentLang() + "）…失败将改云端/港代理");
+            await dictation.start();
+            return;
+          }
+          if (!diag.fileAsrOk) {
+            status(
+              diag.reason ||
+                "当前环境无法听写。请用 Chrome/Edge，并通过 https:// 或 http://127.0.0.1 打开。"
+            );
+            return;
+          }
+          await startStreamingAsr(transcriptText());
         } catch (e) {
           setMicUi(false);
           onVu(0, { silent: true, speaking: false });
@@ -308,6 +406,7 @@
         setTranscript("");
         if (interimEl) interimEl.textContent = "";
         if (dictation) dictation.reset();
+        if (streamAsr) streamAsr.reset();
         status("转写已清空");
       });
     }
@@ -318,8 +417,10 @@
       });
     }
 
-    if (!diag.realtimeOk) {
-      status(diag.reason || "实时听写不可用");
+    if (!diag.realtimeOk && !diag.fileAsrOk) {
+      status(diag.reason || "听写不可用");
+    } else if (!diag.realtimeOk) {
+      status("浏览器实时听写不可用，将使用云端分段听写（可走 proxy.cflmy.top）");
     }
   }
 

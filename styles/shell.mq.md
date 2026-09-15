@@ -4,10 +4,10 @@
 
 | 属性 | 值 |
 |------|-----|
-| background | #f7f3ec |
-| border-bottom | 1px solid #d6cfc4 |
+| background | rgba(255, 255, 255, 0.82) |
+| border-bottom | 1px solid #d5dae0 |
 
-**`topnav`**
+*`topnav`*
 
 ## side_panel
 
@@ -15,9 +15,9 @@
 
 | 属性 | 值 |
 |------|-----|
-| background | #efe8dc |
+| background | rgba(255, 255, 255, 0.55) |
 
-**`side_panel`**
+*`side_panel`*
 
 ## card_title
 
@@ -27,9 +27,10 @@
 |------|-----|
 | font-size | 1.2rem |
 | margin | "0 0 0.35rem" |
-| font-family | "Iowan Old Style", "Palatino Linotype", Palatino, serif |
+| font-family | Fraunces, "Source Serif 4", Georgia, serif |
+| color | #0a3d42 |
 
-**`card_title`**
+*`card_title`*
 
 ## card_body
 
@@ -37,12 +38,13 @@
 
 | 属性 | 值 |
 |------|-----|
-| color | #5c5346 |
+| color | #5c6470 |
 | margin | "0" |
 | white-space | pre-wrap |
 | line-height | 1.55 |
 | max-height | 6.5rem |
 | overflow | hidden |
 | font-size | 0.95rem |
+| font-family | Literata, Georgia, serif |
 
-**`card_body`**
+*`card_body`*

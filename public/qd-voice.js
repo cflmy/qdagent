@@ -259,6 +259,24 @@
           }
           return;
         }
+        if (code === "network") {
+          want = false;
+          clearRestart();
+          stopMeter();
+          if (rec) {
+            try {
+              rec.abort();
+            } catch (e) {}
+          }
+          var netErr = new Error(
+            "浏览器听写连不上 Google（国内常见）。将改用录音→云端 ASR；请确认已配大模型或 ASR Key。"
+          );
+          netErr.code = "network";
+          netErr.fallbackAsr = true;
+          if (opts.onError) opts.onError(netErr);
+          if (opts.onEnd) opts.onEnd({ finalText: finalText, aborted: true, reason: "network" });
+          return;
+        }
         if (opts.onError) opts.onError(new Error("听写错误：" + code));
       };
 
@@ -468,9 +486,217 @@
     };
   }
 
+  /**
+   * Near-realtime cloud ASR: record short segments in a loop while "listening".
+   * Used when Web Speech fails (e.g. Google blocked); can route via proxy.cflmy.top.
+   * onPartial / onFinal / onError / onStart / onEnd / onLevel — same shape as createDictation.
+   * opts.transcribe(blob, {via_proxy}) -> Promise<{text}>
+   */
+  function createStreamingAsr(opts) {
+    opts = opts || {};
+    var chunkMs = opts.chunkMs || 2800;
+    var want = false;
+    var loopBusy = false;
+    var meter = null;
+    var committed = "";
+    var viaProxy = !!opts.via_proxy;
+    var transcribe = opts.transcribe;
+    if (typeof transcribe !== "function") {
+      throw new Error("createStreamingAsr 需要 opts.transcribe");
+    }
+
+    function stopMeter() {
+      if (meter) {
+        try {
+          meter.stop();
+        } catch (e) {}
+        meter = null;
+      }
+    }
+
+    function emitPartial() {
+      if (opts.onPartial) {
+        opts.onPartial({
+          finalText: committed,
+          interimText: "",
+          committed: committed,
+        });
+      }
+    }
+
+    async function recordOnce() {
+      var mime = pickMime();
+      var stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      var chunks = [];
+      var rec;
+      try {
+        rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      } catch (e) {
+        rec = new MediaRecorder(stream);
+      }
+      mime = rec.mimeType || mime || "audio/webm";
+      return await new Promise(function (resolve, reject) {
+        var timedOut = false;
+        var timer = setTimeout(function () {
+          timedOut = true;
+          try {
+            if (rec.state === "recording") rec.stop();
+          } catch (e) {}
+        }, chunkMs);
+        rec.ondataavailable = function (ev) {
+          if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+        };
+        rec.onerror = function (ev) {
+          clearTimeout(timer);
+          stopTracks(stream);
+          reject((ev && ev.error) || new Error("录音失败"));
+        };
+        rec.onstop = function () {
+          clearTimeout(timer);
+          stopTracks(stream);
+          resolve({
+            blob: new Blob(chunks, { type: mime }),
+            filename: "audio." + extForMime(mime),
+            mime: mime,
+            forced: timedOut,
+          });
+        };
+        try {
+          rec.start();
+        } catch (e) {
+          clearTimeout(timer);
+          stopTracks(stream);
+          reject(e);
+        }
+      });
+    }
+
+    async function loop() {
+      if (loopBusy) return;
+      loopBusy = true;
+      try {
+        while (want) {
+          var seg;
+          try {
+            seg = await recordOnce();
+          } catch (e) {
+            if (!want) break;
+            if (opts.onError) opts.onError(e);
+            break;
+          }
+          if (!want) break;
+          if (!seg.blob || seg.blob.size < 800) continue;
+          try {
+            var out = await transcribe(seg.blob, {
+              via_proxy: viaProxy,
+              filename: seg.filename,
+            });
+            var text = (out && out.text) || "";
+            if (text) {
+              committed = committed ? committed + text : text;
+              if (opts.onFinal) opts.onFinal(text, committed);
+              emitPartial();
+            }
+            if (out && out.via_proxy) viaProxy = true;
+          } catch (e) {
+            // Auto-promote to HK proxy once, then surface error
+            if (!viaProxy) {
+              viaProxy = true;
+              if (opts.onStatus) {
+                opts.onStatus("直连 ASR 失败，改经 proxy.cflmy.top…");
+              }
+              try {
+                var out2 = await transcribe(seg.blob, {
+                  via_proxy: true,
+                  filename: seg.filename,
+                });
+                var t2 = (out2 && out2.text) || "";
+                if (t2) {
+                  committed = committed ? committed + t2 : t2;
+                  if (opts.onFinal) opts.onFinal(t2, committed);
+                  emitPartial();
+                }
+                continue;
+              } catch (e2) {
+                if (opts.onError) opts.onError(e2);
+                want = false;
+                break;
+              }
+            }
+            if (opts.onError) opts.onError(e);
+            want = false;
+            break;
+          }
+        }
+      } finally {
+        loopBusy = false;
+        stopMeter();
+        if (opts.onEnd) opts.onEnd({ finalText: committed });
+      }
+    }
+
+    async function start() {
+      var d = diagnose();
+      if (!d.secure) throw new Error(d.reason || "需要安全上下文");
+      if (!d.fileAsrOk) throw new Error("当前浏览器无法录音转写");
+      want = true;
+      stopMeter();
+      meter = createLevelMeter({
+        onLevel: function (level, meta) {
+          if (opts.onLevel) opts.onLevel(level, meta);
+        },
+      });
+      try {
+        await meter.start();
+      } catch (e) {
+        /* VU optional */
+      }
+      if (opts.onStart) opts.onStart();
+      loop();
+      return true;
+    }
+
+    function stop() {
+      want = false;
+      stopMeter();
+      return { finalText: committed };
+    }
+
+    function abort() {
+      want = false;
+      stopMeter();
+    }
+
+    function reset() {
+      committed = "";
+      emitPartial();
+    }
+
+    return {
+      start: start,
+      stop: stop,
+      abort: abort,
+      reset: reset,
+      setLang: function () {},
+      isListening: function () {
+        return want;
+      },
+      getFinal: function () {
+        return committed;
+      },
+      engine: "streaming-asr",
+      setViaProxy: function (v) {
+        viaProxy = !!v;
+      },
+    };
+  }
+
   w.QdVoice = {
     diagnose: diagnose,
     createDictation: createDictation,
+    createStreamingAsr: createStreamingAsr,
     createRecorder: createRecorder,
     createLevelMeter: createLevelMeter,
     attachVuUi: attachVuUi,

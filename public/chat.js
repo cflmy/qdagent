@@ -847,6 +847,7 @@
 
     var micBusy = false;
     var chatDictation = null;
+    var chatStreamAsr = null;
     var chatVu = null;
     var onChatVu = null;
     var settingsRow = {};
@@ -884,6 +885,11 @@
           setMicUi(false);
           setStatus("已切换语言，请重新点语音");
         }
+        if (chatStreamAsr && chatStreamAsr.isListening()) {
+          chatStreamAsr.stop();
+          setMicUi(false);
+          setStatus("已切换语言，请重新点语音");
+        }
       });
     }
 
@@ -894,6 +900,60 @@
       mic.setAttribute("aria-pressed", recording ? "true" : "false");
       if (chatVu) chatVu.hidden = !recording;
       if (!recording && onChatVu) onChatVu(0, { silent: true, speaking: false });
+    }
+
+    async function startChatStreamingAsr(baseText) {
+      settingsRow = (await QdApi.loadSettings()) || settingsRow;
+      var asr = QdApi.resolveAsrConfig(settingsRow);
+      if (!asr.ok || !(asr.base_url || "").trim()) {
+        throw new Error("云端听写需要 API Key 与 Base URL（设置 → 大模型/语音）");
+      }
+      ensureChatVu();
+      var seed = baseText != null ? String(baseText) : input.value || "";
+      if (chatStreamAsr && chatStreamAsr.isListening()) chatStreamAsr.stop();
+      chatStreamAsr = QdVoice.createStreamingAsr({
+        via_proxy: false,
+        chunkMs: 2800,
+        transcribe: async function (blob, meta) {
+          meta = meta || {};
+          return QdApi.transcribeAudio({
+            blob: blob,
+            filename: meta.filename || "audio.webm",
+            api_key: asr.api_key,
+            base_url: asr.base_url,
+            model: asr.model,
+            language:
+              QdApi.asrLanguageCode(QdApi.resolveDictationLang(settingsRow)) ||
+              undefined,
+            via_proxy: !!meta.via_proxy,
+          });
+        },
+        onPartial: function (p) {
+          var live = p.finalText || "";
+          input.value = seed
+            ? seed.replace(/\s+$/, "") + (live ? " " + live : "")
+            : live;
+          autoSizeInput();
+          setStatus("云端听写中…");
+        },
+        onLevel: function (level, meta) {
+          if (onChatVu) onChatVu(level, meta);
+        },
+        onStatus: function (msg) {
+          setStatus(msg || "");
+        },
+        onError: function (err) {
+          setMicUi(false);
+          setStatus("云端听写失败：" + (err.message || err));
+        },
+        onEnd: function () {
+          setMicUi(false);
+          setStatus("听写结束");
+        },
+      });
+      setMicUi(true);
+      setStatus("云端实时听写（失败将走 proxy.cflmy.top）…");
+      await chatStreamAsr.start();
     }
 
     QdApi.loadSettings()
@@ -920,6 +980,13 @@
           }
           var diag = QdVoice.diagnose();
 
+          if (chatStreamAsr && chatStreamAsr.isListening()) {
+            chatStreamAsr.stop();
+            setMicUi(false);
+            setStatus("听写结束");
+            return;
+          }
+
           if (chatDictation && chatDictation.isListening()) {
             chatDictation.stop();
             setMicUi(false);
@@ -927,46 +994,52 @@
             return;
           }
 
-          if (!diag.realtimeOk) {
-            setStatus(diag.reason || "当前环境无法实时听写");
-            bubble(
-              "system",
-              "实时听写需要 Chrome/Edge，且页面为 HTTPS 或 localhost。" +
-                "听写语言可在工具栏或「设置 → 语音」切换（中文 / 英文）。"
-            );
+          if (diag.realtimeOk) {
+            ensureChatVu();
+            ensureChatLang();
+            var baseText = input.value || "";
+            var lang = QdApi.resolveDictationLang(settingsRow);
+            chatDictation = QdVoice.createDictation({
+              lang: lang,
+              onPartial: function (p) {
+                var live = (p.finalText || "") + (p.interimText || "");
+                input.value = baseText
+                  ? baseText.replace(/\s+$/, "") + (live ? " " + live : "")
+                  : live;
+                setStatus("听写中（" + lang + "）");
+              },
+              onLevel: function (level, meta) {
+                if (onChatVu) onChatVu(level, meta);
+              },
+              onError: function (err) {
+                setMicUi(false);
+                setStatus(err.message || String(err));
+                if (err && err.fallbackAsr) {
+                  startChatStreamingAsr(input.value || baseText).catch(function (e2) {
+                    setStatus((err.message || "") + " · " + (e2.message || e2));
+                  });
+                }
+              },
+              onEnd: function () {
+                if (chatDictation && !chatDictation.isListening()) {
+                  setMicUi(false);
+                  if (!(chatStreamAsr && chatStreamAsr.isListening())) {
+                    setStatus("听写结束");
+                  }
+                }
+              },
+            });
+            setMicUi(true);
+            setStatus("实时听写（" + lang + "）…失败将改云端/港代理");
+            await chatDictation.start();
             return;
           }
 
-          ensureChatVu();
-          ensureChatLang();
-          var baseText = input.value || "";
-          var lang = QdApi.resolveDictationLang(settingsRow);
-          chatDictation = QdVoice.createDictation({
-            lang: lang,
-            onPartial: function (p) {
-              var live = (p.finalText || "") + (p.interimText || "");
-              input.value = baseText
-                ? baseText.replace(/\s+$/, "") + (live ? " " + live : "")
-                : live;
-              setStatus("听写中（" + lang + "）");
-            },
-            onLevel: function (level, meta) {
-              if (onChatVu) onChatVu(level, meta);
-            },
-            onError: function (err) {
-              setMicUi(false);
-              setStatus(err.message || String(err));
-            },
-            onEnd: function () {
-              if (chatDictation && !chatDictation.isListening()) {
-                setMicUi(false);
-                setStatus("听写结束");
-              }
-            },
-          });
-          setMicUi(true);
-          setStatus("实时听写（" + lang + "）…看音量条");
-          await chatDictation.start();
+          if (!diag.fileAsrOk) {
+            setStatus(diag.reason || "当前环境无法听写");
+            return;
+          }
+          await startChatStreamingAsr(input.value || "");
         } catch (e) {
           setMicUi(false);
           micBusy = false;

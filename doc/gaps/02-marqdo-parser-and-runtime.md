@@ -2,11 +2,12 @@
 
 | | |
 |---|---|
-| 状态 | **Open**（影响 0.3.7；部分已有求道侧规避） |
-| 日期 | 2026-09-09 |
-| 运行时 | Marqdo **0.3.7**（本机 `plugins/web` 另打 SSE 反缓冲补丁） |
+| 状态 | **Partially superseded**（本机已升 **1.0.0** / markup v0.3；下列缺口多为 0.3.7 实录，上游多已修复） |
+| 日期 | 2026-09-09（2026-09-15 升 1.0.0） |
+| 运行时 | Marqdo **1.0.0**（markup v0.3：`**代码**` / `*返回*`；Go `libweb`） |
 | 发现场景 | 联网搜索（`lib/web_search.mq.md`）+ 对话 SSE 流式 + 记一笔双栏语音 |
 | 原则 | 记入本文后可用 `scripts/legacy/` 或语法规避；上游修复后改 **CLOSED** |
+| 迁移 | `scripts/legacy/migrate_markup_v03.py`：整行 `*`↔`**` 对调 + `coll[^k]`→`[k](coll)` |
 
 > 相对 [`01-marqdo-hard-limits.md`](01-marqdo-hard-limits.md)（产品级能力缺口已关）：本文记录 **语言 / 宿主行为缺陷**，不是「缺功能」。
 

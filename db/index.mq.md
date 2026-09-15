@@ -9,33 +9,33 @@ import run:../lib/run.mq.md
 
 ## open
 
-*root = > run.确保目录*
-*db_url = "sqlite:" + `root` + "/qdagent.db"*
-*store = > web.db url=`db_url`*
+**root = > run.确保目录**
+**db_url = "sqlite:" + `root` + "/qdagent.db"**
+**store = > web.db url=`db_url`**
 
-*run_fields = > runs.schema*
+**run_fields = > runs.schema**
 > `store`.init name=runs fields=`run_fields`
-*set_fields = > settings.schema*
+**set_fields = > settings.schema**
 > `store`.init name=settings fields=`set_fields`
 
-*run_rows = > store.select table="runs" limit=1*
+**run_rows = > store.select table="runs" limit=1**
 1. not `run_rows`
-  *seed = > runs.seed*
+  **seed = > runs.seed**
   > `store`.insert table=runs rows=`seed`
 
-*set_rows = > store.select table="settings" limit=1*
+**set_rows = > store.select table="settings" limit=1**
 1. not `set_rows`
-  *sseed = > settings.seed*
+  **sseed = > settings.seed**
   > `store`.insert table=settings rows=`sseed`
 
 > run.同步库 store=`store`
-**store**
+*store*
 
 ## recent
     + `limit`=20
 
 返回最近笔记行（在本模块内调用 `store.select`；跨模块持有 db 句柄再 select 会触发宿主限制）。
 
-*store = > open*
-*rows = > store.select table="runs" limit=`limit` order="-created_at"*
-**rows**
+**store = > open**
+**rows = > store.select table="runs" limit=`limit` order="-created_at"**
+*rows*

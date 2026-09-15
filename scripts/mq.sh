@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run marqdo with qdagent defaults (Marqdo 0.3.7+ — no Python side proxy).
+# Run marqdo with qdagent defaults (Marqdo 1.0.0+ / markup v0.3 — no Python side proxy).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export MARQDO_EXT="${MARQDO_EXT:-$HOME/.marqdo/ext}"

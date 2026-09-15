@@ -11,4 +11,4 @@
 | 语音设置 | /settings/voice | | auth |
 | MCP 接入 | /settings/mcp | | auth |
 
-**`side`**
+*`side`*

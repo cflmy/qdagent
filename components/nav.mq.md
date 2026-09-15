@@ -11,4 +11,4 @@
 | 接入 | /settings/mcp | | auth |
 | 退出 | /account/logout | | auth |
 
-**`nav`**
+*`nav`*

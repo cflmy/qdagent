@@ -80,7 +80,7 @@
       }
       status(
         kind === "voice"
-          ? "正在校验（听写用浏览器；若填了 TTS 则测 /tts）…"
+          ? "正在校验（ASR / TTS；ASR 空则复用大模型 Key）…"
           : "正在测试配置（同域 /llm）…",
         true
       );
@@ -90,8 +90,9 @@
       var test = kind === "voice" ? QdApi.testVoice(cfg) : QdApi.testLlm(cfg);
 
       test
-        .then(function () {
-          status("测试通过，正在保存…", true);
+        .then(function (r) {
+          var extra = r && r.note ? "：" + r.note : "";
+          status("测试通过" + extra + "，正在保存…", true);
           HTMLFormElement.prototype.submit.call(form);
         })
         .catch(function (e) {

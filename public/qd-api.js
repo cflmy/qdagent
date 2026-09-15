@@ -128,10 +128,37 @@
     };
   }
 
+  async function blobToBase64(blob) {
+    var buf = await blob.arrayBuffer();
+    var bytes = new Uint8Array(buf);
+    var chunk = 0x8000;
+    var binary = "";
+    for (var i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(
+        null,
+        bytes.subarray(i, Math.min(i + chunk, bytes.length))
+      );
+    }
+    return btoa(binary);
+  }
+
+  function wrapHkProxy(base, prefix) {
+    prefix = (prefix || "https://proxy.cflmy.top").replace(/\/$/, "");
+    base = String(base || "").trim().replace(/\/$/, "");
+    if (!base) return base;
+    try {
+      var u = new URL(base);
+      var p = new URL(prefix);
+      if (u.hostname === p.hostname) return base;
+      return prefix + "/" + u.host + (u.pathname.replace(/\/$/, "") || "");
+    } catch (e) {
+      return base;
+    }
+  }
+
   /**
-   * OpenAI-compatible POST /audio/transcriptions (multipart).
-   * Compatible with SiliconFlow SenseVoice / Whisper-style endpoints.
-   * https://api-docs.siliconflow.cn/docs/api/audio-transcriptions-post
+   * Transcribe via host invoke (can retry through proxy.cflmy.top).
+   * Falls back to same-origin /asr multipart if invoke unavailable.
    */
   async function transcribeAudio(opts) {
     var blob = opts.blob || opts.file;
@@ -140,30 +167,82 @@
     if (!key) throw new Error("请配置 ASR API Key");
     var model = opts.model || "whisper-1";
     var filename = opts.filename || "audio.webm";
-    var fd = new FormData();
-    fd.append("file", blob, filename);
-    fd.append("model", model);
-    if (opts.language) fd.append("language", opts.language);
-    if (opts.prompt) fd.append("prompt", opts.prompt);
-    if (opts.response_format) fd.append("response_format", opts.response_format);
-    var out = await relay({
-      mount: "asr",
-      path: "/audio/transcriptions",
-      method: "POST",
-      headers: { Authorization: "Bearer " + key },
-      body: fd,
-      signal: opts.signal,
-    });
-    if (!out.ok) {
-      var err =
-        (out.data && (out.data.message || (out.data.error && out.data.error.message))) ||
-        (typeof out.data === "string" ? out.data : JSON.stringify(out.data || {})).slice(0, 240);
-      throw new Error("ASR HTTP " + out.status + "：" + err);
+    var base = (opts.base_url || "").trim();
+    var language = opts.language || "";
+    var preferProxy = !!opts.via_proxy;
+    var proxyPrefix = opts.proxy_prefix || "https://proxy.cflmy.top";
+
+    async function viaInvoke(viaProxy) {
+      var b64 = await blobToBase64(blob);
+      var json = await storePost("/api/store/asr_transcribe", {
+        api_key: key,
+        base_url: base,
+        model: model,
+        language: language || undefined,
+        via_proxy: viaProxy,
+        proxy_prefix: proxyPrefix,
+        filename: filename,
+        file_b64: b64,
+      });
+      if (!json || json.ok === false) {
+        throw new Error((json && json.error) || "ASR 转写失败");
+      }
+      return {
+        text: String(json.text || "").trim(),
+        raw: json.raw || json,
+        status: 200,
+        via_proxy: !!json.via_proxy,
+        url: json.url || "",
+      };
     }
-    var text =
-      (out.data && (out.data.text || out.data.transcript || out.data.result)) ||
-      (typeof out.data === "string" ? out.data : "");
-    return { text: String(text || "").trim(), raw: out.data, status: out.status };
+
+    async function viaRelay() {
+      var fd = new FormData();
+      fd.append("file", blob, filename);
+      fd.append("model", model);
+      if (language) fd.append("language", language);
+      var out = await relay({
+        mount: "asr",
+        path: "/audio/transcriptions",
+        method: "POST",
+        headers: { Authorization: "Bearer " + key },
+        body: fd,
+        signal: opts.signal,
+      });
+      if (!out.ok) {
+        var err =
+          (out.data && (out.data.message || (out.data.error && out.data.error.message))) ||
+          (typeof out.data === "string" ? out.data : JSON.stringify(out.data || {})).slice(
+            0,
+            240
+          );
+        throw new Error("ASR HTTP " + out.status + "：" + err);
+      }
+      var text =
+        (out.data && (out.data.text || out.data.transcript || out.data.result)) ||
+        (typeof out.data === "string" ? out.data : "");
+      return { text: String(text || "").trim(), raw: out.data, status: out.status };
+    }
+
+    // Need base_url for invoke path; fall back to relay if missing.
+    if (!base) {
+      return viaRelay();
+    }
+
+    var order = preferProxy ? [true, false] : [false, true];
+    var lastErr = null;
+    for (var i = 0; i < order.length; i++) {
+      try {
+        return await viaInvoke(order[i]);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    try {
+      return await viaRelay();
+    } catch (e2) {
+      throw lastErr || e2;
+    }
   }
 
   /**
@@ -297,6 +376,28 @@
     return {};
   }
 
+  function resolveAsrConfig(cfg) {
+    cfg = cfg || {};
+    var key = (cfg.asr_api_key || cfg.llm_api_key || "").trim();
+    var base = (cfg.asr_base_url || cfg.llm_base_url || "").trim();
+    var model = (cfg.asr_model || "").trim() || "whisper-1";
+    return {
+      api_key: key,
+      base_url: base,
+      model: model,
+      ok: !!key,
+      reused_llm: !!(key && !(cfg.asr_api_key || "").trim()),
+    };
+  }
+
+  /** Whisper / SenseVoice expect ISO-639-1 (zh), not BCP-47 (zh-CN). */
+  function asrLanguageCode(dictationLang) {
+    var l = String(dictationLang || "zh-CN").trim();
+    if (!l || l === "auto") return "";
+    var m = l.match(/^([a-z]{2})/i);
+    return m ? m[1].toLowerCase() : "";
+  }
+
   async function testLlm(cfg) {
     var key = (cfg.llm_api_key || "").trim();
     if (!key) throw new Error("请填写大模型 API Key");
@@ -325,10 +426,35 @@
   async function testVoice(cfg) {
     var lang = (cfg.dictation_lang || "zh-CN").trim();
     if (!lang) throw new Error("请填写听写语言（如 zh-CN / en-US / auto）");
+    var asr = resolveAsrConfig(cfg);
+    var notes = [];
+    if (asr.ok) {
+      var asrOut = await relay({
+        mount: "asr",
+        path: "/models",
+        method: "GET",
+        headers: { Authorization: "Bearer " + asr.api_key },
+        body: null,
+      });
+      if (!asrOut.ok) {
+        var amsg =
+          typeof asrOut.data === "string"
+            ? asrOut.data
+            : (asrOut.data &&
+                (asrOut.data.error && (asrOut.data.error.message || asrOut.data.error))) ||
+              asrOut.error ||
+              JSON.stringify(asrOut.data || asrOut).slice(0, 240);
+        throw new Error("ASR 测试失败 HTTP " + asrOut.status + "：" + amsg);
+      }
+      notes.push(
+        "ASR OK" + (asr.reused_llm ? "（复用大模型 Key）" : "") + " · " + asr.model
+      );
+    } else {
+      notes.push("未配 ASR：国内 Web Speech 常失败，建议填 ASR 或依赖大模型 Key");
+    }
     var key = (cfg.tts_api_key || "").trim();
     if (!key) {
-      // Dictation is browser-native — no upstream ASR to ping.
-      return { ok: true, skipped: "tts", dictation_lang: lang };
+      return { ok: true, skipped: "tts", dictation_lang: lang, note: notes.join("；") };
     }
     var out = await relay({
       mount: "tts",
@@ -346,7 +472,8 @@
             JSON.stringify(out.data || out).slice(0, 240);
       throw new Error("TTS 测试失败 HTTP " + out.status + "：" + msg);
     }
-    return out;
+    notes.push("TTS OK");
+    return { ok: true, dictation_lang: lang, note: notes.join("；") };
   }
 
   /** OpenAI-compatible POST /audio/speech → ArrayBuffer. */
@@ -585,6 +712,9 @@
     synthesizeSpeech: synthesizeSpeech,
     DICTATION_LANGS: DICTATION_LANGS,
     resolveDictationLang: resolveDictationLang,
+    resolveAsrConfig: resolveAsrConfig,
+    asrLanguageCode: asrLanguageCode,
+    wrapHkProxy: wrapHkProxy,
     getStoredDictationLang: getStoredDictationLang,
     setStoredDictationLang: setStoredDictationLang,
     fillDictationLangSelect: fillDictationLangSelect,
