@@ -117,11 +117,17 @@ create run skeleton
 | `data/.git` | 知识库时间线（commit / revert） |
 | `data/runs/*.mq.md` | 只追加的执行沉淀 |
 | `data/kb/用户画像.mq.md` | 画像权威 |
-| `data/kb/整理-*.mq.md` | 只新增的主题索引 |
+| `data/kb/concepts/notes/*.md` | OKF 概念笔记（`type: Marqdo Note`；智能整理晋升） |
+| `data/kb/concepts/areas/*.md` | 长期领域笔记 |
+| `data/kb/index.md` | 概念索引（可删再生） |
+| `data/kb/organize-state.json` | 增量整理水位 |
+| `data/kb/整理-*.mq.md` | 旧表格索引 / LLM 失败回退 |
 | `data/kb/changes/*` | 变更提案（open → apply/reject） |
 
-**自动允许：** 新建 run / 新建整理索引 → 写盘后 `git commit`。  
+**自动允许：** 新建 run / OKF 概念晋升 / 整理索引 → 写盘后 `git commit`。  
 **必须审查：** 改写画像、重置模板、改既有 runs → `POST /api/store/changes/propose`，在「设置 → 记忆」看 diff 后 apply；可用 `git revert` 回滚。
+
+**UI：** `/notes` 默认展示 concepts；`/notes/runs` 展示原始沉淀。对话沉淀后客户端节流触发增量整理（90s 或满 3 次 capture）。
 
 封装：`scripts/legacy/kb_git.py` · `kb_changes.py`（stdout 经临时 JSON，见 GAP-09）。
 

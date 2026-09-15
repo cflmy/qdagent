@@ -6,6 +6,7 @@
 |------|-----|------|-----|
 | 对话 | / | | auth |
 | 笔记库 | /notes | | auth |
+| 原始沉淀 | /notes/runs | | auth |
 | 记一笔 | /notes/new | | auth |
 | 大模型设置 | /settings/llm | | auth |
 | 语音设置 | /settings/voice | | auth |

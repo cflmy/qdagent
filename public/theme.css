@@ -1085,6 +1085,84 @@ html.qd-agent-busy #qd-input {
   max-width: 11rem;
 }
 
+.qd-notes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.75rem 0 1rem;
+}
+.qd-kb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 0.85rem;
+  margin: 0 0 1.5rem;
+}
+.qd-kb-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  text-align: left;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--mq-line);
+  background: var(--mq-paper, #fff);
+  border-radius: var(--mq-radius);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.qd-kb-card:hover {
+  border-color: var(--mq-accent, #0c6b5c);
+  transform: translateY(-1px);
+}
+.qd-kb-card-meta {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mq-muted);
+}
+.qd-kb-card strong {
+  font-family: var(--mq-font-display, inherit);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--mq-ink);
+}
+.qd-kb-card-desc {
+  font-size: 0.88rem;
+  color: var(--mq-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.qd-kb-detail {
+  border-top: 1px solid var(--mq-line);
+  padding-top: 1rem;
+  margin-bottom: 2rem;
+}
+.qd-kb-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.qd-kb-detail-body {
+  white-space: pre-wrap;
+  font-family: var(--mq-font-mono, ui-monospace, monospace);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  max-height: 28rem;
+  overflow: auto;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--mq-line);
+  background: #fff;
+  border-radius: var(--mq-radius);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

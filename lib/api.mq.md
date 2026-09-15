@@ -14,6 +14,7 @@ import websearch:lib/web_search.mq.md
 import kbgit:lib/kb_git.mq.md
 import changes:lib/changes.mq.md
 import asr:lib/asr.mq.md
+import org:lib/organize.mq.md
 ---
 
 ## health
@@ -214,7 +215,8 @@ import asr:lib/asr.mq.md
 
 ## organize
     + `query`=""
-    + `limit`=12
+    + `limit`=20
+    + `mode`="incremental"
     + `payload`=None
 
 1. `payload`
@@ -224,33 +226,101 @@ import asr:lib/asr.mq.md
   **pl = > json.get value=`payload` key="limit"**
   1. `pl`
     **limit = `pl`**
+  **pm = > json.get value=`payload` key="mode"**
+  1. `pm`
+    **mode = `pm`**
 
 1. not `query`
   **query = "求道"**
+1. not `mode`
+  **mode = "incremental"**
 
 **root = > run.确保目录**
 **corpus = `root` + "/runs"**
 **raw = > agent.corpus_search query=`query` root=`corpus` limit=`limit`**
 **hits = [hits](raw)**
 **rows = > db.recent limit=`limit`**
+**store = > db.open**
+**cfg_rows = > store.select table="settings" limit=1**
+**cfg = [1](cfg_rows)**
+**llm_key = [llm_api_key](cfg)**
+**llm_base = [llm_base_url](cfg)**
+**llm_model = [llm_model](cfg)**
+1. not `llm_base`
+  **llm_base = "https://api.openai.com/v1"**
+1. not `llm_model`
+  **llm_model = "gpt-4o-mini"**
+
+**req = > json.parse text={"run_catalog":true}**
+**req = > json.set map=`req` key="mode" value=`mode`**
+**req = > json.set map=`req` key="query" value=`query`**
+**req = > json.set map=`req` key="limit" value=`limit`**
+**req = > json.set map=`req` key="rows" value=`rows`**
+**req = > json.set map=`req` key="hits" value=`hits`**
+**req = > json.set map=`req` key="llm_api_key" value=`llm_key`**
+**req = > json.set map=`req` key="llm_base_url" value=`llm_base`**
+**req = > json.set map=`req` key="llm_model" value=`llm_model`**
+
+**prom = > org.整理 payload=`req`**
+**prom_ok = [ok](prom)**
 **u = > time.now_unix**
 **day = > time.format unix=`u` pattern="%Y-%m-%d"**
 **stamp = > time.format unix=`u` pattern="%Y%m%d-%H%M%S"**
 **slug = "organize-" + `stamp`**
+
+1. `prom_ok`
+  **brief = [summary](prom)**
+  1. not `brief`
+    **n = [promoted](prom)**
+    **brief = "OKF 智能整理完成：晋升 " + `n` + " 条概念笔记（mode=" + `mode` + "）。历史 runs 未改写。"**
+  **git = > kbgit.提交 message="organize-okf: " + `query`**
+  **run_path = > run.沉淀 store=`store` title="OKF 整理 · " + `query` task=`query` result=`brief` summary=`brief` slug=`slug` surface="organize"**
+  **out = > json.parse text={"ok":true,"via":"okf"}**
+  **out = > json.set map=`out` key="slug" value=`slug`**
+  **out = > json.set map=`out` key="path" value=`run_path`**
+  **out = > json.set map=`out` key="summary" value=`brief`**
+  **out = > json.set map=`out` key="promote" value=`prom`**
+  **out = > json.set map=`out` key="git" value=`git`**
+  **out = > json.set map=`out` key="mode" value=`mode`**
+  *out*
+
 **kb_path = `root` + "/kb/整理-" + `stamp` + ".mq.md"**
 **plan = > fmt.整理文稿 query=`query` day=`day` hits=`hits` rows=`rows`**
 > fs.write_text path=`kb_path` text=`plan`
-**brief = "整理完成：主题「" + `query` + "」。可读索引已写入 kb/整理-" + `stamp` + ".mq.md（表格摘要，无 JSON dump）。历史 runs 未改写。清理画像请走变更提案。"**
-**store = > db.open**
+**err = [error](prom)**
+1. not `err`
+  **err = "okf promote failed"**
+**brief = "OKF 晋升未完成（" + `err` + "），已回退写出表格索引 kb/整理-" + `stamp` + ".mq.md。历史 runs 未改写。"**
+**git = > kbgit.提交 message="organize-fallback: " + `query`**
 **run_path = > run.沉淀 store=`store` title="笔记整理 · " + `query` task=`query` result=`brief` summary=`brief` slug=`slug` surface="organize"**
-**git = > kbgit.提交 message="organize: " + `query`**
-**out = > json.parse text={"ok":true}**
+**out = > json.parse text={"ok":true,"via":"index-fallback"}**
+**out = > json.set map=`out` key="warning" value=`err`**
+**out = > json.set map=`out` key="error" value=`err`**
 **out = > json.set map=`out` key="kb_path" value=`kb_path`**
 **out = > json.set map=`out` key="slug" value=`slug`**
 **out = > json.set map=`out` key="path" value=`run_path`**
 **out = > json.set map=`out` key="summary" value=`brief`**
+**out = > json.set map=`out` key="promote" value=`prom`**
 **out = > json.set map=`out` key="hits" value=`hits`**
 **out = > json.set map=`out` key="git" value=`git`**
+**out = > json.set map=`out` key="mode" value=`mode`**
+*out*
+
+## kb_list
+    + `payload`=None
+
+**out = > org.列表**
+*out*
+
+## kb_get
+    + `slug`=""
+    + `payload`=None
+
+1. `payload`
+  **ps = > json.get value=`payload` key="slug"**
+  1. `ps`
+    **slug = `ps`**
+**out = > org.读取 slug=`slug` payload=`payload`**
 *out*
 
 ## profile_reset

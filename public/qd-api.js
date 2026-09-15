@@ -579,6 +579,14 @@
     return storePost("/api/store/organize", payload || {});
   }
 
+  async function storeKbList(payload) {
+    return storePost("/api/store/kb/list", payload || {});
+  }
+
+  async function storeKbGet(payload) {
+    return storePost("/api/store/kb/get", payload || {});
+  }
+
   async function storeWebSearch(payload, opts) {
     return storePost("/api/store/web_search", payload || {}, opts);
   }
@@ -728,6 +736,8 @@
     storeProfile: storeProfile,
     storeProfileUpdate: storeProfileUpdate,
     storeOrganize: storeOrganize,
+    storeKbList: storeKbList,
+    storeKbGet: storeKbGet,
     storeWebSearch: storeWebSearch,
     storeChangePropose: storeChangePropose,
     storeChangeList: storeChangeList,

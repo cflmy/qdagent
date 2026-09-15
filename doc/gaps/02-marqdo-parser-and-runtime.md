@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| 状态 | **Partially superseded**（本机已升 **1.0.0** / markup v0.3；下列缺口多为 0.3.7 实录，上游多已修复） |
-| 日期 | 2026-09-09（2026-09-15 升 1.0.0） |
+| 状态 | **GAP-06…12 上游已关**（2026-09-15 复核：解析嵌套 / invoke Null / exec capture / SSE 头 / 表单插槽 / MARQDO_EXT hint；另见 qdqc 动态路由与 CSS 误报） |
+| 日期 | 2026-09-09（2026-09-15 升 1.0.0；同日复核关闭） |
 | 运行时 | Marqdo **1.0.0**（markup v0.3：`**代码**` / `*返回*`；Go `libweb`） |
 | 发现场景 | 联网搜索（`lib/web_search.mq.md`）+ 对话 SSE 流式 + 记一笔双栏语音 |
 | 原则 | 记入本文后可用 `scripts/legacy/` 或语法规避；上游修复后改 **CLOSED** |
@@ -18,7 +18,7 @@ HTTP invoke 再把 `Null` 包成 `{"ok":true}`（约 0–2ms），表现为「�
 
 ## 2. 缺陷清单
 
-### GAP-06 · 命名参数反引号嵌套截断函数体 — **Open**
+### GAP-06 · 命名参数反引号嵌套截断函数体 — **CLOSED**
 
 | | |
 |---|---|
@@ -38,7 +38,7 @@ HTTP invoke 再把 `Null` 包成 `{"ok":true}`（约 0–2ms），表现为「�
 *code = > sys.exec cmd="python3" args=args*
 ```
 
-### GAP-07 · `json.parse text=[…]` 非空数组字面量截断 — **Open**
+### GAP-07 · `json.parse text=[…]` 非空数组字面量截断 — **CLOSED**
 
 | | |
 |---|---|
@@ -48,7 +48,7 @@ HTTP invoke 再把 `Null` 包成 `{"ok":true}`（约 0–2ms），表现为「�
 | 求道规避 | 先 `text=[]`，再 `json.append`；路径字符串用拼接：`"scripts" + "/legacy" + "/web_search.py"`，经变量传入 `item=` |
 | 上游期望 | `text=[…]` 作为命名参数文本字面量应整段吸收，不截断函数体 |
 
-### GAP-08 · invoke 将 `Null` 伪装成成功 JSON — **Open**
+### GAP-08 · invoke 将 `Null` 伪装成成功 JSON — **CLOSED**
 
 | | |
 |---|---|
@@ -58,7 +58,7 @@ HTTP invoke 再把 `Null` 包成 `{"ok":true}`（约 0–2ms），表现为「�
 | 求道规避 | 约定业务成功必须带可观察字段（如 `hits` / `provider`）；冒烟检查字段而非仅 `ok` |
 | 上游期望 | `Null` → `{"ok":false,"error":"null result"}` 或 500；至少不要与成功同形 |
 
-### GAP-09 · `sys.exec` 只返回退出码、不捕获 stdout — **Open**（设计摩擦）
+### GAP-09 · `sys.exec` 只返回退出码、不捕获 stdout — **CLOSED**（`capture=True` → `{code,stdout,stderr}`）
 
 | | |
 |---|---|
@@ -67,7 +67,7 @@ HTTP invoke 再把 `Null` 包成 `{"ok":true}`（约 0–2ms），表现为「�
 | 求道现状 | `scripts/legacy/web_search.py` 写 `data/tmp/last_web_search.json`，由 `lib/web_search.mq.md` 回读 |
 | 上游期望 | 可选 `capture=True` 返回 `{code, stdout, stderr}`，减少临时文件 |
 
-### GAP-10 · 流式代理缺少反缓冲响应头 — **Mitigated（本机补丁）**
+### GAP-10 · 流式代理缺少反缓冲响应头 — **CLOSED**
 
 | | |
 |---|---|
@@ -76,7 +76,7 @@ HTTP invoke 再把 `Null` 包成 `{"ok":true}`（约 0–2ms），表现为「�
 | 备注 | qdagent「看起来不流式」主因仍是模型先推 `reasoning_content`（前端已修）；反缓冲头是代理层加固 |
 | 上游期望 | 合并进官方 0.3.7+ web 插件 |
 
-### GAP-11 · `表单装配` 无法嵌入自定义页面布局 — **Open**
+### GAP-11 · `表单装配` 无法嵌入自定义页面布局 — **CLOSED**（`form_target` / `表单插槽`）
 
 | | |
 |---|---|
@@ -85,7 +85,7 @@ HTTP invoke 再把 `Null` 包成 `{"ok":true}`（约 0–2ms），表现为「�
 | 求道规避 | `public/notes-voice.js` 启动时把 `form` 移入 `#qd-note-form-mount` |
 | 上游期望 | 页面提供插槽（如 `表单插槽="#id"`）或允许表单装配目标容器选择器 |
 
-### GAP-12 · 未设置 `MARQDO_EXT` 时 import 报错过简 — **Open**（DX）
+### GAP-12 · 未设置 `MARQDO_EXT` 时 import 报错过简 — **CLOSED**
 
 | | |
 |---|---|
@@ -135,3 +135,4 @@ HTTP invoke 再把 `Null` 包成 `{"ok":true}`（约 0–2ms），表现为「�
 | 2026-09-09 | 初版 GAP-06…10（联网搜索与 SSE 开发中确认） |
 | 2026-09-09 | GAP-11/12（记一笔布局 + 裸 `marqdo run` 启动失败）；语音 VU 记入非 Marqdo 表 |
 | 2026-09-09 | 知识库 git / 变更提案落地说明（kb_git · kb_changes） |
+| 2026-09-15 | 复核 1.0.0：GAP-06…12 上游已具备；动态路由/`{slug}` 与 CSS 数字误报见 qdqc `docs/bugs/`（同日修入 `marqdo`） |

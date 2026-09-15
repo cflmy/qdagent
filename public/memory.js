@@ -212,18 +212,18 @@
     if (organizeBtn) {
       organizeBtn.addEventListener("click", function () {
         var q = (queryInput && queryInput.value.trim()) || "求道";
-        setStatus("生成整理索引…", true);
+        setStatus("智能整理（OKF）…", true);
         organizeBtn.disabled = true;
-        QdApi.storeOrganize({ query: q, limit: 12 })
+        QdApi.storeOrganize({ query: q, limit: 20, mode: "full" })
           .then(function (j) {
-            setStatus(
-              (j.summary || "已整理") +
-                " · " +
-                (j.kb_path || "") +
-                " · 审计 " +
-                (j.slug || ""),
-              true
-            );
+            var extra =
+              j.via === "okf"
+                ? " · 晋升 " +
+                  ((j.promote && j.promote.promoted) != null
+                    ? j.promote.promoted
+                    : "?")
+                : " · 回退 " + (j.kb_path || "");
+            setStatus((j.summary || "已整理") + extra + " · 审计 " + (j.slug || ""), true);
             return loadGit();
           })
           .catch(function (e) {

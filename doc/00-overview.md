@@ -81,7 +81,7 @@
 |------|-------------|
 | 用户画像 | `data/kb/用户画像.mq.md` · 维度：身份与角色、目标与动机、沟通偏好、工作习惯、常用工具与环境、近期焦点、禁忌与边界、变更日志 |
 | 回答前查库 | `/api/store/context`（画像 + `corpus_search`）→ Web system / CLI standing |
-| 笔记整理 | 手动：可读 **GFM 表格索引**（PARA 风格）→ `data/kb/整理-*.mq.md`；笔记库卡片只用短 `summary`，禁止 JSON dump |
+| 笔记整理 | 智能：OKF `data/kb/concepts/**`（LLM，失败则启发式合并）；失败彻底时回退 `整理-*.mq.md`；`/notes` 看 concepts，`/notes/runs` 看审计 |
 
 仍 **不做** 默认向量 RAG。
 

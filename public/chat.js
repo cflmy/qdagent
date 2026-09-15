@@ -557,10 +557,52 @@
           persist();
         }
         setStatus("已自动沉淀 · " + (out.slug || slug) + (out.via ? " (" + out.via + ")" : ""));
+        maybeOrganizeAfterCapture();
         return out;
       } catch (e) {
         setStatus("沉淀失败：" + e.message);
         return null;
+      }
+    }
+
+    var organizeBusy = false;
+    function maybeOrganizeAfterCapture() {
+      try {
+        var KEY_AT = "qd_org_last_at";
+        var KEY_N = "qd_org_since";
+        var now = Date.now();
+        var last = Number(localStorage.getItem(KEY_AT) || 0);
+        var since = Number(localStorage.getItem(KEY_N) || 0) + 1;
+        localStorage.setItem(KEY_N, String(since));
+        var cooled = now - last >= 90000;
+        var enough = since >= 3;
+        if (organizeBusy || (!cooled && !enough)) return;
+        organizeBusy = true;
+        localStorage.setItem(KEY_AT, String(now));
+        localStorage.setItem(KEY_N, "0");
+        setStatus("后台整理中…");
+        QdApi.storeOrganize({ mode: "incremental", limit: 20, query: "求道" })
+          .then(function (j) {
+            var n =
+              j && j.promote && j.promote.promoted != null
+                ? j.promote.promoted
+                : null;
+            if (j && j.via === "okf" && n != null) {
+              setStatus("已晋升 " + n + " 条概念笔记");
+            } else if (j && j.warning) {
+              setStatus("整理回退：" + String(j.warning).slice(0, 80));
+            } else if (j && j.summary) {
+              setStatus(String(j.summary).slice(0, 100));
+            }
+          })
+          .catch(function () {
+            /* non-blocking */
+          })
+          .finally(function () {
+            organizeBusy = false;
+          });
+      } catch (e) {
+        organizeBusy = false;
       }
     }
 

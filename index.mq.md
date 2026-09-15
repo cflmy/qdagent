@@ -106,7 +106,7 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 27 |
+| stylesheet | "/static/theme.css" | "text/css" | | 28 |
 
 `聊天头` =
 
@@ -115,10 +115,10 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 27 |
-| script | "/static/qd-api.js" | | true | 27 |
-| script | "/static/qd-voice.js" | | true | 27 |
-| script | "/static/chat.js" | | true | 27 |
+| stylesheet | "/static/theme.css" | "text/css" | | 28 |
+| script | "/static/qd-api.js" | | true | 28 |
+| script | "/static/qd-voice.js" | | true | 28 |
+| script | "/static/chat.js" | | true | 28 |
 
 `记一笔头` =
 
@@ -127,10 +127,21 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 27 |
-| script | "/static/qd-api.js" | | true | 27 |
-| script | "/static/qd-voice.js" | | true | 27 |
-| script | "/static/notes-voice.js" | | true | 27 |
+| stylesheet | "/static/theme.css" | "text/css" | | 28 |
+| script | "/static/qd-api.js" | | true | 28 |
+| script | "/static/qd-voice.js" | | true | 28 |
+| script | "/static/notes-voice.js" | | true | 28 |
+
+`笔记库头` =
+
+| 关系 | 地址 | 类型 | 推迟 | 版本 |
+|------|------|------|------|------|
+| preconnect | "https://fonts.googleapis.com" | | | |
+| preconnect | "https://fonts.gstatic.com" | | | |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 28 |
+| script | "/static/qd-api.js" | | true | 28 |
+| script | "/static/notes-kb.js" | | true | 28 |
 
 `设置头` =
 
@@ -139,9 +150,9 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 27 |
-| script | "/static/qd-api.js" | | true | 27 |
-| script | "/static/settings.js" | | true | 27 |
+| stylesheet | "/static/theme.css" | "text/css" | | 28 |
+| script | "/static/qd-api.js" | | true | 28 |
+| script | "/static/settings.js" | | true | 28 |
 
 `接入头` =
 
@@ -150,9 +161,9 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 27 |
-| script | "/static/qd-api.js" | | true | 27 |
-| script | "/static/mcp.js" | | true | 27 |
+| stylesheet | "/static/theme.css" | "text/css" | | 28 |
+| script | "/static/qd-api.js" | | true | 28 |
+| script | "/static/mcp.js" | | true | 28 |
 
 `记忆头` =
 
@@ -161,9 +172,9 @@ import sys:lib/sys.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 27 |
-| script | "/static/qd-api.js" | | true | 27 |
-| script | "/static/memory.js" | | true | 27 |
+| stylesheet | "/static/theme.css" | "text/css" | | 28 |
+| script | "/static/qd-api.js" | | true | 28 |
+| script | "/static/memory.js" | | true | 28 |
 
 `用户` =
 
@@ -200,12 +211,16 @@ import sys:lib/sys.mq.md
 **note_form = > note_form.规则 规则=`笔记规则`**
 **page = > page.表单装配 id="note" 表单=note_form**
 
-**notes = > 网页.页面 标题="笔记库" 引言="<h1>笔记库</h1><p>对话回合结束后会<strong>自动沉淀</strong>新 runs；回答前检索本库与画像。手动「生成整理索引」写出 <code>data/kb/整理-*.mq.md</code>，<strong>不改写</strong>历史 runs。清理/改写请到<a href=\"/settings/memory\">记忆 · 变更审查</a>（git 提案）。也可<a href=\"/notes/new\">记一笔</a>。</p>"**
+**notes = > 网页.页面 标题="笔记库" 引言="<h1>笔记库</h1><p>默认展示<strong>OKF 整理后的概念笔记</strong>（<code>data/kb/concepts</code>）。对话仍自动沉淀到 <code>data/runs</code>（只追加）；智能体增量整理后在此合并主题。<a href=\"/notes/runs\">原始沉淀</a> · <a href=\"/notes/new\">记一笔</a> · <a href=\"/settings/memory\">记忆审查</a></p><p class=\"qd-notes-toolbar\"><button type=\"button\" id=\"qd-kb-organize\" class=\"primary\">智能整理</button> <input id=\"qd-kb-query\" type=\"text\" placeholder=\"整理关键词，默认求道\" style=\"max-width:12rem\"/> <span id=\"qd-kb-status\" class=\"qd-muted\"></span></p><div id=\"qd-kb-grid\" class=\"qd-kb-grid\" aria-live=\"polite\"></div><article id=\"qd-kb-detail\" class=\"qd-kb-detail\" hidden><header class=\"qd-kb-detail-head\"><h2 id=\"qd-kb-detail-title\">笔记</h2><button type=\"button\" id=\"qd-kb-detail-close\">关闭</button></header><pre id=\"qd-kb-detail-body\" class=\"qd-kb-detail-body\"></pre></article>"**
 **notes = > notes.组件装配 组件=`壳`**
-**notes = > notes.主体装配 主体=`列表`**
-**notes = > notes.排序 排序="-created_at"**
-**notes = > notes.链接前缀 前缀="/run/"**
-**notes = > notes.头装配 表=`头资源`**
+**notes = > notes.头装配 表=`笔记库头`**
+
+**notes_runs = > 网页.页面 标题="原始沉淀" 引言="<h1>原始沉淀</h1><p>审计层：每次对话/执行追加的 <code>data/runs/*.mq.md</code>。<strong>不会</strong>被整理改写。回到<a href=\"/notes\">整理后的笔记库</a>。</p>"**
+**notes_runs = > notes_runs.组件装配 组件=`壳`**
+**notes_runs = > notes_runs.主体装配 主体=`列表`**
+**notes_runs = > notes_runs.排序 排序="-created_at"**
+**notes_runs = > notes_runs.链接前缀 前缀="/run/"**
+**notes_runs = > notes_runs.头装配 表=`头资源`**
 
 **detail = > 网页.页面 标题="笔记"**
 **detail = > detail.组件装配 组件=`壳`**
@@ -242,11 +257,11 @@ import sys:lib/sys.mq.md
 **settings_voice = > settings_voice.表单装配 id="settings-voice" 表单=set_voice**
 **settings_voice = > settings_voice.头装配 表=`设置头`**
 
-**settings_mcp = > 网页.页面 标题="MCP 接入" 引言="<h1>MCP 接入</h1><p>Cursor / Claude Desktop 经 MCP 读写笔记。宿主为 <code>marqdo run 求道-mcp.mq.md</code>。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_context</code>、<code>qd_profile</code>、<code>qd_organize</code>、<code>qd_capture</code>。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\"><code>marqdo catalog data/runs</code> · <code>marqdo view data/runs</code></p>"**
+**settings_mcp = > 网页.页面 标题="MCP 接入" 引言="<h1>MCP 接入</h1><p>Cursor / Claude Desktop 经 MCP 读写笔记。宿主为 <code>marqdo run 求道-mcp.mq.md</code>。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_context</code>、<code>qd_profile</code>、<code>qd_organize</code>、<code>qd_kb_list</code>、<code>qd_kb_get</code>、<code>qd_capture</code>。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\"><code>marqdo catalog data/kb</code> · <code>marqdo view data/runs</code></p>"**
 **settings_mcp = > settings_mcp.组件装配 组件=`壳`**
 **settings_mcp = > settings_mcp.头装配 表=`接入头`**
 
-**settings_memory = > 网页.页面 标题="记忆" 引言="<h1>记忆 · 画像与变更审查</h1><p>权威文件：<code>data/kb/用户画像.mq.md</code>；笔记在 <code>data/runs</code>。知识库使用独立 git（<code>data/.git</code>）。清理/改写须经<strong>变更提案</strong>审查后应用。「整理笔记库」只新增索引，不改写历史 runs。</p><p id=\"qd-memory-status\" class=\"qd-settings-status\"></p><p><button type=\"button\" id=\"qd-profile-refresh\" class=\"primary\">刷新画像</button> <button type=\"button\" id=\"qd-profile-reset\">提案：重置画像模板</button> <input id=\"qd-organize-query\" type=\"text\" placeholder=\"整理关键词，默认求道\" style=\"max-width:14rem\"/> <button type=\"button\" id=\"qd-organize\">生成整理索引</button></p><h2>待审变更</h2><div id=\"qd-changes-list\" class=\"qd-changes-list\"></div><pre id=\"qd-change-diff\" class=\"qd-change-diff\" hidden></pre><p class=\"qd-changes-actions\"><button type=\"button\" id=\"qd-change-apply\" class=\"primary\" disabled>应用选中</button> <button type=\"button\" id=\"qd-change-reject\" disabled>拒绝选中</button> <button type=\"button\" id=\"qd-changes-refresh\">刷新提案</button></p><h2>Git 历史</h2><div id=\"qd-git-log\" class=\"qd-git-log\"></div><p><button type=\"button\" id=\"qd-git-refresh\">刷新提交</button> <button type=\"button\" id=\"qd-git-revert\" disabled>回滚选中提交</button></p><h2>当前画像</h2><pre id=\"qd-profile-body\" class=\"qd-profile-body\"></pre>"**
+**settings_memory = > 网页.页面 标题="记忆" 引言="<h1>记忆 · 画像与变更审查</h1><p>权威文件：<code>data/kb/用户画像.mq.md</code>；整理后的知识在 <code>data/kb/concepts</code>（OKF）；审计 runs 在 <code>data/runs</code>。知识库使用独立 git（<code>data/.git</code>）。清理/改写须经<strong>变更提案</strong>审查后应用。「智能整理」合并主题到 concepts，<strong>不改写</strong>历史 runs。</p><p id=\"qd-memory-status\" class=\"qd-settings-status\"></p><p><button type=\"button\" id=\"qd-profile-refresh\" class=\"primary\">刷新画像</button> <button type=\"button\" id=\"qd-profile-reset\">提案：重置画像模板</button> <input id=\"qd-organize-query\" type=\"text\" placeholder=\"整理关键词，默认求道\" style=\"max-width:14rem\"/> <button type=\"button\" id=\"qd-organize\">智能整理（OKF）</button></p><h2>待审变更</h2><div id=\"qd-changes-list\" class=\"qd-changes-list\"></div><pre id=\"qd-change-diff\" class=\"qd-change-diff\" hidden></pre><p class=\"qd-changes-actions\"><button type=\"button\" id=\"qd-change-apply\" class=\"primary\" disabled>应用选中</button> <button type=\"button\" id=\"qd-change-reject\" disabled>拒绝选中</button> <button type=\"button\" id=\"qd-changes-refresh\">刷新提案</button></p><h2>Git 历史</h2><div id=\"qd-git-log\" class=\"qd-git-log\"></div><p><button type=\"button\" id=\"qd-git-refresh\">刷新提交</button> <button type=\"button\" id=\"qd-git-revert\" disabled>回滚选中提交</button></p><h2>当前画像</h2><pre id=\"qd-profile-body\" class=\"qd-profile-body\"></pre>"**
 **settings_memory = > settings_memory.组件装配 组件=`壳`**
 **settings_memory = > settings_memory.头装配 表=`记忆头`**
 
@@ -289,6 +304,8 @@ import sys:lib/sys.mq.md
 | /api/store/profile/update | POST | api.profile_update | json | json |
 | /api/store/profile/reset | POST | api.profile_reset | json | json |
 | /api/store/organize | POST | api.organize | json | json |
+| /api/store/kb/list | POST | api.kb_list | json | json |
+| /api/store/kb/get | POST | api.kb_get | json | json |
 | /api/store/web_search | POST | api.web_search | json | json |
 | /api/store/asr_transcribe | POST | api.asr_transcribe | json | json |
 | /api/store/changes/propose | POST | api.change_propose | json | json |
@@ -302,6 +319,7 @@ import sys:lib/sys.mq.md
 
 **app = > 网页.应用 页面=page 数据库=store 后台=True 后台前缀="/account" 主机=`host` 端口=`port` 登录回跳="/" 登出回跳="/account/login"**
 **app = > app.路由 路径="/notes" 页面=notes**
+**app = > app.路由 路径="/notes/runs" 页面=notes_runs**
 **app = > app.路由 路径="/notes/new" 页面=new**
 **app = > app.路由 路径="/run/{slug}" 页面=detail**
 **app = > app.路由 路径="/settings" 页面=settings_hub**
