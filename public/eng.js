@@ -40,6 +40,20 @@
     });
   }
 
+  const mBtn = $("qd-eng-metrics");
+  if (mBtn) {
+    mBtn.addEventListener("click", async () => {
+      show($("qd-eng-metrics-out"), { status: "running…" });
+      const r = await fetch("/api/eng/metrics", { credentials: "same-origin" });
+      const t = await r.text();
+      try {
+        show($("qd-eng-metrics-out"), JSON.parse(t));
+      } catch (_) {
+        show($("qd-eng-metrics-out"), { ok: false, raw: t, status: r.status });
+      }
+    });
+  }
+
   const fBtn = $("qd-eng-find");
   if (fBtn) {
     fBtn.addEventListener("click", async () => {

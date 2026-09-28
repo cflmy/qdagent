@@ -11,7 +11,13 @@ if [[ -z "${MARQDO_EXT:-}" ]]; then
     export MARQDO_EXT="$HOME/.marqdo/ext"
   fi
 fi
-export MARQDO_LIB="${MARQDO_LIB:-$HOME/.marqdo/lib}"
+if [[ -z "${MARQDO_LIB:-}" ]]; then
+  if [[ -d "$HOME/work/marqdo/lib" ]]; then
+    export MARQDO_LIB="$HOME/work/marqdo/lib"
+  else
+    export MARQDO_LIB="$HOME/.marqdo/lib"
+  fi
+fi
 if [[ -z "${MARQDO_WEB_PLUGIN:-}" && -f "${MARQDO_EXT}/native/libweb.so" ]]; then
   export MARQDO_WEB_PLUGIN="${MARQDO_EXT}/native/libweb.so"
 fi

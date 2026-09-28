@@ -93,6 +93,7 @@ import sys:lib/sys.mq.md
 | /api/eng/reuse | POST | api.eng_reuse | json | json |
 | /api/eng/verify | POST | api.eng_verify | json | json |
 | /api/eng/learn | POST | api.eng_learn | json | json |
+| /api/eng/metrics | GET | api.eng_metrics | query | json |
 
 **接口 = > ui.接口**
 

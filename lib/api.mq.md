@@ -21,6 +21,7 @@ import eng_pf:../agent/preflight.mq.md
 import eng_res:../knowledge/resolver.mq.md
 import eng_ver:../execution/verify.mq.md
 import eng_qd:../agent/qdagent.mq.md
+import eng_met:../knowledge/metrics.mq.md
 ---
 
 ## 成功
@@ -542,4 +543,10 @@ Engineering Preflight (qdagent 2.0). Delegates to agent/preflight.
   1. `pf`
     **failure = `pf`**
 **out = > eng_qd.learn task=`task` failure=`failure`**
+*out*
+
+## eng_metrics
+    + `payload`=None
+
+**out = > eng_met.read**
 *out*

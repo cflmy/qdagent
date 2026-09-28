@@ -4,11 +4,11 @@ description: >-
   Engineering Workbook — create / put_section / finalize.
   Section state lives in sibling `<slug>.sections.json`; body is always regenerated
   (no duplicate headings). Shared by CLI, Web, MCP, OpenAI.
+  State keys are snake_case (no spaces) for safe table index.
 import fs:lib/fs.mq.md
 import time:lib/time.mq.md
 import sys:lib/sys.mq.md
 import json:lib/json.mq.md
-import text:lib/text.mq.md
 import table:lib/table.mq.md
 ---
 
@@ -42,9 +42,9 @@ import table:lib/table.mq.md
 
 `sec` =
 
-| Task | Intent | Preflight | Existing Capabilities | Decision | Plan | Execution | Tool Calls | Changes | Verification | Evidence | Result | Knowledge Candidate | Metrics | status |
-|------|--------|-----------|----------------------|----------|------|-----------|------------|---------|--------------|----------|--------|---------------------|---------|--------|
-| `task` | `intent` | (pending) | (pending) | (pending) | (pending) | (pending) | (pending) | (pending) | (pending) | (pending) | (pending) | (pending) | (pending) | created |
+| task | intent | preflight | existing | decision | plan | execution | tools | changes | verification | evidence | result | candidate | metrics | status |
+|------|--------|-----------|----------|----------|------|-----------|-------|---------|--------------|----------|--------|-----------|---------|--------|
+| `task` | `intent` | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | created |
 
 *sec*
 
@@ -52,21 +52,21 @@ import table:lib/table.mq.md
     + `slug`
     + `sec`
 
-**task = [Task](sec)**
+**task = [task](sec)**
 **status = [status](sec)**
-**intent = [Intent](sec)**
-**pf = [Preflight](sec)**
-**caps = [Existing Capabilities](sec)**
-**dec = [Decision](sec)**
-**plan = [Plan](sec)**
-**ex = [Execution](sec)**
-**tools = [Tool Calls](sec)**
-**chg = [Changes](sec)**
-**ver = [Verification](sec)**
-**ev = [Evidence](sec)**
-**res = [Result](sec)**
-**kc = [Knowledge Candidate](sec)**
-**met = [Metrics](sec)**
+**intent = [intent](sec)**
+**pf = [preflight](sec)**
+**caps = [existing](sec)**
+**dec = [decision](sec)**
+**plan = [plan](sec)**
+**ex = [execution](sec)**
+**tools = [tools](sec)**
+**chg = [changes](sec)**
+**ver = [verification](sec)**
+**ev = [evidence](sec)**
+**res = [result](sec)**
+**kc = [candidate](sec)**
+**met = [metrics](sec)**
 
 **body = "---\ntitle: " + `slug` + "\ntype: Engineering Workbook\nstatus: " + `status` + "\ntask: " + `task` + "\n---\n\n# Task\n\n" + `task` + "\n\n# Intent\n\n" + `intent` + "\n\n# Preflight\n\n" + `pf` + "\n\n# Existing Capabilities\n\n" + `caps` + "\n\n# Decision\n\n" + `dec` + "\n\n# Plan\n\n" + `plan` + "\n\n# Execution\n\n" + `ex` + "\n\n# Tool Calls\n\n" + `tools` + "\n\n# Changes\n\n" + `chg` + "\n\n# Verification\n\n" + `ver` + "\n\n# Evidence\n\n" + `ev` + "\n\n# Result\n\n" + `res` + "\n\n# Knowledge Candidate\n\n" + `kc` + "\n\n# Metrics\n\n" + `met` + "\n"**
 *body*
@@ -170,20 +170,50 @@ import table:lib/table.mq.md
     + `section`
     + `content`
 
+Map display names to snake_case state keys.
+
+**key = `section`**
+1. `section` == "Task"
+  **key = "task"**
+2. `section` == "Intent"
+  **key = "intent"**
+3. `section` == "Preflight"
+  **key = "preflight"**
+4. `section` == "Existing Capabilities"
+  **key = "existing"**
+5. `section` == "Decision"
+  **key = "decision"**
+6. `section` == "Plan"
+  **key = "plan"**
+7. `section` == "Execution"
+  **key = "execution"**
+8. `section` == "Tool Calls"
+  **key = "tools"**
+9. `section` == "Changes"
+  **key = "changes"**
+10. `section` == "Verification"
+  **key = "verification"**
+11. `section` == "Evidence"
+  **key = "evidence"**
+12. `section` == "Result"
+  **key = "result"**
+13. `section` == "Knowledge Candidate"
+  **key = "candidate"**
+14. `section` == "Metrics"
+  **key = "metrics"**
+
 **st = > load_state slug=`slug`**
 **ok = [ok](st)**
 1. not `ok`
   *st*
 **sec = [sections](st)**
-**sec = > table.put in=`sec` at=`section` value=`content`**
+**sec = > table.put in=`sec` at=`key` value=`content`**
 *> save_state slug=`slug` sec=`sec`*
 
 ## append_section
     + `slug`
     + `section`
     + `content`
-
-Compat alias — replaces in place via state.
 
 *> put_section slug=`slug` section=`section` content=`content`*
 
@@ -206,7 +236,8 @@ Compat alias — replaces in place via state.
     + `context_path`
     + `summary`=""
 
-**text = "decision: " + `decision` + "\ncreate_allowed: " + `create_allowed` + "\ncontext_path: " + `context_path` + "\n\n" + `summary`**
+**allowed_s = > json.stringify value=`create_allowed`**
+**text = "decision: " + `decision` + "\ncreate_allowed: " + `allowed_s` + "\ncontext_path: " + `context_path` + "\n\n" + `summary`**
 > put_section slug=`slug` section="Preflight" content=`text`
 *> set_status slug=`slug` status="preflighted"*
 

@@ -53,7 +53,7 @@ description: >-
 
 ## 工程工作簿
 
-**md = "# 工程工作簿\n\n一次 BUILD 的执行证据：Task → Preflight → Decision → Execution → Verification → Knowledge Candidate。\n\n落盘：<code>data/workbooks/wb-*.mq.md</code>。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent build \"…\"\n./scripts/qdagent verify</pre>\n\n<p><button type=\"button\" id=\"qd-eng-verify\" class=\"primary\">运行验证</button></p>\n<pre id=\"qd-eng-verify-out\" class=\"qd-mcp-json\"></pre>\n"**
+**md = "# 工程工作簿\n\n一次 BUILD 的执行证据：Task → Preflight → Decision → Execution → Verification → Knowledge Candidate。\n\n落盘：<code>data/workbooks/wb-*.mq.md</code>。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent build \"…\"\n./scripts/qdagent verify\n./scripts/qdagent metrics</pre>\n\n<p><button type=\"button\" id=\"qd-eng-verify\" class=\"primary\">运行验证</button> <button type=\"button\" id=\"qd-eng-metrics\">刷新 KPI</button></p>\n<pre id=\"qd-eng-verify-out\" class=\"qd-mcp-json\"></pre>\n<pre id=\"qd-eng-metrics-out\" class=\"qd-mcp-json\"></pre>\n"**
 *md*
 
 ## 工程能力
