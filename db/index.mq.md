@@ -1,7 +1,7 @@
 ---
 title: db/index
-description: Open sqlite; init runs + settings; seed; sync run bodies to disk.
-import web:ext/web/web.mq.md
+description: Open sqlite via ext/data; init runs + settings; seed; sync run bodies to disk.
+import data:ext/data/db.mq.md
 import runs:runs.mq.md
 import settings:settings.mq.md
 import run:../lib/run.mq.md
@@ -11,19 +11,19 @@ import run:../lib/run.mq.md
 
 **root = > run.确保目录**
 **db_url = "sqlite:" + `root` + "/qdagent.db"**
-**store = > web.db url=`db_url`**
+**store = > data.db url=`db_url`**
 
 **run_fields = > runs.schema**
 > `store`.init name=runs fields=`run_fields`
 **set_fields = > settings.schema**
 > `store`.init name=settings fields=`set_fields`
 
-**run_rows = > store.select table="runs" limit=1**
+**run_rows = > `store`.select table="runs" limit=1**
 1. not `run_rows`
   **seed = > runs.seed**
   > `store`.insert table=runs rows=`seed`
 
-**set_rows = > store.select table="settings" limit=1**
+**set_rows = > `store`.select table="settings" limit=1**
 1. not `set_rows`
   **sseed = > settings.seed**
   > `store`.insert table=settings rows=`sseed`
@@ -34,8 +34,8 @@ import run:../lib/run.mq.md
 ## recent
     + `limit`=20
 
-返回最近笔记行（在本模块内调用 `store.select`；跨模块持有 db 句柄再 select 会触发宿主限制）。
+返回最近笔记行（在本模块内调用 `` `store`.select ``）。
 
 **store = > open**
-**rows = > store.select table="runs" limit=`limit` order="-created_at"**
+**rows = > `store`.select table="runs" limit=`limit` order="-created_at"**
 *rows*

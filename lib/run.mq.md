@@ -4,7 +4,7 @@ description: 求道运行沉淀 — 把一次捕捉写成 data/runs/*.mq.md，�
 import fs:lib/fs.mq.md
 import time:lib/time.mq.md
 import sys:lib/sys.mq.md
-import web:ext/web/web.mq.md
+import data:ext/data/db.mq.md
 ---
 
 ## 数据根
@@ -127,7 +127,7 @@ import web:ext/web/web.mq.md
 把库里每条 run 的 `body` 写回 `data/runs/<slug>.mq.md`（Web 表单写入后可再跑一次）。
 
 **root = > 确保目录**
-**rows = > store.select table="runs" limit=500 order="-created_at"**
+**rows = > `store`.select table="runs" limit=500 order="-created_at"**
 - [r](rows)
   **slug = [slug](r)**
   **body = [body](r)**

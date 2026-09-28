@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| 状态 | **GAP-01…05 已由 Marqdo v0.3.7 关闭** |
-| 日期 | 2026-09-07 |
-| 运行时 | Marqdo **0.3.7**（H1–H4 宿主集成） |
+| 状态 | **对齐 Marqdo 1.3.0（ADR 0007）**；GAP-01…05 仍关闭 |
+| 日期 | 2026-09-28 |
+| 运行时 | Marqdo **≥ 1.3.0**（Document / Endpoint / Resource） |
 | 原则 | **能 Marqdo 则 Marqdo**；新增非 Marqdo 脚本必须引用本文并更新状态 |
 
 ## 1. 产品原则
@@ -55,13 +55,23 @@
 | 求道用法 | `lib/api.search` → `agent.corpus_search`（`data/runs`）；CLI 同路径 |
 | 备注 | 本机对 0.3.7 打了补丁：`call_registered` 嵌套后**恢复** `GLOBAL_HOST`（勿清空），否则 listen 期间 invoke/`web.db` 会报 `no active host context` |
 
+### GAP-13 · OpenAI `/v1` 厚网关（改写 messages + 审计 finalize）— **Open（旁路）**
+
+| | |
+|---|---|
+| 原因 | Marqdo `app.proxy` 可透传 SSE，但难以在转发前注入画像/检索、结束后写 `data/runs` |
+| 求道规避 | `scripts/legacy/openai_v1_gateway.py`（默认 `:7433`）+ `mq.sh` 拉起；`index.mq.md` 代理 `/v1/*` → 该进程 |
+| 鉴权 | 网关 Bearer（不走 Web session）；`/v1` 不设登录门禁 |
+| 上游期望 | 自定义中间件 / 可脚本化的 stream hook |
+
 ## 3. 现行架构（对照）
 
 | 能力 | 入口 |
 |------|------|
-| Web UI | `index.mq.md` |
-| LLM/语音同域中继 | `网页.代理` → `/llm` `/asr` `/tts` |
-| 沉淀 / 检索 / 画像 / 整理 | `网页.调用` → `lib/api.*` |
+| Web UI | `serve.mq.md`（`index.mq.md` → `serve.boot`） |
+| LLM/语音同域中继 | `lib/site.wire` proxy 表 → `/llm` `/asr` `/tts` |
+| OpenAI 兼容厚网关 | proxy → `/v1` → `openai_v1_gateway.py` |
+| 沉淀 / 检索 / 画像 / 整理 | invoke 表 → `lib/api.*` |
 | 用户画像 | `data/kb/用户画像.mq.md` · `/settings/memory` |
 | MCP stdio | `求道-mcp.mq.md`（含 context/profile/organize） |
 | CLI 捕捉 / 询问 / 整理 | `求道-捕捉` · `求道-询问` · `求道-整理` |
@@ -81,4 +91,6 @@
 | 2026-09-07 | 修 Marqdo `GLOBAL_HOST` 嵌套清空；`api.search` 改 `corpus_search`；Docker 去掉 :7432 |
 | 2026-09-08 | 记忆闭环：画像 · context 查库 · 手动 organize |
 | 2026-09-09 | 另见 [02-marqdo-parser-and-runtime.md](02-marqdo-parser-and-runtime.md)：解析截断 / invoke Null / exec stdout / SSE 头 |
+| 2026-09-15 | GAP-13：OpenAI `/v1` 厚网关旁路 + 强制自动沉淀 |
+| 2026-09-28 | 升级 Marqdo **1.3.0**：ADR 0007 Document/Endpoint；`serve.mq.md` + `ext/data`；去掉 `compose_*` / `网页.应用` |
 

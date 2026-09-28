@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Marqdo-native qdagent — no Python.
+# Marqdo-native qdagent — Marqdo 1.3.0+ (ADR 0007).
 FROM debian:bookworm-slim
 
 RUN apt-get update \
@@ -13,9 +13,10 @@ RUN chmod +x /usr/local/bin/marqdo
 COPY docker/marqdo-home /root/.marqdo
 
 WORKDIR /app
-COPY index.mq.md 求道-询问.mq.md 求道-捕捉.mq.md 求道-同步.mq.md 求道-整理.mq.md 求道-mcp.mq.md ./
+COPY index.mq.md serve.mq.md 求道-询问.mq.md 求道-捕捉.mq.md 求道-同步.mq.md 求道-整理.mq.md 求道-mcp.mq.md 求道-列出.mq.md 求道-搜索.mq.md ./
 COPY lib ./lib
 COPY db ./db
+COPY pages ./pages
 COPY components ./components
 COPY styles ./styles
 COPY public ./public
@@ -29,4 +30,4 @@ ENV HOME=/root \
 VOLUME ["/data"]
 EXPOSE 7431
 
-CMD ["marqdo", "run", "index.mq.md"]
+CMD ["marqdo", "run", "serve.mq.md"]

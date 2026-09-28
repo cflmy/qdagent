@@ -208,6 +208,10 @@
       sorted.forEach(function (s) {
         var li = document.createElement("li");
         li.className = "qd-session-item" + (s.id === store.currentId ? " active" : "");
+        var handle = document.createElement("span");
+        handle.className = "qd-drag-handle";
+        handle.setAttribute("aria-hidden", "true");
+        handle.textContent = "⋮⋮";
         var btn = document.createElement("button");
         btn.type = "button";
         btn.className = "qd-session-open";
@@ -240,6 +244,7 @@
           renderSessions();
           renderMessages();
         });
+        li.appendChild(handle);
         li.appendChild(btn);
         li.appendChild(del);
         sessionList.appendChild(li);

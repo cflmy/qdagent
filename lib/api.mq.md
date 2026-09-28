@@ -1,11 +1,13 @@
 ---
 title: lib/api
-description: HTTP invoke 入口 — 沉淀 / 同步 / 列表 / 搜索 / 画像 / 整理 / 变更提案（供 app.invoke 与 MCP 共用）。
+description: HTTP invoke 入口 — 沉淀 / 同步 / 列表 / 搜索 / 画像 / 整理 / 变更提案（供 Endpoint / MCP 共用）。
 import run:lib/run.mq.md
 import db:../db/index.mq.md
+import data:ext/data/db.mq.md
 import fs:lib/fs.mq.md
 import sys:lib/sys.mq.md
 import json:lib/json.mq.md
+import table:lib/table.mq.md
 import agent:ext/ai/agent.mq.md
 import profile:lib/profile.mq.md
 import time:lib/time.mq.md
@@ -21,9 +23,11 @@ import org:lib/organize.mq.md
 
 **root = > run.确保目录**
 **git = > kbgit.确保**
-**out = > json.parse text={"ok":true,"role":"marqdo-host","marqdo":"0.3.7"}**
-**out = > json.set map=`out` key="data_root" value=`root`**
-**out = > json.set map=`out` key="git" value=`git`**
+**out = > table.put in=None at="ok" value=True**
+**out = > table.put in=`out` at="role" value="marqdo-host"**
+**out = > table.put in=`out` at="marqdo" value="1.3.0"**
+**out = > table.put in=`out` at="data_root" value=`root`**
+**out = > table.put in=`out` at="git" value=`git`**
 *out*
 
 ## capture
@@ -241,7 +245,7 @@ import org:lib/organize.mq.md
 **hits = [hits](raw)**
 **rows = > db.recent limit=`limit`**
 **store = > db.open**
-**cfg_rows = > store.select table="settings" limit=1**
+**cfg_rows = > `store`.select table="settings" limit=1**
 **cfg = [1](cfg_rows)**
 **llm_key = [llm_api_key](cfg)**
 **llm_base = [llm_base_url](cfg)**
