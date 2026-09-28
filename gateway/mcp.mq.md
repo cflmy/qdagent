@@ -7,6 +7,7 @@ import pf:../agent/preflight.mq.md
 import resolver:../knowledge/resolver.mq.md
 import verify:../execution/verify.mq.md
 import record:../execution/record.mq.md
+import promote:../execution/promote.mq.md
 import qd:../agent/qdagent.mq.md
 import table:lib/table.mq.md
 import json:lib/json.mq.md
@@ -104,6 +105,60 @@ import json:lib/json.mq.md
 
   *fail*
 *> record.write_candidate capability=`capability` evidence=`evidence` verification=`verification` promote_allowed=`promote_allowed`*
+
+## qd_candidates
+    + `status`=""
+    + `payload`=None
+
+1. `payload`
+  **s = > json.get value=`payload` key="status"**
+  1. `s`
+    **status = `s`**
+*> promote.list status=`status`*
+
+## qd_promote
+    + `slug`=""
+    + `kind`="decision"
+    + `payload`=None
+
+1. `payload`
+  **s = > json.get value=`payload` key="slug"**
+  1. `s`
+    **slug = `s`**
+  **k = > json.get value=`payload` key="kind"**
+  1. `k`
+    **kind = `k`**
+1. not `slug`
+  `fail` =
+
+  | ok | error |
+  |----|-------|
+  | False | slug_required |
+
+  *fail*
+*> promote.promote slug=`slug` kind=`kind`*
+
+## qd_reject
+    + `slug`=""
+    + `reason`="rejected"
+    + `payload`=None
+
+1. `payload`
+  **s = > json.get value=`payload` key="slug"**
+  1. `s`
+    **slug = `s`**
+  **r = > json.get value=`payload` key="reason"**
+  1. `r`
+    **reason = `r`**
+1. not `slug`
+  `fail` =
+
+  | ok | error |
+  |----|-------|
+  | False | slug_required |
+
+  *fail*
+*> promote.reject slug=`slug` reason=`reason`*
 
 ## qd_learn
     + `task`=""

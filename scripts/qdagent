@@ -46,6 +46,24 @@ case "$cmd" in
     export QDAGENT_TASK="${QDAGENT_TASK:-$*}"
     exec marqdo run cli/求道-学习.mq.md
     ;;
+  candidates|list-candidates)
+    export QDAGENT_PROMOTE_ACTION="list"
+    export QDAGENT_STATUS="${QDAGENT_STATUS:-}"
+    exec marqdo run cli/求道-晋升.mq.md
+    ;;
+  promote)
+    export QDAGENT_PROMOTE_ACTION="promote"
+    export QDAGENT_CANDIDATE="${1:-}"
+    export QDAGENT_KIND="${QDAGENT_KIND:-decision}"
+    exec marqdo run cli/求道-晋升.mq.md
+    ;;
+  reject)
+    export QDAGENT_PROMOTE_ACTION="reject"
+    export QDAGENT_CANDIDATE="${1:-}"
+    export QDAGENT_REASON="${*:2}"
+    export QDAGENT_REASON="${QDAGENT_REASON:-rejected}"
+    exec marqdo run cli/求道-晋升.mq.md
+    ;;
   metrics|kpi)
     exec marqdo run cli/求道-指标.mq.md
     ;;
@@ -76,6 +94,9 @@ Usage:
   qdagent ask [task]
   qdagent verify
   qdagent learn
+  qdagent candidates
+  qdagent promote <slug>
+  qdagent reject <slug> [reason]
   qdagent metrics
   qdagent find|know [query]
   qdagent reuse [task]
@@ -88,6 +109,8 @@ Dogfood example:
   qdagent preflight "给 OpenAI /v1 网关增加工程预检再调上游"
   qdagent build "给 OpenAI /v1 网关增加工程预检再调上游"
   qdagent verify
+  qdagent candidates
+  qdagent promote cand-YYYYMMDD-HHMMSS
   qdagent learn
 EOF
     ;;

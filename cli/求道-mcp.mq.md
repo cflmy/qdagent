@@ -17,6 +17,9 @@ Engineering Knowledge tools (qdagent 2.0):
 **srv = > srv.tool name="qd_capability" fn="gw.qd_capability" description="Find engineering capabilities / symbols"**
 **srv = > srv.tool name="qd_verify" fn="gw.qd_verify" description="Verify knowledge (verify/duplicate/conflicts/stale)"**
 **srv = > srv.tool name="qd_record" fn="gw.qd_record" description="Write Knowledge Candidate (verify-before-promote)"**
+**srv = > srv.tool name="qd_candidates" fn="gw.qd_candidates" description="List Knowledge Candidates"**
+**srv = > srv.tool name="qd_promote" fn="gw.qd_promote" description="Promote candidate to knowledge/* after L3 verify"**
+**srv = > srv.tool name="qd_reject" fn="gw.qd_reject" description="Reject a Knowledge Candidate"**
 **srv = > srv.tool name="qd_learn" fn="gw.qd_learn" description="Learn failure/decision into EKC"**
 
 Legacy notes tools (compat):

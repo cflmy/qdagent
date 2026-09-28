@@ -43,6 +43,8 @@ chmod +x scripts/mq.sh scripts/qdagent
 | `qdagent build` | BUILD + Reuse Gate |
 | `qdagent verify` | verify / duplicate / conflicts / stale |
 | `qdagent learn` | 写入 / 刷新 EKC |
+| `qdagent candidates` | 列出 Knowledge Candidates |
+| `qdagent promote` / `reject` | Verify-before-Promote |
 | `qdagent find` / `reuse` | 工程查询 |
 | `qdagent serve` / `mcp` | Web / MCP |
 

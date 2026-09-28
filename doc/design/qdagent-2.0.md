@@ -96,7 +96,7 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 | 0–9 | done | Architecture · Preflight · Workbook · BUILD · Verify · Record/Learn · MCP · OpenAI · UI · Skill/Policy |
 | **10** | done | CLI 入口收纳 — `求道-*.mq.md` → `cli/` + `MARQDO_FS_ROOT` / `QDAGENT_ROOT` |
 | **11** | done | Gateway EFI dogfood — `gateway/openai.precheck` 上游前门闩（ADAPT） |
-| 12 | queued | Knowledge Candidate → Promote（verify-before-promote 已有门闩，补晋升路径） |
+| **12** | done | Knowledge Candidate → Promote / Reject（`execution/promote` · CLI · MCP） |
 
 ## 11. Phase 10 — CLI 入口收纳（本仓增补）
 
@@ -118,3 +118,16 @@ scripts/qdagent      # 指向 cli/…；导出 QDAGENT_ROOT + MARQDO_FS_ROOT
 3. `scripts/qdagent` · `public/mcp.js` · legacy bridge · README 同步改路径。
 4. **`marqdo run cli/…` 默认沙箱=入口目录**：必须设 `MARQDO_FS_ROOT` / `--fs-root` 为仓库根（scripts 已导出）；EKC 路径再经 `QDAGENT_ROOT`（`knowledge/context.resolve_root`）锚定，禁止 `cli/.marqdo`。
 5. **禁止**改写 `doc/next/*`。
+
+
+## 12. Phase 12 — Promote
+
+```text
+Verification → Evidence → Knowledge Candidate → Promote → knowledge/{decisions|constraints|failures|capabilities} → EKC recompile
+```
+
+- `execution/promote.mq.md`：`list` / `read` / `promote` / `reject`
+- 门闩：默认再跑 L3 `verify`；失败则 `verify_before_promote`
+- CLI：`qdagent candidates` · `promote <slug>` · `reject <slug>`
+- MCP：`qd_candidates` · `qd_promote` · `qd_reject`
+- Candidate sidecar：`data/candidates/<slug>.json`

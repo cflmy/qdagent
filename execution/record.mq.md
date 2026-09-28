@@ -7,6 +7,7 @@ import time:lib/time.mq.md
 import sys:lib/sys.mq.md
 import run:run.mq.md
 import table:lib/table.mq.md
+import promote:promote.mq.md
 ---
 
 ## data_root
@@ -57,6 +58,7 @@ Hard gate: refuse promote path when promote_allowed is false.
 **body = > candidate_body capability=`capability` evidence=`evidence` verification=`verification` status=`status` task=`task`**
 **path = `root` + "/candidates/" + `slug` + ".mq.md"**
 > fs.write_text path=`path` text=`body`
+> promote.write_meta slug=`slug` capability=`capability` evidence=`evidence` verification=`verification` status=`status` task=`task` path=`path`
 `out` =
 
 | ok | slug | path | status |
