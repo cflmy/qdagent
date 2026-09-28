@@ -97,6 +97,7 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 | **10** | done | CLI 入口收纳 — `求道-*.mq.md` → `cli/` + `MARQDO_FS_ROOT` / `QDAGENT_ROOT` |
 | **11** | done | Gateway EFI dogfood — `gateway/openai.precheck` 上游前门闩（ADAPT） |
 | **12** | done | Knowledge Candidate → Promote / Reject（`execution/promote` · CLI · MCP） |
+| **13** | done | Candidates UI — `/eng/candidates` + `/api/eng/{candidates,promote,reject}` |
 
 ## 11. Phase 10 — CLI 入口收纳（本仓增补）
 

@@ -7,6 +7,7 @@
 | 预检 | / | | auth |
 | 能力 | /eng/capability | | auth |
 | 工作簿 | /eng/run | | auth |
+| 候选 | /eng/candidates | | auth |
 | 对话 | /chat | | auth |
 | 笔记 | /notes | | auth |
 | 记忆 | /settings/memory | | auth |

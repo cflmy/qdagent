@@ -22,6 +22,7 @@ import eng_res:../knowledge/resolver.mq.md
 import eng_ver:../execution/verify.mq.md
 import eng_qd:../agent/qdagent.mq.md
 import eng_met:../knowledge/metrics.mq.md
+import eng_promote:../execution/promote.mq.md
 ---
 
 ## 成功
@@ -549,4 +550,49 @@ Engineering Preflight (qdagent 2.0). Delegates to agent/preflight.
     + `payload`=None
 
 **out = > eng_met.read**
+*out*
+
+## eng_candidates
+    + `status`=""
+    + `payload`=None
+
+1. `payload`
+  **s = > json.get value=`payload` key="status"**
+  1. `s`
+    **status = `s`**
+**out = > eng_promote.list status=`status`**
+*out*
+
+## eng_promote
+    + `slug`=""
+    + `kind`="decision"
+    + `payload`=None
+
+1. `payload`
+  **s = > json.get value=`payload` key="slug"**
+  1. `s`
+    **slug = `s`**
+  **k = > json.get value=`payload` key="kind"**
+  1. `k`
+    **kind = `k`**
+1. not `slug`
+  *> 失败 error="slug_required"*
+**out = > eng_promote.promote slug=`slug` kind=`kind`**
+*out*
+
+## eng_reject
+    + `slug`=""
+    + `reason`="rejected"
+    + `payload`=None
+
+1. `payload`
+  **s = > json.get value=`payload` key="slug"**
+  1. `s`
+    **slug = `s`**
+  **r = > json.get value=`payload` key="reason"**
+  1. `r`
+    **reason = `r`**
+1. not `slug`
+  *> 失败 error="slug_required"*
+**out = > eng_promote.reject slug=`slug` reason=`reason`**
 *out*

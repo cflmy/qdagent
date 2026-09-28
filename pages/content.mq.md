@@ -8,7 +8,7 @@ description: >-
 
 ## 设置枢纽
 
-**md = "# 设置\n\n<strong>工程知识</strong>优先：[预检](/eng/preflight) · [能力](/eng/capability) · [工作簿](/eng/run)。\n\n大模型、语音、记忆与 MCP / OpenAI 接入。知识本体是 <code>*.mq.md</code> + EKC（<code>.marqdo</code>）；个人画像在 <code>data/kb/用户画像.mq.md</code>（Personal Memory，非工程主轴）。\n\n- [大模型设置](/settings/llm)\n- [语音设置](/settings/voice)\n- [记忆 · 画像与整理](/settings/memory)\n- [MCP 接入](/settings/mcp)\n- [OpenAI 兼容网关](/settings/openai)\n"**
+**md = "# 设置\n\n<strong>工程知识</strong>优先：[预检](/eng/preflight) · [能力](/eng/capability) · [工作簿](/eng/run) · [知识候选](/eng/candidates)。\n\n大模型、语音、记忆与 MCP / OpenAI 接入。知识本体是 <code>*.mq.md</code> + EKC（<code>.marqdo</code>）；个人画像在 <code>data/kb/用户画像.mq.md</code>（Personal Memory，非工程主轴）。\n\n- [大模型设置](/settings/llm)\n- [语音设置](/settings/voice)\n- [记忆 · 画像与整理](/settings/memory)\n- [MCP 接入](/settings/mcp)\n- [OpenAI 兼容网关](/settings/openai)\n"**
 *md*
 
 ## 大模型设置
@@ -23,7 +23,7 @@ description: >-
 
 ## mcp
 
-**md = "# MCP 接入\n\nCursor / Claude Desktop 经 MCP 使用求道工程知识（可不使用求道模型）。宿主：<code>marqdo run cli/求道-mcp.mq.md</code> 或 <code>./scripts/qdagent mcp</code>。\n\n<strong>工程工具</strong>：<code>qd_preflight</code>、<code>qd_reuse</code>、<code>qd_capability</code>、<code>qd_verify</code>、<code>qd_record</code>、<code>qd_learn</code>。\n\n<strong>笔记兼容</strong>：<code>qd_list_recent</code>、<code>qd_search</code>、<code>qd_context</code>、<code>qd_profile</code>、<code>qd_organize</code>、<code>qd_kb_*</code>、<code>qd_capture</code>。\n\n若要把<strong>求道当模型</strong>（OpenAI <code>base_url</code>），请看 [OpenAI 兼容网关](/settings/openai)。\n\n<p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p>\n<p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p>\n<pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre>\n"**
+**md = "# MCP 接入\n\nCursor / Claude Desktop 经 MCP 使用求道工程知识（可不使用求道模型）。宿主：<code>marqdo run cli/求道-mcp.mq.md</code> 或 <code>./scripts/qdagent mcp</code>。\n\n<strong>工程工具</strong>：<code>qd_preflight</code>、<code>qd_reuse</code>、<code>qd_capability</code>、<code>qd_verify</code>、<code>qd_record</code>、<code>qd_candidates</code>、<code>qd_promote</code>、<code>qd_reject</code>、<code>qd_learn</code>。\n\n<strong>笔记兼容</strong>：<code>qd_list_recent</code>、<code>qd_search</code>、<code>qd_context</code>、<code>qd_profile</code>、<code>qd_organize</code>、<code>qd_kb_*</code>、<code>qd_capture</code>。\n\n若要把<strong>求道当模型</strong>（OpenAI <code>base_url</code>），请看 [OpenAI 兼容网关](/settings/openai)。\n\n<p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p>\n<p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p>\n<pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre>\n"**
 *md*
 
 ## openai
@@ -59,4 +59,9 @@ description: >-
 ## 工程能力
 
 **md = "# 工程能力\n\nCapability 是第一公民：系统已经能做什么（≠ 函数列表）。数据来自 Marqdo EKC（<code>.marqdo/catalog/capabilities</code>）。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent find \"openai gateway\"\n./scripts/qdagent reuse \"给 OpenAI /v1 增加预检\"</pre>\n\n<p><input id=\"qd-eng-query\" type=\"text\" placeholder=\"能力查询\" style=\"width:min(36rem,100%)\"/> <button type=\"button\" id=\"qd-eng-find\" class=\"primary\">查找</button></p>\n<pre id=\"qd-eng-find-out\" class=\"qd-mcp-json\"></pre>\n"**
+*md*
+
+## 知识候选
+
+**md = "# 知识候选\n\nVerify-before-Promote：候选经 L3 验证后晋升到 <code>knowledge/{decisions|constraints|failures|capabilities}</code>，再编译进 EKC。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent candidates\n./scripts/qdagent promote &lt;slug&gt;\n./scripts/qdagent reject &lt;slug&gt;</pre>\n\n<p><button type=\"button\" id=\"qd-eng-cand-list\" class=\"primary\">列出候选</button></p>\n<p><input id=\"qd-eng-cand-slug\" type=\"text\" placeholder=\"candidate slug\" style=\"width:min(24rem,100%)\"/> <button type=\"button\" id=\"qd-eng-cand-promote\">晋升</button> <button type=\"button\" id=\"qd-eng-cand-reject\">拒绝</button></p>\n<pre id=\"qd-eng-cand-out\" class=\"qd-mcp-json\"></pre>\n"**
 *md*

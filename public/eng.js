@@ -62,4 +62,29 @@
       show($("qd-eng-find-out"), await post("/api/eng/reuse", { task: q }));
     });
   }
+
+  const candOut = $("qd-eng-cand-out");
+  const candList = $("qd-eng-cand-list");
+  if (candList) {
+    candList.addEventListener("click", async () => {
+      show(candOut, { status: "running…" });
+      show(candOut, await post("/api/eng/candidates", {}));
+    });
+  }
+  const candPromote = $("qd-eng-cand-promote");
+  if (candPromote) {
+    candPromote.addEventListener("click", async () => {
+      const slug = ($("qd-eng-cand-slug") && $("qd-eng-cand-slug").value) || "";
+      show(candOut, { status: "promoting…" });
+      show(candOut, await post("/api/eng/promote", { slug: slug }));
+    });
+  }
+  const candReject = $("qd-eng-cand-reject");
+  if (candReject) {
+    candReject.addEventListener("click", async () => {
+      const slug = ($("qd-eng-cand-slug") && $("qd-eng-cand-slug").value) || "";
+      show(candOut, { status: "rejecting…" });
+      show(candOut, await post("/api/eng/reject", { slug: slug }));
+    });
+  }
 })();

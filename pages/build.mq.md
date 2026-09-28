@@ -160,3 +160,17 @@ import form:ext/data/form.mq.md
 **page = > site.page_md title="工程能力" markdown=`md`**
 **头 = > ui.工程头**
 *> 壳 page=`page` 头=`头`*
+
+## 知识候选
+
+**md = > content.知识候选**
+**page = > site.page_md title="知识候选" markdown=`md`**
+**头 = > ui.工程头**
+*> 壳 page=`page` 头=`头`*
+
+## 知识候选
+
+**md = > content.知识候选**
+**page = > site.page_md title="知识候选" markdown=`md`**
+**头 = > ui.工程头**
+*> 壳 page=`page` 头=`头`*
