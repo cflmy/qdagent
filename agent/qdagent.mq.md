@@ -6,6 +6,7 @@ description: >-
 import pf:preflight.mq.md
 import ctx:../knowledge/context.mq.md
 import resolver:../knowledge/resolver.mq.md
+import metrics:../knowledge/metrics.mq.md
 import run:../execution/run.mq.md
 import verify:../execution/verify.mq.md
 import record:../execution/record.mq.md
@@ -102,6 +103,10 @@ BUILD — Preflight → Reuse Gate → Marqdo Agent (eng_preflight=True) → Wor
 **wb = > run.create task=`task` intent="build" surface="build"**
 **slug = [slug](wb)**
 > run.attach_preflight slug=`slug` decision=`decision` create_allowed=`allowed` context_path=`path`
+**pf_body = [preflight](pack)**
+**existing = > json.get value=`pf_body` key="existing"**
+**existing_s = > json.stringify value=`existing`**
+> run.put_section slug=`slug` section="Existing Capabilities" content=`existing_s`
 > run.attach_decision slug=`slug` decision=`decision`
 > run.set_status slug=`slug` status="executing"
 
@@ -131,6 +136,9 @@ BUILD — Preflight → Reuse Gate → Marqdo Agent (eng_preflight=True) → Wor
 
 **v = > verify.run slug=`slug` root=`root` out=`out` l1_ok=True**
 **promote = [promote_allowed](v)**
+**kpi = > metrics.read out=`out`**
+**kpi_s = > json.stringify value=`kpi`**
+> run.put_section slug=`slug` section="Metrics" content=`kpi_s`
 1. `promote`
   > record.from_workbook workbook_slug=`slug` capability=`task` evidence=`path` verification="L3 passed" promote_allowed=True
 2. *

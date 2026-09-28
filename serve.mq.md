@@ -96,6 +96,7 @@ import sys:lib/sys.mq.md
 
 **接口 = > ui.接口**
 
+**page_preflight = > pages.工程预检**
 **page = > pages.对话**
 **notes = > pages.笔记库**
 **notes_runs = > pages.原始沉淀**
@@ -107,12 +108,12 @@ import sys:lib/sys.mq.md
 **settings_mcp = > pages.MCP设置**
 **settings_openai = > pages.OpenAI设置**
 **settings_memory = > pages.记忆设置**
-**page_preflight = > pages.工程预检**
 **page_workbook = > pages.工程工作簿**
 **page_capability = > pages.工程能力**
 
-**app = > web.app page=`page` db=`store` admin=True admin_prefix="/account" host=`host` port=`port`**
+**app = > web.app page=`page_preflight` db=`store` admin=True admin_prefix="/account" host=`host` port=`port`**
 
+**app = > web.route app=`app` path="/chat" page=`page`**
 **app = > web.route app=`app` path="/notes" page=`notes`**
 **app = > web.route app=`app` path="/notes/runs" page=`notes_runs`**
 **app = > web.route app=`app` path="/notes/new" page=`new`**
@@ -148,6 +149,7 @@ import sys:lib/sys.mq.md
 **app = > site.auth app=`app` users=`用户` session_ttl=86400 admin_prefix="/account" login_redirect="/" logout_redirect="/account/login"**
 
 **app = > `app`.gate path="/" roles="user,admin" permissions="" match="exact" on_deny="redirect" exclude=None**
+**app = > `app`.gate path="/chat" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/notes" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/eng" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/run" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**

@@ -83,6 +83,8 @@ gateway/mcp.mq.md
 
 以 **本仓** 为靶标。示例任务：给 OpenAI `/v1` 网关增加工程预检再调上游 —— 应 REUSE/ADAPT 现有 run / api / gateway，Forbidden 再造第二套 Agent loop。
 
+EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免打包树/运行时库污染能力图。
+
 ## 9. KPI
 
 `reuse_ratio` · `adapt_ratio` · `novel_ratio` · `duplication_rate` · `reasoning_amortization`
