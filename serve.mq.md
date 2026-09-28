@@ -1,9 +1,10 @@
 ---
 title: serve
 description: >-
-  qdagent Gateway entry (Marqdo ≥ 1.3.0 / ADR 0007).
-  Documents via pages/build · Endpoints via invoke table · proxy/auth/forms via lib/site.
-  Code is documentation: tables declare routes; no compose_* / configure junk drawer.
+  qdagent Gateway (Marqdo ≥ 1.3.0 / ADR 0007).
+  Documents: pages/build + pages/content (Markdown bodies).
+  API: GFM 调用表 → lib/api；声明式 Endpoint 文档见 api/*.mq.md。
+  Resource: ext/data · lib/site（auth / form / proxy）。
 import web:ext/web/web.mq.md
 import site:lib/site.mq.md
 import ui:lib/ui.mq.md

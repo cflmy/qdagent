@@ -19,16 +19,38 @@ import asr:lib/asr.mq.md
 import org:lib/organize.mq.md
 ---
 
+## 成功
+    + `字段`=None
+
+统一成功应答（GFM 表 / merge，不用 json.set 袋胶水）。
+
+**base = > table.put in=None at="ok" value=True**
+1. `字段`
+  *> table.merge a=`base` b=`字段`*
+*`base`*
+
+## 失败
+    + `error`="error"
+
+`out` =
+
+| ok | error |
+|----|-------|
+| False | `error` |
+
+*out*
+
 ## health
 
 **root = > run.确保目录**
 **git = > kbgit.确保**
-**out = > table.put in=None at="ok" value=True**
-**out = > table.put in=`out` at="role" value="marqdo-host"**
-**out = > table.put in=`out` at="marqdo" value="1.3.0"**
-**out = > table.put in=`out` at="data_root" value=`root`**
-**out = > table.put in=`out` at="git" value=`git`**
-*out*
+`字段` =
+
+| role | marqdo | data_root | git |
+|------|--------|-----------|-----|
+| marqdo-host | 1.3.0 | `root` | `git` |
+
+*> 成功 字段=`字段`*
 
 ## capture
     + `title`="对话沉淀"
@@ -69,19 +91,20 @@ import org:lib/organize.mq.md
 **store = > db.open**
 **path = > run.沉淀 store=`store` title=`title` task=`task` result=`result` summary=`summary` slug=`slug` surface=`surface` session_id=`session_id`**
 **git = > kbgit.提交 message="capture: " + `slug`**
-**out = > json.parse text={"ok":true}**
-**out = > json.set map=`out` key="slug" value=`slug`**
-**out = > json.set map=`out` key="path" value=`path`**
-**out = > json.set map=`out` key="git" value=`git`**
-*out*
+`字段` =
+
+| slug | path | git |
+|------|------|-----|
+| `slug` | `path` | `git` |
+
+*> 成功 字段=`字段`*
 
 ## sync
 
 **store = > db.open**
 **root = > run.同步库 store=`store`**
-**out = > json.parse text={"ok":true}**
-**out = > json.set map=`out` key="root" value=`root`**
-*out*
+**字段 = > table.put in=None at="root" value=`root`**
+*> 成功 字段=`字段`*
 
 ## list
     + `limit`=20
@@ -93,9 +116,8 @@ import org:lib/organize.mq.md
     **limit = `pl`**
 
 **rows = > db.recent limit=`limit`**
-**out = > json.parse text={"ok":true}**
-**out = > json.set map=`out` key="runs" value=`rows`**
-*out*
+**字段 = > table.put in=None at="runs" value=`rows`**
+*> 成功 字段=`字段`*
 
 ## search
     + `query`=""
@@ -111,18 +133,26 @@ import org:lib/organize.mq.md
     **top_k = `pk`**
 
 1. `query` == ""
-  **empty = > json.parse text={"ok":true,"mode":"corpus","hits":[]}**
+  **hits = > table.empty_list**
+  `empty` =
+
+  | ok | mode | hits |
+  |----|------|------|
+  | True | corpus | `hits` |
+
   *empty*
 
 **root = > run.确保目录**
 **corpus = `root` + "/runs"**
 **raw = > agent.corpus_search query=`query` root=`corpus` limit=`top_k`**
 **hits = [hits](raw)**
-**out = > json.parse text={"ok":true,"mode":"corpus","hint":"evidence only"}**
-**out = > json.set map=`out` key="hits" value=`hits`**
-**out = > json.set map=`out` key="top_k" value=`top_k`**
-**out = > json.set map=`out` key="query" value=`query`**
-*out*
+`字段` =
+
+| mode | hint | hits | top_k | query |
+|------|------|------|-------|-------|
+| corpus | evidence only | `hits` | `top_k` | `query` |
+
+*> 成功 字段=`字段`*
 
 ## get_run
     + `slug`=""
@@ -137,24 +167,28 @@ import org:lib/organize.mq.md
 **path = `root` + "/runs/" + `slug` + ".mq.md"**
 **exists = > fs.exists path=`path`**
 1. not `exists`
-  **err = > json.parse text={"ok":false,"error":"run not found"}**
-  *err*
+  *> 失败 error="run not found"*
 **body = > fs.read_text path=`path`**
-**out = > json.parse text={"ok":true}**
-**out = > json.set map=`out` key="slug" value=`slug`**
-**out = > json.set map=`out` key="path" value=`path`**
-**out = > json.set map=`out` key="body" value=`body`**
-*out*
+`字段` =
+
+| slug | path | body |
+|------|------|------|
+| `slug` | `path` | `body` |
+
+*> 成功 字段=`字段`*
 
 ## profile_get
     + `payload`=None
 
 **path = > profile.确保**
 **body = > profile.读取**
-**out = > json.parse text={"ok":true}**
-**out = > json.set map=`out` key="path" value=`path`**
-**out = > json.set map=`out` key="body" value=`body`**
-*out*
+`字段` =
+
+| path | body |
+|------|------|
+| `path` | `body` |
+
+*> 成功 字段=`字段`*
 
 ## context
     + `query`=""
@@ -171,20 +205,20 @@ import org:lib/organize.mq.md
 
 **ppath = > profile.确保**
 **profile_body = > profile.读取**
-**hits = > json.parse text=[]**
+**hits = > table.empty_list**
 1. `query`
   **root = > run.确保目录**
   **corpus = `root` + "/runs"**
   **raw = > agent.corpus_search query=`query` root=`corpus` limit=`top_k`**
   **hits = [hits](raw)**
 
-**out = > json.parse text={"ok":true,"hint":"evidence only"}**
-**out = > json.set map=`out` key="profile_path" value=`ppath`**
-**out = > json.set map=`out` key="profile" value=`profile_body`**
-**out = > json.set map=`out` key="hits" value=`hits`**
-**out = > json.set map=`out` key="query" value=`query`**
-**out = > json.set map=`out` key="top_k" value=`top_k`**
-*out*
+`字段` =
+
+| hint | profile_path | profile | hits | query | top_k |
+|------|--------------|---------|------|-------|-------|
+| evidence only | `ppath` | `profile_body` | `hits` | `query` | `top_k` |
+
+*> 成功 字段=`字段`*
 
 ## profile_update
     + `task`=""
@@ -206,16 +240,19 @@ import org:lib/organize.mq.md
 **ppath = [path](draft)**
 **root = > run.确保目录**
 **payload_path = `root` + "/tmp/propose_payload.json"**
-**prop = > json.parse text={"target":"kb/用户画像.mq.md","source":"profile_update"}**
-**prop = > json.set map=`prop` key="title" value="画像追加 · " + `task`**
-**prop = > json.set map=`prop` key="reason" value="对话偏好/焦点提案（未自动应用）"**
-**prop = > json.set map=`prop` key="body" value=`body`**
+**prop_title = "画像追加 · " + `task`**
+`prop` =
+
+| target | source | title | reason | body |
+|--------|--------|-------|--------|------|
+| kb/用户画像.mq.md | profile_update | `prop_title` | 对话偏好/焦点提案（未自动应用） | `body` |
+
 **raw = > json.stringify value=`prop`**
 > fs.write_text path=`payload_path` text=`raw`
 **out = > changes.提案 payload_path=`payload_path`**
-**out = > json.set map=`out` key="profile_path" value=`ppath`**
-**out = > json.set map=`out` key="mode" value="propose"**
-*out*
+**extra = > table.put in=None at="profile_path" value=`ppath`**
+**extra = > table.put in=`extra` at="mode" value="propose"**
+*> table.merge a=`out` b=`extra`*
 
 ## organize
     + `query`=""
@@ -255,15 +292,11 @@ import org:lib/organize.mq.md
 1. not `llm_model`
   **llm_model = "gpt-4o-mini"**
 
-**req = > json.parse text={"run_catalog":true}**
-**req = > json.set map=`req` key="mode" value=`mode`**
-**req = > json.set map=`req` key="query" value=`query`**
-**req = > json.set map=`req` key="limit" value=`limit`**
-**req = > json.set map=`req` key="rows" value=`rows`**
-**req = > json.set map=`req` key="hits" value=`hits`**
-**req = > json.set map=`req` key="llm_api_key" value=`llm_key`**
-**req = > json.set map=`req` key="llm_base_url" value=`llm_base`**
-**req = > json.set map=`req` key="llm_model" value=`llm_model`**
+`req` =
+
+| run_catalog | mode | query | limit | rows | hits | llm_api_key | llm_base_url | llm_model |
+|-------------|------|-------|-------|------|------|-------------|--------------|-----------|
+| True | `mode` | `query` | `limit` | `rows` | `hits` | `llm_key` | `llm_base` | `llm_model` |
 
 **prom = > org.整理 payload=`req`**
 **prom_ok = [ok](prom)**
@@ -279,14 +312,13 @@ import org:lib/organize.mq.md
     **brief = "OKF 智能整理完成：晋升 " + `n` + " 条概念笔记（mode=" + `mode` + "）。历史 runs 未改写。"**
   **git = > kbgit.提交 message="organize-okf: " + `query`**
   **run_path = > run.沉淀 store=`store` title="OKF 整理 · " + `query` task=`query` result=`brief` summary=`brief` slug=`slug` surface="organize"**
-  **out = > json.parse text={"ok":true,"via":"okf"}**
-  **out = > json.set map=`out` key="slug" value=`slug`**
-  **out = > json.set map=`out` key="path" value=`run_path`**
-  **out = > json.set map=`out` key="summary" value=`brief`**
-  **out = > json.set map=`out` key="promote" value=`prom`**
-  **out = > json.set map=`out` key="git" value=`git`**
-  **out = > json.set map=`out` key="mode" value=`mode`**
-  *out*
+  `字段` =
+
+  | via | slug | path | summary | promote | git | mode |
+  |-----|------|------|---------|---------|-----|------|
+  | okf | `slug` | `run_path` | `brief` | `prom` | `git` | `mode` |
+
+  *> 成功 字段=`字段`*
 
 **kb_path = `root` + "/kb/整理-" + `stamp` + ".mq.md"**
 **plan = > fmt.整理文稿 query=`query` day=`day` hits=`hits` rows=`rows`**
@@ -297,18 +329,13 @@ import org:lib/organize.mq.md
 **brief = "OKF 晋升未完成（" + `err` + "），已回退写出表格索引 kb/整理-" + `stamp` + ".mq.md。历史 runs 未改写。"**
 **git = > kbgit.提交 message="organize-fallback: " + `query`**
 **run_path = > run.沉淀 store=`store` title="笔记整理 · " + `query` task=`query` result=`brief` summary=`brief` slug=`slug` surface="organize"**
-**out = > json.parse text={"ok":true,"via":"index-fallback"}**
-**out = > json.set map=`out` key="warning" value=`err`**
-**out = > json.set map=`out` key="error" value=`err`**
-**out = > json.set map=`out` key="kb_path" value=`kb_path`**
-**out = > json.set map=`out` key="slug" value=`slug`**
-**out = > json.set map=`out` key="path" value=`run_path`**
-**out = > json.set map=`out` key="summary" value=`brief`**
-**out = > json.set map=`out` key="promote" value=`prom`**
-**out = > json.set map=`out` key="hits" value=`hits`**
-**out = > json.set map=`out` key="git" value=`git`**
-**out = > json.set map=`out` key="mode" value=`mode`**
-*out*
+`字段` =
+
+| via | warning | error | kb_path | slug | path | summary | promote | hits | git | mode |
+|-----|---------|-------|---------|------|------|---------|---------|------|-----|------|
+| index-fallback | `err` | `err` | `kb_path` | `slug` | `run_path` | `brief` | `prom` | `hits` | `git` | `mode` |
+
+*> 成功 字段=`字段`*
 
 ## kb_list
     + `payload`=None
@@ -335,14 +362,17 @@ import org:lib/organize.mq.md
 **root = > run.确保目录**
 **tpl = > profile.默认正文**
 **payload_path = `root` + "/tmp/propose_payload.json"**
-**prop = > json.parse text={"target":"kb/用户画像.mq.md","source":"profile_reset","title":"重置用户画像模板"}**
-**prop = > json.set map=`prop` key="reason" value="重置为多维度模板（需审查后应用）"**
-**prop = > json.set map=`prop` key="body" value=`tpl`**
+`prop` =
+
+| target | source | title | reason | body |
+|--------|--------|-------|--------|------|
+| kb/用户画像.mq.md | profile_reset | 重置用户画像模板 | 重置为多维度模板（需审查后应用） | `tpl` |
+
 **raw = > json.stringify value=`prop`**
 > fs.write_text path=`payload_path` text=`raw`
 **out = > changes.提案 payload_path=`payload_path`**
-**out = > json.set map=`out` key="mode" value="propose"**
-*out*
+**extra = > table.put in=None at="mode" value="propose"**
+*> table.merge a=`out` b=`extra`*
 
 ## change_propose
     + `payload`=None

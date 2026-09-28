@@ -1,10 +1,11 @@
 ---
 title: pages/build
 description: >-
-  Build Document page bags for qdagent (ADR 0007). Each ## returns a page handle
-  with intro HTML + chrome + head — no compose_* mutation pile.
+  Build Document page bags for qdagent (ADR 0007). Markdown bodies live in
+  pages/content.mq.md; chrome/forms attach via lib/site — no compose_*.
 import site:../lib/site.mq.md
 import ui:../lib/ui.mq.md
+import content:content.mq.md
 import form:ext/data/form.mq.md
 ---
 
@@ -57,15 +58,15 @@ import form:ext/data/form.mq.md
 
 ## 笔记库
 
-**intro = > ui.笔记库引言**
-**page = > site.page title="笔记库" intro=`intro`**
+**md = > content.笔记库**
+**page = > site.page_md title="笔记库" markdown=`md`**
 **头 = > ui.笔记库头**
 *> 壳 page=`page` 头=`头`*
 
 ## 原始沉淀
 
-**intro = > ui.原始沉淀引言**
-**page = > site.page title="原始沉淀" intro=`intro`**
+**md = > content.原始沉淀**
+**page = > site.page_md title="原始沉淀" markdown=`md`**
 **page = > site.data_source page=`page` source="runs"**
 **page = > site.order page=`page` order="-created_at"**
 **page = > site.link_prefix page=`page` prefix="/run/"**
@@ -95,15 +96,15 @@ import form:ext/data/form.mq.md
 
 ## 设置枢纽
 
-**intro = > ui.设置枢纽引言**
-**page = > site.page title="设置" intro=`intro`**
+**md = > content.设置枢纽**
+**page = > site.page_md title="设置" markdown=`md`**
 **头 = > ui.头资源**
 *> 壳 page=`page` 头=`头`*
 
 ## 大模型设置
 
-**intro = > ui.大模型设置引言**
-**page = > site.page title="大模型设置" intro=`intro`**
+**md = > content.大模型设置**
+**page = > site.page_md title="大模型设置" markdown=`md`**
 **头 = > ui.设置头**
 **page = > 壳 page=`page` 头=`头`**
 **frm = > 大模型表单**
@@ -111,8 +112,8 @@ import form:ext/data/form.mq.md
 
 ## 语音设置
 
-**intro = > ui.语音设置引言**
-**page = > site.page title="语音设置" intro=`intro`**
+**md = > content.语音设置**
+**page = > site.page_md title="语音设置" markdown=`md`**
 **头 = > ui.设置头**
 **page = > 壳 page=`page` 头=`头`**
 **frm = > 语音表单**
@@ -120,21 +121,21 @@ import form:ext/data/form.mq.md
 
 ## MCP设置
 
-**intro = > ui.mcp引言**
-**page = > site.page title="MCP 接入" intro=`intro`**
+**md = > content.mcp**
+**page = > site.page_md title="MCP 接入" markdown=`md`**
 **头 = > ui.接入头**
 *> 壳 page=`page` 头=`头`*
 
 ## OpenAI设置
 
-**intro = > ui.openai引言**
-**page = > site.page title="OpenAI 网关" intro=`intro`**
+**md = > content.openai**
+**page = > site.page_md title="OpenAI 网关" markdown=`md`**
 **头 = > ui.头资源**
 *> 壳 page=`page` 头=`头`*
 
 ## 记忆设置
 
-**intro = > ui.记忆引言**
-**page = > site.page title="记忆" intro=`intro`**
+**md = > content.记忆**
+**page = > site.page_md title="记忆" markdown=`md`**
 **头 = > ui.记忆头**
 *> 壳 page=`page` 头=`头`*

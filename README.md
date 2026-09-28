@@ -64,8 +64,10 @@ docker compose up --build
 | `serve.mq.md` | Gateway：Document 页 + invoke API + proxy/auth（推荐入口） |
 | `index.mq.md` | 兼容入口 → `serve.boot` |
 | `pages/build.mq.md` | 各 Document 页面装配（无 compose_*） |
-| `lib/site.mq.md` | auth / form / proxy·invoke / page chrome Resource |
-| `lib/api.mq.md` | `/api/store/*` 与 MCP 共用实现 |
+| `pages/content.mq.md` | 设置/笔记等 Markdown 正文（代码即文档） |
+| `api/*.mq.md` | 声明式 Endpoint 文档（health / store-run） |
+| `lib/site.mq.md` | auth / form / proxy·invoke / page chrome / Markdown 渲染 |
+| `lib/api.mq.md` | `/api/store/*` 与 MCP 共用实现（GFM 应答表） |
 | `求道-捕捉.mq.md` | CLI 无 LLM 沉淀 |
 | `求道-询问.mq.md` | CLI：画像 + 检索后询问并沉淀 |
 | `求道-整理.mq.md` | CLI：OKF 智能整理 → `data/kb/concepts` |

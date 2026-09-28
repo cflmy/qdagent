@@ -18,6 +18,23 @@ Document handle for `web.route` / listen (uses `intro`, not Markdown `body`).
 > cap.load
 *> web_page_new title=`title` intro=`intro` shell_css=None layout=None asset_version=None*
 
+## md
+    + `text`=""
+
+Markdown → HTML for Document intros (Artifact body path).
+
+> cap.load
+*> web_dom_markdown text=`text`*
+
+## page_md
+    + `title`
+    + `markdown`=""
+
+Build a page whose intro is rendered Markdown (code-as-documentation bodies).
+
+**html = > md text=`markdown`**
+*> page title=`title` intro=`html`*
+
 ## css
     + `page`
     + `css`

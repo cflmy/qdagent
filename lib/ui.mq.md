@@ -109,7 +109,7 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 30 |
+| stylesheet | "/static/theme.css" | "text/css" | | 31 |
 
 *`头`*
 
@@ -122,10 +122,10 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 30 |
-| script | "/static/qd-api.js" | | true | 30 |
-| script | "/static/qd-voice.js" | | true | 30 |
-| script | "/static/chat.js" | | true | 30 |
+| stylesheet | "/static/theme.css" | "text/css" | | 31 |
+| script | "/static/qd-api.js" | | true | 31 |
+| script | "/static/qd-voice.js" | | true | 31 |
+| script | "/static/chat.js" | | true | 31 |
 
 *`头`*
 
@@ -138,10 +138,10 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 30 |
-| script | "/static/qd-api.js" | | true | 30 |
-| script | "/static/qd-voice.js" | | true | 30 |
-| script | "/static/notes-voice.js" | | true | 30 |
+| stylesheet | "/static/theme.css" | "text/css" | | 31 |
+| script | "/static/qd-api.js" | | true | 31 |
+| script | "/static/qd-voice.js" | | true | 31 |
+| script | "/static/notes-voice.js" | | true | 31 |
 
 *`头`*
 
@@ -154,9 +154,9 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 30 |
-| script | "/static/qd-api.js" | | true | 30 |
-| script | "/static/notes-kb.js" | | true | 30 |
+| stylesheet | "/static/theme.css" | "text/css" | | 31 |
+| script | "/static/qd-api.js" | | true | 31 |
+| script | "/static/notes-kb.js" | | true | 31 |
 
 *`头`*
 
@@ -169,9 +169,9 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 30 |
-| script | "/static/qd-api.js" | | true | 30 |
-| script | "/static/settings.js" | | true | 30 |
+| stylesheet | "/static/theme.css" | "text/css" | | 31 |
+| script | "/static/qd-api.js" | | true | 31 |
+| script | "/static/settings.js" | | true | 31 |
 
 *`头`*
 
@@ -184,9 +184,9 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 30 |
-| script | "/static/qd-api.js" | | true | 30 |
-| script | "/static/mcp.js" | | true | 30 |
+| stylesheet | "/static/theme.css" | "text/css" | | 31 |
+| script | "/static/qd-api.js" | | true | 31 |
+| script | "/static/mcp.js" | | true | 31 |
 
 *`头`*
 
@@ -199,9 +199,9 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 30 |
-| script | "/static/qd-api.js" | | true | 30 |
-| script | "/static/memory.js" | | true | 30 |
+| stylesheet | "/static/theme.css" | "text/css" | | 31 |
+| script | "/static/qd-api.js" | | true | 31 |
+| script | "/static/memory.js" | | true | 31 |
 
 *`头`*
 
