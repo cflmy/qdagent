@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| 状态 | **Accepted（执行中）** |
+| 状态 | **Accepted（已完成 Phase 0–13）** |
 | 日期 | 2026-09-28 |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读，禁止改写） |
 | Marqdo | ≥ 1.3.0（EKC · Agent EFI · Skill Compilation · Adaptive Routing） |
@@ -67,8 +67,10 @@ knowledge/resolver.mq.md
 execution/run.mq.md
 execution/verify.mq.md
 execution/record.mq.md
+execution/promote.mq.md
 gateway/openai.mq.md
 gateway/mcp.mq.md
+cli/求道-*.mq.md
 ```
 
 ## 7. 架构红线
