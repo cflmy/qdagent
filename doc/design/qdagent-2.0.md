@@ -108,7 +108,7 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 cli/求道-*.mq.md     # 全部产品 CLI / MCP stdio 薄入口
 serve.mq.md          # KEEP — Web Gateway
 index.mq.md          # KEEP — 历史 shim → serve.boot
-scripts/qdagent      # 指向 cli/…；导出 QDAGENT_ROOT
+scripts/qdagent      # 指向 cli/…；导出 QDAGENT_ROOT + MARQDO_FS_ROOT
 ```
 
 规则：
@@ -116,5 +116,5 @@ scripts/qdagent      # 指向 cli/…；导出 QDAGENT_ROOT
 1. CLI 入口只做 env → 调 `agent/` · `execution/` · `gateway/` · `lib/api`，**不**承载业务逻辑。
 2. 返回值避免污染源文件：打印 JSON 后 `*""*`（禁止 `*slug*` 触发 marqdo-out 写回）。
 3. `scripts/qdagent` · `public/mcp.js` · legacy bridge · README 同步改路径。
-4. **`marqdo run cli/…` 会 chdir 到 `cli/`**：EKC / `.marqdo` 必须经 `QDAGENT_ROOT`（`knowledge/context.resolve_root`）锚定仓库根，禁止在 `cli/.marqdo` 另起真相源。
+4. **`marqdo run cli/…` 默认沙箱=入口目录**：必须设 `MARQDO_FS_ROOT` / `--fs-root` 为仓库根（scripts 已导出）；EKC 路径再经 `QDAGENT_ROOT`（`knowledge/context.resolve_root`）锚定，禁止 `cli/.marqdo`。
 5. **禁止**改写 `doc/next/*`。
