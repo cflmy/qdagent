@@ -22,6 +22,8 @@ if [[ -z "${MARQDO_WEB_PLUGIN:-}" && -f "${MARQDO_EXT}/native/libweb.so" ]]; the
   export MARQDO_WEB_PLUGIN="${MARQDO_EXT}/native/libweb.so"
 fi
 export QDAGENT_DATA="${QDAGENT_DATA:-$ROOT/data}"
+export QDAGENT_ROOT="${QDAGENT_ROOT:-$ROOT}"
+export MARQDO_FS_ROOT="${MARQDO_FS_ROOT:-$ROOT}"
 export QDAGENT_HOST="${QDAGENT_HOST:-127.0.0.1}"
 export QDAGENT_PORT="${QDAGENT_PORT:-7431}"
 export QDAGENT_V1_HOST="${QDAGENT_V1_HOST:-127.0.0.1}"

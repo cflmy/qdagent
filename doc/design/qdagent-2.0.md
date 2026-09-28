@@ -88,3 +88,33 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 ## 9. KPI
 
 `reuse_ratio` · `adapt_ratio` · `novel_ratio` · `duplication_rate` · `reasoning_amortization`
+
+## 10. 实施顺序（相对 `doc/next/002` Phase 0–9）
+
+| Phase | 状态 | 内容 |
+|-------|------|------|
+| 0–9 | done | Architecture · Preflight · Workbook · BUILD · Verify · Record/Learn · MCP · OpenAI · UI · Skill/Policy |
+| **10** | done | CLI 入口收纳 — `求道-*.mq.md` → `cli/` + `MARQDO_FS_ROOT` / `QDAGENT_ROOT` |
+| **11** | done | Gateway EFI dogfood — `gateway/openai.precheck` 上游前门闩（ADAPT） |
+| 12 | queued | Knowledge Candidate → Promote（verify-before-promote 已有门闩，补晋升路径） |
+
+## 11. Phase 10 — CLI 入口收纳（本仓增补）
+
+**问题**：根目录堆积薄 CLI 包装（`求道-预检` / `构建` / `询问*` / `验证` / `学习` / `指标` / `mcp` / 笔记 legacy…），淹没 `serve.mq.md` / `index.mq.md` 与业务目录。
+
+**不在** `doc/next` Phase 0–9 正文；KEEP 仍保留根上的 Web 入口。本设计**增补** Phase 10。
+
+```text
+cli/求道-*.mq.md     # 全部产品 CLI / MCP stdio 薄入口
+serve.mq.md          # KEEP — Web Gateway
+index.mq.md          # KEEP — 历史 shim → serve.boot
+scripts/qdagent      # 指向 cli/…；导出 QDAGENT_ROOT
+```
+
+规则：
+
+1. CLI 入口只做 env → 调 `agent/` · `execution/` · `gateway/` · `lib/api`，**不**承载业务逻辑。
+2. 返回值避免污染源文件：打印 JSON 后 `*""*`（禁止 `*slug*` 触发 marqdo-out 写回）。
+3. `scripts/qdagent` · `public/mcp.js` · legacy bridge · README 同步改路径。
+4. **`marqdo run cli/…` 会 chdir 到 `cli/`**：EKC / `.marqdo` 必须经 `QDAGENT_ROOT`（`knowledge/context.resolve_root`）锚定仓库根，禁止在 `cli/.marqdo` 另起真相源。
+5. **禁止**改写 `doc/next/*`。

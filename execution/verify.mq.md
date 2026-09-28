@@ -5,6 +5,7 @@ description: >-
   (marqdo verify / duplicate / conflicts / stale). Verify before Promote.
 import sys:lib/sys.mq.md
 import run:run.mq.md
+import ctx:../knowledge/context.mq.md
 ---
 
 ## knowledge_checks
@@ -12,6 +13,9 @@ import run:run.mq.md
     + `out`=".marqdo"
 
 Run Marqdo L3 knowledge verification suite. Returns exit codes only (no huge dumps).
+
+**root = > ctx.resolve_root root=`root`**
+**out = > ctx.resolve_out out=`out` root=`root`**
 
 > sys.env_set name="QDAGENT_EKC_ROOT" value=`root`
 > sys.env_set name="QDAGENT_EKC_OUT" value=`out`

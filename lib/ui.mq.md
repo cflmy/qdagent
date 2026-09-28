@@ -278,7 +278,7 @@ import foot:../components/foot.mq.md
 
 ## mcp引言
 
-*"<h1>MCP 接入</h1><p>Cursor / Claude Desktop 经 MCP 读写笔记（编辑器自带模型）。宿主为 <code>marqdo run 求道-mcp.mq.md</code>。</p><p>若要把<strong>求道当模型</strong>（OpenAI <code>base_url</code>），请看 <a href=\"/settings/openai\">OpenAI 兼容网关</a>。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_context</code>、<code>qd_profile</code>、<code>qd_organize</code>、<code>qd_kb_list</code>、<code>qd_kb_get</code>、<code>qd_capture</code>。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\"><code>marqdo catalog data/kb</code> · <code>marqdo view data/runs</code></p>"*
+*"<h1>MCP 接入</h1><p>Cursor / Claude Desktop 经 MCP 读写笔记（编辑器自带模型）。宿主为 <code>marqdo run cli/求道-mcp.mq.md</code>。</p><p>若要把<strong>求道当模型</strong>（OpenAI <code>base_url</code>），请看 <a href=\"/settings/openai\">OpenAI 兼容网关</a>。</p><p>工具：<code>qd_list_recent</code>、<code>qd_get_run</code>、<code>qd_search</code>、<code>qd_context</code>、<code>qd_profile</code>、<code>qd_organize</code>、<code>qd_kb_list</code>、<code>qd_kb_get</code>、<code>qd_capture</code>。</p><p><button type=\"button\" id=\"qd-mcp-copy\" class=\"primary\">复制 mcp.json</button> <button type=\"button\" id=\"qd-mcp-health\">检查宿主健康</button></p><p id=\"qd-mcp-status\" class=\"qd-settings-status\"></p><pre id=\"qd-mcp-json\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\"><code>marqdo catalog data/kb</code> · <code>marqdo view data/runs</code></p>"*
 
 ## openai引言
 

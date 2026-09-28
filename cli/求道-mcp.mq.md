@@ -2,8 +2,8 @@
 title: 求道-mcp
 description: Marqdo MCP Server（stdio）— Engineering Knowledge + legacy notes tools.
 import agent:ext/ai/agent.mq.md
-import api:lib/api.mq.md
-import gw:gateway/mcp.mq.md
+import api:../lib/api.mq.md
+import gw:../gateway/mcp.mq.md
 ---
 
 # main

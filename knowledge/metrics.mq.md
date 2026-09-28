@@ -4,17 +4,21 @@ description: >-
   Engineering KPI surface — reads Marqdo reuse_metrics.json (no second metrics store).
 import fs:lib/fs.mq.md
 import json:lib/json.mq.md
+import ctx:context.mq.md
 ---
 
 ## path
     + `out`=".marqdo"
+    + `root`="."
 
+**out = > ctx.resolve_out out=`out` root=`root`**
 *`out` + "/agent/episodes/reuse_metrics.json"*
 
 ## read
     + `out`=".marqdo"
+    + `root`="."
 
-**p = > path out=`out`**
+**p = > path out=`out` root=`root`**
 **exists = > fs.exists path=`p`**
 1. not `exists`
   `empty` =
@@ -33,10 +37,10 @@ import json:lib/json.mq.md
 **reused = > json.get value=`m` key="reused"**
 **adapted = > json.get value=`m` key="adapted"**
 **created = > json.get value=`m` key="created"**
-`out` =
+`ret` =
 
 | ok | reuse_ratio | adapt_ratio | novel_ratio | duplication_rate | reused | adapted | created | raw |
 |----|-------------|-------------|-------------|------------------|--------|---------|---------|-----|
 | True | `reuse` | `adapt` | `novel` | `dup` | `reused` | `adapted` | `created` | `m` |
 
-*out*
+*ret*

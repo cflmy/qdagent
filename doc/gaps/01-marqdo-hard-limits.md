@@ -37,7 +37,7 @@
 | | |
 |---|---|
 | 关闭于 | Marqdo 0.3.7 `agent.mcp_server` + `serve transport=stdio` |
-| 求道用法 | `marqdo run 求道-mcp.mq.md`；「MCP 接入」页复制配置 |
+| 求道用法 | `marqdo run cli/求道-mcp.mq.md`；「MCP 接入」页复制配置 |
 | 备注 | HTTP MCP（H4b）仍可选，未接 |
 
 ### GAP-04 · 第二监听端口 — **CLOSED**
@@ -73,8 +73,8 @@
 | OpenAI 兼容厚网关 | proxy → `/v1` → `openai_v1_gateway.py` |
 | 沉淀 / 检索 / 画像 / 整理 | invoke 表 → `lib/api.*` |
 | 用户画像 | `data/kb/用户画像.mq.md` · `/settings/memory` |
-| MCP stdio | `求道-mcp.mq.md`（含 context/profile/organize） |
-| CLI 捕捉 / 询问 / 整理 | `求道-捕捉` · `求道-询问` · `求道-整理` |
+| MCP stdio | `cli/求道-mcp.mq.md`（含 context/profile/organize） |
+| CLI 捕捉 / 询问 / 整理 | `cli/求道-捕捉` · `cli/求道-询问` · `cli/求道-整理` |
 
 ## 4. 非目标
 

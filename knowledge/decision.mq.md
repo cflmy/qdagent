@@ -5,6 +5,7 @@ description: >-
   (`marqdo knowledge record`). No second metrics store.
 import sys:lib/sys.mq.md
 import json:lib/json.mq.md
+import ctx:context.mq.md
 ---
 
 ## record
@@ -12,6 +13,9 @@ import json:lib/json.mq.md
     + `root`="."
     + `out`=".marqdo"
     + `duplicated`=False
+
+**root = > ctx.resolve_root root=`root`**
+**out = > ctx.resolve_out out=`out` root=`root`**
 
 > sys.env_set name="QDAGENT_EKC_ROOT" value=`root`
 > sys.env_set name="QDAGENT_EKC_OUT" value=`out`

@@ -9,11 +9,39 @@ import fs:lib/fs.mq.md
 import table:lib/table.mq.md
 ---
 
+## resolve_root
+    + `root`="."
+
+Prefer explicit `root`, then `QDAGENT_ROOT` (set by scripts/qdagent), else process cwd.
+Needed because `marqdo run cli/…` chdirs into `cli/`.
+
+1. `root` != "."
+  1. `root` != ""
+    *root*
+**env = > sys.env_get name="QDAGENT_ROOT"**
+1. `env`
+  *env*
+**cwd = > sys.cwd**
+*cwd*
+
+## resolve_out
+    + `out`=".marqdo"
+    + `root`="."
+
+1. `out` != ".marqdo"
+  1. `out` != ""
+    *out*
+**r = > resolve_root root=`root`**
+*`r` + "/.marqdo"*
+
 ## ensure_graph
     + `root`="."
     + `out`=".marqdo"
 
 Ensure EKC projections exist. Missing graph → compile first (never skip EFI).
+
+**root = > resolve_root root=`root`**
+**out = > resolve_out out=`out` root=`root`**
 
 **eng = `out` + "/engineering.yaml"**
 **graph = `out` + "/graph/graph.json"**
@@ -71,6 +99,9 @@ Ensure EKC projections exist. Missing graph → compile first (never skip EFI).
     + `out`=".marqdo"
 
 Run Marqdo engineering preflight. Writes Context Pack under `.marqdo/agent/contexts/`.
+
+**root = > resolve_root root=`root`**
+**out = > resolve_out out=`out` root=`root`**
 
 **gate = > ensure_graph root=`root` out=`out`**
 **ok = [ok](gate)**

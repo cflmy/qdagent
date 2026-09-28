@@ -2,7 +2,7 @@
 """Thin bridge: run Marqdo entrypoints and return structured data.
 
 Marqdo gap: GAP-02 / GAP-03 / GAP-05 — see doc/gaps/01-marqdo-hard-limits.md
-Business logic lives in 求道-*.mq.md / lib/run.mq.md / db/index.mq.md.
+Business logic lives in cli/求道-*.mq.md / lib/run.mq.md / db/index.mq.md.
 """
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def capture(
     session_id: str = "",
 ) -> dict:
     path = run_mq(
-        "求道-捕捉.mq.md",
+        "cli/求道-捕捉.mq.md",
         {
             "QDAGENT_TITLE": title,
             "QDAGENT_TASK": task,
@@ -82,12 +82,12 @@ def capture(
 
 
 def sync_runs() -> dict:
-    root = run_mq("求道-同步.mq.md").splitlines()[-1].strip()
+    root = run_mq("cli/求道-同步.mq.md").splitlines()[-1].strip()
     return {"ok": True, "root": root}
 
 
 def list_recent(limit: int = 20) -> list:
-    data = run_mq_json("求道-列出.mq.md", {"QDAGENT_LIMIT": str(limit)})
+    data = run_mq_json("cli/求道-列出.mq.md", {"QDAGENT_LIMIT": str(limit)})
     if isinstance(data, dict) and "runs" in data:
         return data["runs"]
     if isinstance(data, list):
@@ -100,7 +100,7 @@ def search(query: str, top_k: int = 5) -> list:
     q = (query or "").strip()
     if not q:
         return []
-    data = run_mq_json("求道-搜索.mq.md", {"QDAGENT_TOP_K": str(max(top_k, 50))})
+    data = run_mq_json("cli/求道-搜索.mq.md", {"QDAGENT_TOP_K": str(max(top_k, 50))})
     rows = []
     if isinstance(data, dict):
         rows = data.get("runs") or data.get("hits") or []

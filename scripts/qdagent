@@ -19,6 +19,8 @@ if [[ -z "${MARQDO_LIB:-}" ]]; then
   fi
 fi
 export QDAGENT_DATA="${QDAGENT_DATA:-$ROOT/data}"
+export QDAGENT_ROOT="${QDAGENT_ROOT:-$ROOT}"
+export MARQDO_FS_ROOT="${MARQDO_FS_ROOT:-$ROOT}"
 cd "$ROOT"
 
 cmd="${1:-}"
@@ -27,25 +29,25 @@ shift || true
 case "$cmd" in
   preflight)
     export QDAGENT_TASK="${*:-给 OpenAI /v1 网关增加工程预检再调上游}"
-    exec marqdo run 求道-预检.mq.md
+    exec marqdo run cli/求道-预检.mq.md
     ;;
   build)
     export QDAGENT_TASK="${*:-给 OpenAI /v1 网关增加工程预检再调上游}"
-    exec marqdo run 求道-构建.mq.md
+    exec marqdo run cli/求道-构建.mq.md
     ;;
   ask)
     export QDAGENT_TASK="${*:-求道与普通 Coding Agent 的差别是什么？}"
-    exec marqdo run 求道-询问-工程.mq.md
+    exec marqdo run cli/求道-询问-工程.mq.md
     ;;
   verify)
-    exec marqdo run 求道-验证.mq.md
+    exec marqdo run cli/求道-验证.mq.md
     ;;
   learn)
     export QDAGENT_TASK="${QDAGENT_TASK:-$*}"
-    exec marqdo run 求道-学习.mq.md
+    exec marqdo run cli/求道-学习.mq.md
     ;;
   metrics|kpi)
-    exec marqdo run 求道-指标.mq.md
+    exec marqdo run cli/求道-指标.mq.md
     ;;
   find|know)
     export QDAGENT_QUERY="${*:-authentication}"
@@ -62,7 +64,7 @@ case "$cmd" in
     exec "$ROOT/scripts/mq.sh" run serve.mq.md
     ;;
   mcp)
-    exec "$ROOT/scripts/mq.sh" run 求道-mcp.mq.md
+    exec "$ROOT/scripts/mq.sh" run cli/求道-mcp.mq.md
     ;;
   ""|-h|--help|help)
     cat <<'EOF'

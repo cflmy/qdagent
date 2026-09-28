@@ -16,7 +16,7 @@
       mcpServers: {
         qdagent: {
           command: "marqdo",
-          args: ["run", repo + "/求道-mcp.mq.md"],
+          args: ["run", repo + "/cli/求道-mcp.mq.md"],
           env: {
             MARQDO_EXT: (window.MARQDO_EXT_HINT || "~/.marqdo/ext").replace(
               /^~/,
@@ -42,7 +42,7 @@
           cfg.mcpServers.qdagent.env.QDAGENT_DATA = j.data_root;
           var root = j.data_root.replace(/\/data\/?$/, "");
           if (root) {
-            cfg.mcpServers.qdagent.args = ["run", root + "/求道-mcp.mq.md"];
+            cfg.mcpServers.qdagent.args = ["run", root + "/cli/求道-mcp.mq.md"];
           }
           pre.textContent = JSON.stringify(cfg, null, 2);
         }
@@ -74,7 +74,7 @@
           .then(function (j) {
             if (status)
               status.textContent =
-                "宿主健康：" + JSON.stringify(j) + " · MCP 用 marqdo run 求道-mcp.mq.md";
+                "宿主健康：" + JSON.stringify(j) + " · MCP 用 marqdo run cli/求道-mcp.mq.md";
           })
           .catch(function (e) {
             if (status) status.textContent = "不可用：" + e.message;

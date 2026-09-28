@@ -63,5 +63,5 @@ chmod +x scripts/mq.sh scripts/qdagent
 | `knowledge/context.mq.md` | Context Pack（零 LLM） |
 | `execution/run.mq.md` | Engineering Workbook |
 | `gateway/openai.mq.md` · `gateway/mcp.mq.md` | 产品面 |
-| `serve.mq.md` | Web Gateway |
-| `求道-预检.mq.md` 等 | CLI 入口 |
+| `serve.mq.md` · `index.mq.md` | Web Gateway（根目录 KEEP） |
+| `cli/求道-*.mq.md` | 产品 CLI / MCP 薄入口 |
