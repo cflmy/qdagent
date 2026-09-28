@@ -139,3 +139,24 @@ import form:ext/data/form.mq.md
 **page = > site.page_md title="记忆" markdown=`md`**
 **头 = > ui.记忆头**
 *> 壳 page=`page` 头=`头`*
+
+## 工程预检
+
+**md = > content.工程预检**
+**page = > site.page_md title="工程预检" markdown=`md`**
+**头 = > ui.工程头**
+*> 壳 page=`page` 头=`头`*
+
+## 工程工作簿
+
+**md = > content.工程工作簿**
+**page = > site.page_md title="工程工作簿" markdown=`md`**
+**头 = > ui.工程头**
+*> 壳 page=`page` 头=`头`*
+
+## 工程能力
+
+**md = > content.工程能力**
+**page = > site.page_md title="工程能力" markdown=`md`**
+**头 = > ui.工程头**
+*> 壳 page=`page` 头=`头`*

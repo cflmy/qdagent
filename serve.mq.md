@@ -89,6 +89,10 @@ import sys:lib/sys.mq.md
 | /api/store/git/log | POST | api.git_log | json | json |
 | /api/store/git/show | POST | api.git_show | json | json |
 | /api/store/git/revert | POST | api.git_revert | json | json |
+| /api/eng/preflight | POST | api.preflight | json | json |
+| /api/eng/reuse | POST | api.eng_reuse | json | json |
+| /api/eng/verify | POST | api.eng_verify | json | json |
+| /api/eng/learn | POST | api.eng_learn | json | json |
 
 **接口 = > ui.接口**
 
@@ -103,6 +107,9 @@ import sys:lib/sys.mq.md
 **settings_mcp = > pages.MCP设置**
 **settings_openai = > pages.OpenAI设置**
 **settings_memory = > pages.记忆设置**
+**page_preflight = > pages.工程预检**
+**page_workbook = > pages.工程工作簿**
+**page_capability = > pages.工程能力**
 
 **app = > web.app page=`page` db=`store` admin=True admin_prefix="/account" host=`host` port=`port`**
 
@@ -110,6 +117,9 @@ import sys:lib/sys.mq.md
 **app = > web.route app=`app` path="/notes/runs" page=`notes_runs`**
 **app = > web.route app=`app` path="/notes/new" page=`new`**
 **app = > web.route app=`app` path="/run/{slug}" page=`detail`**
+**app = > web.route app=`app` path="/eng/preflight" page=`page_preflight`**
+**app = > web.route app=`app` path="/eng/run" page=`page_workbook`**
+**app = > web.route app=`app` path="/eng/capability" page=`page_capability`**
 **app = > web.route app=`app` path="/settings" page=`settings_hub`**
 **app = > web.route app=`app` path="/settings/llm" page=`settings_llm`**
 **app = > web.route app=`app` path="/settings/voice" page=`settings_voice`**
@@ -139,6 +149,7 @@ import sys:lib/sys.mq.md
 
 **app = > `app`.gate path="/" roles="user,admin" permissions="" match="exact" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/notes" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
+**app = > `app`.gate path="/eng" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/run" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/settings" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/_form" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**

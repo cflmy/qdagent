@@ -37,3 +37,13 @@ _s.mq.md
 /data/sessions/
 /data/skills/
 /data/tmp/
+/data/workbooks/
+/data/candidates/
+
+# EKC generated projection
+.marqdo/
+
+# Editor agent local state (keep committed rules under .cursor/rules/)
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""qdagent OpenAI-compatible /v1 thick gateway (audit + context inject).
+"""qdagent OpenAI-compatible /v1 gateway (transport + thin EFI adapter).
 
 Listens on QDAGENT_V1_HOST:QDAGENT_V1_PORT (default 127.0.0.1:7433).
 Marqdo app.proxy mounts /v1 → this process (strip /v1 → /models, /chat/completions).
 
 Auth: Authorization Bearer == QDAGENT_API_KEY (default qdagent-local).
-Every chat.completions call auto-writes data/runs/api-*.mq.md + sqlite + kb git.
+
+Default path (QDAGENT_V1_EFI=1): HTTP framing only — domain work via
+`marqdo run gateway/v1_chat.mq.md` → agent/qdagent (eng_preflight).
+Legacy thick path (QDAGENT_V1_EFI=0): profile+corpus inject (deprecated).
 """
 from __future__ import annotations
 
@@ -33,6 +36,8 @@ REPO = Path(__file__).resolve().parent.parent
 TIMEOUT = float(os.environ.get("QDAGENT_V1_TIMEOUT", "180"))
 MAX_HISTORY = int(os.environ.get("QDAGENT_V1_MAX_HISTORY", "24"))
 CORPUS_LIMIT = int(os.environ.get("QDAGENT_V1_CORPUS_LIMIT", "5"))
+# Default ON: Marqdo EFI path. Set QDAGENT_V1_EFI=0 for legacy thick inject.
+EFI_MODE = os.environ.get("QDAGENT_V1_EFI", "1").strip() not in ("0", "false", "False", "no")
 
 _org_lock = threading.Lock()
 _org_last = 0.0
@@ -159,6 +164,7 @@ def last_user_text(messages: list[dict[str, Any]]) -> str:
 
 
 def build_system(profile: str, hits: list[dict[str, Any]]) -> str:
+    """LEGACY — do not extend. Prefer marqdo gateway/v1_chat EFI path."""
     lines = [
         "你是求道助手（经 OpenAI 兼容网关调用）。",
         "回答简洁；笔记证据仅供参考（evidence only）。",
@@ -177,6 +183,45 @@ def build_system(profile: str, hits: list[dict[str, Any]]) -> str:
                 f"{i}. {h.get('path')} score={h.get('score')}\n{h.get('excerpt')}"
             )
     return "\n".join(lines)
+
+
+def efi_chat(user_text: str, mode: str = "") -> dict[str, Any]:
+    """Delegate domain work to Marqdo gateway/v1_chat.mq.md (transport-only Python)."""
+    env = os.environ.copy()
+    env["QDAGENT_TASK"] = user_text or "ping"
+    if mode:
+        env["QDAGENT_MODE"] = mode
+    env["QDAGENT_DATA"] = str(DATA)
+    if "MARQDO_EXT" not in env:
+        cand = Path.home() / "work" / "marqdo" / "ext"
+        env["MARQDO_EXT"] = str(cand if cand.is_dir() else Path.home() / ".marqdo" / "ext")
+    proc = subprocess.run(
+        ["marqdo", "run", "gateway/v1_chat.mq.md"],
+        cwd=str(REPO),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT,
+    )
+    raw = (proc.stdout or "").strip()
+    # Last JSON object line from print
+    parsed: dict[str, Any] | None = None
+    for line in reversed(raw.splitlines()):
+        line = line.strip()
+        if line.startswith("{") and line.endswith("}"):
+            try:
+                parsed = json.loads(line)
+                break
+            except Exception:
+                continue
+    if parsed is None:
+        return {
+            "ok": False,
+            "content": raw or (proc.stderr or "")[:2000],
+            "run_id": new_slug(),
+            "error": f"efi_exit={proc.returncode}",
+        }
+    return parsed
 
 
 def join_url(base: str, path: str) -> str:
@@ -494,6 +539,70 @@ class Handler(BaseHTTPRequestHandler):
             model=upstream_model,
         )
 
+        # --- EFI path: Python = transport only ---
+        if EFI_MODE:
+            try:
+                efi = efi_chat(user_text, mode=str(req_body.get("qdagent_mode") or ""))
+            except Exception as e:
+                finalize_run(slug, user_text, "", status="error", model=upstream_model, error=str(e))
+                self._json(
+                    502,
+                    {"error": {"message": str(e), "type": "efi"}},
+                    {"X-QDAgent-Run-Id": slug},
+                )
+                return
+            content = str(efi.get("content") or efi.get("result") or "")
+            run_id = str(efi.get("run_id") or efi.get("slug") or slug)
+            path = finalize_run(
+                run_id if run_id.startswith("api-") else slug,
+                user_text,
+                content,
+                status="ok" if efi.get("ok", True) else "error",
+                model="qdagent-efi",
+            )
+            data = {
+                "id": run_id,
+                "object": "chat.completion",
+                "model": "qdagent",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": content},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "qdagent": {
+                    "run_id": run_id,
+                    "run_path": str(path),
+                    "decision": efi.get("decision"),
+                    "mode": efi.get("mode"),
+                    "efi": True,
+                },
+            }
+            if stream:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache, no-transform")
+                self.send_header("X-QDAgent-Run-Id", run_id)
+                self.end_headers()
+                chunk = {
+                    "id": run_id,
+                    "object": "chat.completion.chunk",
+                    "model": "qdagent",
+                    "choices": [
+                        {"index": 0, "delta": {"content": content}, "finish_reason": None}
+                    ],
+                }
+                self.wfile.write(
+                    ("data: " + json.dumps(chunk, ensure_ascii=False) + "\n\n").encode()
+                )
+                self.wfile.write(b"data: [DONE]\n\n")
+                self.wfile.flush()
+                return
+            self._json(200, data, {"X-QDAgent-Run-Id": run_id})
+            return
+
+        # --- LEGACY thick path (QDAGENT_V1_EFI=0) ---
         profile = read_profile()
         hits = corpus_hits(user_text)
         system = build_system(profile, hits)

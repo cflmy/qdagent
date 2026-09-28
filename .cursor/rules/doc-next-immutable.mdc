@@ -1,0 +1,21 @@
+---
+description: qdagent doc/next 手写计划文档不可修改；优化须对齐且不得降级
+alwaysApply: true
+---
+
+# `doc/next` 不可修改
+
+Canonical plans: `doc/next/001.md` · `doc/next/002.md`（及同目录后续手写计划）。
+
+## Hard bans
+
+1. **Do not** create, edit, rename, move, or delete any file under `doc/next/`.
+2. **Do not** “整理 / 摘要回写 / 同步方案 / 修正笔误 / 合并重复” 到这些文件——它们是用户手写真相源。
+3. **Do not** 用替代方案、降级方案、MVP 阉割版、或“留待后续再做” 去替换文档中已写明的能力与闭环。
+4. **Do not** 在实现中引入第二套 Agent Framework、隐藏 chat history 真相、或绕过 Marqdo 代码即文档（`.mq.md` 即程序/知识载体）。
+
+## Required direction
+
+- 实现与重构以 `doc/next/*.md` 为架构约束；有歧义、冲突或缺省时 **先问用户**，不得自行简化。
+- 能力落地顺序可分阶段，但阶段边界不得删减文档已定义的最终能力集与架构红线。
+- Marqdo：程序真相 / 知识真相 / 执行真相 / 证据真相；EKC、Preflight、Reuse Gate、Workbook writeback 等须按文档落实，不得用普通 RAG/对话 Agent 替代。

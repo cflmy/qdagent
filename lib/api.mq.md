@@ -17,6 +17,10 @@ import kbgit:lib/kb_git.mq.md
 import changes:lib/changes.mq.md
 import asr:lib/asr.mq.md
 import org:lib/organize.mq.md
+import eng_pf:../agent/preflight.mq.md
+import eng_res:../knowledge/resolver.mq.md
+import eng_ver:../execution/verify.mq.md
+import eng_qd:../agent/qdagent.mq.md
 ---
 
 ## 成功
@@ -489,4 +493,53 @@ import org:lib/organize.mq.md
     + `payload`=None
 
 **out = > asr.转写 payload=`payload`**
+*out*
+
+## preflight
+    + `task`=""
+    + `payload`=None
+
+Engineering Preflight (qdagent 2.0). Delegates to agent/preflight.
+
+1. `payload`
+  **pt = > json.get value=`payload` key="task"**
+  1. `pt`
+    **task = `pt`**
+1. not `task`
+  *> 失败 error="task_required"*
+**out = > eng_pf.run task=`task`**
+*out*
+
+## eng_reuse
+    + `task`=""
+    + `payload`=None
+
+1. `payload`
+  **pt = > json.get value=`payload` key="task"**
+  1. `pt`
+    **task = `pt`**
+1. not `task`
+  *> 失败 error="task_required"*
+**out = > eng_res.reuse task=`task`**
+*out*
+
+## eng_verify
+    + `payload`=None
+
+**out = > eng_ver.run**
+*out*
+
+## eng_learn
+    + `task`=""
+    + `failure`=""
+    + `payload`=None
+
+1. `payload`
+  **pt = > json.get value=`payload` key="task"**
+  1. `pt`
+    **task = `pt`**
+  **pf = > json.get value=`payload` key="failure"**
+  1. `pf`
+    **failure = `pf`**
+**out = > eng_qd.learn task=`task` failure=`failure`**
 *out*

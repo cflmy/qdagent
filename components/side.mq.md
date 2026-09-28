@@ -4,6 +4,9 @@
 
 | 属性 | 值 | 样式 | 当 |
 |------|-----|------|-----|
+| 工程预检 | /eng/preflight | | auth |
+| 工程能力 | /eng/capability | | auth |
+| 工程工作簿 | /eng/run | | auth |
 | 对话 | / | | auth |
 | 笔记库 | /notes | | auth |
 | 原始沉淀 | /notes/runs | | auth |

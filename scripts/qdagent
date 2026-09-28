@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# qdagent 2.0 product CLI — Engineering Knowledge Agent surfaces.
+# Delegates to Marqdo .mq.md modules (code-as-documentation).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Prefer workspace marqdo ext
+if [[ -z "${MARQDO_EXT:-}" ]]; then
+  if [[ -d "$HOME/work/marqdo/ext" ]]; then
+    export MARQDO_EXT="$HOME/work/marqdo/ext"
+  else
+    export MARQDO_EXT="$HOME/.marqdo/ext"
+  fi
+fi
+export MARQDO_LIB="${MARQDO_LIB:-$HOME/.marqdo/lib}"
+export QDAGENT_DATA="${QDAGENT_DATA:-$ROOT/data}"
+cd "$ROOT"
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  preflight)
+    export QDAGENT_TASK="${*:-给 OpenAI /v1 网关增加工程预检再调上游}"
+    exec marqdo run 求道-预检.mq.md
+    ;;
+  build)
+    export QDAGENT_TASK="${*:-给 OpenAI /v1 网关增加工程预检再调上游}"
+    exec marqdo run 求道-构建.mq.md
+    ;;
+  ask)
+    export QDAGENT_TASK="${*:-求道与普通 Coding Agent 的差别是什么？}"
+    exec marqdo run 求道-询问-工程.mq.md
+    ;;
+  verify)
+    exec marqdo run 求道-验证.mq.md
+    ;;
+  learn)
+    export QDAGENT_TASK="${QDAGENT_TASK:-$*}"
+    exec marqdo run 求道-学习.mq.md
+    ;;
+  metrics|kpi)
+    exec marqdo run 求道-指标.mq.md
+    ;;
+  find|know)
+    export QDAGENT_QUERY="${*:-authentication}"
+    marqdo find "$QDAGENT_QUERY" . -o .marqdo --json
+    ;;
+  reuse)
+    export QDAGENT_TASK="${*:-}"
+    marqdo reuse --preflight --json "$QDAGENT_TASK" . -o .marqdo
+    ;;
+  knowledge|compile)
+    exec marqdo knowledge . -o .marqdo
+    ;;
+  serve|web)
+    exec "$ROOT/scripts/mq.sh" run serve.mq.md
+    ;;
+  mcp)
+    exec "$ROOT/scripts/mq.sh" run 求道-mcp.mq.md
+    ;;
+  ""|-h|--help|help)
+    cat <<'EOF'
+qdagent — Executable Engineering Knowledge Agent
+
+Usage:
+  qdagent preflight [task]
+  qdagent build [task]
+  qdagent ask [task]
+  qdagent verify
+  qdagent learn
+  qdagent metrics
+  qdagent find|know [query]
+  qdagent reuse [task]
+  qdagent knowledge   # marqdo knowledge compile
+  qdagent serve
+  qdagent mcp
+
+Dogfood example:
+  qdagent knowledge
+  qdagent preflight "给 OpenAI /v1 网关增加工程预检再调上游"
+  qdagent build "给 OpenAI /v1 网关增加工程预检再调上游"
+  qdagent verify
+  qdagent learn
+EOF
+    ;;
+  *)
+    echo "unknown command: $cmd" >&2
+    echo "try: qdagent help" >&2
+    exit 2
+    ;;
+esac

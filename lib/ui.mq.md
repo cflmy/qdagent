@@ -205,6 +205,21 @@ import foot:../components/foot.mq.md
 
 *`头`*
 
+## 工程头
+
+`头` =
+
+| 关系 | 地址 | 类型 | 推迟 | 版本 |
+|------|------|------|------|------|
+| preconnect | "https://fonts.googleapis.com" | | | |
+| preconnect | "https://fonts.gstatic.com" | | | |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 32 |
+| script | "/static/qd-api.js" | | true | 32 |
+| script | "/static/eng.js" | | true | 32 |
+
+*`头`*
+
 ## 用户
 
 `用户` =
