@@ -48,7 +48,9 @@ description: >-
 
 ## 工程预检
 
-**md = "# 工程预检\n\n求道 2.0 杀手级入口：在写代码前先获得 <strong>Engineering First Information</strong>。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent preflight \"给 OpenAI /v1 网关增加工程预检再调上游\"</pre>\n\n输出是 <code>.marqdo/agent/contexts/task-*.mq.md</code>（Context Pack），含 Existing Capabilities / Recommended REUSE·ADAPT·CREATE / Forbidden / create_allowed。\n\nHTTP：<code>POST /api/eng/preflight</code> · MCP：<code>qd_preflight</code>。\n\n<p><input id=\"qd-eng-task\" type=\"text\" placeholder=\"工程任务\" style=\"width:min(36rem,100%)\"/> <button type=\"button\" id=\"qd-eng-preflight\" class=\"primary\">预检</button></p>\n<pre id=\"qd-eng-out\" class=\"qd-mcp-json\"></pre>\n"**
+产品落地页正文在 `ui.工程预检引言`（叙事与图例对齐 Marqdo `doc/next/008.md` EKC / EFI / Reuse Gate）。
+
+**md = "求道工程预检入口见 Web `/`。\n"**
 *md*
 
 ## 工程工作簿
@@ -58,10 +60,10 @@ description: >-
 
 ## 工程能力
 
-**md = "# 工程能力\n\nCapability 是第一公民：系统已经能做什么（≠ 函数列表）。数据来自 Marqdo EKC（<code>.marqdo/catalog/capabilities</code>）。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent find \"openai gateway\"\n./scripts/qdagent reuse \"给 OpenAI /v1 增加预检\"</pre>\n\n<p><input id=\"qd-eng-query\" type=\"text\" placeholder=\"能力查询\" style=\"width:min(36rem,100%)\"/> <button type=\"button\" id=\"qd-eng-find\" class=\"primary\">查找</button></p>\n<pre id=\"qd-eng-find-out\" class=\"qd-mcp-json\"></pre>\n"**
+**md = "# 工程能力\n\nCapability 是第一公民：系统<strong>已经能做什么</strong>（≠ 函数列表）。数据来自 Marqdo <strong>EKC</strong>（<code>.marqdo/catalog/capabilities</code>）。预检会把命中能力写进 Context Pack。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent find \"openai gateway\"\n./scripts/qdagent reuse \"给 OpenAI /v1 增加预检\"</pre>\n\n<p class=\"qd-ekc-actions\"><input id=\"qd-eng-query\" type=\"text\" placeholder=\"能力查询\"/> <button type=\"button\" id=\"qd-eng-find\" class=\"primary\">查找</button></p>\n<pre id=\"qd-eng-find-out\" class=\"qd-mcp-json\"></pre>\n"**
 *md*
 
 ## 知识候选
 
-**md = "# 知识候选\n\nVerify-before-Promote：候选经 L3 验证后晋升到 <code>knowledge/{decisions|constraints|failures|capabilities}</code>，再编译进 EKC。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent candidates\n./scripts/qdagent promote &lt;slug&gt;\n./scripts/qdagent reject &lt;slug&gt;</pre>\n\n<p><button type=\"button\" id=\"qd-eng-cand-list\" class=\"primary\">列出候选</button></p>\n<p><input id=\"qd-eng-cand-slug\" type=\"text\" placeholder=\"candidate slug\" style=\"width:min(24rem,100%)\"/> <button type=\"button\" id=\"qd-eng-cand-promote\">晋升</button> <button type=\"button\" id=\"qd-eng-cand-reject\">拒绝</button></p>\n<pre id=\"qd-eng-cand-out\" class=\"qd-mcp-json\"></pre>\n"**
+**md = "# 知识候选\n\nVerify-before-Promote：候选经 L3 验证后晋升到 <code>knowledge/{decisions|constraints|failures|capabilities}</code>，再编译进 <strong>EKC</strong>——下一次预检自动带出。\n\n<pre class=\"qd-mcp-json\">./scripts/qdagent candidates\n./scripts/qdagent promote &lt;slug&gt;\n./scripts/qdagent reject &lt;slug&gt;</pre>\n\n<p><button type=\"button\" id=\"qd-eng-cand-list\" class=\"primary\">列出候选</button></p>\n<p class=\"qd-ekc-actions\"><input id=\"qd-eng-cand-slug\" type=\"text\" placeholder=\"candidate slug\"/> <button type=\"button\" id=\"qd-eng-cand-promote\">晋升</button> <button type=\"button\" id=\"qd-eng-cand-reject\">拒绝</button></p>\n<pre id=\"qd-eng-cand-out\" class=\"qd-mcp-json\"></pre>\n"**
 *md*

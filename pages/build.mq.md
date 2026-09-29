@@ -17,6 +17,7 @@ import form:ext/data/form.mq.md
 **side = > ui.side**
 **foot = > ui.foot**
 **p = > site.chrome page=`page` nav=`nav` side=`side` foot=`foot`**
+**p = > site.brand_nav page=`p`**
 1. `头`
   **p = > site.head page=`p` table=`头`**
 *`p`*
@@ -142,8 +143,8 @@ import form:ext/data/form.mq.md
 
 ## 工程预检
 
-**md = > content.工程预检**
-**page = > site.page_md title="工程预检" markdown=`md`**
+**intro = > ui.工程预检引言**
+**page = > site.page title="求道 · 工程预检" intro=`intro`**
 **头 = > ui.工程头**
 *> 壳 page=`page` 头=`头`*
 
@@ -158,13 +159,6 @@ import form:ext/data/form.mq.md
 
 **md = > content.工程能力**
 **page = > site.page_md title="工程能力" markdown=`md`**
-**头 = > ui.工程头**
-*> 壳 page=`page` 头=`头`*
-
-## 知识候选
-
-**md = > content.知识候选**
-**page = > site.page_md title="知识候选" markdown=`md`**
 **头 = > ui.工程头**
 *> 壳 page=`page` 头=`头`*
 

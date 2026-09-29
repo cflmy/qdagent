@@ -16,7 +16,7 @@ import web:ext/web/web.mq.md
 Document handle for `web.route` / listen (uses `intro`, not Markdown `body`).
 
 > cap.load
-*> web_page_new title=`title` intro=`intro` shell_css=None layout=None asset_version=None*
+*> web_page_new title=`title` intro=`intro` shell_css="off" layout=None asset_version=None*
 
 ## md
     + `text`=""
@@ -92,15 +92,43 @@ Stamp Artifact `data_source` onto a page bag (list/detail cards).
     + `foot`=None
 
 Attach nav / side / foot link tables (renderer chrome — not View compose DSL).
+Renderer reads `nav` · `sidebar` · `footer` (see Marqdo web render).
 
 **p = `page`**
 1. `nav`
   **p = > table.put in=`p` at="nav" value=`nav`**
 1. `side`
-  **p = > table.put in=`p` at="side" value=`side`**
+  **p = > table.put in=`p` at="sidebar" value=`side`**
 1. `foot`
-  **p = > table.put in=`p` at="foot" value=`foot`**
+  **p = > table.put in=`p` at="footer" value=`foot`**
 *`p`*
+
+## brand_nav
+    + `page`
+    + `title`="求道"
+    + `href`="/"
+    + `logo`="/static/logo.png"
+    + `logo_light`="/static/logo-light.png"
+    + `theme_key`="qd-theme"
+
+SSR topnav lockup (logo + title). Default theme key matches `public/theme.js`.
+
+`spec` =
+
+| title | href | logo | logo_light | theme_key |
+|-------|------|------|------------|-----------|
+| `title` | `href` | `logo` | `logo_light` | `theme_key` |
+
+*> table.put in=`page` at="nav_brand" value=spec*
+
+## icons
+    + `app`
+    + `table`
+
+Register favicon / apple-touch routes from a GFM icons table.
+
+> cap.load
+*> web_app_icons app=`app` table=`table`*
 
 ## attach_form
     + `page`

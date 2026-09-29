@@ -12,9 +12,10 @@
 | 笔记库 | /notes | | auth |
 | 原始沉淀 | /notes/runs | | auth |
 | 记一笔 | /notes/new | | auth |
-| 大模型设置 | /settings/llm | | auth |
-| 语音设置 | /settings/voice | | auth |
-| MCP 接入 | /settings/mcp | | auth |
+| 设置 | /settings | | auth |
+| 大模型 | /settings/llm | | auth |
+| 语音 | /settings/voice | | auth |
+| MCP | /settings/mcp | | auth |
 | OpenAI 网关 | /settings/openai | | auth |
 
 *`side`*

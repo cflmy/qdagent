@@ -10,7 +10,7 @@
 | 候选 | /eng/candidates | | auth |
 | 对话 | /chat | | auth |
 | 笔记 | /notes | | auth |
-| 记忆 | /settings/memory | | auth |
+| 设置 | /settings | | auth |
 | 退出 | /account/logout | | auth |
 
 *`nav`*

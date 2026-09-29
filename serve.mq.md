@@ -149,6 +149,16 @@ import sys:lib/sys.mq.md
 
 **app = > `app`.static dir="public" mount="/static"**
 
+`图标` =
+
+| 路径 | 关系 | 类型 | 尺寸 | 地址 |
+|------|------|------|------|------|
+| "public/favicon.ico" | icon | "image/x-icon" | any | "/favicon.ico" |
+| "public/favicon.svg" | icon | "image/svg+xml" | any | "/icons/favicon.svg" |
+| "public/logo.png" | apple-touch-icon | "image/png" | 192x192 | "/icons/logo.png" |
+
+**app = > site.icons app=`app` table=`图标`**
+
 **app = > site.wire app=`app` proxy=`代理表` invoke=`调用表` 访问日志=True json_routes=`接口`**
 
 **用户 = > ui.用户**

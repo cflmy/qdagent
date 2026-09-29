@@ -106,10 +106,14 @@ import foot:../components/foot.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
+| icon | "/favicon.ico" | "image/x-icon" | | |
+| icon | "/icons/favicon.svg" | "image/svg+xml" | | |
+| apple-touch-icon | "/icons/logo.png" | "image/png" | | |
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
-| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 31 |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 42 |
+| script | "/static/theme.js" | | | 42 |
 
 *`头`*
 
@@ -119,13 +123,17 @@ import foot:../components/foot.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
+| icon | "/favicon.ico" | "image/x-icon" | | |
+| icon | "/icons/favicon.svg" | "image/svg+xml" | | |
+| apple-touch-icon | "/icons/logo.png" | "image/png" | | |
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
-| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 31 |
-| script | "/static/qd-api.js" | | true | 31 |
-| script | "/static/qd-voice.js" | | true | 31 |
-| script | "/static/chat.js" | | true | 31 |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 42 |
+| script | "/static/theme.js" | | | 42 |
+| script | "/static/qd-api.js" | | true | 42 |
+| script | "/static/qd-voice.js" | | true | 42 |
+| script | "/static/chat.js" | | true | 42 |
 
 *`头`*
 
@@ -135,13 +143,17 @@ import foot:../components/foot.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
+| icon | "/favicon.ico" | "image/x-icon" | | |
+| icon | "/icons/favicon.svg" | "image/svg+xml" | | |
+| apple-touch-icon | "/icons/logo.png" | "image/png" | | |
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
-| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 31 |
-| script | "/static/qd-api.js" | | true | 31 |
-| script | "/static/qd-voice.js" | | true | 31 |
-| script | "/static/notes-voice.js" | | true | 31 |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 42 |
+| script | "/static/theme.js" | | | 42 |
+| script | "/static/qd-api.js" | | true | 42 |
+| script | "/static/qd-voice.js" | | true | 42 |
+| script | "/static/notes-voice.js" | | true | 42 |
 
 *`头`*
 
@@ -151,12 +163,16 @@ import foot:../components/foot.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
+| icon | "/favicon.ico" | "image/x-icon" | | |
+| icon | "/icons/favicon.svg" | "image/svg+xml" | | |
+| apple-touch-icon | "/icons/logo.png" | "image/png" | | |
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
-| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 31 |
-| script | "/static/qd-api.js" | | true | 31 |
-| script | "/static/notes-kb.js" | | true | 31 |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 42 |
+| script | "/static/theme.js" | | | 42 |
+| script | "/static/qd-api.js" | | true | 42 |
+| script | "/static/notes-kb.js" | | true | 42 |
 
 *`头`*
 
@@ -166,12 +182,16 @@ import foot:../components/foot.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
+| icon | "/favicon.ico" | "image/x-icon" | | |
+| icon | "/icons/favicon.svg" | "image/svg+xml" | | |
+| apple-touch-icon | "/icons/logo.png" | "image/png" | | |
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
-| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 31 |
-| script | "/static/qd-api.js" | | true | 31 |
-| script | "/static/settings.js" | | true | 31 |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 42 |
+| script | "/static/theme.js" | | | 42 |
+| script | "/static/qd-api.js" | | true | 42 |
+| script | "/static/settings.js" | | true | 42 |
 
 *`头`*
 
@@ -181,12 +201,16 @@ import foot:../components/foot.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
+| icon | "/favicon.ico" | "image/x-icon" | | |
+| icon | "/icons/favicon.svg" | "image/svg+xml" | | |
+| apple-touch-icon | "/icons/logo.png" | "image/png" | | |
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
-| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 31 |
-| script | "/static/qd-api.js" | | true | 31 |
-| script | "/static/mcp.js" | | true | 31 |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 42 |
+| script | "/static/theme.js" | | | 42 |
+| script | "/static/qd-api.js" | | true | 42 |
+| script | "/static/mcp.js" | | true | 42 |
 
 *`头`*
 
@@ -196,12 +220,16 @@ import foot:../components/foot.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
+| icon | "/favicon.ico" | "image/x-icon" | | |
+| icon | "/icons/favicon.svg" | "image/svg+xml" | | |
+| apple-touch-icon | "/icons/logo.png" | "image/png" | | |
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
-| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 31 |
-| script | "/static/qd-api.js" | | true | 31 |
-| script | "/static/memory.js" | | true | 31 |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 42 |
+| script | "/static/theme.js" | | | 42 |
+| script | "/static/qd-api.js" | | true | 42 |
+| script | "/static/memory.js" | | true | 42 |
 
 *`头`*
 
@@ -211,14 +239,22 @@ import foot:../components/foot.mq.md
 
 | 关系 | 地址 | 类型 | 推迟 | 版本 |
 |------|------|------|------|------|
+| icon | "/favicon.ico" | "image/x-icon" | | |
+| icon | "/icons/favicon.svg" | "image/svg+xml" | | |
+| apple-touch-icon | "/icons/logo.png" | "image/png" | | |
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
-| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Literata:opsz,wght@7..72,400;600;700&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 32 |
-| script | "/static/qd-api.js" | | true | 32 |
-| script | "/static/eng.js" | | true | 32 |
+| stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
+| stylesheet | "/static/theme.css" | "text/css" | | 42 |
+| script | "/static/theme.js" | | | 42 |
+| script | "/static/qd-api.js" | | true | 42 |
+| script | "/static/eng.js" | | true | 42 |
 
 *`头`*
+
+## 工程预检引言
+
+*"<div class=\"qd-ekc-page\"><header class=\"qd-ekc-hero\"><p class=\"qd-ekc-kicker\">Engineering Knowledge Compiler · EKC</p><h1>求道</h1><p class=\"qd-ekc-lede\">让大型工程本身成为 AI 可查询、可验证、可复用、可演化的可执行知识系统。</p><p class=\"qd-ekc-sub\">差异化不在「用 Markdown 写代码」，而在：写代码之前就知道工程里已经有什么、应该复用什么、为什么不能重新造。</p><blockquote class=\"qd-ekc-quote\">Engineering First Information：AI 在修改/生成代码前，先获得已有能力、约束、依赖、约定、历史决策与可复用实现的最小充分信息。</blockquote></header><section class=\"qd-ekc-section\" aria-label=\"普通 Agent 失败路径\"><h2>普通 Coding Agent 真正失败在哪里</h2><p>问题往往不是「不会写」，而是不知道函数已存在、不知道该复用哪一个、不知道设计原因与隐含约束。</p><ol class=\"qd-flow\"><li class=\"qd-flow-node bad\">工程知识缺失</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node warn\">无法识别已有能力</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node warn\">重复实现</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">代码碎片化</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node bad\">维护成本上升</li></ol></section><section class=\"qd-ekc-section\" aria-label=\"RAG vs EFI\"><h2>RAG 检索 vs 工程第一信息</h2><div class=\"qd-flow-split\"><div class=\"qd-flow-card bad\"><h3>普通 RAG</h3><ol class=\"qd-flow\"><li class=\"qd-flow-node\">query</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">retrieve documents</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">LLM 直接生成</li></ol></div><div class=\"qd-flow-card good\"><h3>Marqdo EFI</h3><ol class=\"qd-flow\"><li class=\"qd-flow-node\">engineering task</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Engineering First Information</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">reuse analysis</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">capability candidates + constraints</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">only then generate</li></ol></div></div></section><section class=\"qd-ekc-section\" aria-label=\"EKC 架构\"><h2>EKC：工程知识编译器</h2><p>把同一仓库同时编译成可执行程序、知识图谱与 Catalog——再交给 Coding Agent，而不是旁路维护一份 RAG 语料。</p><div class=\"qd-arch\" role=\"img\" aria-label=\"Git 仓库经 Marqdo Compiler 成为 Program、Knowledge Graph、Catalog，再进入 Engineering KB 与 Agent\"><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Git Repository</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Source</span><span class=\"qd-flow-node\">Documents</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Marqdo Compiler · EKC</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Executable Program</span><span class=\"qd-flow-node\">Knowledge Graph</span><span class=\"qd-flow-node\">Catalog / Index</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Engineering KB</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Coding Agent</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Search</span><span class=\"qd-flow-node\">Reuse</span><span class=\"qd-flow-node\">Generate</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Verified Change → Knowledge Update → Git</span></div></div></section><section class=\"qd-ekc-section\" aria-label=\"Reuse Gate\"><h2>Reuse Gate：硬规则，不是提示词</h2><p>知识检索必须是代码生成的强制前置。三态不是 FOUND / NOT FOUND，而是：</p><div class=\"qd-gate\"><div class=\"qd-gate-item\"><strong>REUSE</strong><p>已有能力满足需求 → 直接调用。</p></div><div class=\"qd-gate-item\"><strong>ADAPT</strong><p>存在相近能力 → 包装、组合、参数化、扩展；禁止复制粘贴。</p></div><div class=\"qd-gate-item\"><strong>CREATE</strong><p>确认工程中不存在合适能力 → 才允许生成。</p></div></div><p class=\"qd-gate-order\"><span class=\"qd-flow-node core\">REUSE</span><span class=\"qd-flow-arrow\">→</span><span class=\"qd-flow-node\">ADAPT</span><span class=\"qd-flow-arrow\">→</span><span class=\"qd-flow-node\">CREATE</span><span class=\"qd-muted\">（禁止 CREATE 优先）</span></p></section><section class=\"qd-ekc-section\" aria-label=\"工程闭环\"><h2>工程闭环：越大越有价值</h2><ol class=\"qd-flow\"><li class=\"qd-flow-node\">Human asks feature</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">Engineering Intent</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Knowledge Resolve / Preflight</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">REUSE / ADAPT / CREATE</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">Verify</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Knowledge Update · Catalog · Git</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">下一次同类任务直接受益</li></ol></section><section class=\"qd-ekc-section\" aria-label=\"工程预检\"><h2>现在就做工程预检</h2><p>输出 Context Pack（Existing Capabilities / Recommended REUSE·ADAPT·CREATE / Forbidden / create_allowed）。</p><div class=\"qd-ekc-actions\"><input id=\"qd-eng-task\" type=\"text\" placeholder=\"描述工程任务，例如：给 OpenAI /v1 增加预检再调上游\"/> <button type=\"button\" id=\"qd-eng-preflight\" class=\"primary\">工程预检</button></div><p class=\"qd-ekc-note\">落盘 <code>.marqdo/agent/contexts/task-*.mq.md</code> · <code>POST /api/eng/preflight</code> · MCP <code>qd_preflight</code> · <code>./scripts/qdagent preflight \"…\"</code></p><pre id=\"qd-eng-out\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\">继续：<a href=\"/eng/capability\">工程能力</a> · <a href=\"/eng/run\">工作簿</a> · <a href=\"/eng/candidates\">知识候选</a></p></section></div>"*
 
 ## 用户
 
@@ -242,7 +278,7 @@ import foot:../components/foot.mq.md
 
 ## 聊天引言
 
-*"<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-chat-top\"><div class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>笔记驱动助手 · 流式对话 · 自动沉淀</p></div><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><button type=\"button\" id=\"qd-mic\">语音</button><button type=\"button\" id=\"qd-speak\">朗读</button><button type=\"button\" id=\"qd-save\">再存</button></div></header><div id=\"qd-log\" class=\"qd-log\" aria-live=\"polite\"></div><footer class=\"qd-composer\"><div id=\"qd-runbar\" class=\"qd-runbar\" hidden><span class=\"qd-runbar-pulse\" aria-hidden=\"true\"></span><div class=\"qd-runbar-main\"><strong id=\"qd-runbar-label\">进行中</strong><ol id=\"qd-run-steps\" class=\"qd-run-steps\"></ol></div><button type=\"button\" id=\"qd-stop-bar\" class=\"danger\">停止</button></div><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"1\" placeholder=\"输入问题，或继续写下一行…\"></textarea><div class=\"qd-send-slot\"><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button><button type=\"button\" id=\"qd-stop\" class=\"danger qd-stop-main\" hidden title=\"停止生成 (Esc)\" aria-label=\"停止生成\">停止</button></div></div></footer></div></div>"*
+*"<div class=\"qd-workspace\"><aside class=\"qd-sessions\" aria-label=\"会话\"><div class=\"qd-sessions-head\"><strong>会话</strong><button type=\"button\" id=\"qd-new-session\" class=\"primary\">新会话</button></div><ul id=\"qd-session-list\" class=\"qd-session-list\"></ul></aside><div class=\"qd-chat\"><header class=\"qd-chat-top\"><div class=\"qd-head\"><h1 id=\"qd-session-title\">求道</h1><p>工程知识智能体 · EKC 预检优先 · 自动沉淀</p></div><div class=\"qd-toolbar\"><span id=\"qd-status\">加载设置…</span><button type=\"button\" id=\"qd-mic\">语音</button><button type=\"button\" id=\"qd-speak\">朗读</button><button type=\"button\" id=\"qd-save\">再存</button></div></header><div id=\"qd-log\" class=\"qd-log\" aria-live=\"polite\"></div><footer class=\"qd-composer\"><div id=\"qd-runbar\" class=\"qd-runbar\" hidden><span class=\"qd-runbar-pulse\" aria-hidden=\"true\"></span><div class=\"qd-runbar-main\"><strong id=\"qd-runbar-label\">进行中</strong><ol id=\"qd-run-steps\" class=\"qd-run-steps\"></ol></div><button type=\"button\" id=\"qd-stop-bar\" class=\"danger\">停止</button></div><div class=\"qd-sendrow\"><textarea id=\"qd-input\" rows=\"1\" placeholder=\"描述工程任务，优先走 Preflight → REUSE/ADAPT/CREATE…\"></textarea><div class=\"qd-send-slot\"><button type=\"button\" id=\"qd-send\" class=\"primary\">发送</button><button type=\"button\" id=\"qd-stop\" class=\"danger qd-stop-main\" hidden title=\"停止生成 (Esc)\" aria-label=\"停止生成\">停止</button></div></div></footer></div></div>"*
 
 ## 聊天样式
 
@@ -262,7 +298,7 @@ import foot:../components/foot.mq.md
 
 ## 记一笔样式
 
-*".qd-note-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;align-items:stretch;margin:0.75rem 0 1rem}@media(max-width:900px){.qd-note-split{grid-template-columns:1fr}}.qd-note-col{border:1px solid #d5dae0;background:rgba(255,255,255,.72);padding:.85rem .95rem 1rem;min-height:16rem}.qd-note-col h2{margin:0 0 .25rem;font-size:1.05rem}.qd-note-transcript{min-height:12rem;max-height:28rem;overflow:auto;border:1px solid #d5dae0;background:#fff;padding:.65rem .75rem;white-space:pre-wrap}"*
+*".qd-note-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;align-items:stretch;margin:0.75rem 0 1rem}@media(max-width:900px){.qd-note-split{grid-template-columns:1fr}}.qd-note-col{border:1px solid var(--nt-border,rgba(24,22,18,.14));background:var(--nt-surface,#faf8f3);padding:.85rem .95rem 1rem;min-height:16rem}.qd-note-col h2{margin:0 0 .25rem;font-size:1.05rem}.qd-note-transcript{min-height:12rem;max-height:28rem;overflow:auto;border:1px solid var(--nt-border,rgba(24,22,18,.14));background:var(--nt-surface,#faf8f3);padding:.65rem .75rem;white-space:pre-wrap}"*
 
 ## 设置枢纽引言
 
