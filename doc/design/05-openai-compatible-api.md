@@ -2,11 +2,13 @@
 
 | | |
 |---|---|
-| 状态 | **MVP 已实现**（厚网关 + 强制审计） |
-| 日期 | 2026-09-07（2026-09-15 落地） |
+| 状态 | **瘦 framing（C2a）** — Python 不做 Agent loop；厚路径 → 410 |
+| 日期 | 2026-09-07（2026-10-16 C2a 对齐 qdagent 2.0） |
 | 目标 | 让 Cursor / Continue / Open WebUI / 自研客户端把 qdagent 当成「一个模型」 |
 | 姊妹轨 | **MCP**（编辑器自带模型 + 求道沉淀）见 [07-notes-ui-and-mcp.md](07-notes-ui-and-mcp.md) |
-| 实现 | `scripts/legacy/openai_v1_gateway.py` + Marqdo `/v1` 代理（见 GAP-13） |
+| 实现 | `scripts/legacy/openai_v1_gateway.py`（HTTP only）→ `gateway/v1_chat.mq.md` → `gateway/openai` → `agent/qdagent` |
+| 缺口 | [GAP-13](../gaps/01-marqdo-hard-limits.md) **CLOSED**；C2b（Marqdo Endpoint 直吃 `/v1`）未做 |
+| 权威设计 | [qdagent-2.0.md](qdagent-2.0.md) · [qdagent-dev-plan-2026-10.md](qdagent-dev-plan-2026-10.md) |
 
 ---
 
@@ -26,27 +28,30 @@ API_KEY=qdagent-local
 MODEL=qdagent
 ```
 
-即可把编码助手流量导入本机智能体，同时 **强制审计沉淀**。
+即可把编码助手流量导入本机智能体（EFI Preflight → Marqdo Agent）。
 
 ---
 
-## 1. 已实现端点（MVP）
+## 1. 已实现端点
 
 | 端点 | 用途 |
 |------|------|
 | `GET /v1/models` | `qdagent` / `qdagent-fast` |
-| `POST /v1/chat/completions` | 对话；支持 `stream: true`（SSE） |
+| `POST /v1/chat/completions` | 对话；EFI 路径走 Marqdo |
 | `GET` 旁路 `/health` | 网关探活（`:7433`） |
 
 旁路默认 `127.0.0.1:7433`，由 `./scripts/mq.sh` 拉起；Marqdo 将 `/v1/*` 代理到该进程（去前缀 `/v1`）。
 
-### 厚网关行为
+### 瘦 framing 行为（现行）
 
 1. Bearer 鉴权（`QDAGENT_API_KEY`，默认 `qdagent-local`）
-2. 注入用户画像 + runs 关键词检索证据
-3. 转发 settings 上游 LLM（`model=qdagent` → 上游真实模型名）
-4. **每次调用自动**写 `data/runs/api-*.mq.md` + sqlite + kb git
-5. 响应头 `X-QDAgent-Run-Id`；`tools` 原样透传上游
+2. 解析 OpenAI JSON → 抽出 user task / mode
+3. `marqdo run gateway/v1_chat.mq.md`（`QDAGENT_V1_EFI=1` 默认）
+4. 领域：`gateway/openai.precheck` + `agent/qdagent`（eng_preflight / efi）
+5. **不做**：Python 侧画像注入、corpus 检索、本地拼 system、厚 Agent loop
+6. `QDAGENT_V1_EFI=0` → **410** `thick_path_removed`
+
+回归：`./scripts/check-v1-thin.sh`
 
 ---
 
@@ -54,11 +59,10 @@ MODEL=qdagent
 
 | OpenAI 字段 | qdagent 行为 |
 |-------------|--------------|
-| `messages` | 写入 Run；最后一条 user 为任务；历史截断后注入 |
-| `model` | `qdagent*` → settings `llm_model`；其它原样传上游 |
-| `tools` / `tool_choice` | 透传上游（网关侧不执行本地 tool） |
-| `stream` | SSE 透传；缓冲完整 assistant 后 finalize |
-| `temperature` 等 | 传给底层 LLM |
+| `messages` | 最后一条 user 为 task；交 Marqdo Agent |
+| `model` | 网关侧标识；上游模型由 settings / env 决定（EFI 内） |
+| `stream` | framing 层尽力透传；领域结果来自 Marqdo |
+| `tools` | 不在 Python 厚执行；由 Marqdo Agent tools 承担 |
 
 ---
 
@@ -66,9 +70,8 @@ MODEL=qdagent
 
 | 点 | 说明 |
 |----|------|
-| 副作用 | 每次调用落盘 `.mq.md` |
-| 增强 | 注入画像与笔记证据 |
-| 延迟 | 含编排与写回，可能高于直连模型 |
+| 副作用 | Workbook / Session / 候选经 Marqdo 产品路径落盘 |
+| 增强 | Engineering Preflight（EFI）先于回答 |
 | 鉴权 | 本地 key；勿裸奔公网 |
 
 ---
@@ -76,6 +79,8 @@ MODEL=qdagent
 ## 4. 验收
 
 ```bash
+./scripts/check-v1-thin.sh
+
 curl http://127.0.0.1:7431/v1/models \
   -H "Authorization: Bearer qdagent-local"
 
@@ -85,4 +90,4 @@ curl http://127.0.0.1:7431/v1/chat/completions \
   -d '{"model":"qdagent","messages":[{"role":"user","content":"ping"}]}'
 ```
 
-其后 `data/runs/api-*.mq.md` 必须出现，且响应含 `X-QDAgent-Run-Id`。
+`QDAGENT_V1_EFI=0` 时同一 POST 必须 410。

@@ -24,6 +24,7 @@ import eng_qd:../agent/qdagent.mq.md
 import eng_met:../knowledge/metrics.mq.md
 import eng_promote:../execution/promote.mq.md
 import eng_run:../execution/run.mq.md
+import eng_sess:../execution/session.mq.md
 ---
 
 ## 成功
@@ -97,12 +98,14 @@ import eng_run:../execution/run.mq.md
 
 **store = > db.open**
 **path = > run.沉淀 store=`store` title=`title` task=`task` result=`result` summary=`summary` slug=`slug` surface=`surface` session_id=`session_id`**
+**sess = > eng_sess.link session_id=`session_id` surface=`surface` workbook_slug="" run_id=`slug`**
+**sid = [session_id](sess)**
 **git = > kbgit.提交 message="capture: " + `slug`**
 `字段` =
 
-| slug | path | git |
-|------|------|-----|
-| `slug` | `path` | `git` |
+| slug | path | git | session_id |
+|------|------|-----|------------|
+| `slug` | `path` | `git` | `sid` |
 
 *> 成功 字段=`字段`*
 
@@ -666,6 +669,7 @@ Capability detail — catalog Implemented By + linked constraints/failures.
 ## eng_build
     + `task`=""
     + `force_create`=False
+    + `session_id`=""
     + `payload`=None
 
 Web BUILD — sync call into `agent/qdagent.build` (dry when no API key).
@@ -677,9 +681,31 @@ Web BUILD — sync call into `agent/qdagent.build` (dry when no API key).
   **fc = > json.get value=`payload` key="force_create"**
   1. `fc`
     **force_create = `fc`**
+  **sid = > json.get value=`payload` key="session_id"**
+  1. `sid`
+    **session_id = `sid`**
 1. not `task`
   **task = "给 OpenAI /v1 网关增加工程预检再调上游"**
-**out = > eng_qd.build task=`task` force_create=`force_create`**
+**out = > eng_qd.build task=`task` force_create=`force_create` session_id=`session_id`**
+*out*
+
+## eng_session
+    + `id`=""
+    + `payload`=None
+
+Read server Session file (`data/sessions/<id>.mq.md`).
+
+1. `payload`
+  **pid = > json.get value=`payload` key="id"**
+  1. `pid`
+    **id = `pid`**
+  **ps = > json.get value=`payload` key="session_id"**
+  1. `ps`
+    1. not `id`
+      **id = `ps`**
+1. not `id`
+  *> 失败 error="id_required"*
+**out = > eng_sess.read id=`id`**
 *out*
 
 ## eng_workbooks

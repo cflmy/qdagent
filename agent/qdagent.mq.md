@@ -12,6 +12,7 @@ import resolver:../knowledge/resolver.mq.md
 import metrics:../knowledge/metrics.mq.md
 import dec:../knowledge/decision.mq.md
 import run:../execution/run.mq.md
+import session:../execution/session.mq.md
 import verify:../execution/verify.mq.md
 import record:../execution/record.mq.md
 import agent:ext/ai/agent.mq.md
@@ -260,6 +261,7 @@ Write efi / usage / token_cost / route into workbook Evidence + Metrics.
     + `task`
     + `root`="."
     + `out`=".marqdo"
+    + `session_id`=""
 
 ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No host mutation.
 
@@ -313,11 +315,13 @@ ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No ho
   **err = > json.get value=`agent_out` key="error"**
 2. *
   **_ = 1**
+**sess = > session.link session_id=`session_id` surface="ask" workbook_slug=`slug` run_id=`slug`**
+**sid = [session_id](sess)**
 `ret` =
 
-| ok | mode | slug | decision | context_path | status | error | result |
-|----|------|------|----------|--------------|--------|-------|--------|
-| True | `mode` | `slug` | `decision` | `path` | `status` | `err` | `result` |
+| ok | mode | slug | decision | context_path | status | error | result | session_id |
+|----|------|------|----------|--------------|--------|-------|--------|------------|
+| True | `mode` | `slug` | `decision` | `path` | `status` | `err` | `result` | `sid` |
 
 *ret*
 
@@ -327,6 +331,7 @@ ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No ho
     + `out`=".marqdo"
     + `force_create`=False
     + `sandbox`=True
+    + `session_id`=""
 
 BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Verify → Record.
 
@@ -411,11 +416,13 @@ BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Ve
   **err = > json.get value=`agent_out` key="error"**
 2. *
   **_ = 1**
+**sess = > session.link session_id=`session_id` surface="build" workbook_slug=`slug` run_id=`slug`**
+**sid = [session_id](sess)**
 `ret` =
 
-| ok | mode | slug | decision | create_allowed | context_path | promote_allowed | status | error | result |
-|----|------|------|----------|----------------|--------------|-----------------|--------|-------|--------|
-| True | `mode` | `slug` | `decision` | `allowed` | `path` | `promote` | `status` | `err` | `result` |
+| ok | mode | slug | decision | create_allowed | context_path | promote_allowed | status | error | result | session_id |
+|----|------|------|----------|----------------|--------------|-----------------|--------|-------|--------|------------|
+| True | `mode` | `slug` | `decision` | `allowed` | `path` | `promote` | `status` | `err` | `result` | `sid` |
 
 *ret*
 
@@ -490,12 +497,13 @@ LEARN — feed Marqdo knowledge learn (official compiler). Optional quarantine o
     + `mode`="build"
     + `root`="."
     + `out`=".marqdo"
+    + `session_id`=""
 
-Dispatch ASK / BUILD / LEARN.
+Dispatch ASK / BUILD / LEARN. Optional `session_id` links server Session (D10).
 
 1. `mode` == "ask"
-  *> ask task=`task` root=`root` out=`out`*
+  *> ask task=`task` root=`root` out=`out` session_id=`session_id`*
 2. `mode` == "learn"
   *> learn task=`task` root=`root` out=`out`*
 3. *
-  *> build task=`task` root=`root` out=`out`*
+  *> build task=`task` root=`root` out=`out` session_id=`session_id`*

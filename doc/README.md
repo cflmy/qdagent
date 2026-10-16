@@ -1,26 +1,30 @@
 # qdagent 文档索引
 
+> **以 [design/qdagent-2.0.md](design/qdagent-2.0.md) 与 [design/qdagent-dev-plan-2026-10.md](design/qdagent-dev-plan-2026-10.md) 为准。**  
+> 下方 00–08 / roadmap 为早期调研与 MVP 档案；与 2.0 冲突时按 2.0。**勿改** `doc/next/*`。
+
 | | |
 |---|---|
-| 产品 | **qdagent** — 基于 [Marqdo](https://github.com/cflmy/marqdo) 的文档驱动智能体助手 |
+| 产品 | **求道 / qdagent** — Executable Engineering Knowledge Agent（Marqdo 唯一 Runtime / EKC） |
 | 对标 | [OpenClaw](https://github.com/openclaw/openclaw) · [Hermes Agent](https://github.com/NousResearch/hermes-agent) |
-| 日期 | 2026-09-07 |
-| 语言运行时 | Marqdo ≥ 0.3.7（本机已装） |
+| 日期 | 2026-10-16（索引横幅）· 档案正文多起于 2026-09 |
+| 语言运行时 | Marqdo **CLI≥1.4.4 · Ext≥1.4.4** |
 
 ## 阅读顺序（建议）
 
-1. [总览与产品愿景](00-overview.md)  
+0. [**qdagent 2.0 设计（Accepted）**](design/qdagent-2.0.md) · [下一阶段开发计划](design/qdagent-dev-plan-2026-10.md)  
+1. [总览与产品愿景](00-overview.md)（档案）  
 2. [竞品调研：OpenClaw / Hermes / GoClaw](research/01-competitive-openclaw-hermes.md)  
 3. [Marqdo 原生能力与差异化设计](design/02-marqdo-native-agent.md)  
 4. [执行沉淀：`.mq.md` 审计轨迹与知识库](design/03-audit-knowledge.md)  
 5. [模型接入矩阵（LLM / 多模态 / ASR / TTS）](research/04-models-and-providers.md)  
-6. [对外 OpenAI 兼容 API](design/05-openai-compatible-api.md)  
+6. [对外 OpenAI 兼容 API](design/05-openai-compatible-api.md) ← C2a 瘦 framing  
 7. [网络界面与语音交互](design/06-web-ui-and-voice.md)  
-8. [**笔记式界面与 MCP 接入**](design/07-notes-ui-and-mcp.md) ← 体验差异化  
-9. [**Docker 部署（推荐）**](design/08-docker-deploy.md) ← 默认交付形态  
-10. [分阶段任务路线图](roadmap/07-task-roadmap.md)  
-11. [**Marqdo 能力缺口（必须阅读）**](gaps/01-marqdo-hard-limits.md) ← 非 Marqdo 脚本的唯一正当理由  
-12. [**Marqdo 解析 / 运行时缺陷**](gaps/02-marqdo-parser-and-runtime.md) ← 0.3.7 开发中确认的 Open bug  
+8. [笔记式界面与 MCP 接入](design/07-notes-ui-and-mcp.md)  
+9. [Docker 部署](design/08-docker-deploy.md)  
+10. [分阶段任务路线图](roadmap/07-task-roadmap.md) ← 以 2.0 为准  
+11. [**Marqdo 能力缺口**](gaps/01-marqdo-hard-limits.md) ← GAP-13 CLOSED（C2a）  
+12. [Marqdo 解析 / 运行时缺陷](gaps/02-marqdo-parser-and-runtime.md)  
 
 ## 目录结构
 

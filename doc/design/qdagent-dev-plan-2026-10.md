@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| 状态 | **Accepted** · Wave A–B **done**（C–D 待做；**禁止**改写 `doc/next/*`） |
+| 状态 | **Accepted** · Wave A–C **done**（D 可后置；**禁止**改写 `doc/next/*`） |
 | 日期 | 2026-10-16 |
 | 基线 | Marqdo **CLI≥1.4.4 · Ext≥1.4.4**；设计 [qdagent-2.0.md](qdagent-2.0.md) Phase 0–15 **Accepted** |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读真相源） |

@@ -6,6 +6,7 @@ description: >-
   Upstream path always runs `precheck` first (EFI gate + optional product Preflight).
 import qd:../agent/qdagent.mq.md
 import pf:../agent/preflight.mq.md
+import session:../execution/session.mq.md
 import json:lib/json.mq.md
 import table:lib/table.mq.md
 ---
@@ -93,9 +94,10 @@ optional product Preflight so EFI chat always has a Context Pack handle.
     + `mode`=""
     + `root`="."
     + `out`=".marqdo"
+    + `session_id`=""
 
 Map one user message to qdagent.run. Precheck first (with product Preflight);
-deny never reaches Agent.
+deny never reaches Agent. Optional `session_id` links `data/sessions/<id>.mq.md`.
 
 **gate = > precheck message=`message` root=`root` out=`out` with_preflight=True**
 **gd = [decision](gate)**
@@ -113,7 +115,7 @@ deny never reaches Agent.
 1. `mode` == ""
   **mode = > classify text=`message`**
 
-**agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out`**
+**agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out` session_id=`session_id`**
 **ok = [ok](agent_out)**
 1. not `ok`
   *agent_out*
@@ -130,6 +132,12 @@ deny never reaches Agent.
 
 **slug = > json.get value=`agent_out` key="slug"**
 **decision = > json.get value=`agent_out` key="decision"**
+**sid = > json.get value=`agent_out` key="session_id"**
+1. not `sid`
+  **sid = `session_id`**
+1. not `sid`
+  **linked = > session.link session_id="" surface="api" workbook_slug=`slug` run_id=`slug`**
+  **sid = [session_id](linked)**
 **ctx = [context_path](gate)**
 **live_ok = True**
 1. `run_mode` == "error"
@@ -140,8 +148,8 @@ deny never reaches Agent.
   **_ = 1**
 `ret` =
 
-| ok | content | run_id | decision | mode | status | error | context_path | raw |
-|----|---------|--------|----------|------|--------|-------|--------------|-----|
-| `live_ok` | `result` | `slug` | `decision` | `mode` | `st` | `err` | `ctx` | `agent_out` |
+| ok | content | run_id | decision | mode | status | error | context_path | session_id | raw |
+|----|---------|--------|----------|------|--------|-------|--------------|------------|-----|
+| `live_ok` | `result` | `slug` | `decision` | `mode` | `st` | `err` | `ctx` | `sid` | `agent_out` |
 
 *ret*

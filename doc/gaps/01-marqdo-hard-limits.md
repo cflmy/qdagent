@@ -55,14 +55,16 @@
 | 求道用法 | `lib/api.search` → `agent.corpus_search`（`data/runs`）；CLI 同路径 |
 | 备注 | 本机对 0.3.7 打了补丁：`call_registered` 嵌套后**恢复** `GLOBAL_HOST`（勿清空），否则 listen 期间 invoke/`web.db` 会报 `no active host context` |
 
-### GAP-13 · OpenAI `/v1` 厚网关（改写 messages + 审计 finalize）— **Open（旁路）**
+### GAP-13 · OpenAI `/v1` 厚网关（改写 messages + 审计 finalize）— **CLOSED（C2a）**
 
 | | |
 |---|---|
-| 原因 | Marqdo `app.proxy` 可透传 SSE，但难以在转发前注入画像/检索、结束后写 `data/runs` |
-| 求道规避 | `scripts/legacy/openai_v1_gateway.py`（默认 `:7433`）+ `mq.sh` 拉起；`index.mq.md` 代理 `/v1/*` → 该进程 |
-| 鉴权 | 网关 Bearer（不走 Web session）；`/v1` 不设登录门禁 |
-| 上游期望 | 自定义中间件 / 可脚本化的 stream hook |
+| 关闭于 | qdagent 2.0 / Marqdo ≥1.4.2：厚 Python Agent loop 移除；默认 `QDAGENT_V1_EFI=1` |
+| 现行 | `scripts/legacy/openai_v1_gateway.py` **仅 HTTP framing** → `marqdo run gateway/v1_chat.mq.md` → `gateway/openai` → `agent/qdagent`（EFI） |
+| 厚路径 | `QDAGENT_V1_EFI=0` → **HTTP 410** `thick_path_removed`（无画像/检索/本地 LLM 注入） |
+| 代理 | `serve.mq.md` `/v1/*` → `:7433`（`mq.sh` 拉起） |
+| 回归 | `./scripts/check-v1-thin.sh` |
+| 未做 | C2b：Marqdo Endpoint 直接吃 `/v1`（单独立项） |
 
 ## 3. 现行架构（对照）
 
@@ -70,7 +72,7 @@
 |------|------|
 | Web UI | `serve.mq.md`（`index.mq.md` → `serve.boot`） |
 | LLM/语音同域中继 | `lib/site.wire` proxy 表 → `/llm` `/asr` `/tts` |
-| OpenAI 兼容厚网关 | proxy → `/v1` → `openai_v1_gateway.py` |
+| OpenAI `/v1`（瘦 framing） | proxy → `/v1` → `openai_v1_gateway.py` → `gateway/v1_chat`（厚路径 410） |
 | 沉淀 / 检索 / 画像 / 整理 | invoke 表 → `lib/api.*` |
 | 用户画像 | `data/kb/用户画像.mq.md` · `/settings/memory` |
 | MCP stdio | `cli/求道-mcp.mq.md`（含 context/profile/organize） |
@@ -95,4 +97,5 @@
 | 2026-09-28 | 升级 Marqdo **1.3.0**：ADR 0007 Document/Endpoint；`serve.mq.md` + `ext/data`；去掉 `compose_*` / `网页.应用` |
 | 2026-10-16 | 升级 Marqdo **CLI≥1.4.2 · Ext≥1.4.3**：`agent.run` cold EFI · `sandbox=` · `quarantine` · `eng_record`；scripts 双门闩 |
 | 2026-10-16 | 升级 Marqdo **CLI≥1.4.4 · Ext≥1.4.4**：LLM 传输软失败 · `ext/ai` 表优先；门闩与 dogfood 对齐 |
+| 2026-10-16 | **GAP-13 CLOSED（C2a）**：文档钉死 Python 仅 framing；`check-v1-thin.sh`；厚路径 410 |
 
