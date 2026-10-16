@@ -15,7 +15,11 @@ Engineering Knowledge tools (qdagent 2.0):
 **srv = > srv.tool name="qd_preflight" fn="gw.qd_preflight" description="Engineering Preflight → Context Pack (REUSE/ADAPT/CREATE)"**
 **srv = > srv.tool name="qd_reuse" fn="gw.qd_reuse" description="Resolve REUSE/ADAPT/CREATE for a task via Marqdo EKC"**
 **srv = > srv.tool name="qd_capability" fn="gw.qd_capability" description="Find engineering capabilities / symbols"**
-**srv = > srv.tool name="qd_verify" fn="gw.qd_verify" description="Verify knowledge (verify/duplicate/conflicts/stale)"**
+**srv = > srv.tool name="qd_verify" fn="gw.qd_verify" description="L3 suite exit codes: verify+duplicate+conflicts+stale (bundled)"**
+**srv = > srv.tool name="qd_impact" fn="gw.qd_impact" description="Knowledge impact of changed paths (marqdo impact --json)"**
+**srv = > srv.tool name="qd_conflicts" fn="gw.qd_conflicts" description="Conflict / possible-duplicate edges (marqdo conflicts --json)"**
+**srv = > srv.tool name="qd_stale" fn="gw.qd_stale" description="Stale knowledge entries (marqdo stale --json)"**
+**srv = > srv.tool name="qd_duplicate" fn="gw.qd_duplicate" description="Duplicate symbols by fingerprint (marqdo duplicate --json)"**
 **srv = > srv.tool name="qd_record" fn="gw.qd_record" description="Write Knowledge Candidate (verify-before-promote)"**
 **srv = > srv.tool name="qd_candidates" fn="gw.qd_candidates" description="List Knowledge Candidates"**
 **srv = > srv.tool name="qd_promote" fn="gw.qd_promote" description="Promote candidate to knowledge/* after L3 verify"**

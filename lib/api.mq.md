@@ -23,6 +23,7 @@ import eng_ver:../execution/verify.mq.md
 import eng_qd:../agent/qdagent.mq.md
 import eng_met:../knowledge/metrics.mq.md
 import eng_promote:../execution/promote.mq.md
+import eng_run:../execution/run.mq.md
 ---
 
 ## 成功
@@ -525,6 +526,71 @@ Engineering Preflight (qdagent 2.0). Delegates to agent/preflight.
 **out = > eng_res.reuse task=`task`**
 *out*
 
+## eng_find
+    + `query`=""
+    + `limit`=20
+    + `payload`=None
+
+1. `payload`
+  **pq = > json.get value=`payload` key="query"**
+  1. `pq`
+    **query = `pq`**
+  **pt = > json.get value=`payload` key="task"**
+  1. `pt`
+    1. not `query`
+      **query = `pt`**
+  **lim = > json.get value=`payload` key="limit"**
+  1. `lim`
+    **limit = `lim`**
+1. not `query`
+  *> 失败 error="query_required"*
+**out = > eng_res.find query=`query` limit=`limit`**
+*out*
+
+## eng_capability
+    + `id`=""
+    + `payload`=None
+
+Capability detail — catalog Implemented By + linked constraints/failures.
+
+1. `payload`
+  **pid = > json.get value=`payload` key="id"**
+  1. `pid`
+    **id = `pid`**
+1. not `id`
+  *> 失败 error="id_required"*
+**out = > eng_res.capability id=`id`**
+*out*
+
+## eng_impact
+    + `paths`=""
+    + `payload`=None
+
+1. `payload`
+  **pp = > json.get value=`payload` key="paths"**
+  1. `pp`
+    **paths = `pp`**
+**out = > eng_res.impact paths=`paths`**
+*out*
+
+## eng_conflicts
+    + `payload`=None
+
+**out = > eng_res.conflicts**
+*out*
+
+## eng_stale
+    + `payload`=None
+
+**out = > eng_res.stale**
+*out*
+
+## eng_duplicate
+    + `payload`=None
+
+**out = > eng_res.duplicate**
+*out*
+
 ## eng_verify
     + `payload`=None
 
@@ -595,4 +661,72 @@ Engineering Preflight (qdagent 2.0). Delegates to agent/preflight.
 1. not `slug`
   *> 失败 error="slug_required"*
 **out = > eng_promote.reject slug=`slug` reason=`reason`**
+*out*
+
+## eng_build
+    + `task`=""
+    + `force_create`=False
+    + `payload`=None
+
+Web BUILD — sync call into `agent/qdagent.build` (dry when no API key).
+
+1. `payload`
+  **pt = > json.get value=`payload` key="task"**
+  1. `pt`
+    **task = `pt`**
+  **fc = > json.get value=`payload` key="force_create"**
+  1. `fc`
+    **force_create = `fc`**
+1. not `task`
+  **task = "给 OpenAI /v1 网关增加工程预检再调上游"**
+**out = > eng_qd.build task=`task` force_create=`force_create`**
+*out*
+
+## eng_workbooks
+    + `limit`=20
+    + `payload`=None
+
+1. `payload`
+  **lim = > json.get value=`payload` key="limit"**
+  1. `lim`
+    **limit = `lim`**
+**out = > eng_run.list limit=`limit`**
+*out*
+
+## eng_workbook
+    + `slug`=""
+    + `payload`=None
+
+1. `payload`
+  **s = > json.get value=`payload` key="slug"**
+  1. `s`
+    **slug = `s`**
+1. not `slug`
+  *> 失败 error="slug_required"*
+**out = > eng_run.read_detail slug=`slug`**
+*out*
+
+## eng_today
+    + `payload`=None
+
+Engineering Today strip — recent workbooks · KPI · candidates count.
+
+**wbs = > eng_run.list limit=5**
+**kpi = > eng_met.read**
+**cands = > eng_promote.list status=""**
+**items = > json.get value=`cands` key="items"**
+1. not `items`
+  **items = > json.get value=`cands` key="candidates"**
+1. not `items`
+  **n_cand = 0**
+2. *
+  **n_cand = > len value=`items`**
+**wb_n = > json.get value=`wbs` key="count"**
+**wb_rows = > json.get value=`wbs` key="workbooks"**
+`out` =
+
+| ok | workbook_count | workbooks | candidates | metrics |
+|----|----------------|-----------|------------|---------|
+| True | `wb_n` | `wb_rows` | `n_cand` | `kpi` |
+
 *out*

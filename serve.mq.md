@@ -91,12 +91,22 @@ import sys:lib/sys.mq.md
 | /api/store/git/revert | POST | api.git_revert | json | json |
 | /api/eng/preflight | POST | api.preflight | json | json |
 | /api/eng/reuse | POST | api.eng_reuse | json | json |
+| /api/eng/find | POST | api.eng_find | json | json |
+| /api/eng/capability | POST | api.eng_capability | json | json |
+| /api/eng/impact | POST | api.eng_impact | json | json |
+| /api/eng/conflicts | POST | api.eng_conflicts | json | json |
+| /api/eng/stale | POST | api.eng_stale | json | json |
+| /api/eng/duplicate | POST | api.eng_duplicate | json | json |
 | /api/eng/verify | POST | api.eng_verify | json | json |
 | /api/eng/learn | POST | api.eng_learn | json | json |
 | /api/eng/metrics | GET | api.eng_metrics | query | json |
 | /api/eng/candidates | POST | api.eng_candidates | json | json |
 | /api/eng/promote | POST | api.eng_promote | json | json |
 | /api/eng/reject | POST | api.eng_reject | json | json |
+| /api/eng/build | POST | api.eng_build | json | json |
+| /api/eng/workbooks | POST | api.eng_workbooks | json | json |
+| /api/eng/workbook | POST | api.eng_workbook | json | json |
+| /api/eng/today | GET | api.eng_today | query | json |
 
 **接口 = > ui.接口**
 

@@ -283,3 +283,76 @@ Persist Marqdo 1.4.2 `usage` / `token_cost` / `execution` into Metrics (merge la
   > put_section slug=`slug` section="Result" content=`result`
 > set_status slug=`slug` status=`status`
 *> read slug=`slug`*
+
+## list
+    + `limit`=20
+
+List recent Engineering Workbooks (newest first by slug / timestamp name).
+
+**root = > ensure_dirs**
+**dir = `root` + "/workbooks"**
+**entries = > fs.list_dir path=`dir`**
+**acc = > table.empty_list**
+1. `entries`
+  - [name](entries)
+    **parts = > split value=`name` sep=".mq.md"**
+    **n = > len value=`parts`**
+    1. `n` == 2
+      **base = > at value=`parts` index=0**
+      **sec_p = `dir` + "/" + `base` + ".sections.json"**
+      **has = > fs.exists path=`sec_p`**
+      1. `has`
+        **raw = > fs.read_text path=`sec_p`**
+        **sec = > json.parse text=`raw`**
+        **task = > json.get value=`sec` key="task"**
+        **st = > json.get value=`sec` key="status"**
+        **dec = > json.get value=`sec` key="decision"**
+        `row` =
+
+        | slug | task | status | decision |
+        |------|------|--------|----------|
+        | `base` | `task` | `st` | `dec` |
+
+        **acc = > table.append list=`acc` item=`row`**
+**nacc = > len value=`acc`**
+**out_rows = > table.empty_list**
+**i = 0**
+**take = `limit`**
+1. `nacc` < `take`
+  **take = `nacc`**
+- `i` < `take`
+  **idx = `nacc` - `i`**
+  **row = [`idx`](acc)**
+  **out_rows = > table.append list=`out_rows` item=`row`**
+  **i = i + 1**
+`out` =
+
+| ok | count | workbooks |
+|----|-------|-----------|
+| True | `nacc` | `out_rows` |
+
+*out*
+
+## read_detail
+    + `slug`
+
+Workbook body + sections map (for Web detail pane).
+
+**meta = > load_state slug=`slug`**
+**mok = [ok](meta)**
+1. not `mok`
+  *meta*
+**body = > read slug=`slug`**
+**bok = [ok](body)**
+1. not `bok`
+  *body*
+**sec = [sections](meta)**
+**text = [body](body)**
+**path = [path](body)**
+`out` =
+
+| ok | slug | path | body | sections |
+|----|------|------|------|----------|
+| True | `slug` | `path` | `text` | `sec` |
+
+*out*

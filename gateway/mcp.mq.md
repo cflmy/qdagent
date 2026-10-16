@@ -74,7 +74,35 @@ import json:lib/json.mq.md
 ## qd_verify
     + `payload`=None
 
+L3 suite bundled: marqdo verify + duplicate + conflicts + stale (exit codes).
+For JSON reports use qd_impact / qd_conflicts / qd_stale / qd_duplicate.
+
 *> verify.run*
+
+## qd_impact
+    + `paths`=""
+    + `payload`=None
+
+1. `payload`
+  **p = > json.get value=`payload` key="paths"**
+  1. `p`
+    **paths = `p`**
+*> resolver.impact paths=`paths`*
+
+## qd_conflicts
+    + `payload`=None
+
+*> resolver.conflicts*
+
+## qd_stale
+    + `payload`=None
+
+*> resolver.stale*
+
+## qd_duplicate
+    + `payload`=None
+
+*> resolver.duplicate*
 
 ## qd_record
     + `capability`=""

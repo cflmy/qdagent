@@ -65,6 +65,19 @@ case "$cmd" in
     export QDAGENT_TASK="${*:-}"
     marqdo reuse --preflight --json "$QDAGENT_TASK" . -o .marqdo
     ;;
+  impact)
+    # Thin wrap: marqdo impact [PATH]... --json
+    marqdo impact "$@" --root . -o .marqdo --json
+    ;;
+  conflicts)
+    marqdo conflicts . -o .marqdo --json
+    ;;
+  stale)
+    marqdo stale . -o .marqdo --json
+    ;;
+  duplicate|duplicates)
+    marqdo duplicate . -o .marqdo --json
+    ;;
   knowledge|compile)
     exec marqdo knowledge . -o .marqdo
     ;;
@@ -90,6 +103,10 @@ Usage:
   qdagent metrics
   qdagent find|know [query]
   qdagent reuse [task]
+  qdagent impact [path...]
+  qdagent conflicts
+  qdagent stale
+  qdagent duplicate
   qdagent knowledge   # marqdo knowledge compile
   qdagent serve
   qdagent mcp
@@ -102,6 +119,8 @@ Dogfood example:
   qdagent candidates
   qdagent promote cand-YYYYMMDD-HHMMSS
   qdagent learn
+  qdagent impact lib/api.mq.md
+  qdagent conflicts
 EOF
     ;;
   *)

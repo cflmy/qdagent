@@ -561,6 +561,29 @@ footer.foot,
   line-height: 1.55;
   max-width: 42rem;
 }
+.qd-eng-today {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.qd-eng-today-list,
+.qd-eng-wb-list {
+  margin: 0.65rem 0 0;
+  padding-left: 1.15rem;
+}
+.qd-eng-today-list li,
+.qd-eng-wb-list li {
+  margin: 0.35rem 0;
+}
+.qd-eng-wb-detail {
+  margin: 1rem 0;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid var(--nt-border, rgba(0, 0, 0, 0.12));
+}
+.qd-eng-wb-detail header h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+}
 
 main.main:has(.qd-ekc-page),
 main.main:has(.qd-settings-links),
