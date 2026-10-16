@@ -12,7 +12,7 @@
 
 ## 阅读顺序（建议）
 
-0. [**qdagent 2.0 设计（Accepted）**](design/qdagent-2.0.md) · [下一阶段开发计划](design/qdagent-dev-plan-2026-10.md)  
+0. [**qdagent 2.0 设计（Accepted）**](design/qdagent-2.0.md) · [下一阶段开发计划](design/qdagent-dev-plan-2026-10.md) · [再下一阶段（审阅稿）](design/qdagent-dev-plan-2026-10-next.md)  
 1. [总览与产品愿景](00-overview.md)（档案）  
 2. [竞品调研：OpenClaw / Hermes / GoClaw](research/01-competitive-openclaw-hermes.md)  
 3. [Marqdo 原生能力与差异化设计](design/02-marqdo-native-agent.md)  
