@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| 状态 | **Accepted** · Wave A–C **done**（D 可后置；**禁止**改写 `doc/next/*`） |
+| 状态 | **Accepted** · Wave A–D **done**（C2b / live 若 Key 不可达再补录；**禁止**改写 `doc/next/*`） |
 | 日期 | 2026-10-16 |
 | 基线 | Marqdo **CLI≥1.4.4 · Ext≥1.4.4**；设计 [qdagent-2.0.md](qdagent-2.0.md) Phase 0–15 **Accepted** |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读真相源） |
@@ -231,13 +231,24 @@ Wave D  编译器与质量（Policy · CI · live）
 ```text
 agent/qdagent.mq.md          # ASK/BUILD/LEARN
 agent/preflight.mq.md
-execution/{run,verify,record,promote}.mq.md
+execution/{run,verify,record,promote,session}.mq.md
 gateway/{openai,mcp,v1_chat}.mq.md
 lib/api.mq.md                # HTTP + eng_*
 serve.mq.md / pages/* / public/eng.js
 cli/求道-*.mq.md
-scripts/qdagent · marqdo-env.sh
+scripts/qdagent · marqdo-env.sh · ci-knowledge-gate.sh · check-v1-thin.sh
+policies/openai-gateway-efi.mq.md
+knowledge/constraints/openai-gateway-efi.md
 ```
 
 **计划源（只读）：** `doc/next/001.md` · `doc/next/002.md`  
 **已接受设计：** `doc/design/qdagent-2.0.md`
+
+### 附录 B — Live dogfood（D-a）
+
+| 日期 | 面 | workbook / session | 结果 |
+|------|----|--------------------|------|
+| 2026-10-16 | ASK | `wb-20261016-080028` / `sess-20261016-080044` | Key 来自 settings DB；上游 **HTTP 524** → soft `mode=error`（Marqdo 1.4.4） |
+| 2026-10-16 | BUILD ADAPT | `wb-20261016-080052` / `sess-20261016-080113` | 同上；decision=ADAPT · promote_allowed=true · 无厚路径崩溃 |
+
+说明：本机 upstream（`qwen3.5-4b` via settings）超时，非 qdagent 编排失败。可换可达 Base URL / Key 后重跑回填。

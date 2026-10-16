@@ -38,7 +38,7 @@
 |---|---|
 | 关闭于 | Marqdo 0.3.7 `agent.mcp_server` + `serve transport=stdio` |
 | 求道用法 | `marqdo run cli/求道-mcp.mq.md`；「MCP 接入」页复制配置 |
-| 备注 | HTTP MCP（H4b）仍可选，未接 |
+| 备注 | **HTTP MCP（H4b）可选未接**（Wave D-d：不强行做；stdio 已够 Cursor dogfood） |
 
 ### GAP-04 · 第二监听端口 — **CLOSED**
 
@@ -98,4 +98,5 @@
 | 2026-10-16 | 升级 Marqdo **CLI≥1.4.2 · Ext≥1.4.3**：`agent.run` cold EFI · `sandbox=` · `quarantine` · `eng_record`；scripts 双门闩 |
 | 2026-10-16 | 升级 Marqdo **CLI≥1.4.4 · Ext≥1.4.4**：LLM 传输软失败 · `ext/ai` 表优先；门闩与 dogfood 对齐 |
 | 2026-10-16 | **GAP-13 CLOSED（C2a）**：文档钉死 Python 仅 framing；`check-v1-thin.sh`；厚路径 410 |
+| 2026-10-16 | Wave D-d：明确 HTTP MCP（H4b）可选未接；D-c `ci-knowledge-gate` / workflow |
 

@@ -1,0 +1,27 @@
+# Wave D-c — optional knowledge gates (Marqdo when available).
+name: knowledge-gate
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+
+jobs:
+  thin-v1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Thin /v1 framing check
+        run: ./scripts/check-v1-thin.sh
+
+  knowledge:
+    runs-on: ubuntu-latest
+    # Marqdo CLI is not yet a published GH Action install; skip unless
+    # self-hosted / preinstalled. Local & dogfood: ./scripts/ci-knowledge-gate.sh
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Knowledge compile + verify (if marqdo present)
+        env:
+          REQUIRE_MARQDO: "0"
+        run: ./scripts/ci-knowledge-gate.sh

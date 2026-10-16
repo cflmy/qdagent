@@ -1,7 +1,8 @@
 ---
 title: Policy — OpenAI gateway must use EFI
 type: Marqdo Policy
-status: candidate
+status: stable
+capability: openai-gateway
 ---
 
 # Policy
