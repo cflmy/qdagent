@@ -735,11 +735,12 @@ Read server Session file (`data/sessions/<id>.mq.md`).
 ## eng_today
     + `payload`=None
 
-Engineering Today strip — recent workbooks · KPI · candidates count.
+Engineering Today strip — recent workbooks · sessions · KPI · candidates count.
 
 **wbs = > eng_run.list limit=5**
 **kpi = > eng_met.read**
 **cands = > eng_promote.list status=""**
+**sess = > eng_sess.list limit=5**
 **items = > json.get value=`cands` key="items"**
 1. not `items`
   **items = > json.get value=`cands` key="candidates"**
@@ -749,10 +750,23 @@ Engineering Today strip — recent workbooks · KPI · candidates count.
   **n_cand = > len value=`items`**
 **wb_n = > json.get value=`wbs` key="count"**
 **wb_rows = > json.get value=`wbs` key="workbooks"**
+**sess_n = > json.get value=`sess` key="count"**
+**sess_rows = > json.get value=`sess` key="sessions"**
 `out` =
 
-| ok | workbook_count | workbooks | candidates | metrics |
-|----|----------------|-----------|------------|---------|
-| True | `wb_n` | `wb_rows` | `n_cand` | `kpi` |
+| ok | workbook_count | workbooks | candidates | metrics | session_count | sessions |
+|----|----------------|-----------|------------|---------|---------------|----------|
+| True | `wb_n` | `wb_rows` | `n_cand` | `kpi` | `sess_n` | `sess_rows` |
 
+*out*
+
+## eng_sessions
+    + `limit`=10
+    + `payload`=None
+
+1. `payload`
+  **lim = > json.get value=`payload` key="limit"**
+  1. `lim`
+    **limit = `lim`**
+**out = > eng_sess.list limit=`limit`**
 *out*

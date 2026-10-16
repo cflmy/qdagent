@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| 状态 | **Accepted** · Wave A–D **done**（C2b / live 若 Key 不可达再补录；**禁止**改写 `doc/next/*`） |
+| 状态 | **Accepted** · Wave A–D **done** · §47 hub / Session Today **landed**；C2b 待确认；**禁止**改写 `doc/next/*` |
 | 日期 | 2026-10-16 |
 | 基线 | Marqdo **CLI≥1.4.4 · Ext≥1.4.4**；设计 [qdagent-2.0.md](qdagent-2.0.md) Phase 0–15 **Accepted** |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读真相源） |
@@ -28,20 +28,20 @@
 | Surfaces | CLI `cli/求道-*` · MCP stdio · Web `/eng/*` + `/api/eng/*` · 厚 `/v1` → 410 |
 | 依赖 | `scripts/marqdo-env.sh` 双门闩 ≥1.4.4 |
 
-### 1.2 相对 `doc/next` 的主要缺口
+### 1.2 相对 `doc/next` 的主要缺口（Wave A–D 后）
 
-| 主题（doc/next） | 缺口 |
+| 主题（doc/next） | 状态 |
 |------------------|------|
-| §48 Engineering Today | `/` 已是预检，但不是「活跃任务 / 能力计数 / 近期事件」仪表 |
-| §49 Run 页面 | 无 Workbook 列表/详情渲染（仅文案 + JSON 按钮） |
-| §50 Capability 页面 | 无 EKC 图驱动的 Implemented By / Used By / Constraints 详情 |
-| §47 UI 中心 | 无 Tasks / Conflicts / Verification 枢纽 |
-| §28 Session vs Run | Chat 靠 localStorage；`data/sessions/` 未做成服务端 Session |
-| §80 OpenAI | 领域已走 Marqdo；**HTTP 仍由** `scripts/legacy/openai_v1_gateway.py` 转发 |
-| GAP-13 文档 | 与「厚路径已移除」表述漂移，需改 gaps 状态（非实现） |
-| CLI/MCP 图操作 | 缺独立 `impact` / `conflicts` / `stale` / `duplicate` 薄封装（verify 已捆） |
-| Policy / Execution Compiler | 仅有零散 `policies/` · `skills/`，未产品化 |
-| Live dogfood | dry + 不可达上游已验；**真实 Key 闭环未系统验收** |
+| §48 Engineering Today | **done（最小）** — workbook / KPI / candidates / sessions |
+| §49 Run 页面 | **done（最小）** — 列表 + 分区摘要 |
+| §50 Capability 页面 | **done（最小）** — find + catalog Implemented By / constraints / failures |
+| §47 UI 中心 | **partial** — 首页工程枢纽 Verify/Conflicts/Stale/Duplicate；Tasks 看板仍薄 |
+| §28 Session vs Run | **done（最小）** — `data/sessions/` + BUILD/ASK/capture 写入；Chat 仍可 localStorage 并存 |
+| §80 OpenAI | **C2a done** — Python 仅 framing；**C2b** Endpoint 直吃 `/v1` 未做 |
+| GAP-13 文档 | **CLOSED** |
+| CLI/MCP 图操作 | **done** |
+| Policy / Execution Compiler | **partial** — EFI policy+constraint 已 stable；通用 Policy 编译器未产品化 |
+| Live dogfood | **partial** — Key 可达路径已打通；本机上游 HTTP 524 soft-fail 已记录 |
 
 ### 1.3 非目标（本计划不做）
 

@@ -105,6 +105,7 @@ import sys:lib/sys.mq.md
 | /api/eng/reject | POST | api.eng_reject | json | json |
 | /api/eng/build | POST | api.eng_build | json | json |
 | /api/eng/session | POST | api.eng_session | json | json |
+| /api/eng/sessions | POST | api.eng_sessions | json | json |
 | /api/eng/workbooks | POST | api.eng_workbooks | json | json |
 | /api/eng/workbook | POST | api.eng_workbook | json | json |
 | /api/eng/today | GET | api.eng_today | query | json |

@@ -39,6 +39,30 @@
       .replace(/"/g, "&quot;");
   }
 
+  const ENG_SESS_KEY = "qdagent.eng.session.v1";
+  function engSessionId() {
+    try {
+      let id = localStorage.getItem(ENG_SESS_KEY);
+      if (!id) {
+        id =
+          "s-eng-" +
+          Date.now().toString(36) +
+          "-" +
+          Math.random().toString(36).slice(2, 8);
+        localStorage.setItem(ENG_SESS_KEY, id);
+      }
+      return id;
+    } catch (_) {
+      return "";
+    }
+  }
+  function rememberSession(id) {
+    if (!id) return;
+    try {
+      localStorage.setItem(ENG_SESS_KEY, id);
+    } catch (_) {}
+  }
+
   const pfBtn = $("qd-eng-preflight");
   if (pfBtn) {
     pfBtn.addEventListener("click", async () => {
@@ -60,19 +84,57 @@
         links.hidden = true;
         links.innerHTML = "";
       }
-      const out = await post("/api/eng/build", { task: task });
+      const sid = engSessionId();
+      const out = await post("/api/eng/build", {
+        task: task,
+        session_id: sid,
+      });
       show($("qd-eng-out"), out);
+      if (out && out.session_id) rememberSession(out.session_id);
       const slug = out && out.slug;
       if (links && slug) {
         links.hidden = false;
+        const sess = out.session_id || sid;
         links.innerHTML =
           'Workbook：<a href="/eng/run?slug=' +
           encodeURIComponent(slug) +
           '">' +
           esc(slug) +
-          "</a> · <a href=\"/eng/candidates\">知识候选</a>";
+          "</a> · Session：" +
+          esc(sess) +
+          ' · <a href="/eng/candidates">知识候选</a>';
       }
       loadToday();
+    });
+  }
+
+  const hubOut = $("qd-eng-hub-out");
+  const hubVerify = $("qd-eng-hub-verify");
+  if (hubVerify) {
+    hubVerify.addEventListener("click", async () => {
+      show(hubOut, { status: "verify…" });
+      show(hubOut, await post("/api/eng/verify", {}));
+    });
+  }
+  const hubConflicts = $("qd-eng-hub-conflicts");
+  if (hubConflicts) {
+    hubConflicts.addEventListener("click", async () => {
+      show(hubOut, { status: "conflicts…" });
+      show(hubOut, await post("/api/eng/conflicts", {}));
+    });
+  }
+  const hubStale = $("qd-eng-hub-stale");
+  if (hubStale) {
+    hubStale.addEventListener("click", async () => {
+      show(hubOut, { status: "stale…" });
+      show(hubOut, await post("/api/eng/stale", {}));
+    });
+  }
+  const hubDup = $("qd-eng-hub-duplicate");
+  if (hubDup) {
+    hubDup.addEventListener("click", async () => {
+      show(hubOut, { status: "duplicate…" });
+      show(hubOut, await post("/api/eng/duplicate", {}));
     });
   }
 
@@ -318,12 +380,15 @@
       return;
     }
     const wbs = out.workbooks || [];
+    const sessions = out.sessions || [];
     const kpi = out.metrics || {};
     let html =
       "<p><strong>工作簿</strong> " +
       esc(out.workbook_count) +
       " · <strong>候选</strong> " +
       esc(out.candidates) +
+      " · <strong>Session</strong> " +
+      esc(out.session_count) +
       " · <a href=\"/eng/run\">全部工作簿</a> · <a href=\"/eng/candidates\">知识候选</a></p>";
     if (wbs.length) {
       html += "<ul class=\"qd-eng-today-list\">";
@@ -342,6 +407,20 @@
       html += "</ul>";
     } else {
       html += "<p class=\"qd-muted\">尚无 workbook — 下方执行 BUILD 开始 dogfood。</p>";
+    }
+    if (sessions.length) {
+      html += "<p class=\"qd-muted\"><strong>最近 Session</strong></p><ul class=\"qd-eng-today-list\">";
+      sessions.forEach(function (row) {
+        html +=
+          "<li>" +
+          esc(row.id) +
+          " · " +
+          esc(row.surface) +
+          " · " +
+          esc(row.workbook_slug || row.run_id || "") +
+          "</li>";
+      });
+      html += "</ul>";
     }
     const reuse = kpi.reuse_ratio != null ? kpi.reuse_ratio : kpi.reuse;
     if (reuse != null || kpi.adapt_ratio != null) {

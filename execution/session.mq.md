@@ -6,6 +6,7 @@ description: >-
 import fs:lib/fs.mq.md
 import time:lib/time.mq.md
 import sys:lib/sys.mq.md
+import text:lib/text.mq.md
 import table:lib/table.mq.md
 ---
 
@@ -80,6 +81,66 @@ Body for a Session file. `history` is optional markdown table rows
 | ok | id | path | body |
 |----|----|------|------|
 | True | `id` | `p` | `body` |
+
+*out*
+
+## list
+    + `limit`=10
+
+List recent Session files (newest first by name).
+
+**root = > ensure_dirs**
+**dir = `root` + "/sessions"**
+**entries = > fs.list_dir path=`dir`**
+**acc = > table.empty_list**
+1. `entries`
+  - [name](entries)
+    **parts = > split value=`name` sep=".mq.md"**
+    **n = > len value=`parts`**
+    1. `n` == 2
+      **base = > at value=`parts` index=0**
+      **p = `dir` + "/" + `name`**
+      **body = > fs.read_text path=`p`**
+      **surf = ""**
+      **wb = ""**
+      **rid = ""**
+      **lines = > text.str_split s=`body` sep="\n"**
+      - [line](lines)
+        **is_surf = > text.starts_with text=`line` prefix="surface: "**
+        1. `is_surf`
+          **sp = > text.str_split s=`line` sep="surface: "**
+          **surf = > at value=`sp` index=1**
+        **is_wb = > text.starts_with text=`line` prefix="workbook_slug: "**
+        1. `is_wb`
+          **wp = > text.str_split s=`line` sep="workbook_slug: "**
+          **wb = > at value=`wp` index=1**
+        **is_rid = > text.starts_with text=`line` prefix="run_id: "**
+        1. `is_rid`
+          **rp = > text.str_split s=`line` sep="run_id: "**
+          **rid = > at value=`rp` index=1**
+      `row` =
+
+      | id | surface | workbook_slug | run_id |
+      |----|---------|---------------|--------|
+      | `base` | `surf` | `wb` | `rid` |
+
+      **acc = > table.append list=`acc` item=`row`**
+**nacc = > len value=`acc`**
+**out_rows = > table.empty_list**
+**i = 0**
+**take = `limit`**
+1. `nacc` < `take`
+  **take = `nacc`**
+- `i` < `take`
+  **idx = `nacc` - `i`**
+  **row = [`idx`](acc)**
+  **out_rows = > table.append list=`out_rows` item=`row`**
+  **i = i + 1**
+`out` =
+
+| ok | count | sessions |
+|----|-------|----------|
+| True | `nacc` | `out_rows` |
 
 *out*
 
