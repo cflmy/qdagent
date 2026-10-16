@@ -5,6 +5,7 @@ description: >-
   Documents: pages/build + pages/content (Markdown bodies).
   API: GFM 调用表 → lib/api；声明式 Endpoint 文档见 api/*.mq.md。
   Resource: ext/data · lib/site（auth / form / proxy）。
+  /v1 is Bearer-auth (OpenAI clients); not session-gated.
 import web:ext/web/web.mq.md
 import site:lib/site.mq.md
 import ui:lib/ui.mq.md
@@ -58,8 +59,6 @@ import sys:lib/sys.mq.md
 | /asr/models | `asr_base` | 真 | /asr | GET | | 60000 |
 | /tts/audio/speech | `tts_base` | 真 | /tts | POST | | 120000 |
 | /tts/models | `tts_base` | 真 | /tts | GET | | 60000 |
-| /v1/chat/completions | `v1_up` | 真 | /v1 | POST | | 180000 |
-| /v1/models | `v1_up` | 真 | /v1 | GET | | 30000 |
 
 `调用表` =
 
@@ -106,6 +105,10 @@ import sys:lib/sys.mq.md
 | /api/eng/build | POST | api.eng_build | json | json |
 | /api/eng/session | POST | api.eng_session | json | json |
 | /api/eng/sessions | POST | api.eng_sessions | json | json |
+| /api/eng/knowledge | POST | api.eng_knowledge | json | json |
+| /api/eng/policies | POST | api.eng_policies | json | json |
+| /v1/models | GET | api.v1_models | query | json |
+| /v1/chat/completions | POST | api.v1_chat_completions | json | json |
 | /api/eng/workbooks | POST | api.eng_workbooks | json | json |
 | /api/eng/workbook | POST | api.eng_workbook | json | json |
 | /api/eng/today | GET | api.eng_today | query | json |
@@ -187,6 +190,5 @@ import sys:lib/sys.mq.md
 **app = > `app`.gate path="/llm" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/asr" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
 **app = > `app`.gate path="/tts" roles="user,admin" permissions="" match="prefix" on_deny="redirect" exclude=None**
-
 > `app`.listen
 *None*

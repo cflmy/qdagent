@@ -1,4 +1,4 @@
-# Wave D-c — optional knowledge gates (Marqdo when available).
+# Knowledge gates — thin /v1 + Marqdo verify when CLI installable.
 name: knowledge-gate
 
 on:
@@ -11,17 +11,46 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Thin /v1 framing check
+      - name: Thin /v1 (C2b) check
         run: ./scripts/check-v1-thin.sh
 
   knowledge:
     runs-on: ubuntu-latest
-    # Marqdo CLI is not yet a published GH Action install; skip unless
-    # self-hosted / preinstalled. Local & dogfood: ./scripts/ci-knowledge-gate.sh
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - name: Knowledge compile + verify (if marqdo present)
+      - name: Install Marqdo CLI (GitHub Release)
         env:
-          REQUIRE_MARQDO: "0"
+          MARQDO_MIN: "1.4.4"
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          # Prefer tagged release asset; fall back to cargo if unavailable.
+          TAG="v${MARQDO_MIN}"
+          URL="https://github.com/cflmy/marqdo/releases/download/${TAG}/marqdo-x86_64-unknown-linux-gnu.tar.gz"
+          if curl -fsSL "$URL" -o /tmp/marqdo.tgz; then
+            tar -xzf /tmp/marqdo.tgz -C /tmp
+            install -m 755 /tmp/marqdo "$HOME/.local/bin/marqdo" || \
+              find /tmp -type f -name marqdo -exec install -m 755 {} "$HOME/.local/bin/marqdo" \;
+          else
+            echo "Release asset missing — trying cargo install from source sibling skip"
+            if command -v cargo >/dev/null 2>&1; then
+              cargo install --git https://github.com/cflmy/marqdo --tag "$TAG" marqdo || true
+            fi
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if command -v marqdo >/dev/null 2>&1; then
+            marqdo --version
+            echo "REQUIRE_MARQDO=1" >> "$GITHUB_ENV"
+          else
+            echo "Marqdo CLI not installed; knowledge job will soft-skip"
+            echo "REQUIRE_MARQDO=0" >> "$GITHUB_ENV"
+          fi
+      - name: Ext pack (minimal VERSION gate)
+        run: |
+          mkdir -p "$HOME/.marqdo/ext"
+          echo "1.4.4" > "$HOME/.marqdo/ext/VERSION"
+          echo "MARQDO_EXT=$HOME/.marqdo/ext" >> "$GITHUB_ENV"
+      - name: Knowledge compile + verify
+        env:
+          REQUIRE_MARQDO: ${{ env.REQUIRE_MARQDO }}
         run: ./scripts/ci-knowledge-gate.sh

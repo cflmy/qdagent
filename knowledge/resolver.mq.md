@@ -215,13 +215,55 @@ Read-only Capability detail from EKC catalog (+ linked constraints / failures).
 **duplicates = > section_bullets body=`body` heading="Possible duplicates"**
 **constraints = > knowledge_for kind="constraints" id=`id` out=`out`**
 **failures = > knowledge_for kind="failures" id=`id` out=`out`**
+**used_by = > used_by id=`id` out=`out`**
 `ret` =
 
-| ok | id | path | catalog | implemented_by | possible_duplicates | constraints | failures |
-|----|----|------|---------|----------------|---------------------|-------------|----------|
-| True | `id` | `path` | `body` | `implemented` | `duplicates` | `constraints` | `failures` |
+| ok | id | path | catalog | implemented_by | possible_duplicates | constraints | failures | used_by |
+|----|----|------|---------|----------------|---------------------|-------------|----------|---------|
+| True | `id` | `path` | `body` | `implemented` | `duplicates` | `constraints` | `failures` | `used_by` |
 
 *ret*
+
+## used_by
+    + `id`
+    + `out`=".marqdo"
+
+Reverse-read `.marqdo/graph/edges.json`: symbols that `uses` implementors of this capability.
+
+**edges_path = `out` + "/graph/edges.json"**
+**has = > fs.exists path=`edges_path`**
+1. not `has`
+  **empty = > table.empty_list**
+  *empty*
+**raw = > fs.read_text path=`edges_path`**
+**doc = > json.parse text=`raw`**
+**edges = > json.get value=`doc` key="edges"**
+1. not `edges`
+  **edges = `doc`**
+**cap = "capability:" + `id`**
+**impl = > table.empty_list**
+1. `edges`
+  - [e](edges)
+    **kind = > json.get value=`e` key="kind"**
+    **fr = > json.get value=`e` key="from"**
+    **to = > json.get value=`e` key="to"**
+    1. `kind` == "implements"
+      1. `fr` == `cap`
+        **impl = > table.append list=`impl` item=`to`**
+**users = > table.empty_list**
+1. `edges`
+  - [e2](edges)
+    **kind2 = > json.get value=`e2` key="kind"**
+    **fr2 = > json.get value=`e2` key="from"**
+    **to2 = > json.get value=`e2` key="to"**
+    1. `kind2` == "uses"
+      **hit = False**
+      - [sym](impl)
+        1. `to2` == `sym`
+          **hit = True**
+      1. `hit`
+        **users = > table.append list=`users` item=`fr2`**
+*users*
 
 ## impact
     + `paths`=""

@@ -1,9 +1,10 @@
-# qdagent 再下一阶段开发计划（审阅稿）
+# qdagent 再下一阶段开发计划（Accepted · 全缺口落地）
 
 | | |
 |---|---|
-| 状态 | **Draft — 待审阅**（**通过前禁止实施**；**禁止**改写 `doc/next/*`） |
+| 状态 | **Accepted — 全缺口落地中/已交付 · 禁止降级 · 标准方案**（**禁止**改写 `doc/next/*`） |
 | 日期 | 2026-10-16 |
+| 审阅决议 | 缺口全部开发；体验拉满；低成本替代改为最标准实现；C2b/Async/HTTP MCP 走 Marqdo 正途 |
 | 前置 | [qdagent-dev-plan-2026-10.md](qdagent-dev-plan-2026-10.md) Wave A–D + §47 hub / Session Today **已落地并推送** |
 | 基线 | Marqdo **CLI≥1.4.4 · Ext≥1.4.4**；设计 [qdagent-2.0.md](qdagent-2.0.md) Phase 0–15 Accepted |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读真相源） |
@@ -13,201 +14,70 @@
 
 ## 0. 一句话
 
-**A–D 把「能 dogfood 的工程闭环」做实了**；下一阶段只做三件事里你点名的子集：  
-**(1) 把 partial 缺口补成可验收产品面** · **(2) 可选 C2b 去 Python framing** · **(3) 可达上游上的 live 闭环补录**。  
-不再开第二套 Agent / EKC。
+**A–D 把「能 dogfood 的工程闭环」做实了**；本阶段把 partial 缺口补成可验收产品面，并完成 **C2b**、**Async BUILD**、**HTTP MCP（H4b）**、**Policy 产品化**、**CI 装 Marqdo**。不再开第二套 Agent / EKC。
 
 ---
 
-## 1. 已冻结基线（勿回退）
+## 1. DoD 验收（本阶段）
 
-| 层 | 已交付 |
-|----|--------|
-| Dogfood Web | Preflight · BUILD · Today · Workbook · Candidates · Capability · Eng Hub（verify/conflicts/stale/duplicate） |
-| Session | `data/sessions/*.mq.md`；ASK/BUILD/capture 写入；Web BUILD 带 `session_id` |
-| Graph CLI/MCP | `impact\|conflicts\|stale\|duplicate` + `qd_*`；`qd_verify` 仍捆 exit-code 套件 |
-| `/v1` | **C2a**：Python 仅 framing；厚路径 410；`check-v1-thin.sh`；GAP-13 CLOSED |
-| Policy | `policies/openai-gateway-efi` stable + L4 constraint；CI `ci-knowledge-gate` |
-| Live | Key/路径已通；本机上游 **HTTP 524** → soft `mode=error`（附录已记） |
-
-**验收对照（上一计划 DoD）：** D1–D8、D10 已满足最小版；D9 **partial**（编排 OK，上游超时）。
-
----
-
-## 2. 相对 `doc/next` 的剩余缺口（本计划范围）
-
-| ID | 主题 | 现状 | 建议优先级 |
-|----|------|------|------------|
-| G1 | §47 Tasks 看板 | Hub 有图操作，无「活跃任务 / 冲突列表」产品视图 | P1 |
-| G2 | Workbook 分区 UI | 现为 JSON 摘要；非分区卡片/只读 Markdown | P2 |
-| G3 | Capability Used By | 有 Implemented By / constraints / failures；缺 Used By 边 | P2 |
-| G4 | Chat ↔ Session 统一 | Chat `s-*` localStorage 与服务端 `sess-*` / `s-eng-*` 并存 | P1 |
-| G5 | §80 C2b | Endpoint 直吃 `/v1`（去掉 Python framing 进程） | **P0 若你选 C2b**；否则不做 |
-| G6 | Async BUILD | Web BUILD 同步长阻塞 | P1（体验）或 P2 |
-| G7 | Live 闭环补录 | 换可达 Base URL / Key 后 ASK+BUILD 成功回填附录 | P0（质量） |
-| G8 | Policy 编译器 | 仅 EFI 一例；无通用 L6→preflight 产品化 | P3（可后置） |
-| G9 | CI 装 Marqdo | workflow 有 thin-v1；knowledge job 在无 CLI 时 skip | P2 |
-| G10 | HTTP MCP | 已标注可选未接 | **不做**（除非你改口） |
+| ID | 验收项 | 状态 |
+|----|--------|------|
+| N1 | Chat/Eng Session id 统一（`public/session.js` · `qdagent.sessions.v1`） | **done** |
+| N2 | Eng Hub「最近任务」表（`#qd-eng-tasks` ← workbooks） | **done** |
+| N3 | Workbook Task/Plan/Evidence/Metrics 分区可读（`#qd-eng-wb-sections`） | **done** |
+| N4 | Live ASK+BUILD `mode=live`（上游可达时） | **partial**（直连 `/chat/completions` 可 200；Agent EFI 长上下文偶发上游 524 → soft `mode=error`；footnote 硬崩已修；编排 OK） |
+| N5 | C2b：`/v1` Marqdo invoke，不依赖 Python framing | **done** |
+| N6 | Async BUILD：立即返回 slug + UI 轮询 | **done** |
+| F2 | Capability Used By（edges reverse） | **done** |
+| F3 | CI 安装 Marqdo | **done**（workflow Release 资产） |
+| G8 | L6 Policy → Preflight 匹配 + Hub Policies | **done** |
+| G10 | Streamable HTTP MCP（Marqdo plugin） | **done** |
 
 ---
 
-## 3. 目标与成功标准（下一阶段 DoD）
+## 2. 相对 `doc/next` 的缺口（原表 → 落地）
 
-| ID | 验收项 | 依赖你的选择 |
-|----|--------|--------------|
-| N1 | Chat 当前会话 id **同一套**写入 `data/sessions/<id>.mq.md`（BUILD/capture/ask 可追踪） | 选 Wave E |
-| N2 | Eng Hub 或 `/eng/run` 可见「最近任务」表（来自 workbooks/sessions，非第二真相） | 选 Wave E |
-| N3 | Workbook 详情至少 Task/Plan/Evidence/Metrics **分区可读**（非整坨 JSON） | 选 Wave E 或 F |
-| N4 | Live：可达上游下 ASK + ADAPT BUILD 各 1 次 `mode=live`，附录回填 | 选 Wave L（可与 E 并行） |
-| N5 | C2b：`POST /v1/chat/completions` **不依赖** `openai_v1_gateway.py` 进程（或明确仍保留 framing） | **仅当选 C2b** |
-| N6 | 异步 BUILD：提交后立即返回 job/workbook slug，UI 可轮询 status | 选 Wave F |
-
----
-
-## 4. 工作流分波（请勾选范围）
-
-```text
-Wave E   产品面收口（Session 统一 · Tasks 条 · Workbook 分区）   ← 默认建议
-Wave F   体验加固（Async BUILD · Capability Used By · CI 装 Marqdo）
-Wave L   Live 补录（可达上游；可随时插入，不挡 E）
-Wave C2b /v1 Endpoint 化（大；单独确认工作量与风险）
-```
-
-### 4.1 Wave E — 产品面收口（建议 1 周量级）
-
-#### E1 · Session id 统一（G4）
-
-| | |
-|---|---|
-| 为何 | 现 `s-*`（chat）/ `sess-*`（服务端生成）/ `s-eng-*`（eng.js）三套，审计难追 |
-| 做 | 约定：**客户端可提出 id，服务端 `session.link` 原样采用**（已支持）；eng.js 与 chat.js **共用同一 localStorage key 或互相读写**；BUILD/capture 一律带当前 id |
-| 不做 | 第二套记忆库；不强迫迁移历史 localStorage |
-| 验收 | N1：同一次浏览器会话，chat 沉淀与 eng BUILD 写入**同一** `data/sessions/<id>.mq.md` |
-| 风险 | id 字符集 / 路径安全 → 只允许 `[A-Za-z0-9._-]+` |
-
-#### E2 · Tasks 条（G1，§47 最小）
-
-| | |
-|---|---|
-| 为何 | Hub 能跑图操作，但「我在做什么」仍散落 |
-| 做 | Today 或 Hub 下增加「最近任务」：来自 `eng_run.list` + `eng_sessions`（已有 API）；列 slug · status · task · session |
-| 不做 | 独立 Tasks DB、看板拖拽、第二日历 |
-| 验收 | N2 |
-| 风险 | 无 |
-
-#### E3 · Workbook 分区渲染（G2）
-
-| | |
-|---|---|
-| 为何 | 证据面要给人读，不是给调试 JSON |
-| 做 | `/eng/run` 详情：按 `sections` 键渲染 `<section><h3>…</h3><pre/或 markdown>`；优先 Task · Decision · Plan · Evidence · Metrics · Verification |
-| 不做 | 可编辑 workbook；不发明新表方言 |
-| 验收 | N3 |
-| 风险 | 大字段 → 默认折叠 / 截断前 N 字 |
-
-**Wave E 退出：** 评审人只开浏览器可完成「预检→BUILD→同 Session 追踪→分区读 workbook→Hub 验图」。
+| ID | 主题 | 落地 |
+|----|------|------|
+| G1 | §47 Tasks 看板 | Hub `#qd-eng-tasks` |
+| G2 | Workbook 分区 UI | `#qd-eng-wb-sections` |
+| G3 | Capability Used By | `knowledge/resolver.used_by` |
+| G4 | Chat ↔ Session 统一 | `public/session.js` |
+| G5 | §80 C2b | `api.v1_*` + serve 路由；`QDAGENT_V1_PYTHON=1` 应急 |
+| G6 | Async BUILD | `build_start` + `cli/求道-构建-继续` orphan |
+| G7 | Live 闭环补录 | 上游可达时重跑；附录记 524 |
+| G8 | Policy 编译器产品化 | `knowledge/policy.mq.md` match → Preflight |
+| G9 | CI 装 Marqdo | `.github/workflows/knowledge-gate.yml` |
+| G10 | HTTP MCP | Marqdo `agent_mcp_serve` transport=http |
 
 ---
 
-### 4.2 Wave F — 体验加固（可选，E 后）
-
-| ID | 项 | 说明 | 验收 |
-|----|----|------|------|
-| F1 | Async BUILD（G6） | `POST /api/eng/build` 立即返回 slug+`status=executing`；后台续跑或轮询 `workbook` | N6 |
-| F2 | Capability Used By（G3） | 只读 `.marqdo/graph` / edges；无边则显式空态 | D5 增强 |
-| F3 | CI 安装 Marqdo（G9） | workflow 从 Release/PPA/缓存装 CLI，使 `REQUIRE_MARQDO=1` 可绿 | CI 绿 |
-| F4 | Promote 后自动提示 knowledge | UI 已有文案；可选一键 `POST` 触发 compile（若安全） | 体验 |
-
-**F1 风险最高：** 需定 job 模型（进程内 / 子进程 / 仅 workbook status）。设计沉默处 → **停问你**，不擅自上队列中间件。
-
----
-
-### 4.3 Wave L — Live 补录（可并行）
-
-| | |
-|---|---|
-| 做 | 你提供可达 `llm_base_url` + key（或修 settings）；重跑 ASK + ADAPT BUILD；附录 B 改 `mode=live` |
-| 不做 | 为过 live 放宽 EFI / 厚路径 |
-| 验收 | N4 |
-| 现状 blocker | 本机 upstream **HTTP 524**（Cloudflare/源站超时），非 qdagent 编排缺陷 |
-
----
-
-### 4.4 Wave C2b — `/v1` Marqdo Endpoint（大项，默认不做）
-
-| | |
-|---|---|
-| 目标 | `serve.mq.md`（或 Endpoint）直接处理 `/v1/models` + `/v1/chat/completions`，**不再**依赖 `:7433` Python |
-| 保留 | Bearer 鉴权；EFI → `gateway/openai` → `agent/qdagent`；`check-v1-thin` 语义升级为「无 Python framing」 |
-| 不做 | 恢复厚 messages 改写 / 画像注入 Python |
-| 依赖 | Marqdo Web/Endpoint 对 raw JSON body、流式 SSE 的能力边界 → **开工前先做 1 页能力探针**，不够则停 |
-| 工作量（估） | 探测 0.5–1d · 实现 3–7d · 回归（Cursor base_url）1–2d；若缺 SSE/body API 则 **延期** |
-| 验收 | N5 + 原 curl / Cursor 配置仍可用 |
-| 回退 | 保留 C2a framing 开关 `QDAGENT_V1_PYTHON=1` 应急（需你同意才加） |
-
----
-
-## 5. 明确非目标
+## 3. 非目标（仍冻结）
 
 - 改写 / 整理 `doc/next/*`
 - 第二套 Agent loop / 第二套 EKC / 向量权威
 - 恢复 `compose_*` / 厚 Python Agent
-- 强行做 HTTP MCP（G10）
-- 为对齐而发明新 DSL / 新表方言（沉默 → 问你）
+- 用 Python 假扮 HTTP MCP
+- 发明新 DSL / 新表方言
 
 ---
 
-## 6. 实施约定（同前）
-
-1. **先问后发明**  
-2. **表优先**（无 `json.set` 建 map）  
-3. **框架硬缺陷 → 停**  
-4. **只在你指示后 commit/push**  
-5. **不改** `doc/next/*`  
-6. **本计划通过前不写业务代码**（可写只读探针笔记到 `doc/design/` 若你要求）
-
----
-
-## 7. 请你勾选（回复示例）
-
-请直接回复例如：
-
-- `通过 E`  
-- `通过 E+L`  
-- `通过 E+F1`（只要异步 BUILD）  
-- `通过 C2b 探测`（先做能力探针，再决定做不做实现）  
-- `修改：…`  
-
-| 选项 | 含义 |
-|------|------|
-| **E** | Session 统一 + Tasks 条 + Workbook 分区（默认建议） |
-| **E+L** | E + 你配合可达上游做 live 补录 |
-| **E+F** | E + F 全套（含 async，工作量明显上升） |
-| **C2b-probe** | 只做 `/v1` Endpoint 能力探针报告，不写产品代码 |
-| **C2b-full** | 探针通过后排期实现（需二次确认） |
-| **停** | 本阶段不再开发，只维护 |
-
----
-
-## 8. 开放问题（请一并批注）
-
-1. **Async BUILD（F1）**：可接受「同步阻塞到完成」再拖多久？（现状：dry 秒级；live 可达分钟级）  
-2. **C2b**：是否值得为去掉 Python framing 付 3–7d？还是 C2a 长期可接受？  
-3. **Session id**：是否强制 chat 与 eng **同一 key**，还是允许「eng 独立、仅深链互通」？  
-4. **Live**：上游 Base URL / Key 由你指定，还是继续用本机 settings（先修 524）？  
-5. **Workbook 渲染**：纯 `<pre>` 文本，还是允许轻量 Markdown（仍无新 DSL）？
-
----
-
-## 9. 附录 — 关键路径（增量）
+## 4. 关键路径（增量）
 
 ```text
-execution/session.mq.md      # link/list/read
-public/eng.js                # hub · BUILD session_id · Today
-public/chat.js               # localStorage sessions（待与 eng 对齐）
-scripts/check-v1-thin.sh
-scripts/ci-knowledge-gate.sh
-gateway/openai.mq.md · scripts/legacy/openai_v1_gateway.py   # C2a；C2b 时收缩
+public/session.js · public/eng.js · public/mcp.js · public/chat.js
+agent/qdagent.mq.md          # build_start / build_finish
+cli/求道-构建-继续.mq.md
+cli/求道-mcp.mq.md           # QDAGENT_MCP_TRANSPORT=http
+knowledge/policy.mq.md · knowledge/resolver.mq.md (used_by)
+knowledge/context.mq.md      # policies in preflight
+lib/api.mq.md                # eng_build async · v1_* · eng_policies
+serve.mq.md                  # /v1 invoke
+scripts/mq.sh · check-v1-thin.sh · ci-knowledge-gate.sh
+.github/workflows/knowledge-gate.yml
+# Marqdo
+plugins/agent/src/mcp_server.rs   # Streamable HTTP
+ext/ai/agent.mq.md                # serve host/port/path
 ```
 
 **上一计划：** [qdagent-dev-plan-2026-10.md](qdagent-dev-plan-2026-10.md)  

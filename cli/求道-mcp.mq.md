@@ -1,9 +1,12 @@
 ---
 title: 求道-mcp
-description: Marqdo MCP Server（stdio）— Engineering Knowledge + legacy notes tools.
+description: >-
+  Marqdo MCP Server — Engineering Knowledge + legacy notes tools.
+  transport=stdio (default) or http/streamable-http via QDAGENT_MCP_TRANSPORT.
 import agent:ext/ai/agent.mq.md
 import api:../lib/api.mq.md
 import gw:../gateway/mcp.mq.md
+import sys:lib/sys.mq.md
 ---
 
 # main
@@ -40,5 +43,19 @@ Legacy notes tools (compat):
 **srv = > srv.tool name="qd_web_search" fn="api.web_search" description="Internet search (evidence only)"**
 **srv = > srv.tool name="qd_capture" fn="api.capture" description="Capture a conclusion as data/runs/*.mq.md"**
 **srv = > srv.tool name="qd_get_run" fn="api.get_run" description="Read full run .mq.md by slug"**
-> srv.serve transport=stdio
+
+**transport = > sys.env_get name="QDAGENT_MCP_TRANSPORT"**
+1. not `transport`
+  **transport = "stdio"**
+**host = > sys.env_get name="QDAGENT_MCP_HOST"**
+1. not `host`
+  **host = "127.0.0.1"**
+**port_s = > sys.env_get name="QDAGENT_MCP_PORT"**
+1. not `port_s`
+  **port_s = "7434"**
+**path = > sys.env_get name="QDAGENT_MCP_PATH"**
+1. not `path`
+  **path = "/mcp"**
+**port = `port_s`**
+> srv.serve transport=`transport` host=`host` port=`port` path=`path`
 *""*

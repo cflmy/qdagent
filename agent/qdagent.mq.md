@@ -64,17 +64,14 @@ Human-readable summary of a Context Pack map. Prefer CALL:tool_summarize for bri
 
 ## eng_tools
 
-Whitelist table for Marqdo agent CALL: (same-file ## tools).
+Whitelist list for Marqdo agent CALL: (same-file ## tools). Must be a real list,
+not a columnar GFM table (agent.run iterates tool names).
 
-`t` =
-
-| 工具 |
-|------|
-| tool_find |
-| tool_reuse |
-| tool_verify |
-| tool_summarize |
-
+**t = > table.empty_list**
+**t = > table.append list=`t` item="tool_find"**
+**t = > table.append list=`t` item="tool_reuse"**
+**t = > table.append list=`t` item="tool_verify"**
+**t = > table.append list=`t` item="tool_summarize"**
 *t*
 
 ## ensure_llm
@@ -144,10 +141,10 @@ Calls agent_eng_preflight + agent_eng_record (plugin ABI, zero LLM).
 
 > ensure_agent_plugin
 
-**decision = [decision](pack)**
-**allowed = [create_allowed](pack)**
-**path = [context_path](pack)**
-**pf_body = [preflight](pack)**
+**decision = > json.get value=`pack` key="decision"**
+**allowed = > json.get value=`pack` key="create_allowed"**
+**path = > json.get value=`pack` key="context_path"**
+**pf_body = > json.get value=`pack` key="preflight"**
 
 **latch = > agent_eng_preflight task=`task` root=`root` marqdo_dir=`out`**
 **latch_status = > json.get value=`latch` key="status"**
@@ -185,10 +182,10 @@ Calls agent_eng_preflight + agent_eng_record (plugin ABI, zero LLM).
 
 Write Preflight fields into workbook (metrics via eng_record in latch_efi).
 
-**decision = [decision](pack)**
-**allowed = [create_allowed](pack)**
-**path = [context_path](pack)**
-**pf_body = [preflight](pack)**
+**decision = > json.get value=`pack` key="decision"**
+**allowed = > json.get value=`pack` key="create_allowed"**
+**path = > json.get value=`pack` key="context_path"**
+**pf_body = > json.get value=`pack` key="preflight"**
 > run.attach_preflight slug=`slug` decision=`decision` create_allowed=`allowed` context_path=`path`
 **existing = > json.get value=`pf_body` key="existing"**
 **existing_s = > json.stringify value=`existing`**
@@ -266,15 +263,15 @@ Write efi / usage / token_cost / route into workbook Evidence + Metrics.
 ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No host mutation.
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
-**ok = [ok](pack)**
+**ok = > json.get value=`pack` key="ok"**
 1. not `ok`
   *pack*
 
 **gated = > latch_efi task=`task` pack=`pack` root=`root` out=`out`**
-**decision = [decision](gated)**
-**allowed = [create_allowed](gated)**
-**path = [context_path](gated)**
-**pf_body = [preflight](gated)**
+**decision = > json.get value=`gated` key="decision"**
+**allowed = > json.get value=`gated` key="create_allowed"**
+**path = > json.get value=`gated` key="context_path"**
+**pf_body = > json.get value=`gated` key="preflight"**
 
 `merged` =
 
@@ -283,19 +280,22 @@ ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No ho
 | True | `decision` | `allowed` | `path` | `pf_body` |
 
 **wb = > run.create task=`task` intent="ask" surface="ask"**
-**slug = [slug](wb)**
+**slug = > json.get value=`wb` key="slug"**
 > attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
 
 **key = > ensure_llm**
 **result = ""**
 **mode = "dry"**
-**agent_out = None**
+**status = "dry"**
+**err = ""**
+**agent_out = ""**
 1. `key`
   **standing = "你是求道工程知识助手。优先引用 Preflight Context Pack 与 CALL:tool_find/tool_reuse。禁止再造第二套 Agent Runtime / EKC。"**
   **助手 = > make_agent standing=`standing`**
   **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="auto" max_rounds=3 sandbox=False**
   **status = > json.get value=`agent_out` key="status"**
   **result = > format_agent_outcome agent_out=`agent_out`**
+  **err = > json.get value=`agent_out` key="error"**
   1. `status` == "ok"
     **mode = "live"**
   2. *
@@ -310,13 +310,8 @@ ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No ho
 **kpi = > metrics.read out=`out` root=`root`**
 **kpi_s = > json.stringify value=`kpi`**
 > run.put_section slug=`slug` section="Metrics" content=`kpi_s`
-**err = None**
-1. `agent_out`
-  **err = > json.get value=`agent_out` key="error"**
-2. *
-  **_ = 1**
 **sess = > session.link session_id=`session_id` surface="ask" workbook_slug=`slug` run_id=`slug`**
-**sid = [session_id](sess)**
+**sid = > json.get value=`sess` key="session_id"**
 `ret` =
 
 | ok | mode | slug | decision | context_path | status | error | result | session_id |
@@ -367,6 +362,85 @@ BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Ve
 **slug = [slug](wb)**
 > attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
 > run.set_status slug=`slug` status="executing"
+**sess = > session.link session_id=`session_id` surface="build" workbook_slug=`slug` run_id=`slug`**
+**sid = [session_id](sess)**
+*> build_finish slug=`slug` task=`task` decision=`decision` allowed=`allowed` path=`path` gated=`gated` root=`root` out=`out` sandbox=`sandbox` session_id=`sid`*
+
+## build_start
+    + `task`
+    + `root`="."
+    + `out`=".marqdo"
+    + `force_create`=False
+    + `session_id`=""
+
+Async BUILD start — Preflight + workbook + status=executing, returns immediately.
+Caller (Web) must spawn `build_finish` / `cli/求道-构建-继续` as orphan job.
+
+**pack = > pf.run task=`task` root=`root` out=`out`**
+**ok = [ok](pack)**
+1. not `ok`
+  *pack*
+**gated = > latch_efi task=`task` pack=`pack` root=`root` out=`out`**
+**decision = [decision](gated)**
+**allowed = [create_allowed](gated)**
+**path = [context_path](gated)**
+**pf_body = [preflight](gated)**
+1. `decision` == "CREATE"
+  1. not `allowed`
+    1. not `force_create`
+      `blocked` =
+
+      | ok | status | decision | create_allowed | context_path | error | async |
+      |----|--------|----------|----------------|--------------|-------|-------|
+      | False | blocked | CREATE | False | `path` | reuse_gate_blocked | False |
+
+      *blocked*
+`merged` =
+
+| ok | decision | create_allowed | context_path | preflight |
+|----|----------|----------------|--------------|-----------|
+| True | `decision` | `allowed` | `path` | `pf_body` |
+
+**wb = > run.create task=`task` intent="build" surface="build"**
+**slug = [slug](wb)**
+> attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
+> run.set_status slug=`slug` status="executing"
+**sess = > session.link session_id=`session_id` surface="build" workbook_slug=`slug` run_id=`slug`**
+**sid = [session_id](sess)**
+**job = > json.stringify value=`merged`**
+> run.put_section slug=`slug` section="Plan" content=`job`
+`ret` =
+
+| ok | async | slug | decision | create_allowed | context_path | status | session_id |
+|----|-------|------|----------|----------------|--------------|--------|------------|
+| True | True | `slug` | `decision` | `allowed` | `path` | executing | `sid` |
+
+*ret*
+
+## build_finish
+    + `slug`
+    + `task`=""
+    + `decision`=""
+    + `allowed`=True
+    + `path`=""
+    + `gated`=None
+    + `root`="."
+    + `out`=".marqdo"
+    + `sandbox`=True
+    + `session_id`=""
+
+Continue BUILD after `build_start` / sync `build` mid-point (agent → verify → record → completed).
+
+1. not `task`
+  **meta = > run.load_state slug=`slug`**
+  **sec = [sections](meta)**
+  **task = [task](sec)**
+1. not `gated`
+  **pack = > pf.run task=`task` root=`root` out=`out`**
+  **gated = > latch_efi task=`task` pack=`pack` root=`root` out=`out`**
+  **decision = [decision](gated)**
+  **allowed = [create_allowed](gated)**
+  **path = [context_path](gated)**
 
 **key = > ensure_llm**
 **result = ""**
@@ -420,9 +494,9 @@ BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Ve
 **sid = [session_id](sess)**
 `ret` =
 
-| ok | mode | slug | decision | create_allowed | context_path | promote_allowed | status | error | result | session_id |
-|----|------|------|----------|----------------|--------------|-----------------|--------|-------|--------|------------|
-| True | `mode` | `slug` | `decision` | `allowed` | `path` | `promote` | `status` | `err` | `result` | `sid` |
+| ok | mode | slug | decision | create_allowed | context_path | promote_allowed | status | error | result | session_id | async |
+|----|------|------|----------|----------------|--------------|-----------------|--------|-------|--------|------------|-------|
+| True | `mode` | `slug` | `decision` | `allowed` | `path` | `promote` | `status` | `err` | `result` | `sid` | False |
 
 *ret*
 

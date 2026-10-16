@@ -584,6 +584,23 @@ footer.foot,
   margin: 0 0 0.25rem;
   font-size: 1.15rem;
 }
+.qd-eng-wb-sections {
+  margin: 0.75rem 0;
+}
+.qd-eng-wb-sec {
+  margin: 0.85rem 0;
+}
+.qd-eng-wb-sec h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+.qd-eng-wb-raw {
+  margin: 0.75rem 0;
+}
+.qd-eng-wb-raw summary {
+  cursor: pointer;
+  color: var(--nt-muted);
+}
 
 main.main:has(.qd-ekc-page),
 main.main:has(.qd-settings-links),

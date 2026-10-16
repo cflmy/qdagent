@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run marqdo with qdagent defaults (Marqdo ≥ 1.4.4 / ADR 0007 Web Artifact).
-# Also starts OpenAI-compatible /v1 audit gateway (transport-only Python on :7433).
+# C2b: /v1 is served by Marqdo invoke (api.v1_*). Optional legacy Python framing
+# only when QDAGENT_V1_PYTHON=1.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=marqdo-env.sh
@@ -15,30 +16,30 @@ export QDAGENT_PORT="${QDAGENT_PORT:-7431}"
 export QDAGENT_V1_HOST="${QDAGENT_V1_HOST:-127.0.0.1}"
 export QDAGENT_V1_PORT="${QDAGENT_V1_PORT:-7433}"
 export QDAGENT_API_KEY="${QDAGENT_API_KEY:-qdagent-local}"
-# EFI transport only — thick Python agent loop is removed (hard fail if forced).
 export QDAGENT_V1_EFI="${QDAGENT_V1_EFI:-1}"
 cd "$ROOT"
 mkdir -p "$QDAGENT_DATA"
 
 start_v1_gateway() {
-  if [[ "${QDAGENT_V1_GATEWAY:-1}" == "0" ]]; then
+  # Default off — C2b Marqdo Endpoint/invoke owns /v1 on the main listen port.
+  if [[ "${QDAGENT_V1_PYTHON:-0}" != "1" ]]; then
     return 0
   fi
   local health="http://${QDAGENT_V1_HOST}:${QDAGENT_V1_PORT}/health"
   if curl -fsS "$health" >/dev/null 2>&1; then
-    echo "openai /v1 gateway already up :${QDAGENT_V1_PORT}"
+    echo "legacy /v1 Python framing already up :${QDAGENT_V1_PORT}"
     return 0
   fi
   python3 "$ROOT/scripts/legacy/openai_v1_gateway.py" >>"$QDAGENT_DATA/v1-gateway.log" 2>&1 &
   echo $! >"$QDAGENT_DATA/v1-gateway.pid"
   for _ in 1 2 3 4 5 6 7 8; do
     if curl -fsS "$health" >/dev/null 2>&1; then
-      echo "openai /v1 gateway started :${QDAGENT_V1_PORT} (pid $(cat "$QDAGENT_DATA/v1-gateway.pid"))"
+      echo "legacy /v1 Python framing started :${QDAGENT_V1_PORT} (pid $(cat "$QDAGENT_DATA/v1-gateway.pid"))"
       return 0
     fi
     sleep 0.25
   done
-  echo "warning: /v1 gateway did not become healthy on :${QDAGENT_V1_PORT} (see data/v1-gateway.log)" >&2
+  echo "warning: legacy /v1 Python did not become healthy on :${QDAGENT_V1_PORT}" >&2
 }
 
 if [[ "${QDAGENT_LEGACY_PROXY:-}" == "1" ]]; then

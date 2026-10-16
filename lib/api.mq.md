@@ -25,6 +25,9 @@ import eng_met:../knowledge/metrics.mq.md
 import eng_promote:../execution/promote.mq.md
 import eng_run:../execution/run.mq.md
 import eng_sess:../execution/session.mq.md
+import eng_openai:../gateway/openai.mq.md
+import eng_policy:../knowledge/policy.mq.md
+import text:lib/text.mq.md
 ---
 
 ## 成功
@@ -670,9 +673,11 @@ Capability detail — catalog Implemented By + linked constraints/failures.
     + `task`=""
     + `force_create`=False
     + `session_id`=""
+    + `async`=True
     + `payload`=None
 
-Web BUILD — sync call into `agent/qdagent.build` (dry when no API key).
+Web BUILD — **async by default** (N6): Preflight + workbook → status=executing →
+orphan `cli/求道-构建-继续` finishes agent/verify. Pass `async=false` for sync CLI-style.
 
 1. `payload`
   **pt = > json.get value=`payload` key="task"**
@@ -684,9 +689,52 @@ Web BUILD — sync call into `agent/qdagent.build` (dry when no API key).
   **sid = > json.get value=`payload` key="session_id"**
   1. `sid`
     **session_id = `sid`**
+  **asyn = > json.get value=`payload` key="async"**
+  1. `asyn` == False
+    **async = False**
+  2. `asyn` == "false"
+    **async = False**
 1. not `task`
   **task = "给 OpenAI /v1 网关增加工程预检再调上游"**
-**out = > eng_qd.build task=`task` force_create=`force_create` session_id=`session_id`**
+1. not `async`
+  **out = > eng_qd.build task=`task` force_create=`force_create` session_id=`session_id`**
+  *out*
+**started = > eng_qd.build_start task=`task` force_create=`force_create` session_id=`session_id`**
+**sok = > json.get value=`started` key="ok"**
+1. not `sok`
+  *started*
+**slug = > json.get value=`started` key="slug"**
+**sid2 = > json.get value=`started` key="session_id"**
+**root = > sys.env_get name="QDAGENT_ROOT"**
+1. not `root`
+  **root = > sys.cwd**
+> sys.env_set name="QDAGENT_BUILD_SLUG" value=`slug`
+> sys.env_set name="QDAGENT_TASK" value=`task`
+> sys.env_set name="QDAGENT_SESSION_ID" value=`sid2`
+> sys.env_set name="QDAGENT_ROOT" value=`root`
+> sys.env_set name="MARQDO_FS_ROOT" value=`root`
+**log = `root` + "/data/tmp/build-" + `slug` + ".log"**
+> fs.make_dir path=`root` + "/data/tmp"
+**cmd = "cd \"$QDAGENT_ROOT\" && nohup marqdo run cli/求道-构建-继续.mq.md --fs-root \"$QDAGENT_ROOT\" > \"" + `log` + "\" 2>&1 & echo $!"**
+`args` =
+
+| a |
+|---|
+| "-c" |
+| `cmd` |
+
+**proc = > sys.exec cmd="sh" args=args capture=True**
+**pid_raw = > json.get value=`proc` key="stdout"**
+**pid = > text.str_trim s=`pid_raw`**
+**dec = > json.get value=`started` key="decision"**
+**allowed = > json.get value=`started` key="create_allowed"**
+**cpath = > json.get value=`started` key="context_path"**
+`out` =
+
+| ok | async | slug | decision | create_allowed | context_path | status | session_id | job_pid | log |
+|----|-------|------|----------|----------------|--------------|--------|------------|---------|-----|
+| True | True | `slug` | `dec` | `allowed` | `cpath` | executing | `sid2` | `pid` | `log` |
+
 *out*
 
 ## eng_session
@@ -769,4 +817,221 @@ Engineering Today strip — recent workbooks · sessions · KPI · candidates co
   1. `lim`
     **limit = `lim`**
 **out = > eng_sess.list limit=`limit`**
+*out*
+
+## eng_knowledge
+    + `payload`=None
+
+Compile EKC (`marqdo knowledge`) — promote 后刷新图。
+
+> sys.env_set name="QDAGENT_EKC_ROOT" value="."
+> sys.env_set name="QDAGENT_EKC_OUT" value=".marqdo"
+`args` =
+
+| a |
+|---|
+| "-c" |
+| marqdo knowledge "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" |
+
+**proc = > sys.exec cmd="sh" args=args capture=True**
+**code = [code](proc)**
+**stdout = [stdout](proc)**
+**stderr = [stderr](proc)**
+1. `code` != 0
+  `fail` =
+
+  | ok | error | stderr |
+  |----|-------|--------|
+  | False | knowledge_failed | `stderr` |
+
+  *fail*
+`out` =
+
+| ok | message |
+|----|---------|
+| True | `stdout` |
+
+*out*
+
+## eng_policies
+    + `task`=""
+    + `payload`=None
+
+List authored Engineering Policies (L6) + constraints (L4).
+Optional `task` → also return matched policies for Preflight enrichment.
+
+1. `payload`
+  **pt = > json.get value=`payload` key="task"**
+  1. `pt`
+    **task = `pt`**
+**listed = > eng_policy.list**
+1. `task`
+  **matched = > eng_policy.match task=`task`**
+  **hits = [matches](matched)**
+  **out = > table.put in=`listed` at="matches" value=`hits`**
+  **out = > table.put in=`out` at="task" value=`task`**
+  *out*
+*listed*
+
+## _v1_check_bearer
+    + `authorization`=""
+    + `api_key`=""
+    + `payload`=None
+
+1. `payload`
+  **a = > json.get value=`payload` key="authorization"**
+  1. `a`
+    **authorization = `a`**
+  **k = > json.get value=`payload` key="api_key"**
+  1. `k`
+    **api_key = `k`**
+**expect = > sys.env_get name="QDAGENT_API_KEY"**
+1. not `expect`
+  **expect = "qdagent-local"**
+**token = ""**
+1. `api_key`
+  **token = `api_key`**
+1. `authorization`
+  **has_b = > text.starts_with text=`authorization` prefix="Bearer "**
+  1. `has_b`
+    **parts = > text.str_split s=`authorization` sep="Bearer "**
+    **token = > at value=`parts` index=1**
+  2. *
+    **token = `authorization`**
+1. `token` != `expect`
+  `fail` =
+
+  | ok | error |
+  |----|-------|
+  | False | unauthorized |
+
+  *fail*
+`pass` =
+
+| ok | authorized |
+|----|------------|
+| True | True |
+
+*pass*
+
+## v1_models
+    + `authorization`=""
+    + `api_key`=""
+    + `payload`=None
+
+OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
+
+**auth = > _v1_check_bearer authorization=`authorization` api_key=`api_key` payload=`payload`**
+**aok = > json.get value=`auth` key="ok"**
+1. not `aok`
+  *auth*
+**u = > time.now_unix**
+`m1` =
+
+| id | object | owned_by |
+|----|--------|----------|
+| qdagent | model | qdagent |
+
+`m2` =
+
+| id | object | owned_by |
+|----|--------|----------|
+| qdagent-fast | model | qdagent |
+
+**data = > table.empty_list**
+**data = > table.append list=`data` item=`m1`**
+**data = > table.append list=`data` item=`m2`**
+`out` =
+
+| object | data |
+|--------|------|
+| list | `data` |
+
+*out*
+
+## v1_chat_completions
+    + `messages`=""
+    + `model`="qdagent"
+    + `stream`=False
+    + `authorization`=""
+    + `api_key`=""
+    + `payload`=None
+
+OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` (C2b).
+
+**auth = > _v1_check_bearer authorization=`authorization` api_key=`api_key` payload=`payload`**
+**aok = > json.get value=`auth` key="ok"**
+1. not `aok`
+  *auth*
+1. `payload`
+  **pm = > json.get value=`payload` key="messages"**
+  1. `pm`
+    **messages = `pm`**
+  **pmodel = > json.get value=`payload` key="model"**
+  1. `pmodel`
+    **model = `pmodel`**
+  **ps = > json.get value=`payload` key="stream"**
+  1. `ps` == True
+    **stream = True**
+  2. `ps` == "true"
+    **stream = True**
+**task = ""**
+1. `messages`
+  **msg_s = `messages`**
+  **is_text = > text.starts_with text=`msg_s` prefix="["**
+  1. `is_text`
+    **arr = > json.parse text=`msg_s`**
+  2. *
+    **arr = `messages`**
+  1. `arr`
+    - [m](arr)
+      **role = > json.get value=`m` key="role"**
+      **content = > json.get value=`m` key="content"**
+      1. `role` == "user"
+        1. `content`
+          **task = `content`**
+1. not `task`
+  **task = "ping"**
+**chat = > eng_openai.chat message=`task` mode=""**
+**content = [content](chat)**
+**run_id = [run_id](chat)**
+**cok = [ok](chat)**
+1. not `cok`
+  1. not `content`
+    **content = [error](chat)**
+**u = > time.now_unix**
+**cid = "chatcmpl-" + `run_id`**
+1. not `run_id`
+  **cid = "chatcmpl-" + `u`**
+`message` =
+
+| role | content |
+|------|---------|
+| assistant | `content` |
+
+`choice` =
+
+| index | message | finish_reason |
+|-------|---------|---------------|
+| 0 | `message` | stop |
+
+**choices = > table.empty_list**
+**choices = > table.append list=`choices` item=`choice`**
+1. `stream`
+  **delta_s = > json.stringify value=`content`**
+  **chunk = "{\"id\":\"" + `cid` + "\",\"object\":\"chat.completion.chunk\",\"created\":" + `u` + ",\"model\":\"" + `model` + "\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":" + `delta_s` + "},\"finish_reason\":\"stop\"}]}"**
+  **sse = "data: " + `chunk` + "\n\ndata: [DONE]\n\n"**
+  `sse_out` =
+
+  | sse | run_id | ok |
+  |-----|--------|-----|
+  | `sse` | `run_id` | `cok` |
+
+  *sse_out*
+`out` =
+
+| id | object | created | model | choices | qdagent_run_id | ok |
+|----|--------|---------|-------|---------|----------------|-----|
+| `cid` | chat.completion | `u` | `model` | `choices` | `run_id` | `cok` |
+
 *out*

@@ -39,28 +39,47 @@
       .replace(/"/g, "&quot;");
   }
 
-  const ENG_SESS_KEY = "qdagent.eng.session.v1";
   function engSessionId() {
-    try {
-      let id = localStorage.getItem(ENG_SESS_KEY);
-      if (!id) {
-        id =
-          "s-eng-" +
-          Date.now().toString(36) +
-          "-" +
-          Math.random().toString(36).slice(2, 8);
-        localStorage.setItem(ENG_SESS_KEY, id);
-      }
-      return id;
-    } catch (_) {
-      return "";
+    if (window.QdSession && window.QdSession.currentId) {
+      return window.QdSession.currentId();
     }
+    return "";
   }
   function rememberSession(id) {
     if (!id) return;
-    try {
-      localStorage.setItem(ENG_SESS_KEY, id);
-    } catch (_) {}
+    if (window.QdSession && window.QdSession.setCurrentId) {
+      window.QdSession.setCurrentId(id);
+    }
+  }
+
+  async function pollWorkbook(slug, links, tries) {
+    tries = tries || 0;
+    const out = await post("/api/eng/workbook", { slug: slug });
+    const st =
+      (out && out.sections && out.sections.status) ||
+      (out && out.status) ||
+      "";
+    if (links) {
+      links.hidden = false;
+      links.innerHTML =
+        'Workbook：<a href="/eng/run?slug=' +
+        encodeURIComponent(slug) +
+        '">' +
+        esc(slug) +
+        "</a> · status=" +
+        esc(st) +
+        (tries ? " · polling…" : "");
+    }
+    if (st === "completed" || st === "failed" || st === "dry" || tries > 120) {
+      show($("qd-eng-out"), out);
+      loadToday();
+      loadTasks();
+      return out;
+    }
+    await new Promise(function (r) {
+      setTimeout(r, 1500);
+    });
+    return pollWorkbook(slug, links, tries + 1);
   }
 
   const pfBtn = $("qd-eng-preflight");
@@ -88,23 +107,33 @@
       const out = await post("/api/eng/build", {
         task: task,
         session_id: sid,
+        async: true,
       });
       show($("qd-eng-out"), out);
       if (out && out.session_id) rememberSession(out.session_id);
       const slug = out && out.slug;
-      if (links && slug) {
+      if (slug && out.async) {
+        if (links) {
+          links.hidden = false;
+          links.innerHTML =
+            "异步 BUILD 已启动 · Session " +
+            esc(out.session_id || sid) +
+            " · 轮询 status…";
+        }
+        pollWorkbook(slug, links, 0);
+      } else if (links && slug) {
         links.hidden = false;
-        const sess = out.session_id || sid;
         links.innerHTML =
           'Workbook：<a href="/eng/run?slug=' +
           encodeURIComponent(slug) +
           '">' +
           esc(slug) +
           "</a> · Session：" +
-          esc(sess) +
+          esc(out.session_id || sid) +
           ' · <a href="/eng/candidates">知识候选</a>';
+        loadToday();
+        loadTasks();
       }
-      loadToday();
     });
   }
 
@@ -135,6 +164,46 @@
     hubDup.addEventListener("click", async () => {
       show(hubOut, { status: "duplicate…" });
       show(hubOut, await post("/api/eng/duplicate", {}));
+    });
+  }
+  const hubPol = $("qd-eng-hub-policies");
+  if (hubPol) {
+    hubPol.addEventListener("click", async () => {
+      show(hubOut, { status: "policies…" });
+      const task =
+        ($("qd-eng-task") && $("qd-eng-task").value) ||
+        "给 OpenAI /v1 网关增加工程预检再调上游";
+      const out = await post("/api/eng/policies", { task: task });
+      show(hubOut, out);
+      const el = $("qd-eng-policies");
+      if (el) {
+        const pols = (out && out.policies) || [];
+        const hits = (out && out.matches) || [];
+        let html = "<p><strong>L6 Policies</strong></p><ul class=\"qd-eng-today-list\">";
+        pols.forEach(function (p) {
+          html +=
+            "<li>" +
+            esc(p.id || "") +
+            " · " +
+            esc(p.path || "") +
+            "</li>";
+        });
+        html += "</ul>";
+        if (hits.length) {
+          html +=
+            "<p><strong>匹配当前任务</strong></p><ul class=\"qd-eng-today-list\">";
+          hits.forEach(function (h) {
+            html +=
+              "<li>" +
+              esc(h.id || "") +
+              " · score=" +
+              esc(h.score) +
+              "</li>";
+          });
+          html += "</ul>";
+        }
+        el.innerHTML = html;
+      }
     });
   }
 
@@ -194,6 +263,7 @@
     }
     if (meta) meta.textContent = out.path || "";
     renderList($("qd-eng-cap-impl"), out.implemented_by, "（无 Implemented By）");
+    renderList($("qd-eng-cap-usedby"), out.used_by, "（无 Used By）");
     renderList($("qd-eng-cap-dup"), out.possible_duplicates, "（无）");
     renderList($("qd-eng-cap-constraints"), out.constraints, "（无关联 Constraint）");
     renderList($("qd-eng-cap-failures"), out.failures, "（无关联 Failure）");
@@ -324,6 +394,34 @@
       status: sec.status,
     };
     show(body, { ok: out.ok, slug: slug, sections: focus, body: out.body });
+    const secsEl = $("qd-eng-wb-sections");
+    if (secsEl) {
+      const order = [
+        ["task", "Task"],
+        ["decision", "Decision"],
+        ["plan", "Plan"],
+        ["evidence", "Evidence"],
+        ["metrics", "Metrics"],
+        ["verification", "Verification"],
+        ["execution", "Execution"],
+        ["result", "Result"],
+        ["status", "Status"],
+      ];
+      let html = "";
+      order.forEach(function (pair) {
+        const key = pair[0];
+        const title = pair[1];
+        const val = sec[key];
+        if (val == null || val === "") return;
+        html +=
+          "<section class=\"qd-eng-wb-sec\"><h3>" +
+          esc(title) +
+          "</h3><pre class=\"qd-mcp-json\">" +
+          esc(typeof val === "string" ? val : JSON.stringify(val, null, 2)) +
+          "</pre></section>";
+      });
+      secsEl.innerHTML = html || "<p class=\"qd-muted\">无分区内容</p>";
+    }
     const link = $("qd-eng-wb-to-cand");
     if (link) link.href = "/eng/candidates";
   }
@@ -436,5 +534,40 @@
     el.innerHTML = html;
   }
 
+  async function loadTasks() {
+    const el = $("qd-eng-tasks");
+    if (!el) return;
+    const out = await post("/api/eng/workbooks", { limit: 8 });
+    const rows = (out && out.workbooks) || [];
+    if (!rows.length) {
+      el.innerHTML = "<p class=\"qd-muted\">暂无活跃任务</p>";
+      return;
+    }
+    let html = "<ul class=\"qd-eng-today-list\">";
+    rows.forEach(function (row) {
+      html +=
+        "<li><a href=\"/eng/run?slug=" +
+        encodeURIComponent(row.slug || "") +
+        "\">" +
+        esc(row.slug) +
+        "</a> · <strong>" +
+        esc(row.status) +
+        "</strong> · " +
+        esc(String(row.task || "").slice(0, 56)) +
+        "</li>";
+    });
+    html += "</ul>";
+    el.innerHTML = html;
+  }
+
+  const candKnow = $("qd-eng-knowledge");
+  if (candKnow) {
+    candKnow.addEventListener("click", async () => {
+      show($("qd-eng-cand-out"), { status: "compiling EKC…" });
+      show($("qd-eng-cand-out"), await post("/api/eng/knowledge", {}));
+    });
+  }
+
   if ($("qd-eng-today")) loadToday();
+  if ($("qd-eng-tasks")) loadTasks();
 })();

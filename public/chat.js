@@ -1,12 +1,15 @@
 /* 求道对话 — 会话列表 + 流式输出 */
 (function () {
-  var STORE_KEY = "qdagent.sessions.v1";
+  var STORE_KEY =
+    (window.QdSession && window.QdSession.STORE_KEY) || "qdagent.sessions.v1";
 
   function uid() {
+    if (window.QdSession && window.QdSession.uid) return window.QdSession.uid();
     return "s-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
   }
 
   function loadStore() {
+    if (window.QdSession && window.QdSession.loadStore) return window.QdSession.loadStore();
     try {
       var raw = localStorage.getItem(STORE_KEY);
       if (!raw) return { currentId: null, sessions: [] };
@@ -19,6 +22,10 @@
   }
 
   function saveStore(store) {
+    if (window.QdSession && window.QdSession.saveStore) {
+      window.QdSession.saveStore(store);
+      return;
+    }
     localStorage.setItem(STORE_KEY, JSON.stringify(store));
   }
 

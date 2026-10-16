@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| 状态 | **瘦 framing（C2a）** — Python 不做 Agent loop；厚路径 → 410 |
-| 日期 | 2026-09-07（2026-10-16 C2a 对齐 qdagent 2.0） |
+| 状态 | **C2b Accepted** — Marqdo invoke 直吃 `/v1`；Python framing 仅 `QDAGENT_V1_PYTHON=1` 应急 |
+| 日期 | 2026-09-07（2026-10-16 C2b） |
 | 目标 | 让 Cursor / Continue / Open WebUI / 自研客户端把 qdagent 当成「一个模型」 |
 | 姊妹轨 | **MCP**（编辑器自带模型 + 求道沉淀）见 [07-notes-ui-and-mcp.md](07-notes-ui-and-mcp.md) |
-| 实现 | `scripts/legacy/openai_v1_gateway.py`（HTTP only）→ `gateway/v1_chat.mq.md` → `gateway/openai` → `agent/qdagent` |
-| 缺口 | [GAP-13](../gaps/01-marqdo-hard-limits.md) **CLOSED**；C2b（Marqdo Endpoint 直吃 `/v1`）未做 |
-| 权威设计 | [qdagent-2.0.md](qdagent-2.0.md) · [qdagent-dev-plan-2026-10.md](qdagent-dev-plan-2026-10.md) |
+| 实现 | `serve` → `api.v1_models` / `api.v1_chat_completions` → `gateway/openai.chat` → `agent/qdagent` |
+| 缺口 | [GAP-13](../gaps/01-marqdo-hard-limits.md) **CLOSED**；流式为完整生成后的 SSE 帧（与先前 EFI framing 同级） |
+| 权威设计 | [qdagent-2.0.md](qdagent-2.0.md) · [qdagent-dev-plan-2026-10-next.md](qdagent-dev-plan-2026-10-next.md) |
 
 ---
 
@@ -40,16 +40,16 @@ MODEL=qdagent
 | `POST /v1/chat/completions` | 对话；EFI 路径走 Marqdo |
 | `GET` 旁路 `/health` | 网关探活（`:7433`） |
 
-旁路默认 `127.0.0.1:7433`，由 `./scripts/mq.sh` 拉起；Marqdo 将 `/v1/*` 代理到该进程（去前缀 `/v1`）。
+默认 **不再**启动 `:7433` Python。`QDAGENT_V1_PYTHON=1` 时可应急拉起 legacy framing。
 
-### 瘦 framing 行为（现行）
+### C2b 行为（现行）
 
-1. Bearer 鉴权（`QDAGENT_API_KEY`，默认 `qdagent-local`）
-2. 解析 OpenAI JSON → 抽出 user task / mode
-3. `marqdo run gateway/v1_chat.mq.md`（`QDAGENT_V1_EFI=1` 默认）
-4. 领域：`gateway/openai.precheck` + `agent/qdagent`（eng_preflight / efi）
-5. **不做**：Python 侧画像注入、corpus 检索、本地拼 system、厚 Agent loop
-6. `QDAGENT_V1_EFI=0` → **410** `thick_path_removed`
+1. Bearer / `X-Api-Key` 鉴权（`QDAGENT_API_KEY`，默认 `qdagent-local`）— header 注入 invoke payload
+2. 解析 OpenAI JSON → 最后一条 user 为 task
+3. 同进程：`gateway/openai.precheck` + `agent/qdagent`（EFI）
+4. `stream:true` → `text/event-stream`（完整答复后的单帧 + `[DONE]`）
+5. **不做**：Python 画像注入、corpus、厚 Agent loop
+6. Legacy `QDAGENT_V1_EFI=0` 仍 410（仅 Python 进程路径）
 
 回归：`./scripts/check-v1-thin.sh`
 

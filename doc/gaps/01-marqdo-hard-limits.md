@@ -38,7 +38,7 @@
 |---|---|
 | 关闭于 | Marqdo 0.3.7 `agent.mcp_server` + `serve transport=stdio` |
 | 求道用法 | `marqdo run cli/求道-mcp.mq.md`；「MCP 接入」页复制配置 |
-| 备注 | **HTTP MCP（H4b）可选未接**（Wave D-d：不强行做；stdio 已够 Cursor dogfood） |
+| 备注 | **HTTP MCP（H4b）CLOSED**：Marqdo `agent_mcp_serve` transport=`http`（Streamable HTTP 2025-03-26）。启动：`QDAGENT_MCP_TRANSPORT=http QDAGENT_MCP_PORT=7434 marqdo run cli/求道-mcp.mq.md` → `http://127.0.0.1:7434/mcp`。stdio 仍为 Cursor 默认 |
 
 ### GAP-04 · 第二监听端口 — **CLOSED**
 

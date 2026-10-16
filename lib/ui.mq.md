@@ -112,8 +112,8 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 42 |
-| script | "/static/theme.js" | | | 42 |
+| stylesheet | "/static/theme.css" | "text/css" | | 43 |
+| script | "/static/theme.js" | | | 43 |
 
 *`头`*
 
@@ -129,11 +129,12 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 42 |
-| script | "/static/theme.js" | | | 42 |
-| script | "/static/qd-api.js" | | true | 42 |
-| script | "/static/qd-voice.js" | | true | 42 |
-| script | "/static/chat.js" | | true | 42 |
+| stylesheet | "/static/theme.css" | "text/css" | | 43 |
+| script | "/static/theme.js" | | | 43 |
+| script | "/static/session.js" | | | 43 |
+| script | "/static/qd-api.js" | | true | 43 |
+| script | "/static/qd-voice.js" | | true | 43 |
+| script | "/static/chat.js" | | true | 43 |
 
 *`头`*
 
@@ -149,11 +150,11 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 42 |
-| script | "/static/theme.js" | | | 42 |
-| script | "/static/qd-api.js" | | true | 42 |
-| script | "/static/qd-voice.js" | | true | 42 |
-| script | "/static/notes-voice.js" | | true | 42 |
+| stylesheet | "/static/theme.css" | "text/css" | | 43 |
+| script | "/static/theme.js" | | | 43 |
+| script | "/static/qd-api.js" | | true | 43 |
+| script | "/static/qd-voice.js" | | true | 43 |
+| script | "/static/notes-voice.js" | | true | 43 |
 
 *`头`*
 
@@ -169,10 +170,10 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 42 |
-| script | "/static/theme.js" | | | 42 |
-| script | "/static/qd-api.js" | | true | 42 |
-| script | "/static/notes-kb.js" | | true | 42 |
+| stylesheet | "/static/theme.css" | "text/css" | | 43 |
+| script | "/static/theme.js" | | | 43 |
+| script | "/static/qd-api.js" | | true | 43 |
+| script | "/static/notes-kb.js" | | true | 43 |
 
 *`头`*
 
@@ -188,10 +189,10 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 42 |
-| script | "/static/theme.js" | | | 42 |
-| script | "/static/qd-api.js" | | true | 42 |
-| script | "/static/settings.js" | | true | 42 |
+| stylesheet | "/static/theme.css" | "text/css" | | 43 |
+| script | "/static/theme.js" | | | 43 |
+| script | "/static/qd-api.js" | | true | 43 |
+| script | "/static/settings.js" | | true | 43 |
 
 *`头`*
 
@@ -207,10 +208,10 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 42 |
-| script | "/static/theme.js" | | | 42 |
-| script | "/static/qd-api.js" | | true | 42 |
-| script | "/static/mcp.js" | | true | 42 |
+| stylesheet | "/static/theme.css" | "text/css" | | 43 |
+| script | "/static/theme.js" | | | 43 |
+| script | "/static/qd-api.js" | | true | 43 |
+| script | "/static/mcp.js" | | true | 43 |
 
 *`头`*
 
@@ -226,10 +227,10 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 42 |
-| script | "/static/theme.js" | | | 42 |
-| script | "/static/qd-api.js" | | true | 42 |
-| script | "/static/memory.js" | | true | 42 |
+| stylesheet | "/static/theme.css" | "text/css" | | 43 |
+| script | "/static/theme.js" | | | 43 |
+| script | "/static/qd-api.js" | | true | 43 |
+| script | "/static/memory.js" | | true | 43 |
 
 *`头`*
 
@@ -245,16 +246,17 @@ import foot:../components/foot.mq.md
 | preconnect | "https://fonts.googleapis.com" | | | |
 | preconnect | "https://fonts.gstatic.com" | | | |
 | stylesheet | "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;650&family=Outfit:wght@400;500;520;600&family=IBM+Plex+Mono:wght@400;500&display=swap" | "text/css" | | |
-| stylesheet | "/static/theme.css" | "text/css" | | 42 |
-| script | "/static/theme.js" | | | 42 |
-| script | "/static/qd-api.js" | | true | 42 |
-| script | "/static/eng.js" | | true | 42 |
+| stylesheet | "/static/theme.css" | "text/css" | | 43 |
+| script | "/static/theme.js" | | | 43 |
+| script | "/static/session.js" | | | 43 |
+| script | "/static/qd-api.js" | | true | 43 |
+| script | "/static/eng.js" | | true | 43 |
 
 *`头`*
 
 ## 工程预检引言
 
-*"<div class=\"qd-ekc-page\"><header class=\"qd-ekc-hero\"><p class=\"qd-ekc-kicker\">Engineering Knowledge Compiler · EKC</p><h1>求道</h1><p class=\"qd-ekc-lede\">让大型工程本身成为 AI 可查询、可验证、可复用、可演化的可执行知识系统。</p><p class=\"qd-ekc-sub\">差异化不在「用 Markdown 写代码」，而在：写代码之前就知道工程里已经有什么、应该复用什么、为什么不能重新造。</p><blockquote class=\"qd-ekc-quote\">Engineering First Information：AI 在修改/生成代码前，先获得已有能力、约束、依赖、约定、历史决策与可复用实现的最小充分信息。</blockquote></header><section class=\"qd-ekc-section\" aria-label=\"普通 Agent 失败路径\"><h2>普通 Coding Agent 真正失败在哪里</h2><p>问题往往不是「不会写」，而是不知道函数已存在、不知道该复用哪一个、不知道设计原因与隐含约束。</p><ol class=\"qd-flow\"><li class=\"qd-flow-node bad\">工程知识缺失</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node warn\">无法识别已有能力</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node warn\">重复实现</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">代码碎片化</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node bad\">维护成本上升</li></ol></section><section class=\"qd-ekc-section\" aria-label=\"RAG vs EFI\"><h2>RAG 检索 vs 工程第一信息</h2><div class=\"qd-flow-split\"><div class=\"qd-flow-card bad\"><h3>普通 RAG</h3><ol class=\"qd-flow\"><li class=\"qd-flow-node\">query</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">retrieve documents</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">LLM 直接生成</li></ol></div><div class=\"qd-flow-card good\"><h3>Marqdo EFI</h3><ol class=\"qd-flow\"><li class=\"qd-flow-node\">engineering task</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Engineering First Information</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">reuse analysis</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">capability candidates + constraints</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">only then generate</li></ol></div></div></section><section class=\"qd-ekc-section\" aria-label=\"EKC 架构\"><h2>EKC：工程知识编译器</h2><p>把同一仓库同时编译成可执行程序、知识图谱与 Catalog——再交给 Coding Agent，而不是旁路维护一份 RAG 语料。</p><div class=\"qd-arch\" role=\"img\" aria-label=\"Git 仓库经 Marqdo Compiler 成为 Program、Knowledge Graph、Catalog，再进入 Engineering KB 与 Agent\"><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Git Repository</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Source</span><span class=\"qd-flow-node\">Documents</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Marqdo Compiler · EKC</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Executable Program</span><span class=\"qd-flow-node\">Knowledge Graph</span><span class=\"qd-flow-node\">Catalog / Index</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Engineering KB</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Coding Agent</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Search</span><span class=\"qd-flow-node\">Reuse</span><span class=\"qd-flow-node\">Generate</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Verified Change → Knowledge Update → Git</span></div></div></section><section class=\"qd-ekc-section\" aria-label=\"Reuse Gate\"><h2>Reuse Gate：硬规则，不是提示词</h2><p>知识检索必须是代码生成的强制前置。三态不是 FOUND / NOT FOUND，而是：</p><div class=\"qd-gate\"><div class=\"qd-gate-item\"><strong>REUSE</strong><p>已有能力满足需求 → 直接调用。</p></div><div class=\"qd-gate-item\"><strong>ADAPT</strong><p>存在相近能力 → 包装、组合、参数化、扩展；禁止复制粘贴。</p></div><div class=\"qd-gate-item\"><strong>CREATE</strong><p>确认工程中不存在合适能力 → 才允许生成。</p></div></div><p class=\"qd-gate-order\"><span class=\"qd-flow-node core\">REUSE</span><span class=\"qd-flow-arrow\">→</span><span class=\"qd-flow-node\">ADAPT</span><span class=\"qd-flow-arrow\">→</span><span class=\"qd-flow-node\">CREATE</span><span class=\"qd-muted\">（禁止 CREATE 优先）</span></p></section><section class=\"qd-ekc-section\" aria-label=\"工程闭环\"><h2>工程闭环：越大越有价值</h2><ol class=\"qd-flow\"><li class=\"qd-flow-node\">Human asks feature</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">Engineering Intent</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Knowledge Resolve / Preflight</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">REUSE / ADAPT / CREATE</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">Verify</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Knowledge Update · Catalog · Git</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">下一次同类任务直接受益</li></ol></section><section class=\"qd-ekc-section\" aria-label=\"Engineering Today\"><h2>Engineering Today</h2><p class=\"qd-muted\">最近工作簿 · KPI · 知识候选 · 服务端 Session（不占聊天中心）。</p><div id=\"qd-eng-today\" class=\"qd-eng-today\">加载中…</div></section><section class=\"qd-ekc-section\" aria-label=\"工程枢纽\"><h2>工程枢纽</h2><p class=\"qd-muted\">Verification · Conflicts · Stale · Duplicate（只读 Marqdo 图；不重造 EKC）。</p><div class=\"qd-ekc-actions\"><button type=\"button\" id=\"qd-eng-hub-verify\" class=\"primary\">Verify</button> <button type=\"button\" id=\"qd-eng-hub-conflicts\">Conflicts</button> <button type=\"button\" id=\"qd-eng-hub-stale\">Stale</button> <button type=\"button\" id=\"qd-eng-hub-duplicate\">Duplicate</button></div><pre id=\"qd-eng-hub-out\" class=\"qd-mcp-json\"></pre><p class=\"qd-muted\"><a href=\"/eng/run\">工作簿</a> · <a href=\"/eng/capability\">工程能力</a> · <a href=\"/eng/candidates\">知识候选</a></p></section><section class=\"qd-ekc-section\" aria-label=\"工程预检\"><h2>现在就做工程预检</h2><p>输出 Context Pack（Existing Capabilities / Recommended REUSE·ADAPT·CREATE / Forbidden / create_allowed）。</p><div class=\"qd-ekc-actions\"><input id=\"qd-eng-task\" type=\"text\" placeholder=\"描述工程任务，例如：给 OpenAI /v1 增加预检再调上游\" value=\"给 OpenAI /v1 网关增加工程预检再调上游\"/> <button type=\"button\" id=\"qd-eng-preflight\" class=\"primary\">工程预检</button> <button type=\"button\" id=\"qd-eng-build\">执行 BUILD</button></div><p class=\"qd-ekc-note\">落盘 <code>.marqdo/agent/contexts/task-*.mq.md</code> · workbook <code>data/workbooks/wb-*.mq.md</code> · <code>POST /api/eng/preflight</code> · <code>POST /api/eng/build</code></p><pre id=\"qd-eng-out\" class=\"qd-mcp-json\"></pre><p id=\"qd-eng-build-links\" class=\"qd-muted\" hidden></p><p class=\"qd-muted\">继续：<a href=\"/eng/capability\">工程能力</a> · <a href=\"/eng/run\">工作簿</a> · <a href=\"/eng/candidates\">知识候选</a></p></section></div>"*
+*"<div class=\"qd-ekc-page\"><header class=\"qd-ekc-hero\"><p class=\"qd-ekc-kicker\">Engineering Knowledge Compiler · EKC</p><h1>求道</h1><p class=\"qd-ekc-lede\">让大型工程本身成为 AI 可查询、可验证、可复用、可演化的可执行知识系统。</p><p class=\"qd-ekc-sub\">差异化不在「用 Markdown 写代码」，而在：写代码之前就知道工程里已经有什么、应该复用什么、为什么不能重新造。</p><blockquote class=\"qd-ekc-quote\">Engineering First Information：AI 在修改/生成代码前，先获得已有能力、约束、依赖、约定、历史决策与可复用实现的最小充分信息。</blockquote></header><section class=\"qd-ekc-section\" aria-label=\"普通 Agent 失败路径\"><h2>普通 Coding Agent 真正失败在哪里</h2><p>问题往往不是「不会写」，而是不知道函数已存在、不知道该复用哪一个、不知道设计原因与隐含约束。</p><ol class=\"qd-flow\"><li class=\"qd-flow-node bad\">工程知识缺失</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node warn\">无法识别已有能力</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node warn\">重复实现</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">代码碎片化</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node bad\">维护成本上升</li></ol></section><section class=\"qd-ekc-section\" aria-label=\"RAG vs EFI\"><h2>RAG 检索 vs 工程第一信息</h2><div class=\"qd-flow-split\"><div class=\"qd-flow-card bad\"><h3>普通 RAG</h3><ol class=\"qd-flow\"><li class=\"qd-flow-node\">query</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">retrieve documents</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">LLM 直接生成</li></ol></div><div class=\"qd-flow-card good\"><h3>Marqdo EFI</h3><ol class=\"qd-flow\"><li class=\"qd-flow-node\">engineering task</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Engineering First Information</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">reuse analysis</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">capability candidates + constraints</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">only then generate</li></ol></div></div></section><section class=\"qd-ekc-section\" aria-label=\"EKC 架构\"><h2>EKC：工程知识编译器</h2><p>把同一仓库同时编译成可执行程序、知识图谱与 Catalog——再交给 Coding Agent，而不是旁路维护一份 RAG 语料。</p><div class=\"qd-arch\" role=\"img\" aria-label=\"Git 仓库经 Marqdo Compiler 成为 Program、Knowledge Graph、Catalog，再进入 Engineering KB 与 Agent\"><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Git Repository</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Source</span><span class=\"qd-flow-node\">Documents</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Marqdo Compiler · EKC</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Executable Program</span><span class=\"qd-flow-node\">Knowledge Graph</span><span class=\"qd-flow-node\">Catalog / Index</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node core\">Engineering KB</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Coding Agent</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Search</span><span class=\"qd-flow-node\">Reuse</span><span class=\"qd-flow-node\">Generate</span></div><div class=\"qd-arch-join\">↓</div><div class=\"qd-arch-row\"><span class=\"qd-flow-node\">Verified Change → Knowledge Update → Git</span></div></div></section><section class=\"qd-ekc-section\" aria-label=\"Reuse Gate\"><h2>Reuse Gate：硬规则，不是提示词</h2><p>知识检索必须是代码生成的强制前置。三态不是 FOUND / NOT FOUND，而是：</p><div class=\"qd-gate\"><div class=\"qd-gate-item\"><strong>REUSE</strong><p>已有能力满足需求 → 直接调用。</p></div><div class=\"qd-gate-item\"><strong>ADAPT</strong><p>存在相近能力 → 包装、组合、参数化、扩展；禁止复制粘贴。</p></div><div class=\"qd-gate-item\"><strong>CREATE</strong><p>确认工程中不存在合适能力 → 才允许生成。</p></div></div><p class=\"qd-gate-order\"><span class=\"qd-flow-node core\">REUSE</span><span class=\"qd-flow-arrow\">→</span><span class=\"qd-flow-node\">ADAPT</span><span class=\"qd-flow-arrow\">→</span><span class=\"qd-flow-node\">CREATE</span><span class=\"qd-muted\">（禁止 CREATE 优先）</span></p></section><section class=\"qd-ekc-section\" aria-label=\"工程闭环\"><h2>工程闭环：越大越有价值</h2><ol class=\"qd-flow\"><li class=\"qd-flow-node\">Human asks feature</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">Engineering Intent</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Knowledge Resolve / Preflight</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">REUSE / ADAPT / CREATE</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">Verify</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node core\">Knowledge Update · Catalog · Git</li><li class=\"qd-flow-arrow\" aria-hidden=\"true\">↓</li><li class=\"qd-flow-node\">下一次同类任务直接受益</li></ol></section><section class=\"qd-ekc-section\" aria-label=\"Engineering Today\"><h2>Engineering Today</h2><p class=\"qd-muted\">最近工作簿 · KPI · 知识候选 · 服务端 Session（不占聊天中心）。</p><div id=\"qd-eng-today\" class=\"qd-eng-today\">加载中…</div></section><section class=\"qd-ekc-section\" aria-label=\"工程枢纽\"><h2>工程枢纽</h2><p class=\"qd-muted\">最近任务 · Verification · Conflicts · Stale · Duplicate · Policies（只读 Marqdo 图 / L6；不重造 EKC）。</p><div id=\"qd-eng-tasks\" class=\"qd-eng-today\">加载任务…</div><div class=\"qd-ekc-actions\"><button type=\"button\" id=\"qd-eng-hub-verify\" class=\"primary\">Verify</button> <button type=\"button\" id=\"qd-eng-hub-conflicts\">Conflicts</button> <button type=\"button\" id=\"qd-eng-hub-stale\">Stale</button> <button type=\"button\" id=\"qd-eng-hub-duplicate\">Duplicate</button> <button type=\"button\" id=\"qd-eng-hub-policies\">Policies</button></div><pre id=\"qd-eng-hub-out\" class=\"qd-mcp-json\"></pre><div id=\"qd-eng-policies\" class=\"qd-eng-today\"></div><p class=\"qd-muted\"><a href=\"/eng/run\">工作簿</a> · <a href=\"/eng/capability\">工程能力</a> · <a href=\"/eng/candidates\">知识候选</a></p></section><section class=\"qd-ekc-section\" aria-label=\"工程预检\"><h2>现在就做工程预检</h2><p>输出 Context Pack（Existing Capabilities / Recommended REUSE·ADAPT·CREATE / Forbidden / create_allowed）。</p><div class=\"qd-ekc-actions\"><input id=\"qd-eng-task\" type=\"text\" placeholder=\"描述工程任务，例如：给 OpenAI /v1 增加预检再调上游\" value=\"给 OpenAI /v1 网关增加工程预检再调上游\"/> <button type=\"button\" id=\"qd-eng-preflight\" class=\"primary\">工程预检</button> <button type=\"button\" id=\"qd-eng-build\">执行 BUILD</button></div><p class=\"qd-ekc-note\">落盘 <code>.marqdo/agent/contexts/task-*.mq.md</code> · workbook <code>data/workbooks/wb-*.mq.md</code> · <code>POST /api/eng/preflight</code> · <code>POST /api/eng/build</code></p><pre id=\"qd-eng-out\" class=\"qd-mcp-json\"></pre><p id=\"qd-eng-build-links\" class=\"qd-muted\" hidden></p><p class=\"qd-muted\">继续：<a href=\"/eng/capability\">工程能力</a> · <a href=\"/eng/run\">工作簿</a> · <a href=\"/eng/candidates\">知识候选</a></p></section></div>"*
 
 ## 用户
 
@@ -318,7 +320,7 @@ import foot:../components/foot.mq.md
 
 ## openai引言
 
-*"<h1>OpenAI 兼容网关</h1><p>把求道当作一个「模型」挂进 Cursor / Continue / Open WebUI：每次 <code>/v1/chat/completions</code> 都会<strong>自动沉淀</strong>到 <code>data/runs</code>（服务端强制审计），并注入用户画像与笔记检索后再转发上游大模型。</p><p>与 <a href=\"/settings/mcp\">MCP</a> 互补：MCP = 编辑器模型 + 求道记忆；本网关 = 求道当模型 + 自动笔记本。</p><h2>客户端配置</h2><pre class=\"qd-mcp-json\">BASE_URL=http://127.0.0.1:7431/v1\nAPI_KEY=qdagent-local\nMODEL=qdagent</pre><p class=\"qd-muted\">API Key 默认 <code>qdagent-local</code>（环境变量 <code>QDAGENT_API_KEY</code>）。旁路进程默认 <code>:7433</code>，由 <code>./scripts/mq.sh</code> 拉起并通过 Marqdo 代理挂到同端口 <code>/v1</code>。</p><h2>验收</h2><pre class=\"qd-mcp-json\">curl -s http://127.0.0.1:7431/v1/models -H \"Authorization: Bearer qdagent-local\"\n\ncurl -s http://127.0.0.1:7431/v1/chat/completions \\\n  -H \"Authorization: Bearer qdagent-local\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"model\":\"qdagent\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}]}'</pre><p class=\"qd-muted\">成功后查看响应头 <code>X-QDAgent-Run-Id</code> 与 <code>data/runs/api-*.mq.md</code>。</p>"*
+*"<h1>OpenAI 兼容网关</h1><p>把求道当作一个「模型」挂进 Cursor / Continue / Open WebUI：每次 <code>/v1/chat/completions</code> 都会<strong>自动沉淀</strong>到 <code>data/runs</code>（服务端强制审计），并注入用户画像与笔记检索后再转发上游大模型。</p><p>与 <a href=\"/settings/mcp\">MCP</a> 互补：MCP = 编辑器模型 + 求道记忆；本网关 = 求道当模型 + 自动笔记本。</p><h2>客户端配置</h2><pre class=\"qd-mcp-json\">BASE_URL=http://127.0.0.1:7431/v1\nAPI_KEY=qdagent-local\nMODEL=qdagent</pre><p class=\"qd-muted\">API Key 默认 <code>qdagent-local</code>（环境变量 <code>QDAGENT_API_KEY</code>）。<strong>C2b</strong>：<code>/v1</code> 由本机 Marqdo invoke（<code>api.v1_*</code>）直接处理，默认<strong>不再</strong>启动 Python framing。应急可设 <code>QDAGENT_V1_PYTHON=1</code>。</p><h2>验收</h2><pre class=\"qd-mcp-json\">curl -s http://127.0.0.1:7431/v1/models -H \"Authorization: Bearer qdagent-local\"\n\ncurl -s http://127.0.0.1:7431/v1/chat/completions \\\n  -H \"Authorization: Bearer qdagent-local\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"model\":\"qdagent\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}]}'</pre><p class=\"qd-muted\">成功后查看响应头 <code>X-QDAgent-Run-Id</code> 与 <code>data/runs/api-*.mq.md</code>。</p>"*
 
 ## 记忆引言
 

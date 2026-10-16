@@ -7,6 +7,7 @@ import sys:lib/sys.mq.md
 import json:lib/json.mq.md
 import fs:lib/fs.mq.md
 import table:lib/table.mq.md
+import policy:./policy.mq.md
 ---
 
 ## resolve_root
@@ -154,11 +155,16 @@ blocked) — stdout still carries the Context Pack JSON. Prefer parse-over-exit-
 
 **allowed = > json.get value=`pf` key="create_allowed"**
 **status = > json.get value=`pf` key="status"**
+**pol = > policy.match task=`task` root=`root`**
+**pol_hits = [matches](pol)**
+**pol_n = [count](pol)**
+**pf = > table.put in=`pf` at="policies" value=`pol_hits`**
+**pf = > table.put in=`pf` at="policy_count" value=`pol_n`**
 `result` =
 
-| ok | status | decision | create_allowed | context_path | preflight |
-|----|--------|----------|----------------|--------------|-----------|
-| True | `status` | `decision` | `allowed` | `path` | `pf` |
+| ok | status | decision | create_allowed | context_path | preflight | policies | policy_count |
+|----|--------|----------|----------------|--------------|-----------|----------|-------------:|
+| True | `status` | `decision` | `allowed` | `path` | `pf` | `pol_hits` | `pol_n` |
 
 *result*
 
