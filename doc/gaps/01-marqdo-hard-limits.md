@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| 状态 | **对齐 Marqdo CLI≥1.4.2 · Ext≥1.4.3（ADR 0007 + Agent O1–O5 · cold EFI）**；GAP-01…05 仍关闭 |
+| 状态 | **对齐 Marqdo CLI≥1.4.4 · Ext≥1.4.4（soft LLM transport · cold EFI · O1–O5）**；GAP-01…05 仍关闭 |
 | 日期 | 2026-10-16 |
-| 运行时 | Marqdo **CLI≥1.4.2 · Ext≥1.4.3**（Document / Endpoint / Resource · sandbox · EFI · quarantine） |
+| 运行时 | Marqdo **CLI≥1.4.4 · Ext≥1.4.4**（Document / Endpoint / Resource · sandbox · EFI · quarantine · soft transport） |
 | 原则 | **能 Marqdo 则 Marqdo**；新增非 Marqdo 脚本必须引用本文并更新状态 |
 
 ## 1. 产品原则
@@ -94,4 +94,5 @@
 | 2026-09-15 | GAP-13：OpenAI `/v1` 厚网关旁路 + 强制自动沉淀 |
 | 2026-09-28 | 升级 Marqdo **1.3.0**：ADR 0007 Document/Endpoint；`serve.mq.md` + `ext/data`；去掉 `compose_*` / `网页.应用` |
 | 2026-10-16 | 升级 Marqdo **CLI≥1.4.2 · Ext≥1.4.3**：`agent.run` cold EFI · `sandbox=` · `quarantine` · `eng_record`；scripts 双门闩 |
+| 2026-10-16 | 升级 Marqdo **CLI≥1.4.4 · Ext≥1.4.4**：LLM 传输软失败 · `ext/ai` 表优先；门闩与 dogfood 对齐 |
 

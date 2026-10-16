@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run marqdo with qdagent defaults (Marqdo ≥ 1.4.2 / ADR 0007 Web Artifact).
+# Run marqdo with qdagent defaults (Marqdo ≥ 1.4.4 / ADR 0007 Web Artifact).
 # Also starts OpenAI-compatible /v1 audit gateway (transport-only Python on :7433).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

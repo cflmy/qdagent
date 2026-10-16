@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared Marqdo env for qdagent — prefer workspace CLI ≥1.4.2 + Ext pack ≥1.4.3.
+# Shared Marqdo env for qdagent — prefer workspace CLI ≥1.4.4 + Ext pack ≥1.4.4.
 # Sourced by scripts/qdagent and scripts/mq.sh (not executed alone).
 # shellcheck shell=bash
 
@@ -22,8 +22,8 @@ _qdagent_semver_ge() {
 }
 
 qdagent_resolve_marqdo() {
-  local min_cli="${QDAGENT_MARQDO_MIN:-1.4.2}"
-  local min_ext="${QDAGENT_EXT_MIN:-1.4.3}"
+  local min_cli="${QDAGENT_MARQDO_MIN:-1.4.4}"
+  local min_ext="${QDAGENT_EXT_MIN:-1.4.4}"
   if [[ -z "${MARQDO_EXT:-}" ]]; then
     if [[ -d "$HOME/work/marqdo/ext" ]]; then
       export MARQDO_EXT="$HOME/work/marqdo/ext"

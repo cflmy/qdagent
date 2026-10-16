@@ -119,16 +119,29 @@ deny never reaches Agent.
   *agent_out*
 
 **result = > json.get value=`agent_out` key="result"**
+**err = > json.get value=`agent_out` key="error"**
+**run_mode = > json.get value=`agent_out` key="mode"**
+**st = > json.get value=`agent_out` key="status"**
 1. not `result`
-  **result = > json.stringify value=`agent_out`**
+  1. `err`
+    **result = `err`**
+  2. *
+    **result = > json.stringify value=`agent_out`**
 
 **slug = > json.get value=`agent_out` key="slug"**
 **decision = > json.get value=`agent_out` key="decision"**
 **ctx = [context_path](gate)**
+**live_ok = True**
+1. `run_mode` == "error"
+  **live_ok = False**
+2. `st` == "error"
+  **live_ok = False**
+3. *
+  **_ = 1**
 `ret` =
 
-| ok | content | run_id | decision | mode | context_path | raw |
-|----|---------|--------|----------|------|--------------|-----|
-| True | `result` | `slug` | `decision` | `mode` | `ctx` | `agent_out` |
+| ok | content | run_id | decision | mode | status | error | context_path | raw |
+|----|---------|--------|----------|------|--------|-------|--------------|-----|
+| `live_ok` | `result` | `slug` | `decision` | `mode` | `st` | `err` | `ctx` | `agent_out` |
 
 *ret*

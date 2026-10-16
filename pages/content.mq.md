@@ -28,7 +28,7 @@ description: >-
 
 ## openai
 
-**md = "# OpenAI 兼容网关\n\n把求道当作一个「模型」挂进 Cursor / Continue / Open WebUI。Python 只做 HTTP 传输，领域逻辑走 <code>gateway/v1_chat.mq.md</code> → <code>agent/qdagent</code>（工程预检 · Ext≥1.4.3）。\n\n<code>QDAGENT_V1_EFI=0</code> 厚路径已移除（HTTP 410）。\n\n与 [MCP](/settings/mcp) 互补：MCP = 编辑器模型 + 求道知识；本网关 = 求道当模型。\n\n## 客户端配置\n\n<pre class=\"qd-mcp-json\">BASE_URL=http://127.0.0.1:7431/v1\nAPI_KEY=qdagent-local\nMODEL=qdagent</pre>\n\n## 验收\n\n<pre class=\"qd-mcp-json\">curl -s http://127.0.0.1:7431/v1/models -H \"Authorization: Bearer qdagent-local\"</pre>\n"**
+**md = "# OpenAI 兼容网关\n\n把求道当作一个「模型」挂进 Cursor / Continue / Open WebUI。Python 只做 HTTP 传输，领域逻辑走 <code>gateway/v1_chat.mq.md</code> → <code>agent/qdagent</code>（工程预检 · Ext≥1.4.4）。\n\n<code>QDAGENT_V1_EFI=0</code> 厚路径已移除（HTTP 410）。\n\n与 [MCP](/settings/mcp) 互补：MCP = 编辑器模型 + 求道知识；本网关 = 求道当模型。\n\n## 客户端配置\n\n<pre class=\"qd-mcp-json\">BASE_URL=http://127.0.0.1:7431/v1\nAPI_KEY=qdagent-local\nMODEL=qdagent</pre>\n\n## 验收\n\n<pre class=\"qd-mcp-json\">curl -s http://127.0.0.1:7431/v1/models -H \"Authorization: Bearer qdagent-local\"</pre>\n"**
 *md*
 
 ## 记忆

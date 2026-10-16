@@ -1,10 +1,11 @@
 ---
 title: agent/qdagent
 description: >-
-  求道 — Executable Engineering Knowledge Agent (CLI≥1.4.2 · Ext≥1.4.3).
+  求道 — Executable Engineering Knowledge Agent (CLI≥1.4.4 · Ext≥1.4.4).
   Modes: ASK / BUILD / LEARN. Single Agent Runtime: product Preflight +
-  agent_eng_* latch; agent.run efi=True (cold OKF fixed in Ext 1.4.3);
-  CREATE uses sandbox=True. Tools are ## in this file (code-as-documentation).
+  agent_eng_* latch; agent.run efi=True; CREATE uses sandbox=True.
+  LLM transport failures return mode=error (Marqdo 1.4.4 soft status).
+  Tools are ## in this file (code-as-documentation).
 import pf:preflight.mq.md
 import ctx:../knowledge/context.mq.md
 import resolver:../knowledge/resolver.mq.md
@@ -208,6 +209,26 @@ Write Preflight fields into workbook (metrics via eng_record in latch_efi).
 
 *out*
 
+## format_agent_outcome
+    + `agent_out`
+
+Prefer human-readable `error` / `result` from Marqdo 1.4.4 soft failures; else stringify.
+
+**status = > json.get value=`agent_out` key="status"**
+**err = > json.get value=`agent_out` key="error"**
+**result = > json.get value=`agent_out` key="result"**
+1. `status` == "ok"
+  1. `result`
+    *result*
+  2. *
+    *> json.stringify value=`agent_out`*
+2. `err`
+  *err*
+3. `result`
+  *result*
+4. *
+  *> json.stringify value=`agent_out`*
+
 ## attach_agent_evidence
     + `slug`
     + `agent_out`
@@ -218,15 +239,17 @@ Write efi / usage / token_cost / route into workbook Evidence + Metrics.
 **usage = > json.get value=`agent_out` key="usage"**
 **token_cost = > json.get value=`agent_out` key="token_cost"**
 **route = > json.get value=`agent_out` key="route"**
+**err = > json.get value=`agent_out` key="error"**
+**st = > json.get value=`agent_out` key="status"**
 **efi_body = `efi`**
 1. not `efi_body`
   **efi_body = > json.get value=`agent_out` key="efi"**
 
 `ev` =
 
-| efi | usage | token_cost | route |
-|-----|-------|------------|-------|
-| `efi_body` | `usage` | `token_cost` | `route` |
+| efi | usage | token_cost | route | status | error |
+|-----|-------|------------|-------|--------|-------|
+| `efi_body` | `usage` | `token_cost` | `route` | `st` | `err` |
 
 **ev_s = > json.stringify value=`ev`**
 > run.put_section slug=`slug` section="Evidence" content=`ev_s`
@@ -270,28 +293,31 @@ ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No ho
   **助手 = > make_agent standing=`standing`**
   **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="auto" max_rounds=3 sandbox=False**
   **status = > json.get value=`agent_out` key="status"**
+  **result = > format_agent_outcome agent_out=`agent_out`**
   1. `status` == "ok"
-    **result = > json.get value=`agent_out` key="result"**
-    1. not `result`
-      **result = > json.stringify value=`agent_out`**
     **mode = "live"**
   2. *
-    **result = > json.stringify value=`agent_out`**
     **mode = "error"**
   > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated`
 2. *
   **result = "（无 API Key）Preflight decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
+  **status = "dry"**
 
 > run.attach_result slug=`slug` result=`result`
 **kpi = > metrics.read out=`out` root=`root`**
 **kpi_s = > json.stringify value=`kpi`**
 > run.put_section slug=`slug` section="Metrics" content=`kpi_s`
+**err = None**
+1. `agent_out`
+  **err = > json.get value=`agent_out` key="error"**
+2. *
+  **_ = 1**
 `ret` =
 
-| ok | mode | slug | decision | context_path | result |
-|----|------|------|----------|--------------|--------|
-| True | `mode` | `slug` | `decision` | `path` | `result` |
+| ok | mode | slug | decision | context_path | status | error | result |
+|----|------|------|----------|--------------|--------|-------|--------|
+| True | `mode` | `slug` | `decision` | `path` | `status` | `err` | `result` |
 
 *ret*
 
@@ -349,16 +375,12 @@ BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Ve
     **use_sandbox = `sandbox`**
   **agent_out = > `助手`.run task=`task` efi=True learn=True verify=True writeback=True reuse=True router="auto" max_rounds=4 sandbox=`use_sandbox` sandbox_profile="default" promote=True**
   **status = > json.get value=`agent_out` key="status"**
+  **result = > format_agent_outcome agent_out=`agent_out`**
   1. `status` == "ok"
-    **result = > json.get value=`agent_out` key="result"**
-    1. not `result`
-      **result = > json.stringify value=`agent_out`**
     **mode = "live"**
   2. `status` == "blocked"
-    **result = > json.stringify value=`agent_out`**
     **mode = "blocked"**
   3. *
-    **result = > json.stringify value=`agent_out`**
     **mode = "error"**
     1. `decision` == "CREATE"
       **qslug = > agent_goal_slug goal=`task`**
@@ -367,6 +389,7 @@ BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Ve
 2. *
   **result = "（无 API Key）BUILD dry-run decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
+  **status = "dry"**
 
 > run.attach_result slug=`slug` result=`result`
 > run.put_section slug=`slug` section="Execution" content=`result`
@@ -383,11 +406,16 @@ BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Ve
 
 > run.set_status slug=`slug` status="completed"
 
+**err = None**
+1. `agent_out`
+  **err = > json.get value=`agent_out` key="error"**
+2. *
+  **_ = 1**
 `ret` =
 
-| ok | mode | slug | decision | create_allowed | context_path | promote_allowed | result |
-|----|------|------|----------|----------------|--------------|-----------------|--------|
-| True | `mode` | `slug` | `decision` | `allowed` | `path` | `promote` | `result` |
+| ok | mode | slug | decision | create_allowed | context_path | promote_allowed | status | error | result |
+|----|------|------|----------|----------------|--------------|-----------------|--------|-------|--------|
+| True | `mode` | `slug` | `decision` | `allowed` | `path` | `promote` | `status` | `err` | `result` |
 
 *ret*
 

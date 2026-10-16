@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| 状态 | **Accepted** · 2026-10-16 对齐 Marqdo Ext **1.4.3**（`agent.run` cold EFI） |
+| 状态 | **Accepted** · 2026-10-16 对齐 Marqdo **1.4.4**（soft LLM transport · table-first agent） |
 | 日期 | 2026-10-16 |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读，禁止改写） |
-| Marqdo | CLI **≥1.4.2** · Ext pack **≥1.4.3**（EKC · Agent EFI · sandbox · quarantine） |
+| Marqdo | CLI **≥1.4.4** · Ext pack **≥1.4.4**（EKC · Agent EFI · sandbox · quarantine · soft transport） |
 
 ## 1. 定位
 
@@ -101,6 +101,7 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 | **12** | done | Knowledge Candidate → Promote / Reject（`execution/promote` · CLI · MCP） |
 | **13** | done | Candidates UI — `/eng/candidates` + `/api/eng/{candidates,promote,reject}` |
 | **14** | done | Marqdo **CLI≥1.4.2 · Ext≥1.4.3** — `agent.run efi=True` cold OKF · CREATE `sandbox=` · quarantine · thick `/v1` → 410 · `QDAGENT_DRY` |
+| **15** | done | Marqdo **1.4.4** — LLM 传输软失败 → `mode=error` · Ext/CLI 双门闩 ≥1.4.4 · preflight exit-2 JSON |
 
 ## 11. Phase 10 — CLI 入口收纳（本仓增补）
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # qdagent 2.0 product CLI — Engineering Knowledge Agent surfaces.
 # Delegates to Marqdo .mq.md modules (code-as-documentation).
-# Requires Marqdo CLI ≥ 1.4.2 + Ext pack ≥ 1.4.3 (agent.run cold EFI fix).
+# Requires Marqdo CLI ≥ 1.4.4 + Ext pack ≥ 1.4.4 (soft LLM transport + EFI).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=marqdo-env.sh
@@ -76,7 +76,7 @@ case "$cmd" in
     ;;
   ""|-h|--help|help)
     cat <<'EOF'
-qdagent — Executable Engineering Knowledge Agent (CLI ≥1.4.2 · Ext ≥1.4.3)
+qdagent — Executable Engineering Knowledge Agent (CLI ≥1.4.4 · Ext ≥1.4.4)
 
 Usage:
   qdagent preflight [task]
