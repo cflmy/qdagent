@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| 状态 | **Accepted（已完成 Phase 0–13）** |
-| 日期 | 2026-09-28 |
+| 状态 | **Accepted** · 2026-10-16 对齐 Marqdo Ext **1.4.3**（`agent.run` cold EFI） |
+| 日期 | 2026-10-16 |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读，禁止改写） |
-| Marqdo | ≥ 1.3.0（EKC · Agent EFI · Skill Compilation · Adaptive Routing） |
+| Marqdo | CLI **≥1.4.2** · Ext pack **≥1.4.3**（EKC · Agent EFI · sandbox · quarantine） |
 
 ## 1. 定位
 
@@ -100,6 +100,7 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 | **11** | done | Gateway EFI dogfood — `gateway/openai.precheck` 上游前门闩（ADAPT） |
 | **12** | done | Knowledge Candidate → Promote / Reject（`execution/promote` · CLI · MCP） |
 | **13** | done | Candidates UI — `/eng/candidates` + `/api/eng/{candidates,promote,reject}` |
+| **14** | done | Marqdo **CLI≥1.4.2 · Ext≥1.4.3** — `agent.run efi=True` cold OKF · CREATE `sandbox=` · quarantine · thick `/v1` → 410 · `QDAGENT_DRY` |
 
 ## 11. Phase 10 — CLI 入口收纳（本仓增补）
 

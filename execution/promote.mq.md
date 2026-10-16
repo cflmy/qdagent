@@ -224,6 +224,7 @@ Fallback file stem from capability text (keep alnum / hyphen).
     + `force`=False
 
 Promote one candidate into authored L4 under knowledge/. Re-runs L3 verify unless force=True.
+Marqdo 1.4.2: require Evidence (sandbox/L3 proof text) before promote — no silent promote.
 
 **v = > verify.run root=`root` out=`out` l1_ok=True**
 **passed = [passed](v)**
@@ -244,6 +245,42 @@ Promote one candidate into authored L4 under knowledge/. Re-runs L3 verify unles
 
 **meta = [meta](cand)**
 **body = [body](cand)**
+**ev0 = > json.get value=`meta` key="evidence"**
+**ver0 = > json.get value=`meta` key="verification"**
+1. not `force`
+  1. not `ev0`
+    `no_ev` =
+
+    | ok | error | slug |
+    |----|-------|------|
+    | False | evidence_required | `slug` |
+
+    *no_ev*
+  1. not `ver0`
+    `no_ver` =
+
+    | ok | error | slug |
+    |----|-------|------|
+    | False | sandbox_or_l3_proof_required | `slug` |
+
+    *no_ver*
+  **ver_l = > split value=`ver0` sep="pass"**
+  **n_pass = > len value=`ver_l`**
+  **ver_l2 = > split value=`ver0` sep="L3"**
+  **n_l3 = > len value=`ver_l2`**
+  **ver_l3 = > split value=`ver0` sep="sandbox"**
+  **n_sb = > len value=`ver_l3`**
+  1. `n_pass` < 2
+    1. `n_l3` < 2
+      1. `n_sb` < 2
+        `no_proof` =
+
+        | ok | error | slug | verification |
+        |----|-------|------|--------------|
+        | False | sandbox_or_l3_proof_required | `slug` | `ver0` |
+
+        *no_proof*
+
 **st = > json.get value=`meta` key="status"**
 1. `st` == "stable"
   `already` =

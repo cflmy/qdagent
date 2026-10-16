@@ -255,6 +255,25 @@ Map display names to snake_case state keys.
 > put_section slug=`slug` section="Result" content=`result`
 *> set_status slug=`slug` status="completed"*
 
+## attach_agent_metrics
+    + `slug`
+    + `agent_out`
+
+Persist Marqdo 1.4.2 `usage` / `token_cost` / `execution` into Metrics (merge later with KPI read).
+
+**usage = > json.get value=`agent_out` key="usage"**
+**token_cost = > json.get value=`agent_out` key="token_cost"**
+**execution = > json.get value=`agent_out` key="execution"**
+**efi = > json.get value=`agent_out` key="efi"**
+`met` =
+
+| usage | token_cost | execution | efi |
+|-------|------------|-----------|-----|
+| `usage` | `token_cost` | `execution` | `efi` |
+
+**met_s = > json.stringify value=`met`**
+*> put_section slug=`slug` section="Metrics" content=`met_s`*
+
 ## finalize
     + `slug`
     + `result`=""

@@ -1,8 +1,10 @@
 ---
 title: agent/qdagent
 description: >-
-  求道 — Executable Engineering Knowledge Agent.
-  Modes: ASK / BUILD / LEARN. Marqdo Agent is the only runtime (eng_preflight=True).
+  求道 — Executable Engineering Knowledge Agent (CLI≥1.4.2 · Ext≥1.4.3).
+  Modes: ASK / BUILD / LEARN. Single Agent Runtime: product Preflight +
+  agent_eng_* latch; agent.run efi=True (cold OKF fixed in Ext 1.4.3);
+  CREATE uses sandbox=True. Tools are ## in this file (code-as-documentation).
 import pf:preflight.mq.md
 import ctx:../knowledge/context.mq.md
 import resolver:../knowledge/resolver.mq.md
@@ -13,6 +15,7 @@ import verify:../execution/verify.mq.md
 import record:../execution/record.mq.md
 import agent:ext/ai/agent.mq.md
 import llm:ext/ai/llm.mq.md
+import plugin:lib/plugin.mq.md
 import db:../db/index.mq.md
 import sys:lib/sys.mq.md
 import json:lib/json.mq.md
@@ -20,9 +23,68 @@ import table:lib/table.mq.md
 import fs:lib/fs.mq.md
 ---
 
+## tool_find
+    + `query`=""
+
+Engineering find via Marqdo EKC (read-only). Prefer CALL:tool_find when locating symbols/capabilities.
+
+1. not `query`
+  **query = > sys.env_get name="QDAGENT_TOOL_QUERY"**
+1. not `query`
+  *"tool_find requires query"*
+*> resolver.find query=`query`*
+
+## tool_reuse
+    + `task`=""
+
+Engineering reuse / preflight payload (read-only). Prefer CALL:tool_reuse before CREATE.
+
+1. not `task`
+  **task = > sys.env_get name="QDAGENT_TASK"**
+1. not `task`
+  *"tool_reuse requires task"*
+*> resolver.reuse task=`task`*
+
+## tool_verify
+
+Run L3 knowledge checks (verify / duplicate / conflicts / stale). Prefer CALL:tool_verify before promote.
+
+*> verify.knowledge_checks*
+
+## tool_summarize
+    + `preflight`=None
+
+Human-readable summary of a Context Pack map. Prefer CALL:tool_summarize for brief EFI readout.
+
+1. not `preflight`
+  *"tool_summarize requires preflight map"*
+*> ctx.summarize preflight=`preflight`*
+
+## eng_tools
+
+Whitelist table for Marqdo agent CALL: (same-file ## tools).
+
+`t` =
+
+| 工具 |
+|------|
+| tool_find |
+| tool_reuse |
+| tool_verify |
+| tool_summarize |
+
+*t*
+
 ## ensure_llm
 
 Load LLM credentials: process env → `.env` → `data/qdagent.db` settings.
+Set `QDAGENT_DRY=1` to skip credentials (force dry-run / no upstream LLM).
+
+**dry = > sys.env_get name="QDAGENT_DRY"**
+1. `dry` == "1"
+  *""*
+1. `dry` == "true"
+  *""*
 
 > llm.load_env path=".env"
 **key = > sys.env_get name="OPENAI_API_KEY"**
@@ -46,13 +108,80 @@ Load LLM credentials: process env → `.env` → `data/qdagent.db` settings.
       > sys.env_set name="MARQDO_LLM_MODEL" value=`model`
 *key*
 
+## ensure_agent_plugin
+
+Load Marqdo agent ABI plugin once (no LLM required).
+
+**p = > plugin.native_path name="agent"**
+1. `p`
+  > plugin.load path=`p`
+2. *
+  > print text=qdagent: native agent plugin not found (build marqdo_plugin_agent)
+  > sys.exit code=1
+*True*
+
+## make_agent
+    + `standing`
+    + `tools`=None
+
+Construct Marqdo agent (loads agent plugin + LLM handle). Call only when API key present.
+
+1. not `tools`
+  **tools = > eng_tools**
+**model = > llm.llm**
+*> agent.agent model=`model` tools=`tools` standing=`standing`*
+
+## latch_efi
+    + `task`
+    + `pack`
+    + `root`="."
+    + `out`=".marqdo"
+
+Process-internal EFI latch on top of product Context Pack.
+Calls agent_eng_preflight + agent_eng_record (plugin ABI, zero LLM).
+
+> ensure_agent_plugin
+
+**decision = [decision](pack)**
+**allowed = [create_allowed](pack)**
+**path = [context_path](pack)**
+**pf_body = [preflight](pack)**
+
+**latch = > agent_eng_preflight task=`task` root=`root` marqdo_dir=`out`**
+**latch_status = > json.get value=`latch` key="status"**
+**latch_decision = > json.get value=`latch` key="decision"**
+**latch_allowed = > json.get value=`latch` key="create_allowed"**
+
+1. `latch_status` == "ok"
+  1. `latch_decision`
+    **decision = `latch_decision`**
+  1. `latch_allowed` == False
+    **allowed = False**
+2. `latch_status` == "ready"
+  1. `latch_decision`
+    **decision = `latch_decision`**
+  1. `latch_allowed` == False
+    **allowed = False**
+3. *
+  **_ = 1**
+
+> agent_eng_record decision=`decision` root=`root` marqdo_dir=`out`
+
+`ret` =
+
+| ok | decision | create_allowed | context_path | preflight | latch |
+|----|----------|----------------|--------------|-----------|-------|
+| True | `decision` | `allowed` | `path` | `pf_body` | `latch` |
+
+*ret*
+
 ## attach_pack
     + `slug`
     + `pack`
     + `root`="."
     + `out`=".marqdo"
 
-Write Preflight fields into workbook and record REUSE/ADAPT/CREATE metrics.
+Write Preflight fields into workbook (metrics via eng_record in latch_efi).
 
 **decision = [decision](pack)**
 **allowed = [create_allowed](pack)**
@@ -79,51 +208,83 @@ Write Preflight fields into workbook and record REUSE/ADAPT/CREATE metrics.
 
 *out*
 
+## attach_agent_evidence
+    + `slug`
+    + `agent_out`
+    + `efi`=None
+
+Write efi / usage / token_cost / route into workbook Evidence + Metrics.
+
+**usage = > json.get value=`agent_out` key="usage"**
+**token_cost = > json.get value=`agent_out` key="token_cost"**
+**route = > json.get value=`agent_out` key="route"**
+**efi_body = `efi`**
+1. not `efi_body`
+  **efi_body = > json.get value=`agent_out` key="efi"**
+
+`ev` =
+
+| efi | usage | token_cost | route |
+|-----|-------|------------|-------|
+| `efi_body` | `usage` | `token_cost` | `route` |
+
+**ev_s = > json.stringify value=`ev`**
+> run.put_section slug=`slug` section="Evidence" content=`ev_s`
+> run.attach_agent_metrics slug=`slug` agent_out=`agent_out`
+*ev_s*
+
 ## ask
     + `task`
     + `root`="."
     + `out`=".marqdo"
 
-ASK — knowledge query. Preflight first; answer with engineering context. No code mutation required.
+ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No host mutation.
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
 **ok = [ok](pack)**
 1. not `ok`
   *pack*
 
+**gated = > latch_efi task=`task` pack=`pack` root=`root` out=`out`**
+**decision = [decision](gated)**
+**allowed = [create_allowed](gated)**
+**path = [context_path](gated)**
+**pf_body = [preflight](gated)**
+
+`merged` =
+
+| ok | decision | create_allowed | context_path | preflight |
+|----|----------|----------------|--------------|-----------|
+| True | `decision` | `allowed` | `path` | `pf_body` |
+
 **wb = > run.create task=`task` intent="ask" surface="ask"**
 **slug = [slug](wb)**
-> attach_pack slug=`slug` pack=`pack` root=`root` out=`out`
-**decision = [decision](pack)**
-**path = [context_path](pack)**
+> attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
 
 **key = > ensure_llm**
 **result = ""**
 **mode = "dry"**
+**agent_out = None**
 1. `key`
-  **ctx_exists = > fs.exists path=`path`**
-  **ctx_text = ""**
-  1. `ctx_exists`
-    **ctx_text = > fs.read_text path=`path`**
-  **model = > llm.llm**
-  **standing = "你是求道工程知识助手。优先引用 Preflight Context Pack。禁止再造第二套 Agent Runtime / EKC。"**
-  **prompt = "# Engineering Context\n\n" + `ctx_text` + "\n\n# Task\n\n" + `task`**
-  **tools = > json.parse text=[]**
-  **助手 = > agent.agent model=`model` tools=`tools` standing=`standing`**
-  **agent_out = > `助手`.step task=`prompt` writeback=True**
+  **standing = "你是求道工程知识助手。优先引用 Preflight Context Pack 与 CALL:tool_find/tool_reuse。禁止再造第二套 Agent Runtime / EKC。"**
+  **助手 = > make_agent standing=`standing`**
+  **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="auto" max_rounds=3 sandbox=False**
   **status = > json.get value=`agent_out` key="status"**
   1. `status` == "ok"
     **result = > json.get value=`agent_out` key="result"**
+    1. not `result`
+      **result = > json.stringify value=`agent_out`**
     **mode = "live"**
   2. *
-    **result = > json.get value=`agent_out` key="error"**
+    **result = > json.stringify value=`agent_out`**
     **mode = "error"**
+  > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated`
 2. *
   **result = "（无 API Key）Preflight decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
 
 > run.attach_result slug=`slug` result=`result`
-**kpi = > metrics.read out=`out`**
+**kpi = > metrics.read out=`out` root=`root`**
 **kpi_s = > json.stringify value=`kpi`**
 > run.put_section slug=`slug` section="Metrics" content=`kpi_s`
 `ret` =
@@ -139,17 +300,20 @@ ASK — knowledge query. Preflight first; answer with engineering context. No co
     + `root`="."
     + `out`=".marqdo"
     + `force_create`=False
+    + `sandbox`=True
 
-BUILD — Preflight → Reuse Gate → Marqdo Agent (eng_preflight=True) → Workbook.
+BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Verify → Record.
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
 **ok = [ok](pack)**
 1. not `ok`
   *pack*
 
-**decision = [decision](pack)**
-**allowed = [create_allowed](pack)**
-**path = [context_path](pack)**
+**gated = > latch_efi task=`task` pack=`pack` root=`root` out=`out`**
+**decision = [decision](gated)**
+**allowed = [create_allowed](gated)**
+**path = [context_path](gated)**
+**pf_body = [preflight](gated)**
 
 1. `decision` == "CREATE"
   1. not `allowed`
@@ -162,49 +326,44 @@ BUILD — Preflight → Reuse Gate → Marqdo Agent (eng_preflight=True) → Wor
 
       *blocked*
 
+`merged` =
+
+| ok | decision | create_allowed | context_path | preflight |
+|----|----------|----------------|--------------|-----------|
+| True | `decision` | `allowed` | `path` | `pf_body` |
+
 **wb = > run.create task=`task` intent="build" surface="build"**
 **slug = [slug](wb)**
-> attach_pack slug=`slug` pack=`pack` root=`root` out=`out`
+> attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
 > run.set_status slug=`slug` status="executing"
 
 **key = > ensure_llm**
 **result = ""**
 **mode = "dry"**
+**agent_out = None**
 1. `key`
-  **ctx_exists = > fs.exists path=`path`**
-  **ctx_text = ""**
-  1. `ctx_exists`
-    **ctx_text = > fs.read_text path=`path`**
-  **model = > llm.llm**
-  **standing = "你是求道工程智能体。必须遵守 Context Pack 与 REUSE/ADAPT/CREATE。禁止再造第二套 Agent Runtime 或 EKC。输出简洁的工程结论与下一步改动建议。"**
-  **prompt = "# Engineering Context Pack\n\n" + `ctx_text` + "\n\n# Task\n\n" + `task` + "\n\n# Decision\n\n" + `decision`**
-  **allowed_s = > json.stringify value=`allowed`**
-  **prompt = `prompt` + "\ncreate_allowed=" + `allowed_s`**
-  **tools = > json.parse text=[]**
+  **standing = "你是求道工程智能体。必须遵守 Context Pack 与 REUSE/ADAPT/CREATE。优先 CALL:tool_reuse / tool_find / tool_verify。禁止再造第二套 Agent Runtime 或 EKC。CREATE 前确认 create_allowed。"**
+  **助手 = > make_agent standing=`standing`**
+  **use_sandbox = False**
   1. `decision` == "CREATE"
-    **助手 = > agent.agent model=`model` tools=`tools` standing=`standing`**
-    **agent_out = > `助手`.plan goal=`task` eng_preflight=True marqdo_dir=`out` writeback=True max_rounds=4**
-    **status = > json.get value=`agent_out` key="status"**
-    1. `status` == "ok"
+    **use_sandbox = `sandbox`**
+  **agent_out = > `助手`.run task=`task` efi=True learn=True verify=True writeback=True reuse=True router="auto" max_rounds=4 sandbox=`use_sandbox` sandbox_profile="default" promote=True**
+  **status = > json.get value=`agent_out` key="status"**
+  1. `status` == "ok"
+    **result = > json.get value=`agent_out` key="result"**
+    1. not `result`
       **result = > json.stringify value=`agent_out`**
-      **mode = "live"**
-    2. `status` == "blocked"
-      **result = > json.stringify value=`agent_out`**
-      **mode = "blocked"**
-    3. *
-      **result = > json.stringify value=`agent_out`**
-      **mode = "error"**
-  2. *
-    **助手 = > agent.agent model=`model` tools=`tools` standing=`standing`**
-    **agent_out = > `助手`.step task=`prompt` writeback=True**
-    **status = > json.get value=`agent_out` key="status"**
-    1. `status` == "ok"
-      **result = > json.get value=`agent_out` key="result"**
-      **mode = "live"**
-    2. *
-      **err = > json.get value=`agent_out` key="error"**
-      **result = `err`**
-      **mode = "error"**
+    **mode = "live"**
+  2. `status` == "blocked"
+    **result = > json.stringify value=`agent_out`**
+    **mode = "blocked"**
+  3. *
+    **result = > json.stringify value=`agent_out`**
+    **mode = "error"**
+    1. `decision` == "CREATE"
+      **qslug = > agent_goal_slug goal=`task`**
+      > agent_kb_quarantine kb_dir=".marqdo/agent-kb" slug=`qslug` reason="build_create_failed"
+  > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated`
 2. *
   **result = "（无 API Key）BUILD dry-run decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
@@ -214,7 +373,7 @@ BUILD — Preflight → Reuse Gate → Marqdo Agent (eng_preflight=True) → Wor
 
 **v = > verify.run slug=`slug` root=`root` out=`out` l1_ok=True**
 **promote = [promote_allowed](v)**
-**kpi = > metrics.read out=`out`**
+**kpi = > metrics.read out=`out` root=`root`**
 **kpi_s = > json.stringify value=`kpi`**
 > run.put_section slug=`slug` section="Metrics" content=`kpi_s`
 1. `promote`
@@ -239,8 +398,9 @@ BUILD — Preflight → Reuse Gate → Marqdo Agent (eng_preflight=True) → Wor
     + `failure`=""
     + `decision`=""
     + `constraint`=""
+    + `quarantine`=False
 
-LEARN — feed Marqdo knowledge learn (official compiler). No second skill framework.
+LEARN — feed Marqdo knowledge learn (official compiler). Optional quarantine on failed skill.
 
 1. not `task`
   **task = "qdagent engineering knowledge refresh"**
@@ -255,6 +415,12 @@ LEARN — feed Marqdo knowledge learn (official compiler). No second skill frame
 **ok = [ok](gate)**
 1. not `ok`
   *gate*
+
+1. `quarantine`
+  1. `failure`
+    > ensure_agent_plugin
+    **qslug = > agent_goal_slug goal=`task`**
+    > agent_kb_quarantine kb_dir=".marqdo/agent-kb" slug=`qslug` reason=`failure`
 
 > sys.env_set name="QDAGENT_EKC_ROOT" value=`root`
 > sys.env_set name="QDAGENT_EKC_OUT" value=`out`

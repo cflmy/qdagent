@@ -3,8 +3,9 @@ title: gateway/openai
 description: >-
   Thin OpenAI-compatible request adapter — HTTP concerns stay outside;
   domain work delegates to agent/qdagent (no Python Agent loop).
-  Upstream path always runs `precheck` first (EFI gate).
+  Upstream path always runs `precheck` first (EFI gate + optional product Preflight).
 import qd:../agent/qdagent.mq.md
+import pf:../agent/preflight.mq.md
 import json:lib/json.mq.md
 import table:lib/table.mq.md
 ---
@@ -21,13 +22,18 @@ Heuristic task mode from user text.
 
 ## precheck
     + `message`
+    + `root`="."
+    + `out`=".marqdo"
+    + `with_preflight`=False
 
-Pure request gate before Agent / upstream. No state, no Agent loop.
-Returns `{decision, reason, code}` — `deny` must short-circuit callers.
+Request gate before Agent / upstream. Denylist for second-runtime bypass;
+optional product Preflight so EFI chat always has a Context Pack handle.
 
 **decision = "proceed"**
 **reason = "ok"**
 **code = "ok"**
+**context_path = ""**
+**pf_decision = ""**
 
 1. not `message`
   **decision = "deny"**
@@ -58,11 +64,27 @@ Returns `{decision, reason, code}` — `deny` must short-circuit callers.
     **reason = "forbidden: bypass eng_preflight"**
     **code = "forbidden_bypass_efi"**
 
+1. `decision` == "proceed"
+  1. `with_preflight`
+    **pack = > pf.run task=`message` root=`root` out=`out`**
+    **pok = [ok](pack)**
+    1. not `pok`
+      **decision = "deny"**
+      **reason = "preflight_failed"**
+      **code = "preflight_failed"**
+    2. *
+      **context_path = [context_path](pack)**
+      **pf_decision = [decision](pack)**
+      1. not `context_path`
+        **decision = "deny"**
+        **reason = "missing_context_pack"**
+        **code = "missing_context_pack"**
+
 `ret` =
 
-| decision | reason | code |
-|----------|--------|------|
-| `decision` | `reason` | `code` |
+| decision | reason | code | context_path | pf_decision |
+|----------|--------|------|--------------|-------------|
+| `decision` | `reason` | `code` | `context_path` | `pf_decision` |
 
 *ret*
 
@@ -72,9 +94,10 @@ Returns `{decision, reason, code}` — `deny` must short-circuit callers.
     + `root`="."
     + `out`=".marqdo"
 
-Map one user message to qdagent.run. Precheck first; deny never reaches Agent.
+Map one user message to qdagent.run. Precheck first (with product Preflight);
+deny never reaches Agent.
 
-**gate = > precheck message=`message`**
+**gate = > precheck message=`message` root=`root` out=`out` with_preflight=True**
 **gd = [decision](gate)**
 1. `gd` == "deny"
   **reason = [reason](gate)**
@@ -101,10 +124,11 @@ Map one user message to qdagent.run. Precheck first; deny never reaches Agent.
 
 **slug = > json.get value=`agent_out` key="slug"**
 **decision = > json.get value=`agent_out` key="decision"**
+**ctx = [context_path](gate)**
 `ret` =
 
-| ok | content | run_id | decision | mode | raw |
-|----|---------|--------|----------|------|-----|
-| True | `result` | `slug` | `decision` | `mode` | `agent_out` |
+| ok | content | run_id | decision | mode | context_path | raw |
+|----|---------|--------|----------|------|--------------|-----|
+| True | `result` | `slug` | `decision` | `mode` | `ctx` | `agent_out` |
 
 *ret*

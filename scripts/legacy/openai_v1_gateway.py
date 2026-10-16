@@ -6,9 +6,9 @@ Marqdo app.proxy mounts /v1 → this process (strip /v1 → /models, /chat/compl
 
 Auth: Authorization Bearer == QDAGENT_API_KEY (default qdagent-local).
 
-Default path (QDAGENT_V1_EFI=1): HTTP framing only — domain work via
-`marqdo run gateway/v1_chat.mq.md` → agent/qdagent (eng_preflight).
-Legacy thick path (QDAGENT_V1_EFI=0): profile+corpus inject (deprecated).
+Transport-only path: HTTP framing → `marqdo run gateway/v1_chat.mq.md`
+→ agent/qdagent (eng_preflight / efi). Thick Python Agent loop was removed (1.4.2).
+Setting QDAGENT_V1_EFI=0 returns HTTP 410 — no profile/corpus/LLM inject in Python.
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ REPO = Path(__file__).resolve().parent.parent
 TIMEOUT = float(os.environ.get("QDAGENT_V1_TIMEOUT", "180"))
 MAX_HISTORY = int(os.environ.get("QDAGENT_V1_MAX_HISTORY", "24"))
 CORPUS_LIMIT = int(os.environ.get("QDAGENT_V1_CORPUS_LIMIT", "5"))
-# Default ON: Marqdo EFI path. Set QDAGENT_V1_EFI=0 for legacy thick inject.
+# EFI transport only. Thick path is hard-removed (Marqdo ≥1.4.2 / qdagent 2.0).
 EFI_MODE = os.environ.get("QDAGENT_V1_EFI", "1").strip() not in ("0", "false", "False", "no")
 
 _org_lock = threading.Lock()
@@ -602,60 +602,30 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, data, {"X-QDAgent-Run-Id": run_id})
             return
 
-        # --- LEGACY thick path (QDAGENT_V1_EFI=0) ---
-        profile = read_profile()
-        hits = corpus_hits(user_text)
-        system = build_system(profile, hits)
-
-        hist = messages[-MAX_HISTORY:]
-        # drop existing system or keep — prepend ours
-        upstream_messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
-        for m in hist:
-            if not isinstance(m, dict):
-                continue
-            role = m.get("role") or "user"
-            if role == "system":
-                continue
-            upstream_messages.append(
-                {"role": role, "content": message_text(m)}
-            )
-
-        up_payload: dict[str, Any] = {
-            "model": upstream_model,
-            "messages": upstream_messages,
-            "stream": stream,
-        }
-        for k in (
-            "temperature",
-            "top_p",
-            "max_tokens",
-            "max_completion_tokens",
-            "stop",
-            "tools",
-            "tool_choice",
-            "response_format",
-            "presence_penalty",
-            "frequency_penalty",
-            "user",
-        ):
-            if k in req_body:
-                up_payload[k] = req_body[k]
-
-        try:
-            ureq, url = upstream_chat(settings, up_payload, stream=stream)
-        except Exception as e:
-            finalize_run(slug, user_text, "", status="error", model=upstream_model, error=str(e))
-            self._json(
-                502,
-                {"error": {"message": str(e), "type": "upstream_config"}},
-                {"X-QDAgent-Run-Id": slug},
-            )
-            return
-
-        if stream:
-            self._stream_completion(ureq, slug, user_text, upstream_model, url)
-        else:
-            self._json_completion(ureq, slug, user_text, upstream_model, url)
+        # Thick Python Agent loop removed — Marqdo is the only Agent Runtime.
+        finalize_run(
+            slug,
+            user_text,
+            "",
+            status="error",
+            model=upstream_model,
+            error="thick_path_removed",
+        )
+        self._json(
+            410,
+            {
+                "error": {
+                    "message": (
+                        "QDAGENT_V1_EFI=0 thick path removed. "
+                        "Use EFI transport (default) → marqdo gateway/v1_chat.mq.md."
+                    ),
+                    "type": "thick_path_removed",
+                    "code": "gone",
+                }
+            },
+            {"X-QDAgent-Run-Id": slug},
+        )
+        return
 
     def _json_completion(
         self,

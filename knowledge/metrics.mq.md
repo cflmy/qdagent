@@ -37,10 +37,16 @@ import ctx:context.mq.md
 **reused = > json.get value=`m` key="reused"**
 **adapted = > json.get value=`m` key="adapted"**
 **created = > json.get value=`m` key="created"**
+**token_cost = > json.get value=`m` key="token_cost"**
+**llm_calls = > json.get value=`m` key="llm_calls"**
+1. not `token_cost`
+  **token_cost = 0**
+1. not `llm_calls`
+  **llm_calls = 0**
 `ret` =
 
-| ok | reuse_ratio | adapt_ratio | novel_ratio | duplication_rate | reused | adapted | created | raw |
-|----|-------------|-------------|-------------|------------------|--------|---------|---------|-----|
-| True | `reuse` | `adapt` | `novel` | `dup` | `reused` | `adapted` | `created` | `m` |
+| ok | reuse_ratio | adapt_ratio | novel_ratio | duplication_rate | reused | adapted | created | token_cost | llm_calls | raw |
+|----|-------------|-------------|-------------|------------------|--------|---------|---------|------------|-----------|-----|
+| True | `reuse` | `adapt` | `novel` | `dup` | `reused` | `adapted` | `created` | `token_cost` | `llm_calls` | `m` |
 
 *ret*

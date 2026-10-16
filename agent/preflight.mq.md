@@ -1,8 +1,9 @@
 ---
 title: agent/preflight
 description: >-
-  qdagent Engineering Preflight façade — wraps knowledge/context (CLI Context Pack).
-  Zero LLM. Does not reimplement EKC; consumes marqdo knowledge preflight.
+  qdagent Engineering Preflight façade — product Context Pack via
+  `marqdo knowledge preflight` (zero LLM). Process-internal latch
+  (`agent.preflight` / `eng_reuse` / `eng_record`) lives in agent/qdagent.latch_efi.
 import ctx:../knowledge/context.mq.md
 ---
 

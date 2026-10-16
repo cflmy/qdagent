@@ -121,8 +121,14 @@ Run Marqdo engineering preflight. Writes Context Pack under `.marqdo/agent/conte
 **proc = > sys.exec cmd="sh" args=args capture=True**
 **code = [code](proc)**
 **stdout = [stdout](proc)**
-1. `code` != 0
+
+Marqdo CLI exits **2** when `decision=CREATE` and `create_allowed=false` (Reuse Gate
+blocked) — stdout still carries the Context Pack JSON. Prefer parse-over-exit-code.
+
+1. not `stdout`
   **err = [stderr](proc)**
+  1. not `err`
+    **err = "preflight produced no JSON (exit " + `code` + ")"**
   `fail` =
 
   | ok | status | error |
@@ -134,6 +140,18 @@ Run Marqdo engineering preflight. Writes Context Pack under `.marqdo/agent/conte
 **pf = > json.parse text=`stdout`**
 **path = > json.get value=`pf` key="context_path"**
 **decision = > json.get value=`pf` key="decision"**
+1. not `decision`
+  **err = [stderr](proc)**
+  1. not `err`
+    **err = `stdout`**
+  `fail2` =
+
+  | ok | status | error |
+  |----|--------|-------|
+  | False | preflight_failed | `err` |
+
+  *fail2*
+
 **allowed = > json.get value=`pf` key="create_allowed"**
 **status = > json.get value=`pf` key="status"**
 `result` =

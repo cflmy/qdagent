@@ -54,7 +54,7 @@ import eng_promote:../execution/promote.mq.md
 
 | role | marqdo | data_root | git |
 |------|--------|-----------|-----|
-| marqdo-host | 1.3.0 | `root` | `git` |
+| marqdo-host | 1.4.3-ext | `root` | `git` |
 
 *> 成功 字段=`字段`*
 

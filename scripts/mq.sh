@@ -1,26 +1,12 @@
 #!/usr/bin/env bash
-# Run marqdo with qdagent defaults (Marqdo 1.3.0+ / ADR 0007 Web Artifact).
-# Also starts OpenAI-compatible /v1 audit gateway (legacy Python on :7433).
+# Run marqdo with qdagent defaults (Marqdo ≥ 1.4.2 / ADR 0007 Web Artifact).
+# Also starts OpenAI-compatible /v1 audit gateway (transport-only Python on :7433).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# Prefer workspace marqdo source ext when developing alongside the monorepo.
-if [[ -z "${MARQDO_EXT:-}" ]]; then
-  if [[ -d "$HOME/work/marqdo/ext" ]]; then
-    export MARQDO_EXT="$HOME/work/marqdo/ext"
-  else
-    export MARQDO_EXT="$HOME/.marqdo/ext"
-  fi
-fi
-if [[ -z "${MARQDO_LIB:-}" ]]; then
-  if [[ -d "$HOME/work/marqdo/lib" ]]; then
-    export MARQDO_LIB="$HOME/work/marqdo/lib"
-  else
-    export MARQDO_LIB="$HOME/.marqdo/lib"
-  fi
-fi
-if [[ -z "${MARQDO_WEB_PLUGIN:-}" && -f "${MARQDO_EXT}/native/libweb.so" ]]; then
-  export MARQDO_WEB_PLUGIN="${MARQDO_EXT}/native/libweb.so"
-fi
+# shellcheck source=marqdo-env.sh
+source "$ROOT/scripts/marqdo-env.sh"
+qdagent_resolve_marqdo
+
 export QDAGENT_DATA="${QDAGENT_DATA:-$ROOT/data}"
 export QDAGENT_ROOT="${QDAGENT_ROOT:-$ROOT}"
 export MARQDO_FS_ROOT="${MARQDO_FS_ROOT:-$ROOT}"
@@ -29,6 +15,8 @@ export QDAGENT_PORT="${QDAGENT_PORT:-7431}"
 export QDAGENT_V1_HOST="${QDAGENT_V1_HOST:-127.0.0.1}"
 export QDAGENT_V1_PORT="${QDAGENT_V1_PORT:-7433}"
 export QDAGENT_API_KEY="${QDAGENT_API_KEY:-qdagent-local}"
+# EFI transport only — thick Python agent loop is removed (hard fail if forced).
+export QDAGENT_V1_EFI="${QDAGENT_V1_EFI:-1}"
 cd "$ROOT"
 mkdir -p "$QDAGENT_DATA"
 

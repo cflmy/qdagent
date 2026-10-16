@@ -1,7 +1,7 @@
 ---
 title: serve
 description: >-
-  qdagent Gateway (Marqdo ≥ 1.3.0 / ADR 0007).
+  qdagent Gateway (Marqdo CLI≥1.4.2 · Ext≥1.4.3 / ADR 0007).
   Documents: pages/build + pages/content (Markdown bodies).
   API: GFM 调用表 → lib/api；声明式 Endpoint 文档见 api/*.mq.md。
   Resource: ext/data · lib/site（auth / form / proxy）。
