@@ -66,10 +66,10 @@ export function SettingsPage() {
     width: '100%',
     padding: '8px 12px',
     borderRadius: '8px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-muted)',
+    border: '1px solid var(--dsw-alias-border-l2)',
+    backgroundColor: 'var(--dsw-specific-input-major)',
     fontSize: '14px',
-    color: 'var(--color-foreground)',
+    color: 'var(--dsw-alias-label-primary)',
     outline: 'none',
     fontFamily: 'inherit',
     transition: 'border-color 150ms, background-color 150ms',
@@ -83,7 +83,7 @@ export function SettingsPage() {
         display: 'flex',
         alignItems: 'center',
         padding: '0 24px',
-        borderBottom: '1px solid var(--color-border)',
+        borderBottom: '1px solid var(--dsw-alias-border-l2)',
         flexShrink: 0,
       }}>
         <h1 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>设置</h1>
@@ -94,7 +94,7 @@ export function SettingsPage() {
         <div style={{
           width: '192px',
           flexShrink: 0,
-          borderRight: '1px solid var(--color-border)',
+          borderRight: '1px solid var(--dsw-alias-border-l2)',
           padding: '12px',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -111,8 +111,8 @@ export function SettingsPage() {
                     padding: '8px 12px',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: isActive ? 'var(--color-muted)' : 'transparent',
-                    color: isActive ? 'var(--color-foreground)' : 'var(--color-muted-foreground)',
+                    backgroundColor: isActive ? 'var(--dsw-specific-sidebar-nav-item-active)' : 'transparent',
+                    color: isActive ? 'var(--dsw-alias-label-primary)' : 'var(--dsw-alias-label-secondary)',
                     fontSize: '14px',
                     fontWeight: isActive ? 500 : 400,
                     cursor: 'pointer',
@@ -120,7 +120,7 @@ export function SettingsPage() {
                     textAlign: 'left',
                     transition: 'background-color 150ms',
                   }}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--dsw-specific-sidebar-nav-item-hover)' }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
                 >
                   <tab.icon style={{ width: '16px', height: '16px' }} />
@@ -135,7 +135,7 @@ export function SettingsPage() {
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
-              <Loader2 style={{ width: '24px', height: '24px', color: 'var(--color-muted-foreground)' }} />
+              <Loader2 style={{ width: '24px', height: '24px', color: 'var(--dsw-alias-label-tertiary)' }} />
             </div>
           ) : (
             <div style={{ maxWidth: '512px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -148,8 +148,8 @@ export function SettingsPage() {
                       onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
                       placeholder="https://api.openai.com/v1"
                       style={inputStyle}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)' }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)' }}
                     />
                   </Field>
                   <Field label="API Key">
@@ -158,8 +158,8 @@ export function SettingsPage() {
                       value={form.api_key}
                       onChange={(e) => setForm({ ...form, api_key: e.target.value })}
                       style={inputStyle}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)' }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)' }}
                     />
                   </Field>
                   <Field label="Model">
@@ -169,8 +169,8 @@ export function SettingsPage() {
                       onChange={(e) => setForm({ ...form, model: e.target.value })}
                       placeholder="gpt-4o"
                       style={inputStyle}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)' }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)' }}
                     />
                   </Field>
                 </>
@@ -184,8 +184,8 @@ export function SettingsPage() {
                       value={form.tts_base_url}
                       onChange={(e) => setForm({ ...form, tts_base_url: e.target.value })}
                       style={inputStyle}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)' }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)' }}
                     />
                   </Field>
                   <Field label="ASR Base URL">
@@ -194,8 +194,8 @@ export function SettingsPage() {
                       value={form.asr_base_url}
                       onChange={(e) => setForm({ ...form, asr_base_url: e.target.value })}
                       style={inputStyle}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)' }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)' }}
                     />
                   </Field>
                   <Field label="语音识别语言">
@@ -217,11 +217,11 @@ export function SettingsPage() {
               {activeTab === 'mcp' && (
                 <div style={{
                   borderRadius: '12px',
-                  border: '1px solid var(--color-border)',
+                  border: '1px solid var(--dsw-alias-border-l2)',
                   padding: '24px',
                   textAlign: 'center',
                   fontSize: '14px',
-                  color: 'var(--color-muted-foreground)',
+                  color: 'var(--dsw-alias-label-tertiary)',
                 }}>
                   <Plug style={{ width: '32px', height: '32px', margin: '0 auto 12px', opacity: 0.4 }} />
                   <p style={{ margin: 0 }}>MCP 服务管理</p>
@@ -232,11 +232,11 @@ export function SettingsPage() {
               {activeTab === 'openai' && (
                 <div style={{
                   borderRadius: '12px',
-                  border: '1px solid var(--color-border)',
+                  border: '1px solid var(--dsw-alias-border-l2)',
                   padding: '24px',
                   textAlign: 'center',
                   fontSize: '14px',
-                  color: 'var(--color-muted-foreground)',
+                  color: 'var(--dsw-alias-label-tertiary)',
                 }}>
                   <Globe style={{ width: '32px', height: '32px', margin: '0 auto 12px', opacity: 0.4 }} />
                   <p style={{ margin: 0 }}>OpenAI 兼容网关</p>
@@ -247,11 +247,11 @@ export function SettingsPage() {
               {activeTab === 'memory' && (
                 <div style={{
                   borderRadius: '12px',
-                  border: '1px solid var(--color-border)',
+                  border: '1px solid var(--dsw-alias-border-l2)',
                   padding: '24px',
                   textAlign: 'center',
                   fontSize: '14px',
-                  color: 'var(--color-muted-foreground)',
+                  color: 'var(--dsw-alias-label-tertiary)',
                 }}>
                   <Database style={{ width: '32px', height: '32px', margin: '0 auto 12px', opacity: 0.4 }} />
                   <p style={{ margin: 0 }}>记忆管理</p>
@@ -272,8 +272,8 @@ export function SettingsPage() {
                       padding: '8px 16px',
                       borderRadius: '8px',
                       border: 'none',
-                      backgroundColor: 'var(--color-primary)',
-                      color: 'var(--color-primary-foreground)',
+                      backgroundColor: 'var(--dsw-alias-button-primary-fill)',
+                      color: 'var(--dsw-alias-label-primary-foreground)',
                       fontSize: '14px',
                       cursor: saving ? 'not-allowed' : 'pointer',
                       opacity: saving ? 0.5 : 1,
@@ -290,13 +290,13 @@ export function SettingsPage() {
                       gap: '8px',
                       padding: '8px 16px',
                       borderRadius: '8px',
-                      border: '1px solid var(--color-border)',
+                      border: '1px solid var(--dsw-alias-border-l2)',
                       backgroundColor: 'transparent',
-                      color: 'var(--color-muted-foreground)',
+                      color: 'var(--dsw-alias-label-secondary)',
                       fontSize: '14px',
                       cursor: 'pointer',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--dsw-specific-sidebar-nav-item-hover)')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
                     <RotateCcw style={{ width: '16px', height: '16px' }} />
@@ -315,7 +315,7 @@ export function SettingsPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <label style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-foreground)' }}>{label}</label>
+      <label style={{ fontSize: '14px', fontWeight: 500, color: 'var(--dsw-alias-label-primary)' }}>{label}</label>
       {children}
     </div>
   )

@@ -24,14 +24,14 @@ export function EngPage() {
         display: 'flex',
         alignItems: 'center',
         padding: '0 24px',
-        borderBottom: '1px solid var(--color-border)',
+        borderBottom: '1px solid var(--dsw-alias-border-l2)',
         flexShrink: 0,
       }}>
         <h1 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>工程中心</h1>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', flexShrink: 0, padding: '0 24px' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--dsw-alias-border-l2)', flexShrink: 0, padding: '0 24px' }}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id
           return (
@@ -43,20 +43,20 @@ export function EngPage() {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '12px 16px',
-                borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+                borderBottom: isActive ? '2px solid var(--dsw-alias-button-primary-fill)' : '2px solid transparent',
                 backgroundColor: 'transparent',
                 border: 'none',
                 borderBottomWidth: '2px',
                 borderBottomStyle: 'solid',
-                borderBottomColor: isActive ? 'var(--color-primary)' : 'transparent',
-                color: isActive ? 'var(--color-foreground)' : 'var(--color-muted-foreground)',
+                borderBottomColor: isActive ? 'var(--dsw-alias-button-primary-fill)' : 'transparent',
+                color: isActive ? 'var(--dsw-alias-label-primary)' : 'var(--dsw-alias-label-secondary)',
                 fontSize: '14px',
                 fontWeight: isActive ? 500 : 400,
                 cursor: 'pointer',
                 transition: 'color 150ms',
               }}
-              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--color-foreground)' }}
-              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--color-muted-foreground)' }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--dsw-alias-label-primary)' }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--dsw-alias-label-secondary)' }}
             >
               <tab.icon style={{ width: '16px', height: '16px' }} />
               {tab.label}
@@ -79,7 +79,7 @@ export function EngPage() {
 function PanelWrapper({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ maxWidth: '768px', margin: '0 auto', padding: '24px' }}>
-      <h2 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-muted-foreground)', marginBottom: '24px' }}>{title}</h2>
+      <h2 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--dsw-alias-label-secondary)', marginBottom: '24px' }}>{title}</h2>
       {children}
     </div>
   )
@@ -88,14 +88,14 @@ function PanelWrapper({ title, children }: { title: string; children: React.Reac
 function LoadingState() {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-      <Loader2 style={{ width: '24px', height: '24px', color: 'var(--color-muted-foreground)' }} />
+      <Loader2 style={{ width: '24px', height: '24px', color: 'var(--dsw-alias-label-secondary)' }} />
     </div>
   )
 }
 
 function EmptyState({ icon: Icon, text }: { icon: typeof BookOpen; text: string }) {
   return (
-    <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>
+    <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--dsw-alias-label-secondary)' }}>
       <Icon style={{ width: '32px', height: '32px', margin: '0 auto 12px', opacity: 0.4 }} />
       {text}
     </div>
@@ -126,13 +126,13 @@ function PreflightPanel() {
             gap: '6px',
             padding: '6px 12px',
             borderRadius: '8px',
-            border: '1px solid var(--color-border)',
+            border: '1px solid var(--dsw-alias-border-l2)',
             backgroundColor: 'transparent',
-            color: 'var(--color-muted-foreground)',
+            color: 'var(--dsw-alias-label-secondary)',
             fontSize: '12px',
             cursor: 'pointer',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-layer-2)')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
           <RefreshCw style={{ width: '14px', height: '14px' }} />
@@ -145,14 +145,14 @@ function PreflightPanel() {
       ) : metrics ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
           {Object.entries(metrics as Record<string, unknown>).map(([key, val]) => (
-            <div key={key} style={{ borderRadius: '12px', border: '1px solid var(--color-border)', padding: '16px' }}>
-              <p style={{ fontSize: '12px', color: 'var(--color-muted-foreground)', margin: 0 }}>{key}</p>
+            <div key={key} style={{ borderRadius: '12px', border: '1px solid var(--dsw-alias-border-l2)', padding: '16px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--dsw-alias-label-secondary)', margin: 0 }}>{key}</p>
               <p style={{ marginTop: '4px', fontSize: '24px', fontWeight: 600, margin: 0 }}>{String(val)}</p>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>
+        <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--dsw-alias-label-secondary)' }}>
           暂无工程指标数据
         </div>
       )}
@@ -179,7 +179,7 @@ function WorkbookPanel() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {workbooks.map((wb, i) => (
-            <div key={i} style={{ borderRadius: '12px', border: '1px solid var(--color-border)', padding: '16px' }}>
+            <div key={i} style={{ borderRadius: '12px', border: '1px solid var(--dsw-alias-border-l2)', padding: '16px' }}>
               <p style={{ fontSize: '14px', fontWeight: 500, margin: 0 }}>
                 {String((wb as Record<string, unknown>).id || `工作簿 #${i + 1}`)}
               </p>
@@ -210,7 +210,7 @@ function CapabilityPanel() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {capabilities.map((cap, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px', border: '1px solid var(--color-border)', padding: '12px' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px', border: '1px solid var(--dsw-alias-border-l2)', padding: '12px' }}>
               <CheckCircle style={{ width: '16px', height: '16px', color: '#22c55e' }} />
               <p style={{ fontSize: '14px', margin: 0 }}>{String((cap as Record<string, unknown>).name) || JSON.stringify(cap)}</p>
             </div>
@@ -257,10 +257,10 @@ function CandidatesPanel() {
             const c = cand as Record<string, unknown>
             const id = String(c.id || '')
             return (
-              <div key={id} style={{ borderRadius: '12px', border: '1px solid var(--color-border)', padding: '16px' }}>
+              <div key={id} style={{ borderRadius: '12px', border: '1px solid var(--dsw-alias-border-l2)', padding: '16px' }}>
                 <p style={{ fontSize: '14px', fontWeight: 500, margin: 0 }}>{String(c.title || c.name || id)}</p>
                 {c.content ? (
-                  <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--color-muted-foreground)' }}>
+                  <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--dsw-alias-label-secondary)' }}>
                     {String(c.content)}
                   </p>
                 ) : null}

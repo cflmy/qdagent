@@ -46,7 +46,7 @@ export function NotesPage() {
         alignItems: 'center',
         gap: '12px',
         padding: '0 24px',
-        borderBottom: '1px solid var(--color-border)',
+        borderBottom: '1px solid var(--dsw-alias-border-l2)',
         flexShrink: 0,
       }}>
         {(view === 'detail' || view === 'new') && (
@@ -57,10 +57,10 @@ export function NotesPage() {
               borderRadius: '8px',
               border: 'none',
               backgroundColor: 'transparent',
-              color: 'var(--color-muted-foreground)',
+              color: 'var(--dsw-alias-label-secondary)',
               cursor: 'pointer',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-layer-2)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             <ArrowLeft style={{ width: '16px', height: '16px' }} />
@@ -85,7 +85,7 @@ export function NotesPage() {
                   transform: 'translateY(-50%)',
                   width: '16px',
                   height: '16px',
-                  color: 'var(--color-muted-foreground)',
+                  color: 'var(--dsw-alias-label-secondary)',
                 }} />
                 <input
                   type="text"
@@ -96,15 +96,15 @@ export function NotesPage() {
                     width: '100%',
                     padding: '8px 16px 8px 40px',
                     borderRadius: '8px',
-                    border: '1px solid var(--color-border)',
-                    backgroundColor: 'var(--color-muted)',
+                    border: '1px solid var(--dsw-alias-border-l2)',
+                    backgroundColor: 'var(--dsw-alias-bg-layer-2)',
                     fontSize: '14px',
                     outline: 'none',
                     fontFamily: 'inherit',
-                    color: 'var(--color-foreground)',
+                    color: 'var(--dsw-alias-label-primary)',
                   }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)'; e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-base)' }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)'; e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-layer-2)' }}
                 />
               </div>
               <button
@@ -116,8 +116,8 @@ export function NotesPage() {
                   padding: '8px 16px',
                   borderRadius: '8px',
                   border: 'none',
-                  backgroundColor: 'var(--color-primary)',
-                  color: 'var(--color-primary-foreground)',
+                  backgroundColor: 'var(--dsw-alias-button-primary-fill)',
+                  color: 'var(--dsw-alias-label-primary-foreground)',
                   fontSize: '14px',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -132,10 +132,10 @@ export function NotesPage() {
 
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-                <Loader2 style={{ width: '24px', height: '24px', color: 'var(--color-muted-foreground)' }} />
+                <Loader2 style={{ width: '24px', height: '24px', color: 'var(--dsw-alias-label-secondary)' }} />
               </div>
             ) : filtered.length === 0 ? (
-              <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>
+              <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--dsw-alias-label-secondary)' }}>
                 {search ? '没有匹配的笔记' : '暂无笔记'}
               </div>
             ) : (
@@ -147,27 +147,27 @@ export function NotesPage() {
                     style={{
                       cursor: 'pointer',
                       borderRadius: '12px',
-                      border: '1px solid var(--color-border)',
+                      border: '1px solid var(--dsw-alias-border-l2)',
                       padding: '16px',
                       transition: 'background-color 150ms',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-layer-2)')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <FileText style={{ width: '16px', height: '16px', color: 'var(--color-muted-foreground)', flexShrink: 0 }} />
+                        <FileText style={{ width: '16px', height: '16px', color: 'var(--dsw-alias-label-secondary)', flexShrink: 0 }} />
                         <h3 style={{ fontSize: '14px', fontWeight: 500, margin: 0 }}>{run.title || run.slug || '未命名'}</h3>
                       </div>
                       {run.created_at && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--color-muted-foreground)', flexShrink: 0 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--dsw-alias-label-secondary)', flexShrink: 0 }}>
                           <Clock style={{ width: '12px', height: '12px' }} />
                           {new Date(run.created_at).toLocaleDateString('zh-CN')}
                         </span>
                       )}
                     </div>
                     {run.content && (
-                      <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--color-muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--dsw-alias-label-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                         {run.content.slice(0, 200)}
                       </p>
                     )}
@@ -182,13 +182,13 @@ export function NotesPage() {
           <div style={{ maxWidth: '768px', margin: '0 auto', padding: '24px' }}>
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-                <Loader2 style={{ width: '24px', height: '24px', color: 'var(--color-muted-foreground)' }} />
+                <Loader2 style={{ width: '24px', height: '24px', color: 'var(--dsw-alias-label-secondary)' }} />
               </div>
             ) : currentRun ? (
               <article>
                 <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>{currentRun.title || currentRun.slug}</h2>
                 {currentRun.created_at && (
-                  <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--color-muted-foreground)' }}>
+                  <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--dsw-alias-label-secondary)' }}>
                     {new Date(currentRun.created_at).toLocaleString('zh-CN')}
                   </p>
                 )}
@@ -197,7 +197,7 @@ export function NotesPage() {
                 </div>
               </article>
             ) : (
-              <p style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>笔记不存在</p>
+              <p style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--dsw-alias-label-secondary)' }}>笔记不存在</p>
             )}
           </div>
         )}
@@ -232,12 +232,12 @@ function NewNoteForm({ onDone }: { onDone: () => void }) {
     width: '100%',
     padding: '8px 16px',
     borderRadius: '8px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-muted)',
+    border: '1px solid var(--dsw-alias-border-l2)',
+    backgroundColor: 'var(--dsw-alias-bg-layer-2)',
     fontSize: '14px',
     outline: 'none',
     fontFamily: 'inherit',
-    color: 'var(--color-foreground)',
+    color: 'var(--dsw-alias-label-primary)',
   }
 
   return (
@@ -249,8 +249,8 @@ function NewNoteForm({ onDone }: { onDone: () => void }) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="标题（可选）"
           style={inputStyle}
-          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)'; e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-base)' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)'; e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-layer-2)' }}
         />
         <textarea
           value={content}
@@ -258,8 +258,8 @@ function NewNoteForm({ onDone }: { onDone: () => void }) {
           placeholder="写下你的笔记…"
           rows={12}
           style={{ ...inputStyle, resize: 'none', lineHeight: 1.7, padding: '12px 16px' }}
-          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)'; e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-base)' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)'; e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-layer-2)' }}
         />
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
@@ -272,8 +272,8 @@ function NewNoteForm({ onDone }: { onDone: () => void }) {
               padding: '8px 16px',
               borderRadius: '8px',
               border: 'none',
-              backgroundColor: 'var(--color-primary)',
-              color: 'var(--color-primary-foreground)',
+              backgroundColor: 'var(--dsw-alias-button-primary-fill)',
+              color: 'var(--dsw-alias-label-primary-foreground)',
               fontSize: '14px',
               cursor: saving || !content.trim() ? 'not-allowed' : 'pointer',
               opacity: saving || !content.trim() ? 0.5 : 1,
@@ -287,13 +287,13 @@ function NewNoteForm({ onDone }: { onDone: () => void }) {
             style={{
               padding: '8px 16px',
               borderRadius: '8px',
-              border: '1px solid var(--color-border)',
+              border: '1px solid var(--dsw-alias-border-l2)',
               backgroundColor: 'transparent',
-              color: 'var(--color-muted-foreground)',
+              color: 'var(--dsw-alias-label-secondary)',
               fontSize: '14px',
               cursor: 'pointer',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--dsw-alias-bg-layer-2)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             取消

@@ -67,10 +67,10 @@ export function ChatPage() {
         display: 'flex',
         alignItems: 'center',
         padding: '0 24px',
-        borderBottom: '1px solid var(--color-border)',
+        borderBottom: '1px solid var(--dsw-alias-border-l2)',
         flexShrink: 0,
       }}>
-        <h1 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-muted-foreground)', margin: 0 }}>
+        <h1 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--dsw-alias-label-secondary)', margin: 0 }}>
           {currentSession?.title || '求道 · 对话'}
         </h1>
       </div>
@@ -80,8 +80,18 @@ export function ChatPage() {
         {!currentSession || currentSession.messages.length === 0 ? (
           <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '18px', fontWeight: 500, color: 'var(--color-foreground)', margin: 0 }}>求道</p>
-              <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>
+              <p style={{
+                fontSize: '24px',
+                fontWeight: 600,
+                margin: 0,
+                background: 'linear-gradient(135deg, var(--dsw-static-deepseek-500), var(--dsw-static-blue-500))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}>
+                求道
+              </p>
+              <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--dsw-alias-label-tertiary)' }}>
                 输入消息开始对话
               </p>
             </div>
@@ -103,8 +113,9 @@ export function ChatPage() {
                     padding: '12px 16px',
                     fontSize: '14px',
                     lineHeight: 1.6,
-                    backgroundColor: msg.role === 'user' ? 'var(--color-primary)' : 'var(--color-muted)',
-                    color: msg.role === 'user' ? 'var(--color-primary-foreground)' : 'var(--color-foreground)',
+                    backgroundColor: msg.role === 'user' ? 'var(--dsw-specific-bubble)' : 'transparent',
+                    color: 'var(--dsw-alias-label-primary)',
+                    border: msg.role === 'user' ? 'none' : '1px solid var(--dsw-alias-border-l2)',
                   }}
                 >
                   <pre style={{
@@ -126,7 +137,7 @@ export function ChatPage() {
       {/* Input area */}
       <div style={{
         padding: '12px 24px',
-        borderTop: '1px solid var(--color-border)',
+        borderTop: '1px solid var(--dsw-alias-border-l2)',
         flexShrink: 0,
       }}>
         <div style={{ maxWidth: '768px', margin: '0 auto', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
@@ -137,20 +148,20 @@ export function ChatPage() {
             onKeyDown={handleKeyDown}
             placeholder="输入消息… (Enter 发送, Shift+Enter 换行)"
             rows={1}
+            className="dsh-input-major"
             style={{
               flex: 1,
               resize: 'none',
               borderRadius: '12px',
-              border: '1px solid var(--color-border)',
-              backgroundColor: 'var(--color-muted)',
+              border: '1px solid var(--dsw-alias-border-l2)',
               padding: '12px 16px',
               fontSize: '14px',
               outline: 'none',
               fontFamily: 'inherit',
-              color: 'var(--color-foreground)',
+              color: 'var(--dsw-alias-label-primary)',
             }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)' }}
           />
           {streaming ? (
             <button
@@ -163,7 +174,7 @@ export function ChatPage() {
                 justifyContent: 'center',
                 borderRadius: '12px',
                 border: 'none',
-                backgroundColor: 'var(--color-destructive)',
+                backgroundColor: 'var(--dsw-alias-state-error-primary)',
                 color: 'white',
                 cursor: 'pointer',
                 flexShrink: 0,
@@ -183,11 +194,10 @@ export function ChatPage() {
                 justifyContent: 'center',
                 borderRadius: '12px',
                 border: 'none',
-                backgroundColor: input.trim() ? 'var(--color-primary)' : 'var(--color-border)',
-                color: input.trim() ? 'var(--color-primary-foreground)' : 'var(--color-muted-foreground)',
+                backgroundColor: input.trim() ? 'var(--dsw-alias-button-primary-fill)' : 'var(--dsw-alias-border-l2)',
+                color: input.trim() ? 'var(--dsw-alias-label-primary-foreground)' : 'var(--dsw-alias-label-tertiary)',
                 cursor: input.trim() ? 'pointer' : 'not-allowed',
                 flexShrink: 0,
-                transition: 'background-color 150ms',
               }}
             >
               <Send style={{ width: '16px', height: '16px' }} />
