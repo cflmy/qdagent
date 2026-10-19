@@ -4,6 +4,7 @@ import { ChatPage } from './components/pages/ChatPage'
 import { NotesPage } from './components/pages/NotesPage'
 import { SettingsPage } from './components/pages/SettingsPage'
 import { EngPage } from './components/pages/EngPage'
+import { WorkspacePage } from './components/pages/WorkspacePage'
 
 export function App() {
   return (
@@ -16,6 +17,7 @@ export function App() {
           <Route path="/notes/:slug" element={<NotesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/eng" element={<EngPage />} />
+          <Route path="/workspace" element={<WorkspacePage />} />
         </Route>
       </Routes>
     </HashRouter>
