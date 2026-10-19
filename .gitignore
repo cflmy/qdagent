@@ -47,3 +47,6 @@ _s.mq.md
 .cursor/*
 !.cursor/rules/
 !.cursor/rules/**
+
+# Reference archives (large binary zip, not source)
+Reference/
