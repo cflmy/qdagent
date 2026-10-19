@@ -3,8 +3,8 @@
  * Base URL is same-origin (empty string); Marqdo proxy handles auth via cookie.
  */
 
-async function GET<T = unknown>(path: string): Promise<T> {
-  const res = await fetch(path, { credentials: 'same-origin' })
+async function GET<T = unknown>(path: string, headers?: Record<string, string>): Promise<T> {
+  const res = await fetch(path, { credentials: 'same-origin', headers })
   if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
   return res.json() as Promise<T>
 }
@@ -35,11 +35,12 @@ async function* POST_STREAM(
   path: string,
   body: unknown,
   signal?: AbortSignal,
+  headers?: Record<string, string>,
 ): AsyncGenerator<unknown> {
   const res = await fetch(path, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
     signal,
   })
@@ -171,11 +172,16 @@ export const api = {
   engToday: () => GET('/api/eng/today'),
 
   // OpenAI-compatible
-  v1Models: () => GET('/v1/models'),
+  v1Models: () => GET('/v1/models', { 'Authorization': 'Bearer qdagent-local' }),
   v1ChatCompletions: (data: {
     model?: string
     messages: ChatMessage[]
     stream?: boolean
     [key: string]: unknown
-  }, signal?: AbortSignal) => POST_STREAM('/v1/chat/completions', data, signal),
+  }, signal?: AbortSignal) => POST_STREAM(
+    '/v1/chat/completions',
+    data,
+    signal,
+    { 'Authorization': 'Bearer qdagent-local' },
+  ),
 }
