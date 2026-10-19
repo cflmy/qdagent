@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSessionStore } from '@/stores/session-store'
-import { Send, Square } from 'lucide-react'
+import { useRightbar } from '@/components/layout/DesktopFrame'
+import { Send, Square, PanelRightOpen } from 'lucide-react'
 
 export function ChatPage() {
   const {
@@ -8,6 +9,7 @@ export function ChatPage() {
     selectSession, createSession,
     addMessage, streamChat, loadFromStorage,
   } = useSessionStore()
+  const rightbar = useRightbar()
 
   const [input, setInput] = useState('')
   const abortRef = useRef<AbortController | null>(null)
@@ -101,6 +103,31 @@ export function ChatPage() {
             {currentSession?.title || '新会话'}
           </span>
         </div>
+        {/* Right sidebar toggle */}
+        {!rightbar.open && (
+          <button
+            onClick={rightbar.toggle}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '28px',
+              height: '28px',
+              border: 'none',
+              borderRadius: 'var(--dsw-radius-sm, 6px)',
+              padding: 0,
+              background: 'transparent',
+              cursor: 'pointer',
+              color: 'var(--dsw-alias-label-secondary)',
+              transition: 'background 100ms ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            title="展开右侧栏"
+          >
+            <PanelRightOpen size={16} />
+          </button>
+        )}
       </div>
 
       {/* Scroll Body — DSH ConversationRoot scrollBody */}
