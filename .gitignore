@@ -50,3 +50,8 @@ _s.mq.md
 
 # Reference archives (large binary zip, not source)
 Reference/
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+public/app/
