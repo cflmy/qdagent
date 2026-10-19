@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, type Run } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import {
   Search, Plus, FileText, Clock, Loader2, ArrowLeft,
 } from 'lucide-react'
@@ -39,77 +38,136 @@ export function NotesPage() {
   })
 
   return (
-    <div className="flex h-full flex-col">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
-      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-6">
+      <div style={{
+        height: '56px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '0 24px',
+        borderBottom: '1px solid var(--color-border)',
+        flexShrink: 0,
+      }}>
         {(view === 'detail' || view === 'new') && (
           <button
             onClick={() => navigate('/notes')}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            style={{
+              padding: '6px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: 'var(--color-muted-foreground)',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft style={{ width: '16px', height: '16px' }} />
           </button>
         )}
-        <h1 className="text-lg font-semibold">
+        <h1 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
           {view === 'new' ? '记一笔' : view === 'detail' ? '笔记详情' : '笔记'}
         </h1>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
+      <div style={{ flex: 1, overflow: 'auto' }}>
         {view === 'list' && (
-          <div className="mx-auto max-w-3xl p-6">
+          <div style={{ maxWidth: '768px', margin: '0 auto', padding: '24px' }}>
             {/* Search + New */}
-            <div className="mb-6 flex gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '16px',
+                  height: '16px',
+                  color: 'var(--color-muted-foreground)',
+                }} />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="搜索笔记…"
-                  className="w-full rounded-lg border border-border bg-muted/50 py-2 pl-10 pr-4 text-sm outline-none focus:border-ring focus:bg-background"
+                  style={{
+                    width: '100%',
+                    padding: '8px 16px 8px 40px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border)',
+                    backgroundColor: 'var(--color-muted)',
+                    fontSize: '14px',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    color: 'var(--color-foreground)',
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
                 />
               </div>
               <button
                 onClick={() => navigate('/notes/new')}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'var(--color-primary-foreground)',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
               >
-                <Plus className="h-4 w-4" />
+                <Plus style={{ width: '16px', height: '16px' }} />
                 记一笔
               </button>
             </div>
 
             {loading ? (
-              <div className="flex justify-center py-20">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+                <Loader2 style={{ width: '24px', height: '24px', color: 'var(--color-muted-foreground)' }} />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="py-20 text-center text-sm text-muted-foreground">
+              <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>
                 {search ? '没有匹配的笔记' : '暂无笔记'}
               </div>
             ) : (
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {filtered.map((run) => (
                   <div
                     key={run.id}
                     onClick={() => navigate(`/notes/${run.slug || run.id}`)}
-                    className="cursor-pointer rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+                    style={{
+                      cursor: 'pointer',
+                      borderRadius: '12px',
+                      border: '1px solid var(--color-border)',
+                      padding: '16px',
+                      transition: 'background-color 150ms',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <h3 className="text-sm font-medium">{run.title || run.slug || '未命名'}</h3>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText style={{ width: '16px', height: '16px', color: 'var(--color-muted-foreground)', flexShrink: 0 }} />
+                        <h3 style={{ fontSize: '14px', fontWeight: 500, margin: 0 }}>{run.title || run.slug || '未命名'}</h3>
                       </div>
                       {run.created_at && (
-                        <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--color-muted-foreground)', flexShrink: 0 }}>
+                          <Clock style={{ width: '12px', height: '12px' }} />
                           {new Date(run.created_at).toLocaleDateString('zh-CN')}
                         </span>
                       )}
                     </div>
                     {run.content && (
-                      <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                      <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--color-muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                         {run.content.slice(0, 200)}
                       </p>
                     )}
@@ -121,25 +179,25 @@ export function NotesPage() {
         )}
 
         {view === 'detail' && (
-          <div className="mx-auto max-w-3xl p-6">
+          <div style={{ maxWidth: '768px', margin: '0 auto', padding: '24px' }}>
             {loading ? (
-              <div className="flex justify-center py-20">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+                <Loader2 style={{ width: '24px', height: '24px', color: 'var(--color-muted-foreground)' }} />
               </div>
             ) : currentRun ? (
               <article>
-                <h2 className="text-xl font-semibold">{currentRun.title || currentRun.slug}</h2>
+                <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>{currentRun.title || currentRun.slug}</h2>
                 {currentRun.created_at && (
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--color-muted-foreground)' }}>
                     {new Date(currentRun.created_at).toLocaleString('zh-CN')}
                   </p>
                 )}
-                <div className="mt-6 whitespace-pre-wrap text-sm leading-relaxed">
+                <div style={{ marginTop: '24px', whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: 1.7 }}>
                   {currentRun.content || '（空内容）'}
                 </div>
               </article>
             ) : (
-              <p className="py-20 text-center text-sm text-muted-foreground">笔记不存在</p>
+              <p style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>笔记不存在</p>
             )}
           </div>
         )}
@@ -170,35 +228,73 @@ function NewNoteForm({ onDone }: { onDone: () => void }) {
     }
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-muted)',
+    fontSize: '14px',
+    outline: 'none',
+    fontFamily: 'inherit',
+    color: 'var(--color-foreground)',
+  }
+
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="space-y-4">
+    <div style={{ maxWidth: '768px', margin: '0 auto', padding: '24px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="标题（可选）"
-          className="w-full rounded-lg border border-border bg-muted/50 px-4 py-2 text-sm outline-none focus:border-ring focus:bg-background"
+          style={inputStyle}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
         />
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="写下你的笔记…"
           rows={12}
-          className="w-full resize-none rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm leading-relaxed outline-none focus:border-ring focus:bg-background"
+          style={{ ...inputStyle, resize: 'none', lineHeight: 1.7, padding: '12px 16px' }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
         />
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: '12px' }}>
           <button
             onClick={handleSubmit}
             disabled={saving || !content.trim()}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: 'var(--color-primary)',
+              color: 'var(--color-primary-foreground)',
+              fontSize: '14px',
+              cursor: saving || !content.trim() ? 'not-allowed' : 'pointer',
+              opacity: saving || !content.trim() ? 0.5 : 1,
+            }}
           >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {saving && <Loader2 style={{ width: '16px', height: '16px' }} />}
             保存
           </button>
           <button
             onClick={onDone}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'transparent',
+              color: 'var(--color-muted-foreground)',
+              fontSize: '14px',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             取消
           </button>

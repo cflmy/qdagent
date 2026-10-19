@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import {
   Shield, BookOpen, Zap, GitBranch, Loader2, RefreshCw,
   CheckCircle, XCircle, ArrowUpCircle,
@@ -19,32 +18,55 @@ export function EngPage() {
   const [activeTab, setActiveTab] = useState<Tab>('preflight')
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-14 shrink-0 items-center border-b border-border px-6">
-        <h1 className="text-lg font-semibold">工程中心</h1>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{
+        height: '56px',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 24px',
+        borderBottom: '1px solid var(--color-border)',
+        flexShrink: 0,
+      }}>
+        <h1 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>工程中心</h1>
       </div>
 
       {/* Tabs */}
-      <div className="flex shrink-0 border-b border-border px-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              'flex items-center gap-2 border-b-2 px-4 py-3 text-sm transition-colors',
-              activeTab === tab.id
-                ? 'border-primary font-medium text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
-          </button>
-        ))}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', flexShrink: 0, padding: '0 24px' }}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 16px',
+                borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderBottomWidth: '2px',
+                borderBottomStyle: 'solid',
+                borderBottomColor: isActive ? 'var(--color-primary)' : 'transparent',
+                color: isActive ? 'var(--color-foreground)' : 'var(--color-muted-foreground)',
+                fontSize: '14px',
+                fontWeight: isActive ? 500 : 400,
+                cursor: 'pointer',
+                transition: 'color 150ms',
+              }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--color-foreground)' }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--color-muted-foreground)' }}
+            >
+              <tab.icon style={{ width: '16px', height: '16px' }} />
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
+      <div style={{ flex: 1, overflow: 'auto' }}>
         {activeTab === 'preflight' && <PreflightPanel />}
         {activeTab === 'workbook' && <WorkbookPanel />}
         {activeTab === 'capability' && <CapabilityPanel />}
@@ -54,16 +76,38 @@ export function EngPage() {
   )
 }
 
+function PanelWrapper({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ maxWidth: '768px', margin: '0 auto', padding: '24px' }}>
+      <h2 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-muted-foreground)', marginBottom: '24px' }}>{title}</h2>
+      {children}
+    </div>
+  )
+}
+
+function LoadingState() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+      <Loader2 style={{ width: '24px', height: '24px', color: 'var(--color-muted-foreground)' }} />
+    </div>
+  )
+}
+
+function EmptyState({ icon: Icon, text }: { icon: typeof BookOpen; text: string }) {
+  return (
+    <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>
+      <Icon style={{ width: '32px', height: '32px', margin: '0 auto 12px', opacity: 0.4 }} />
+      {text}
+    </div>
+  )
+}
+
 function PreflightPanel() {
   const [metrics, setMetrics] = useState<unknown>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([
-      api.engMetrics().catch(() => null),
-    ]).then(([m]) => {
-      setMetrics(m)
-    }).finally(() => setLoading(false))
+    api.engMetrics().then(setMetrics).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const refresh = () => {
@@ -72,37 +116,47 @@ function PreflightPanel() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-sm font-medium text-muted-foreground">工程预检仪表盘</h2>
+    <PanelWrapper title="工程预检仪表盘">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
         <button
           onClick={refresh}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            border: '1px solid var(--color-border)',
+            backgroundColor: 'transparent',
+            color: 'var(--color-muted-foreground)',
+            fontSize: '12px',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
-          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+          <RefreshCw style={{ width: '14px', height: '14px' }} />
           刷新
         </button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : metrics ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
           {Object.entries(metrics as Record<string, unknown>).map(([key, val]) => (
-            <div key={key} className="rounded-lg border border-border p-4">
-              <p className="text-xs text-muted-foreground">{key}</p>
-              <p className="mt-1 text-2xl font-semibold">{String(val)}</p>
+            <div key={key} style={{ borderRadius: '12px', border: '1px solid var(--color-border)', padding: '16px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--color-muted-foreground)', margin: 0 }}>{key}</p>
+              <p style={{ marginTop: '4px', fontSize: '24px', fontWeight: 600, margin: 0 }}>{String(val)}</p>
             </div>
           ))}
         </div>
       ) : (
-        <div className="py-20 text-center text-sm text-muted-foreground">
+        <div style={{ padding: '80px 0', textAlign: 'center', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>
           暂无工程指标数据
         </div>
       )}
-    </div>
+    </PanelWrapper>
   )
 }
 
@@ -117,27 +171,23 @@ function WorkbookPanel() {
   }, [])
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <h2 className="mb-6 text-sm font-medium text-muted-foreground">工程工作簿</h2>
+    <PanelWrapper title="工程工作簿">
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : workbooks.length === 0 ? (
-        <div className="py-20 text-center text-sm text-muted-foreground">
-          <BookOpen className="mx-auto mb-3 h-8 w-8 opacity-40" />
-          暂无工作簿
-        </div>
+        <EmptyState icon={BookOpen} text="暂无工作簿" />
       ) : (
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {workbooks.map((wb, i) => (
-            <div key={i} className="rounded-lg border border-border p-4">
-              <p className="text-sm font-medium">{String((wb as Record<string, unknown>).id || `工作簿 #${i + 1}`)}</p>
+            <div key={i} style={{ borderRadius: '12px', border: '1px solid var(--color-border)', padding: '16px' }}>
+              <p style={{ fontSize: '14px', fontWeight: 500, margin: 0 }}>
+                {String((wb as Record<string, unknown>).id || `工作簿 #${i + 1}`)}
+              </p>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </PanelWrapper>
   )
 }
 
@@ -152,28 +202,22 @@ function CapabilityPanel() {
   }, [])
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <h2 className="mb-6 text-sm font-medium text-muted-foreground">能力矩阵</h2>
+    <PanelWrapper title="能力矩阵">
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : capabilities.length === 0 ? (
-        <div className="py-20 text-center text-sm text-muted-foreground">
-          <Zap className="mx-auto mb-3 h-8 w-8 opacity-40" />
-          暂无能力数据
-        </div>
+        <EmptyState icon={Zap} text="暂无能力数据" />
       ) : (
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {capabilities.map((cap, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <p className="text-sm">{String((cap as Record<string, unknown>).name) || JSON.stringify(cap)}</p>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px', border: '1px solid var(--color-border)', padding: '12px' }}>
+              <CheckCircle style={{ width: '16px', height: '16px', color: '#22c55e' }} />
+              <p style={{ fontSize: '14px', margin: 0 }}>{String((cap as Record<string, unknown>).name) || JSON.stringify(cap)}</p>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </PanelWrapper>
   )
 }
 
@@ -191,58 +235,74 @@ function CandidatesPanel() {
     try {
       await api.engPromote({ id })
       setCandidates((prev) => prev.filter((c) => (c as Record<string, unknown>).id !== id))
-    } catch (err) {
-      console.error('Promote failed:', err)
-    }
+    } catch (err) { console.error('Promote failed:', err) }
   }
 
   const handleReject = async (id: string) => {
     try {
       await api.engReject({ id })
       setCandidates((prev) => prev.filter((c) => (c as Record<string, unknown>).id !== id))
-    } catch (err) {
-      console.error('Reject failed:', err)
-    }
+    } catch (err) { console.error('Reject failed:', err) }
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <h2 className="mb-6 text-sm font-medium text-muted-foreground">知识候选</h2>
+    <PanelWrapper title="知识候选">
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState />
       ) : candidates.length === 0 ? (
-        <div className="py-20 text-center text-sm text-muted-foreground">
-          <GitBranch className="mx-auto mb-3 h-8 w-8 opacity-40" />
-          暂无候选知识
-        </div>
+        <EmptyState icon={GitBranch} text="暂无候选知识" />
       ) : (
-        <div className="space-y-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {candidates.map((cand) => {
             const c = cand as Record<string, unknown>
             const id = String(c.id || '')
             return (
-              <div key={id} className="rounded-lg border border-border p-4">
-                <p className="text-sm font-medium">{String(c.title || c.name || id)}</p>
+              <div key={id} style={{ borderRadius: '12px', border: '1px solid var(--color-border)', padding: '16px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 500, margin: 0 }}>{String(c.title || c.name || id)}</p>
                 {c.content ? (
-                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                  <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--color-muted-foreground)' }}>
                     {String(c.content)}
                   </p>
                 ) : null}
-                <div className="mt-3 flex gap-2">
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
                   <button
                     onClick={() => handlePromote(id)}
-                    className="flex items-center gap-1 rounded bg-green-500/10 px-2.5 py-1 text-xs text-green-600 hover:bg-green-500/20"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                      color: '#22c55e',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.2)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.1)')}
                   >
-                    <ArrowUpCircle className="h-3 w-3" />
+                    <ArrowUpCircle style={{ width: '12px', height: '12px' }} />
                     晋升
                   </button>
                   <button
                     onClick={() => handleReject(id)}
-                    className="flex items-center gap-1 rounded bg-red-500/10 px-2.5 py-1 text-xs text-red-600 hover:bg-red-500/20"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: '#ef4444',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)')}
                   >
-                    <XCircle className="h-3 w-3" />
+                    <XCircle style={{ width: '12px', height: '12px' }} />
                     拒绝
                   </button>
                 </div>
@@ -251,6 +311,6 @@ function CandidatesPanel() {
           })}
         </div>
       )}
-    </div>
+    </PanelWrapper>
   )
 }

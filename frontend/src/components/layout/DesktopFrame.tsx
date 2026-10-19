@@ -1,5 +1,4 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { cn } from '@/lib/utils'
 import { useSessionStore } from '@/stores/session-store'
 import {
   MessageSquare,
@@ -31,112 +30,146 @@ export function DesktopFrame() {
   const isChat = location.pathname === '/'
 
   return (
-    <div className="dshDesktopFrame grid h-screen w-screen overflow-hidden">
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       {/* Sidebar */}
-      <aside
-        className={cn(
-          'dshDesktopSidebarSurface flex flex-col border-r border-border bg-card',
-          'transition-[width] duration-[280ms] ease-in-out',
-          'w-[260px]',
-        )}
-      >
+      <aside style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '1px solid var(--color-border)',
+        backgroundColor: 'var(--color-card)',
+        overflow: 'hidden',
+      }}>
         {/* Brand */}
-        <div className="flex h-14 shrink-0 items-center justify-between px-4">
-          <span className="text-lg font-semibold tracking-tight">求道</span>
+        <div style={{
+          height: '56px',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '-0.02em' }}>求道</span>
         </div>
 
-        {/* Context-aware content */}
-        {isChat ? (
-          /* Session list for chat */
+        {/* Navigation - always visible */}
+        <nav style={{ padding: '0 8px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path ||
+                (item.path !== '/' && location.pathname.startsWith(item.path))
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: isActive ? 'var(--color-muted)' : 'transparent',
+                    color: isActive ? 'var(--color-foreground)' : 'var(--color-muted-foreground)',
+                    fontSize: '14px',
+                    fontWeight: isActive ? 500 : 400,
+                    cursor: 'pointer',
+                    width: '100%',
+                    textAlign: 'left',
+                    transition: 'background-color 150ms',
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <item.icon style={{ width: '16px', height: '16px' }} />
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+
+        {/* Sessions list - only in chat mode */}
+        {isChat && (
           <>
-            <div className="px-3 pb-2">
+            <div style={{ padding: '12px 12px 8px', borderTop: '1px solid var(--color-border)', marginTop: '12px' }}>
               <button
                 onClick={() => { createSession(); navigate('/') }}
-                className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--color-muted-foreground)',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'background-color 150ms',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-muted)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
-                <Plus className="h-4 w-4" />
+                <Plus style={{ width: '16px', height: '16px' }} />
                 新建对话
               </button>
             </div>
-            <nav className="flex-1 overflow-auto px-2">
-              <div className="space-y-0.5">
+            <nav style={{ flex: 1, overflow: 'auto', padding: '0 8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {sessions.map((s) => (
                   <div
                     key={s.id}
-                    className={cn(
-                      'group flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors cursor-pointer',
-                      s.id === currentId
-                        ? 'bg-muted font-medium text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                    )}
                     onClick={() => selectSession(s.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      backgroundColor: s.id === currentId ? 'var(--color-muted)' : 'transparent',
+                      color: s.id === currentId ? 'var(--color-foreground)' : 'var(--color-muted-foreground)',
+                      fontWeight: s.id === currentId ? 500 : 400,
+                      transition: 'background-color 150ms',
+                    }}
+                    onMouseEnter={(e) => { if (s.id !== currentId) e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
+                    onMouseLeave={(e) => { if (s.id !== currentId) e.currentTarget.style.backgroundColor = 'transparent' }}
                   >
-                    <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                    <span className="flex-1 truncate">{s.title}</span>
+                    <MessageSquare style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteSession(s.id) }}
-                      className="hidden rounded p-0.5 text-muted-foreground hover:text-destructive group-hover:block"
+                      style={{
+                        padding: '2px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: 'var(--color-muted-foreground)',
+                        cursor: 'pointer',
+                        opacity: 0.6,
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-destructive)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-muted-foreground)')}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 style={{ width: '14px', height: '14px' }} />
                     </button>
                   </div>
                 ))}
               </div>
             </nav>
           </>
-        ) : (
-          /* Navigation for other pages */
-          <nav className="flex-1 overflow-auto px-2">
-            <div className="space-y-1">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.path ||
-                  (item.path !== '/' && location.pathname.startsWith(item.path))
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => navigate(item.path)}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                      isActive
-                        ? 'bg-muted font-medium text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                    )}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </button>
-                )
-              })}
-            </div>
-          </nav>
         )}
-
-        {/* Bottom nav (always visible) */}
-        <div className="shrink-0 border-t border-border px-2 py-2">
-          {navItems.filter(i => i.path !== '/').map((item) => {
-            const isActive = location.pathname === item.path ||
-              location.pathname.startsWith(item.path)
-            return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-xs transition-colors',
-                  isActive
-                    ? 'font-medium text-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <item.icon className="h-3.5 w-3.5" />
-                {item.label}
-              </button>
-            )
-          })}
-        </div>
       </aside>
 
       {/* Main content */}
-      <main className="dshDesktopConversationSurface flex min-w-0 flex-col bg-background">
+      <main style={{
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        backgroundColor: 'var(--color-background)',
+        overflow: 'hidden',
+      }}>
         <Outlet />
       </main>
     </div>

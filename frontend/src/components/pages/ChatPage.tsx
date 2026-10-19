@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { cn } from '@/lib/utils'
 import { useSessionStore } from '@/stores/session-store'
-import { Send, Square, Trash2 } from 'lucide-react'
+import { Send, Square } from 'lucide-react'
 
 export function ChatPage() {
   const {
@@ -17,17 +16,12 @@ export function ChatPage() {
 
   const currentSession = sessions.find((s) => s.id === currentId)
 
-  // Load sessions on mount
-  useEffect(() => {
-    loadFromStorage()
-  }, [loadFromStorage])
+  useEffect(() => { loadFromStorage() }, [loadFromStorage])
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [currentSession?.messages])
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
@@ -66,44 +60,59 @@ export function ChatPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Chat header */}
-      <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
-        <h1 className="text-sm font-medium text-muted-foreground">
+      <div style={{
+        height: '56px',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 24px',
+        borderBottom: '1px solid var(--color-border)',
+        flexShrink: 0,
+      }}>
+        <h1 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-muted-foreground)', margin: 0 }}>
           {currentSession?.title || '求道 · 对话'}
         </h1>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-auto px-4 py-6">
+      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
         {!currentSession || currentSession.messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <p className="text-lg font-medium text-foreground">求道</p>
-              <p className="mt-2 text-sm text-muted-foreground">
+          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: '18px', fontWeight: 500, color: 'var(--color-foreground)', margin: 0 }}>求道</p>
+              <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--color-muted-foreground)' }}>
                 输入消息开始对话
               </p>
             </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl space-y-6">
+          <div style={{ maxWidth: '768px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {currentSession.messages.map((msg, i) => (
               <div
                 key={i}
-                className={cn(
-                  'flex',
-                  msg.role === 'user' ? 'justify-end' : 'justify-start',
-                )}
+                style={{
+                  display: 'flex',
+                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                }}
               >
                 <div
-                  className={cn(
-                    'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground',
-                  )}
+                  style={{
+                    maxWidth: '85%',
+                    borderRadius: '16px',
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    lineHeight: 1.6,
+                    backgroundColor: msg.role === 'user' ? 'var(--color-primary)' : 'var(--color-muted)',
+                    color: msg.role === 'user' ? 'var(--color-primary-foreground)' : 'var(--color-foreground)',
+                  }}
                 >
-                  <pre className="whitespace-pre-wrap break-words font-sans">
+                  <pre style={{
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    fontFamily: 'inherit',
+                    margin: 0,
+                  }}>
                     {msg.content || (streaming && i === currentSession.messages.length - 1 ? '…' : '')}
                   </pre>
                 </div>
@@ -115,8 +124,12 @@ export function ChatPage() {
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-border px-4 py-3">
-        <div className="mx-auto flex max-w-3xl items-end gap-2">
+      <div style={{
+        padding: '12px 24px',
+        borderTop: '1px solid var(--color-border)',
+        flexShrink: 0,
+      }}>
+        <div style={{ maxWidth: '768px', margin: '0 auto', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
           <textarea
             ref={textareaRef}
             value={input}
@@ -124,22 +137,60 @@ export function ChatPage() {
             onKeyDown={handleKeyDown}
             placeholder="输入消息… (Enter 发送, Shift+Enter 换行)"
             rows={1}
-            className="flex-1 resize-none rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:bg-background"
+            style={{
+              flex: 1,
+              resize: 'none',
+              borderRadius: '12px',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-muted)',
+              padding: '12px 16px',
+              fontSize: '14px',
+              outline: 'none',
+              fontFamily: 'inherit',
+              color: 'var(--color-foreground)',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-ring)'; e.currentTarget.style.backgroundColor = 'var(--color-background)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.backgroundColor = 'var(--color-muted)' }}
           />
           {streaming ? (
             <button
               onClick={handleStop}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90"
+              style={{
+                width: '40px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '12px',
+                border: 'none',
+                backgroundColor: 'var(--color-destructive)',
+                color: 'white',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
             >
-              <Square className="h-4 w-4" />
+              <Square style={{ width: '16px', height: '16px' }} />
             </button>
           ) : (
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+              style={{
+                width: '40px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '12px',
+                border: 'none',
+                backgroundColor: input.trim() ? 'var(--color-primary)' : 'var(--color-border)',
+                color: input.trim() ? 'var(--color-primary-foreground)' : 'var(--color-muted-foreground)',
+                cursor: input.trim() ? 'pointer' : 'not-allowed',
+                flexShrink: 0,
+                transition: 'background-color 150ms',
+              }}
             >
-              <Send className="h-4 w-4" />
+              <Send style={{ width: '16px', height: '16px' }} />
             </button>
           )}
         </div>
