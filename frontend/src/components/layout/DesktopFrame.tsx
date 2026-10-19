@@ -450,68 +450,136 @@ export function DesktopFrame() {
               style={{
                 display: 'flex', flexDirection: 'column',
                 height: '100%', minWidth: 0,
-                borderLeft: '0.5px solid var(--dsw-alias-border-l3)',
                 background: 'var(--dsw-alias-bg-base)',
                 overflow: 'hidden',
                 position: 'relative',
               }}
             >
-              {/* Right sidebar header */}
+              {/* ══ Tab Strip — DSH .tabStrip: 28px row ═══ */}
               <div style={{
-                flex: 'none', display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between',
-                height: '56px', padding: '0 12px 0 16px',
-                borderBottom: '0.5px solid var(--dsw-alias-border-l3)',
+                display: 'flex',
+                flex: 'none',
+                gap: '4px',
+                alignItems: 'center',
+                height: '28px',
+                padding: '10px 6px 0 10px',
                 boxSizing: 'border-box',
+                touchAction: 'none',
               }}>
-                {/* Tabs */}
-                <div style={{ display: 'flex', gap: '2px' }}>
+                {/* Strip Tabs — DSH .stripTabs */}
+                <div style={{
+                  display: 'flex',
+                  flex: '0 1 auto',
+                  alignItems: 'center',
+                  minWidth: 0,
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  scrollbarWidth: 'none',
+                }}>
                   {([
-                    { id: 'notes' as RightTab, label: '笔记', icon: BookOpen },
-                    { id: 'files' as RightTab, label: '文件', icon: FolderOpen },
-                    { id: 'workspace' as RightTab, label: '工作区', icon: Wrench },
-                  ]).map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setRightbarTab(tab.id)}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '6px',
-                        height: '32px', padding: '0 10px',
-                        border: 'none', borderRadius: 'var(--dsw-radius-md, 8px)',
-                        background: rightbarTab === tab.id ? 'var(--dsw-alias-interactive-bg-hover)' : 'transparent',
-                        color: rightbarTab === tab.id ? 'var(--dsw-alias-label-primary)' : 'var(--dsw-alias-label-secondary)',
-                        fontSize: '13px', fontWeight: rightbarTab === tab.id ? 500 : 400,
-                        lineHeight: '20px', cursor: 'pointer',
-                        transition: 'background 100ms ease',
-                      }}
-                      onMouseEnter={(e) => { if (rightbarTab !== tab.id) e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)' }}
-                      onMouseLeave={(e) => { if (rightbarTab !== tab.id) e.currentTarget.style.background = 'transparent' }}
-                    >
-                      <tab.icon size={14} />
-                      {tab.label}
-                    </button>
+                    { id: 'notes' as RightTab, label: '笔记' },
+                    { id: 'files' as RightTab, label: '文件' },
+                    { id: 'workspace' as RightTab, label: '工作区' },
+                  ]).map((tab, idx) => (
+                    <div key={tab.id} style={{ display: 'contents' }}>
+                      {idx > 0 && (
+                        /* Slot between tabs — DSH .slot */
+                        <div style={{
+                          display: 'flex', flex: 'none',
+                          alignItems: 'center', justifyContent: 'center',
+                          width: '10px', height: '28px',
+                        }}>
+                          <div style={{
+                            width: '0.5px', height: '14px',
+                            background: 'var(--dsw-alias-border-l4)',
+                          }} />
+                        </div>
+                      )}
+                      <button
+                        onClick={() => setRightbarTab(tab.id)}
+                        style={{
+                          position: 'relative',
+                          display: 'flex',
+                          flex: '0 1 auto',
+                          alignItems: 'center',
+                          minWidth: '80px',
+                          maxWidth: '170px',
+                          height: '28px',
+                          padding: '0 10px',
+                          border: 'none',
+                          borderRadius: 'var(--dsw-radius-sm, 6px)',
+                          background: rightbarTab === tab.id
+                            ? 'var(--dsw-alias-markdown-tag, var(--dsw-alias-interactive-bg-hover))'
+                            : 'transparent',
+                          color: rightbarTab === tab.id
+                            ? 'var(--dsw-alias-label-primary)'
+                            : 'var(--dsw-alias-label-secondary)',
+                          fontSize: 'var(--dsh-content-font-size-secondary, 13px)',
+                          lineHeight: 1,
+                          whiteSpace: 'nowrap',
+                          cursor: 'pointer',
+                          touchAction: 'none',
+                          userSelect: 'none',
+                          transition: 'background 100ms ease',
+                          fontFamily: 'inherit',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (rightbarTab !== tab.id)
+                            e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'
+                        }}
+                        onMouseLeave={(e) => {
+                          if (rightbarTab !== tab.id)
+                            e.currentTarget.style.background = 'transparent'
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    </div>
                   ))}
                 </div>
-                {/* Collapse button */}
-                <button
-                  onClick={() => setRightbarOpen(false)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: '28px', height: '28px', border: 'none',
-                    borderRadius: 'var(--dsw-radius-sm, 6px)', padding: 0,
-                    background: 'transparent', cursor: 'pointer',
-                    color: 'var(--dsw-alias-label-secondary)',
-                  }}
-                  title="折叠右侧栏"
-                >
-                  <PanelRightClose size={16} />
-                </button>
+
+                {/* Strip Chrome — DSH .stripChrome: controls at end */}
+                <div style={{
+                  display: 'flex',
+                  flex: 'none',
+                  gap: '8px',
+                  alignItems: 'center',
+                  height: '28px',
+                  marginLeft: '4px',
+                }}>
+                  <button
+                    onClick={() => setRightbarOpen(false)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '28px',
+                      height: '28px',
+                      padding: '6px',
+                      border: 'none',
+                      borderRadius: 'var(--dsw-radius-sm, 6px)',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      color: 'var(--dsw-alias-label-secondary)',
+                      lineHeight: 1,
+                      transition: 'background 100ms ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    title="折叠右侧栏"
+                  >
+                    <PanelRightClose size={15} />
+                  </button>
+                </div>
               </div>
 
-              {/* Right sidebar content */}
+              {/* ══ Pane Body — DSH .paneBody ══ */}
               <div style={{
-                flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden',
-                padding: '12px 16px',
+                position: 'relative',
+                flex: '1 1 auto',
+                minWidth: 0,
+                minHeight: 0,
+                overflow: 'auto',
                 '--dsh-scrollbar-thumb': 'var(--dsw-alias-scrollbar-bg-l2)',
                 '--dsh-scrollbar-thumb-hover': 'var(--dsw-alias-scrollbar-hover-l2)',
               } as React.CSSProperties}>
