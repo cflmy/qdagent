@@ -455,6 +455,7 @@ export function DesktopFrame() {
                 background: 'var(--dsw-alias-bg-base)',
                 overflow: 'hidden',
                 position: 'relative',
+                borderLeft: '0.5px solid var(--dsw-alias-border-l4)',
               }}
             >
               {/* ══ Tab Strip — DSH .tabStrip: 28px row ═══ */}
