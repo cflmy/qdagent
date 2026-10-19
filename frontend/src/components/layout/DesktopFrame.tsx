@@ -13,6 +13,8 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Plug,
+  Maximize,
+  Columns2,
 } from 'lucide-react'
 import { useEffect, useState, useCallback, useRef, createContext, useContext } from 'react'
 
@@ -463,7 +465,7 @@ export function DesktopFrame() {
                 alignItems: 'center',
                 height: '28px',
                 padding: '10px 6px 0 10px',
-                boxSizing: 'border-box',
+                /* content-box (default): 10px top + 28px = 38px row */
                 touchAction: 'none',
               }}>
                 {/* Strip Tabs — DSH .stripTabs */}
@@ -474,7 +476,9 @@ export function DesktopFrame() {
                   minWidth: 0,
                   overflowX: 'auto',
                   overflowY: 'hidden',
+                  scrollBehavior: 'smooth',
                   scrollbarWidth: 'none',
+                  touchAction: 'none',
                 }}>
                   {([
                     { id: 'notes' as RightTab, label: '笔记' },
@@ -538,7 +542,69 @@ export function DesktopFrame() {
                   ))}
                 </div>
 
-                {/* Strip Chrome — DSH .stripChrome: controls at end */}
+                {/* Add Tab button — DSH .addTab */}
+                <button
+                  style={{
+                    display: 'flex',
+                    flex: 'none',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    padding: 0,
+                    border: 'none',
+                    borderRadius: 'var(--dsw-radius-sm, 6px)',
+                    background: 'transparent',
+                    color: 'var(--dsw-alias-label-secondary)',
+                    lineHeight: 1,
+                    cursor: 'pointer',
+                    transition: 'background 100ms ease, color 100ms ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'
+                    e.currentTarget.style.color = 'var(--dsw-alias-label-primary)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = 'var(--dsw-alias-label-secondary)'
+                  }}
+                  title="添加标签"
+                >
+                  <Plus size={14} />
+                </button>
+
+                {/* Strip Fill — DSH .stripFill: flex spacer pushing controls right */}
+                <div style={{
+                  flex: '1 1 0',
+                  minWidth: 0,
+                }} />
+
+                {/* Split Pane — DSH .iconButton between stripFill and stripChrome */}
+                <button
+                  style={{
+                    display: 'inline-flex',
+                    flex: 'none',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    padding: '6px',
+                    border: 'none',
+                    borderRadius: 'var(--dsw-radius-sm, 6px)',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    color: 'var(--dsw-alias-label-secondary)',
+                    lineHeight: 1,
+                    transition: 'background 100ms ease',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  title="分割面板"
+                >
+                  <Columns2 size={15} />
+                </button>
+
+                {/* Strip Chrome — DSH .stripChrome: embedder controls at end */}
                 <div style={{
                   display: 'flex',
                   flex: 'none',
@@ -547,6 +613,30 @@ export function DesktopFrame() {
                   height: '28px',
                   marginLeft: '4px',
                 }}>
+                  {/* Fullscreen toggle — DSH PanelChrome first button */}
+                  <button
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '28px',
+                      height: '28px',
+                      padding: '6px',
+                      border: 'none',
+                      borderRadius: 'var(--dsw-radius-sm, 6px)',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      color: 'var(--dsw-alias-label-secondary)',
+                      lineHeight: 1,
+                      transition: 'background 100ms ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    title="全屏"
+                  >
+                    <Maximize size={15} />
+                  </button>
+                  {/* Collapse toggle — DSH PanelChrome second button */}
                   <button
                     onClick={() => setRightbarOpen(false)}
                     style={{
