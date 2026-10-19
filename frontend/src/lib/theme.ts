@@ -12,7 +12,6 @@ export function getTheme(): Theme {
 }
 
 export function applyTheme(theme: Theme): void {
-  const root = document.documentElement
   const body = document.body
 
   if (theme === 'dark') {
@@ -33,12 +32,10 @@ export function applyTheme(theme: Theme): void {
 }
 
 export function initTheme(): void {
-  const theme = getTheme()
-  applyTheme(theme)
+  applyTheme(getTheme())
 
   // Listen for system theme changes
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  mediaQuery.addEventListener('change', () => {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (getTheme() === 'system') {
       applyTheme('system')
     }

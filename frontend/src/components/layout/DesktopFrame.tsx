@@ -8,19 +8,20 @@ import {
   Plus,
   Trash2,
   FolderOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 import { useEffect, useState, useCallback, useRef } from 'react'
 
 const navItems = [
   { path: '/', icon: MessageSquare, label: '对话' },
   { path: '/notes', icon: BookOpen, label: '笔记' },
-  { path: '/settings', icon: Settings, label: '设置' },
   { path: '/eng', icon: Wrench, label: '工程' },
   { path: '/workspace', icon: FolderOpen, label: '工作区', dev: true },
 ]
 
 const SIDEBAR_DEFAULT = 260
-const SIDEBAR_COLLAPSED = 48
+const SIDEBAR_COLLAPSED = 56
 const SIDEBAR_MIN = 200
 const SIDEBAR_MAX = 400
 
@@ -42,7 +43,6 @@ export function DesktopFrame() {
 
   const isChat = location.pathname === '/'
 
-  // Drag handle logic
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return
     e.preventDefault()
@@ -57,8 +57,6 @@ export function DesktopFrame() {
     const dx = e.clientX - dragStartX.current
     const newWidth = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, dragStartWidth.current + dx))
     setSidebarWidth(newWidth)
-    if (newWidth < 100) setSidebarCollapsed(true)
-    else setSidebarCollapsed(false)
   }, [dragging])
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
@@ -77,183 +75,361 @@ export function DesktopFrame() {
         transition: dragging ? 'none' : 'grid-template-columns 200ms ease',
       }}
     >
-      {/* Sidebar */}
+      {/* Sidebar — DSH SidebarRoot structure */}
       <aside
         className="dsh-sidebar-fill"
         style={{
           display: 'flex',
           flexDirection: 'column',
-          borderRight: '1px solid var(--dsw-alias-border-l2)',
+          height: '100%',
+          padding: '6px 12px',
+          boxSizing: 'border-box',
+          borderRight: '0.5px solid var(--dsw-alias-border-l3)',
           overflow: 'hidden',
           position: 'relative',
-        }}
+          fontSize: '14px',
+          color: 'var(--dsw-alias-label-primary)',
+          // Scrollbar l2 for elevated surface
+          '--dsh-scrollbar-thumb': 'var(--dsw-alias-scrollbar-bg-l2)',
+          '--dsh-scrollbar-thumb-hover': 'var(--dsw-alias-scrollbar-hover-l2)',
+        } as React.CSSProperties}
       >
-        {/* Brand */}
+        {/* Logo Row — brand + toggle */}
         <div style={{
-          height: '56px',
+          flex: 'none',
           display: 'flex',
           alignItems: 'center',
-          padding: sidebarCollapsed ? '0 12px' : '0 16px',
-          flexShrink: 0,
-          justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+          justifyContent: sidebarCollapsed ? 'center' : 'flex-end',
+          height: '60px',
+          padding: '8px 0 8px 4px',
+          marginBottom: '4px',
+          boxSizing: 'border-box',
+          overflow: 'hidden',
         }}>
-          {!sidebarCollapsed && (
-            <span style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--dsw-alias-label-primary)' }}>
-              求道
-            </span>
+          {sidebarCollapsed ? (
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '36px',
+                height: '36px',
+                border: 'none',
+                borderRadius: 'var(--dsw-radius-md, 8px)',
+                padding: 0,
+                background: 'transparent',
+                cursor: 'pointer',
+                color: 'var(--dsw-alias-label-primary)',
+              }}
+              title="展开侧边栏"
+            >
+              <PanelLeftOpen size={18} />
+            </button>
+          ) : (
+            <>
+              {/* Brand */}
+              <button
+                onClick={() => { createSession(); navigate('/') }}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  height: '24px',
+                  padding: 0,
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                }}
+              >
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  lineHeight: '24px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  求道
+                </span>
+              </button>
+              {/* Toggle */}
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                style={{
+                  flex: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '28px',
+                  height: '28px',
+                  border: 'none',
+                  borderRadius: 'var(--dsw-radius-sm, 6px)',
+                  padding: 0,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: 'var(--dsw-alias-label-secondary)',
+                }}
+                title="折叠侧边栏"
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            </>
           )}
         </div>
 
-        {/* Navigation - always visible */}
-        <nav style={{ padding: '0 8px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path ||
-                (item.path !== '/' && location.pathname.startsWith(item.path))
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => navigate(item.path)}
-                  title={sidebarCollapsed ? item.label : undefined}
-                  className="dsh-sidebar-nav-item-hover"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: sidebarCollapsed ? '0' : '12px',
-                    padding: sidebarCollapsed ? '8px' : '8px 12px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    backgroundColor: isActive ? 'var(--dsw-specific-sidebar-nav-item-active)' : 'transparent',
-                    color: isActive ? 'var(--dsw-alias-label-primary)' : 'var(--dsw-alias-label-secondary)',
-                    fontSize: '14px',
-                    fontWeight: isActive ? 500 : 400,
-                    cursor: 'pointer',
-                    width: '100%',
-                    textAlign: 'left',
-                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                    position: 'relative',
-                  }}
-                >
-                  <item.icon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-                  {!sidebarCollapsed && (
-                    <>
-                      <span style={{ flex: 1 }}>{item.label}</span>
-                      {item.dev && (
-                        <span style={{
-                          fontSize: '10px',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: 'var(--dsw-alias-state-warn-tertiary)',
-                          color: 'var(--dsw-alias-state-warn-label)',
-                          fontWeight: 500,
-                        }}>
-                          开发中
-                        </span>
-                      )}
-                    </>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </nav>
+        {/* New Session Button — DSH style */}
+        {sidebarCollapsed ? (
+          <button
+            onClick={() => { createSession(); navigate('/') }}
+            style={{
+              flex: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              border: 'none',
+              borderRadius: 'var(--dsw-radius-md, 8px)',
+              padding: 0,
+              background: 'transparent',
+              cursor: 'pointer',
+              color: 'var(--dsw-alias-label-primary)',
+              alignSelf: 'flex-start',
+              marginBottom: '12px',
+            }}
+            title="新建对话"
+          >
+            <Plus size={18} />
+          </button>
+        ) : (
+          <button
+            onClick={() => { createSession(); navigate('/') }}
+            style={{
+              flex: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              height: '38px',
+              padding: '8px 12px',
+              margin: '0 2px 12px',
+              boxSizing: 'border-box',
+              border: '0.5px solid var(--dsw-alias-border-l3)',
+              borderRadius: 'var(--dsw-radius-md, 8px)',
+              background: 'var(--dsw-alias-button-elevated-fill, var(--dsw-alias-bg-layer-2))',
+              color: 'var(--dsw-alias-label-primary)',
+              fontSize: '14px',
+              fontWeight: 500,
+              lineHeight: '22px',
+              cursor: 'pointer',
+              overflow: 'hidden',
+              transition: 'background 150ms ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--dsw-alias-button-floating-hover, var(--dsw-alias-interactive-bg-hover))'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'var(--dsw-alias-button-elevated-fill, var(--dsw-alias-bg-layer-2))'}
+          >
+            <Plus size={14} />
+            <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>新建对话</span>
+          </button>
+        )}
 
-        {/* Sessions list - only in chat mode */}
-        {isChat && !sidebarCollapsed && (
-          <>
-            <div style={{ padding: '12px 12px 8px', borderTop: '1px solid var(--dsw-alias-border-l2)', marginTop: '12px' }}>
+        {/* Panel List — navigation items */}
+        <nav style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path ||
+              (item.path !== '/' && location.pathname.startsWith(item.path))
+            return (
               <button
-                onClick={() => { createSession(); navigate('/') }}
-                className="dsh-sidebar-nav-item-hover"
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                title={sidebarCollapsed ? item.label : undefined}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--dsw-alias-border-l2)',
-                  backgroundColor: 'transparent',
-                  color: 'var(--dsw-alias-label-secondary)',
+                  gap: sidebarCollapsed ? '0' : '8px',
+                  minHeight: '36px',
+                  padding: sidebarCollapsed ? '0' : '7px 8px',
+                  margin: '0 2px',
+                  boxSizing: 'border-box',
+                  border: 'none',
+                  borderRadius: 'var(--dsw-radius-md, 8px)',
+                  background: isActive ? 'var(--dsw-alias-interactive-bg-hover)' : 'transparent',
+                  color: 'var(--dsw-alias-label-primary)',
                   fontSize: '14px',
+                  fontWeight: isActive ? 500 : 400,
+                  lineHeight: '22px',
+                  textAlign: 'left',
                   cursor: 'pointer',
+                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                  width: sidebarCollapsed ? '36px' : '100%',
+                  height: sidebarCollapsed ? '36px' : undefined,
+                  transition: 'background 100ms ease',
                 }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)' }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
               >
-                <Plus style={{ width: '16px', height: '16px' }} />
-                新建对话
+                <span style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <item.icon size={sidebarCollapsed ? 18 : 16} />
+                </span>
+                {!sidebarCollapsed && (
+                  <>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                    {item.dev && (
+                      <span style={{
+                        fontSize: '10px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: 'var(--dsw-alias-state-warn-tertiary)',
+                        color: 'var(--dsw-alias-state-warn-label)',
+                        fontWeight: 500,
+                        flexShrink: 0,
+                      }}>
+                        开发中
+                      </span>
+                    )}
+                  </>
+                )}
               </button>
-            </div>
-            <nav style={{ flex: 1, overflow: 'auto', padding: '0 8px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            )
+          })}
+        </nav>
+
+        {/* Region Area — session list (only in chat mode, expanded) */}
+        {isChat && !sidebarCollapsed && (
+          <div style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            marginLeft: '-4px',
+            marginRight: '-12px',
+            paddingLeft: '4px',
+            paddingRight: '12px',
+            overflow: 'hidden',
+          }}>
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingBottom: '8px' }}>
                 {sessions.map((s) => (
                   <div
                     key={s.id}
                     onClick={() => selectSession(s.id)}
-                    className="dsh-sidebar-nav-item-hover"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
+                      minHeight: '36px',
+                      padding: '7px 8px',
+                      margin: '0 2px',
+                      boxSizing: 'border-box',
+                      border: 'none',
+                      borderRadius: 'var(--dsw-radius-md, 8px)',
+                      background: s.id === currentId ? 'var(--dsw-alias-interactive-bg-hover)' : 'transparent',
+                      color: s.id === currentId ? 'var(--dsw-alias-label-primary)' : 'var(--dsw-alias-label-primary)',
                       fontSize: '14px',
+                      lineHeight: '22px',
                       cursor: 'pointer',
-                      backgroundColor: s.id === currentId ? 'var(--dsw-specific-sidebar-nav-item-active)' : 'transparent',
-                      color: s.id === currentId ? 'var(--dsw-alias-label-primary)' : 'var(--dsw-alias-label-secondary)',
-                      fontWeight: s.id === currentId ? 500 : 400,
+                      transition: 'background 100ms ease',
                     }}
+                    onMouseEnter={(e) => { if (s.id !== currentId) e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)' }}
+                    onMouseLeave={(e) => { if (s.id !== currentId) e.currentTarget.style.background = 'transparent' }}
                   >
-                    <MessageSquare style={{ width: '14px', height: '14px', flexShrink: 0 }} />
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteSession(s.id) }}
                       style={{
-                        padding: '2px',
-                        borderRadius: '4px',
+                        flex: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '20px',
+                        height: '20px',
+                        padding: 0,
                         border: 'none',
-                        backgroundColor: 'transparent',
+                        borderRadius: '4px',
+                        background: 'transparent',
                         color: 'var(--dsw-alias-label-tertiary)',
                         cursor: 'pointer',
-                        opacity: 0.6,
+                        opacity: 0,
+                        transition: 'opacity 100ms, color 100ms',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--dsw-alias-state-error-primary)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--dsw-alias-label-tertiary)')}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--dsw-alias-state-error-primary)'; e.currentTarget.style.opacity = '1' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--dsw-alias-label-tertiary)'; e.currentTarget.style.opacity = '0' }}
                     >
-                      <Trash2 style={{ width: '14px', height: '14px' }} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 ))}
               </div>
-            </nav>
-          </>
+            </div>
+          </div>
         )}
 
-        {/* Collapse toggle */}
-        <div style={{
-          padding: '8px',
-          borderTop: '1px solid var(--dsw-alias-border-l2)',
-          flexShrink: 0,
-        }}>
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="dsh-sidebar-nav-item-hover"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              padding: '6px',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: 'var(--dsw-alias-label-tertiary)',
-              cursor: 'pointer',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ transform: sidebarCollapsed ? 'rotate(180deg)' : 'none' }}>
-              <path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+        {/* Spacer for collapsed state */}
+        {(!isChat || sidebarCollapsed) && <div style={{ flex: 1 }} />}
+
+        {/* Foot Area — settings at bottom */}
+        <div style={{ flex: 'none', display: 'flex', flexDirection: 'column' }}>
+          {!sidebarCollapsed && (
+            <button
+              onClick={() => navigate('/settings')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                minHeight: '36px',
+                padding: '7px 8px',
+                margin: '0 2px 4px',
+                boxSizing: 'border-box',
+                border: 'none',
+                borderRadius: 'var(--dsw-radius-md, 8px)',
+                background: location.pathname === '/settings' ? 'var(--dsw-alias-interactive-bg-hover)' : 'transparent',
+                color: 'var(--dsw-alias-label-primary)',
+                fontSize: '14px',
+                fontWeight: location.pathname === '/settings' ? 500 : 400,
+                lineHeight: '22px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                width: '100%',
+                transition: 'background 100ms ease',
+              }}
+              onMouseEnter={(e) => { if (location.pathname !== '/settings') e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)' }}
+              onMouseLeave={(e) => { if (location.pathname !== '/settings') e.currentTarget.style.background = 'transparent' }}
+            >
+              <Settings size={16} />
+              <span>设置</span>
+            </button>
+          )}
+          {sidebarCollapsed && (
+            <button
+              onClick={() => navigate('/settings')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '36px',
+                height: '36px',
+                border: 'none',
+                borderRadius: 'var(--dsw-radius-md, 8px)',
+                padding: 0,
+                background: 'transparent',
+                cursor: 'pointer',
+                color: 'var(--dsw-alias-label-primary)',
+                alignSelf: 'center',
+                transition: 'background 100ms ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              title="设置"
+            >
+              <Settings size={18} />
+            </button>
+          )}
         </div>
       </aside>
 
@@ -270,19 +446,21 @@ export function DesktopFrame() {
             bottom: 0,
             width: '4px',
             cursor: 'col-resize',
-            backgroundColor: dragging ? 'var(--dsw-static-deepseek-500)' : 'transparent',
+            backgroundColor: dragging ? 'var(--dsw-alias-scrollbar-bg-l1)' : 'transparent',
             zIndex: 10,
+            transition: 'background-color 100ms ease',
           }}
-          onMouseEnter={(e) => { if (!dragging) e.currentTarget.style.backgroundColor = 'var(--dsw-alias-border-l3)' }}
+          onMouseEnter={(e) => { if (!dragging) e.currentTarget.style.backgroundColor = 'var(--dsw-alias-scrollbar-bg-l1)' }}
           onMouseLeave={(e) => { if (!dragging) e.currentTarget.style.backgroundColor = 'transparent' }}
         />
       )}
 
-      {/* Main content */}
+      {/* Main content — DSH ConversationRoot style */}
       <main style={{
         display: 'flex',
         flexDirection: 'column',
         minWidth: 0,
+        height: '100%',
         backgroundColor: 'var(--dsw-alias-bg-base)',
         overflow: 'hidden',
       }}>

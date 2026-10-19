@@ -5,7 +5,7 @@ import { Send, Square } from 'lucide-react'
 export function ChatPage() {
   const {
     sessions, currentId, streaming,
-    selectSession, createSession, deleteSession,
+    selectSession, createSession,
     addMessage, streamChat, loadFromStorage,
   } = useSessionStore()
 
@@ -25,7 +25,8 @@ export function ChatPage() {
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px'
+      const h = Math.min(textareaRef.current.scrollHeight, 336)
+      textareaRef.current.style.height = Math.max(h, 36) + 'px'
     }
   }, [input])
 
@@ -33,178 +34,314 @@ export function ChatPage() {
     const text = input.trim()
     if (!text || streaming) return
 
-    let sessionId = currentId
-    if (!sessionId) {
-      sessionId = createSession()
+    let sid = currentId
+    if (!sid) {
+      sid = createSession()
     }
 
-    addMessage(sessionId, { role: 'user', content: text })
     setInput('')
+    addMessage(sid, { role: 'user', content: text })
 
-    const controller = new AbortController()
-    abortRef.current = controller
-    await streamChat(sessionId, controller.signal)
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+
+    try {
+      await streamChat(sid, ctrl.signal)
+    } catch {
+      // aborted or network error
+    }
     abortRef.current = null
   }, [input, streaming, currentId, createSession, addMessage, streamChat])
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort()
-    abortRef.current = null
   }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && streaming) {
+      e.preventDefault()
+      handleStop()
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
     }
   }
 
+  const messages = currentSession?.messages || []
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Chat header */}
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      minWidth: 0,
+      background: 'var(--dsw-alias-bg-base)',
+    }}>
+      {/* Header — DSH ConversationRoot header */}
       <div style={{
-        height: '56px',
+        flex: 'none',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 24px',
-        borderBottom: '1px solid var(--dsw-alias-border-l2)',
-        flexShrink: 0,
+        minHeight: '56px',
+        padding: '10px 28px 10px 20px',
+        borderBottom: '0.5px solid var(--dsw-alias-border-l3)',
+        boxSizing: 'border-box',
       }}>
-        <h1 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--dsw-alias-label-secondary)', margin: 0 }}>
-          {currentSession?.title || '求道 · 对话'}
-        </h1>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{
+            fontSize: '14px',
+            fontWeight: 500,
+            color: 'var(--dsw-alias-label-primary)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {currentSession?.title || '新会话'}
+          </span>
+        </div>
       </div>
 
-      {/* Messages */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-        {!currentSession || currentSession.messages.length === 0 ? (
-          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{
+      {/* Scroll Body — DSH ConversationRoot scrollBody */}
+      <div style={{
+        display: 'flex',
+        flex: 1,
+        flexDirection: 'column',
+        minHeight: 0,
+        marginRight: '2px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        scrollbarGutter: 'stable',
+      }}>
+        {/* Messages */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0',
+          padding: '16px 0',
+          flex: '1 0 auto',
+        }}>
+          {messages.length === 0 && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: 1,
+              padding: '48px 24px',
+              gap: '16px',
+            }}>
+              <span style={{
                 fontSize: '24px',
                 fontWeight: 600,
-                margin: 0,
-                background: 'linear-gradient(135deg, var(--dsw-static-deepseek-500), var(--dsw-static-blue-500))',
+                lineHeight: '32px',
+                background: 'linear-gradient(135deg, var(--dsw-alias-label-primary) 0%, var(--dsw-alias-label-secondary) 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
               }}>
                 求道
-              </p>
-              <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--dsw-alias-label-tertiary)' }}>
-                输入消息开始对话
-              </p>
+              </span>
+              <span style={{
+                fontSize: '14px',
+                color: 'var(--dsw-alias-label-secondary)',
+                textAlign: 'center',
+                maxWidth: '400px',
+              }}>
+                新会话已创建。每轮回复结束后会自动沉淀为笔记。
+              </span>
+            </div>
+          )}
+          {messages.map((msg, i) => (
+            <div
+              key={i}
+              style={{
+                padding: msg.role === 'user'
+                  ? '12px 24px 12px 64px'
+                  : '12px 24px 12px 24px',
+              }}
+            >
+              <div style={msg.role === 'user'
+                ? {
+                  marginLeft: 'auto',
+                  maxWidth: 'min(calc(100% - 32px), 720px)',
+                  padding: '10px 16px',
+                  borderRadius: 'var(--dsw-radius-panel, 12px)',
+                  background: 'var(--dsw-specific-bubble)',
+                  color: 'var(--dsw-alias-label-primary)',
+                  fontSize: '14px',
+                  lineHeight: '22px',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }
+                : {
+                  maxWidth: 'min(calc(100% - 32px), 920px)',
+                  margin: '0 auto',
+                  color: 'var(--dsw-alias-label-primary)',
+                  fontSize: '14px',
+                  lineHeight: '22px',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }
+              }>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {streaming && (
+            <div style={{ padding: '12px 24px' }}>
+              <div style={{
+                maxWidth: 'min(calc(100% - 32px), 920px)',
+                margin: '0 auto',
+                color: 'var(--dsw-alias-label-primary)',
+                fontSize: '14px',
+                lineHeight: '22px',
+              }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: '6px',
+                  height: '16px',
+                  backgroundColor: 'var(--dsw-alias-state-business-primary)',
+                  borderRadius: '1px',
+                  animation: 'blink 1s step-end infinite',
+                  verticalAlign: 'text-bottom',
+                  marginLeft: '2px',
+                }} />
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Composer Seat — DSH sticky bottom */}
+        <div style={{
+          flex: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 7,
+          background: 'linear-gradient(180deg, color-mix(in srgb, var(--dsw-alias-bg-base) 0%, transparent) 0px, var(--dsw-alias-bg-base) 36px)',
+          padding: '0 16px 4px',
+        }}>
+          {/* Input Card — DSH InputBar card */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            width: '100%',
+            maxWidth: 'min(calc(100% - 32px), 952px)',
+            margin: '0 auto',
+            paddingTop: '8px',
+            border: 0,
+            borderRadius: 'var(--dsw-radius-panel, 12px)',
+            background: 'var(--dsw-specific-input-major)',
+            boxShadow: 'var(--dsw-elevation-soft, 0 0 0 0.5px var(--dsw-alias-border-l2), 0 4px 16px 0 rgba(0,0,0,0.03), 0 0 24px 0 rgba(0,0,0,0.03))',
+            fontSize: '14px',
+            lineHeight: '24px',
+            boxSizing: 'border-box',
+          }}>
+            {/* Textarea */}
+            <div style={{ position: 'relative', maxHeight: '336px', overflowY: 'auto', margin: '0 4px' }}>
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="给求道发送消息…"
+                disabled={streaming}
+                rows={1}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  minHeight: '36px',
+                  maxHeight: '336px',
+                  padding: '4px 8px 0 14px',
+                  border: 'none',
+                  outline: 'none',
+                  resize: 'none',
+                  background: 'transparent',
+                  color: 'var(--dsw-alias-label-primary)',
+                  fontFamily: 'inherit',
+                  fontSize: 'inherit',
+                  lineHeight: 'inherit',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  caretColor: 'var(--dsw-alias-state-business-primary)',
+                }}
+              />
+            </div>
+
+            {/* Toolbar row */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '2px 8px 6px',
+              minWidth: 0,
+            }}>
+              {/* Left side */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }} />
+
+              {/* Right side — send button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 'none', marginLeft: 'auto' }}>
+                {streaming ? (
+                  <button
+                    onClick={handleStop}
+                    style={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      width: '34px',
+                      height: '34px',
+                      border: 'none',
+                      borderRadius: '999px',
+                      background: 'var(--dsw-alias-state-error-primary)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      transition: 'background 100ms ease',
+                    }}
+                    title="停止生成"
+                  >
+                    <Square size={16} fill="currentColor" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim()}
+                    style={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      width: '34px',
+                      height: '34px',
+                      border: 'none',
+                      borderRadius: '999px',
+                      background: 'var(--dsw-alias-button-info-fill, var(--dsw-alias-state-business-primary))',
+                      color: '#fff',
+                      cursor: input.trim() ? 'pointer' : 'default',
+                      opacity: input.trim() ? 1 : 0.4,
+                      transition: 'background 100ms ease, opacity 100ms ease',
+                      transform: 'translateY(-2px)',
+                    }}
+                    title="发送"
+                  >
+                    <Send size={16} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        ) : (
-          <div style={{ maxWidth: '768px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {currentSession.messages.map((msg, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                }}
-              >
-                <div
-                  style={{
-                    maxWidth: '85%',
-                    borderRadius: '16px',
-                    padding: '12px 16px',
-                    fontSize: '14px',
-                    lineHeight: 1.6,
-                    backgroundColor: msg.role === 'user' ? 'var(--dsw-specific-bubble)' : 'transparent',
-                    color: 'var(--dsw-alias-label-primary)',
-                    border: msg.role === 'user' ? 'none' : '1px solid var(--dsw-alias-border-l2)',
-                  }}
-                >
-                  <pre style={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    fontFamily: 'inherit',
-                    margin: 0,
-                  }}>
-                    {msg.content || (streaming && i === currentSession.messages.length - 1 ? '…' : '')}
-                  </pre>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
-
-      {/* Input area */}
-      <div style={{
-        padding: '12px 24px',
-        borderTop: '1px solid var(--dsw-alias-border-l2)',
-        flexShrink: 0,
-      }}>
-        <div style={{ maxWidth: '768px', margin: '0 auto', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="输入消息… (Enter 发送, Shift+Enter 换行)"
-            rows={1}
-            className="dsh-input-major"
-            style={{
-              flex: 1,
-              resize: 'none',
-              borderRadius: '12px',
-              border: '1px solid var(--dsw-alias-border-l2)',
-              padding: '12px 16px',
-              fontSize: '14px',
-              outline: 'none',
-              fontFamily: 'inherit',
-              color: 'var(--dsw-alias-label-primary)',
-            }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-static-deepseek-500)' }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--dsw-alias-border-l2)' }}
-          />
-          {streaming ? (
-            <button
-              onClick={handleStop}
-              style={{
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '12px',
-                border: 'none',
-                backgroundColor: 'var(--dsw-alias-state-error-primary)',
-                color: 'white',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-            >
-              <Square style={{ width: '16px', height: '16px' }} />
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!input.trim()}
-              style={{
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '12px',
-                border: 'none',
-                backgroundColor: input.trim() ? 'var(--dsw-alias-button-primary-fill)' : 'var(--dsw-alias-border-l2)',
-                color: input.trim() ? 'var(--dsw-alias-label-primary-foreground)' : 'var(--dsw-alias-label-tertiary)',
-                cursor: input.trim() ? 'pointer' : 'not-allowed',
-                flexShrink: 0,
-              }}
-            >
-              <Send style={{ width: '16px', height: '16px' }} />
-            </button>
-          )}
         </div>
       </div>
+
+      {/* Blink animation */}
+      <style>{`
+        @keyframes blink {
+          50% { opacity: 0; }
+        }
+      `}</style>
     </div>
   )
 }
