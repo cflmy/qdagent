@@ -57,10 +57,14 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 - **Marqdo = 唯一 Agent Runtime**；Python `/v1` 默认 `QDAGENT_V1_EFI=1` 仅做 HTTP 传输
 - **不重造 EKC**：调用 `marqdo knowledge|find|reuse|verify|…`
 - **四真相**：Program · Knowledge · Execution (Workbook) · Evidence
+- **输出契约**：智能体答复与沉淀笔记都必须是**沙箱可运行**的 `.mq.md`，
+  由 `execution/docgate.mq.md` 三段式机械门禁（提取 → 结构 → 沙箱试跑）把关，
+  失败走至多一轮修复（见 [doc/design/09-document-contract-and-docgate.md](doc/design/09-document-contract-and-docgate.md)）
 - Personal Memory（用户画像）保留但非工程主轴
 - OKF `organize` 为 legacy（非 EFI 默认链）；知识主路径是 EKC + Knowledge Candidate
 - `/v1` Python 网关仅做 HTTP 传输；`QDAGENT_V1_EFI=0` 厚路径已移除（HTTP 410）
-- 依赖 Marqdo **CLI ≥1.4.4 · Ext ≥1.4.4**（LLM 传输软失败 · `agent.run efi=` · `sandbox=` · `quarantine` · `eng_record`）
+- 依赖 Marqdo **CLI ≥1.4.4 · Ext ≥1.4.4**（下限不变）；已对齐 **Ext 1.5.2** 的 agent 表面
+  （`agent.run efi=` · `sandbox=` · `router=` · `quarantine` · `eng_record` · `mcp_server transport=http`）
 
 ## 入口
 
@@ -70,6 +74,7 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 | `agent/preflight.mq.md` | Preflight façade |
 | `knowledge/context.mq.md` | Context Pack（零 LLM） |
 | `execution/run.mq.md` | Engineering Workbook |
+| `execution/docgate.mq.md` | 文档门禁（输出契约机械校验 + 沉淀） |
 | `gateway/openai.mq.md` · `gateway/mcp.mq.md` | 产品面 |
 | `serve.mq.md` · `index.mq.md` | Web Gateway（根目录 KEEP） |
 | `cli/求道-*.mq.md` | 产品 CLI / MCP 薄入口 |

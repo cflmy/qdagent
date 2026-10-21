@@ -1,17 +1,20 @@
 ---
 title: agent/qdagent
 description: >-
-  求道 — Executable Engineering Knowledge Agent (CLI≥1.4.4 · Ext≥1.4.4).
+  求道 — Executable Engineering Knowledge Agent (CLI≥1.4.4 · Ext≥1.5.2).
   Modes: ASK / BUILD / LEARN. Single Agent Runtime: product Preflight +
   agent_eng_* latch; agent.run efi=True; CREATE uses sandbox=True.
   LLM transport failures return mode=error (Marqdo 1.4.4 soft status).
   Tools are ## in this file (code-as-documentation).
+  Output contract: agent output AND sedimented notes MUST be runnable
+  marqdo documents, gated by execution/docgate (structure + sandbox trial).
 import pf:preflight.mq.md
 import ctx:../knowledge/context.mq.md
 import resolver:../knowledge/resolver.mq.md
 import metrics:../knowledge/metrics.mq.md
 import dec:../knowledge/decision.mq.md
 import run:../execution/run.mq.md
+import gate:../execution/docgate.mq.md
 import session:../execution/session.mq.md
 import verify:../execution/verify.mq.md
 import record:../execution/record.mq.md
@@ -231,8 +234,10 @@ Prefer human-readable `error` / `result` from Marqdo 1.4.4 soft failures; else s
     + `slug`
     + `agent_out`
     + `efi`=None
+    + `gate_out`=None
 
 Write efi / usage / token_cost / route into workbook Evidence + Metrics.
+`gate_out` (from `门禁沉淀`) adds the doc-gate verdict to the same Evidence row.
 
 **usage = > json.get value=`agent_out` key="usage"**
 **token_cost = > json.get value=`agent_out` key="token_cost"**
@@ -242,17 +247,128 @@ Write efi / usage / token_cost / route into workbook Evidence + Metrics.
 **efi_body = `efi`**
 1. not `efi_body`
   **efi_body = > json.get value=`agent_out` key="efi"**
+**gate_ok = "n/a"**
+**gate_stage = ""**
+**gate_path = ""**
+**gate_rep = False**
+1. `gate_out`
+  **gate_ok = > json.get value=`gate_out` key="ok"**
+  **gate_stage = > json.get value=`gate_out` key="stage"**
+  **gate_path = > json.get value=`gate_out` key="answer_path"**
+  **gate_rep = > json.get value=`gate_out` key="repaired"**
 
 `ev` =
 
-| efi | usage | token_cost | route | status | error |
-|-----|-------|------------|-------|--------|-------|
-| `efi_body` | `usage` | `token_cost` | `route` | `st` | `err` |
+| efi | usage | token_cost | route | status | error | docgate_ok | docgate_stage | docgate_repaired | answer_path |
+|-----|-------|------------|-------|--------|-------|------------|---------------|------------------|-------------|
+| `efi_body` | `usage` | `token_cost` | `route` | `st` | `err` | `gate_ok` | `gate_stage` | `gate_rep` | `gate_path` |
 
 **ev_s = > json.stringify value=`ev`**
 > run.put_section slug=`slug` section="Evidence" content=`ev_s`
 > run.attach_agent_metrics slug=`slug` agent_out=`agent_out`
 *ev_s*
+
+## 契约骨架
+
+最小可运行 marqdo 文档骨架。模型必须按此形状输出：frontmatter 给机器与人
+共同识别，叙述节给人读，`# main` 给沙箱跑。叙述行以文字开头，执行语句只
+出现在 `# main` 内，两者在同一份 `.mq.md` 里共存。
+
+| 顺序 | 节 | 面 | 内容 |
+|------|----|----|------|
+| 1 | `---` frontmatter | 机器 | `title` / `description` |
+| 2 | `# 任务` | 人 | 复述用户目标 |
+| 3 | `# 结论` | 人 | 结论正文，逐行以文字开头 |
+| 4 | `# main` | 机器 | 至少一条可执行语句 |
+| 5 | `# 验证` | 人 | 沙箱试跑结论与 stdout |
+| 6 | `# 元数据` | 人 | mode / model / slug 表 |
+
+## 契约规则
+
+每一行都是硬约束，`execution/docgate.mq.md` 会逐条机械校验。
+
++ `契约`=输出必须是单个完整 `.mq.md` 文档，不得夹带任何文档外文字
++ `契约`=首行起 `---` frontmatter，含 `title`
++ `契约`=叙述行必须以文字开头，禁止行首出现数字、`-`、`>`、`|`、`*`、`[`、`#`、`+`
++ `契约`=执行语句只在 `# main` 内；`# main` 外禁止 `##` 子对象
++ `契约`=`# main` 至少一条可执行语句，沙箱内退出码必须为 0
++ `契约`=结论必须与 `# main` 的实际 stdout 一致，禁止编造运行结果
++ `契约`=工具协议只写半角冒号：`CALL:tool_find` / `CALL:tool_reuse`
+
+## 契约提示
+    + `mode`="ask"
+
+Return the strict standing prompt for a mode. Single source of truth for the
+output contract: the text is injected as agent standing, and the same rules
+are enforced mechanically by `execution/docgate.mq.md` afterwards.
+
+**head = "你正在以 marqdo 语言工作，最终答复必须是一篇完整、可在沙箱中运行的 marqdo 文档（后缀 .mq.md）。这不是建议，是硬性输出契约：答复里只能有这篇文档，禁止任何前言、后记、解释或围栏包裹。\n\n"**
+**body = "文档结构（顺序固定）：\n1. 首行起 --- frontmatter，含 title 与 description。\n2. # 任务 —— 用叙述复述用户目标。\n3. # 结论 —— 用叙述写出结论，这是给人读的部分。\n4. # main —— 给机器跑的部分，至少一条可执行语句，用 **粗体** 写代码、用 > 写调用。\n5. # 验证 —— 用叙述写明该文档在沙箱中试跑通过。\n6. # 元数据 —— 用表格写 mode 与 slug。\n\n"**
+**rules = "硬规则：\n1. 叙述行（非标题行）必须以文字开头；禁止以数字、连字符、大于号、竖线、星号、方括号、井号、加号开头。行内反引号与围栏代码块内不受限。\n2. 执行语句只允许出现在 # main 之内；# main 之外不得出现 ## 子对象。\n3. # main 必须无副作用、不写宿主文件、不联网，只做计算与打印，且能跑通。\n4. 结论中的数字必须来自 # main 的实际输出，不得编造。\n5. 工具协议半角冒号：CALL:tool_find、CALL:tool_reuse。禁止 CALL 框架内部函数。\n\n"**
+**tail = "工程纪律：先读 Preflight Context Pack；遵守 Reuse 先于 Adapt、Adapt 先于 Create；CREATE 前确认 create_allowed 为 true；禁止再造第二套 Agent Runtime 或 EKC。写完文档后在心里跑一遍 # main，确认没有语法错误再输出。"**
+**skill = "求道工程智能体正在执行 BUILD：除上述输出契约外，必须先判定 Reuse / Adapt / Create 并在 # 结论 里写明判定依据；若决定 Create 而 create_allowed 为 false，则在 # 结论 里说明被阻断的原因，不要绕过。\n\n"**
+1. `mode` == "build"
+  **p = `head` + `skill` + `body` + `rules` + `tail`**
+  *p*
+2. *
+  **p = `head` + `body` + `rules` + `tail`**
+  *p*
+
+## 门禁沉淀
+    + `slug`
+    + `result`
+    + `root`="."
+    + `sediment`=True
+    + `data_root`=""
+
+Gate an agent answer against the output contract and, when it passes, sediment
+the document beside the workbook as `<slug>.answer.mq.md`. Returns `{ ok,
+stage, doc, stdout, error, violations, answer_path, sedimented }`.
+A failed gate never sediments; the caller may run one repair round via
+`契约修复` and gate again.
+
+1. not `data_root`
+  **data_root = > sys.env_get name="QDAGENT_DATA"**
+  1. not `data_root`
+    **data_root = "data"**
+**g = > gate.门禁 text=`result` root=`root`**
+**gok = [ok](g)**
+**doc = > json.get value=`g` key="doc"**
+**stage = > json.get value=`g` key="stage"**
+**gerr = > json.get value=`g` key="error"**
+**gout = > json.get value=`g` key="stdout"**
+**viol = > json.get value=`g` key="violations"**
+**answer_path = ""**
+**sed = False**
+1. `gok`
+  1. `sediment`
+    **answer_path = `data_root` + "/runs/" + `slug` + ".answer.mq.md"**
+    **w = > gate.写入沉淀 doc=`doc` path=`answer_path`**
+    **sed = `w` == `answer_path`**
+  2. *
+    **sed = False**
+2. *
+  **doc = ""**
+`ret` =
+
+| ok | stage | doc | stdout | error | violations | answer_path | sedimented |
+|----|-------|-----|--------|-------|------------|-------------|------------|
+| `gok` | `stage` | `doc` | `gout` | `gerr` | `viol` | `answer_path` | `sed` |
+
+*ret*
+
+## 契约修复
+    + `task`
+    + `result`
+    + `gate_out`
+
+Build the repair-round task from the failed gate verdict. The returned text is
+fed back to the same agent handle so the model can fix its own document instead
+of regenerating from scratch.
+
+**hint = > gate.修复提示 gate_out=`gate_out`**
+**p = `task` + "\n\n你上一次的答复没有通过 marqdo 文档门禁。诊断如下：\n" + `hint` + "\n\n上一次答复全文：\n" + `result` + "\n\n请只输出修复后的完整文档，不要任何解释。"**
+*p*
 
 ## ask
     + `task`
@@ -261,6 +377,7 @@ Write efi / usage / token_cost / route into workbook Evidence + Metrics.
     + `session_id`=""
 
 ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No host mutation.
+The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo doc.
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
 **ok = > json.get value=`pack` key="ok"**
@@ -289,18 +406,52 @@ ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No ho
 **status = "dry"**
 **err = ""**
 **agent_out = ""**
+**gated_out = ""**
 1. `key`
-  **standing = "你是求道工程知识助手。优先引用 Preflight Context Pack 与 CALL:tool_find/tool_reuse。禁止再造第二套 Agent Runtime / EKC。"**
+  **standing = > 契约提示 mode="ask"**
   **助手 = > make_agent standing=`standing`**
   **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="auto" max_rounds=3 sandbox=False**
   **status = > json.get value=`agent_out` key="status"**
-  **result = > format_agent_outcome agent_out=`agent_out`**
+  **raw = > format_agent_outcome agent_out=`agent_out`**
   **err = > json.get value=`agent_out` key="error"**
   1. `status` == "ok"
     **mode = "live"**
+    **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
+    **gok = [ok](gated_out)**
+    **repaired = False**
+    1. not `gok`
+      1. `raw`
+        **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
+        **second = > `助手`.step task=`fix_task` writeback=False**
+        **s2 = > json.get value=`second` key="status"**
+        **r2 = > json.get value=`second` key="result"**
+        1. `s2` == "ok"
+          1. `r2`
+            **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
+            **gok = [ok](gated_out)**
+            **repaired = `gok`**
+          2. *
+            **_ = 1**
+        2. *
+          **_ = 1**
+      2. *
+        **_ = 1**
+    **apath = > json.get value=`gated_out` key="answer_path"**
+    1. `gok`
+      **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
+      1. `repaired`
+        **result = "答案文档经一轮修复后通过文档门禁并沉淀：" + `apath`**
+      2. *
+        **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
+    2. *
+      **mode = "gated_error"**
+      **stage = > json.get value=`gated_out` key="stage"**
+      **err = "docgate_" + `stage`**
+      **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "），未沉淀：" + `raw`**
   2. *
     **mode = "error"**
-  > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated`
+    **result = `raw`**
+  > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated` gate_out=`gated_out`
 2. *
   **result = "（无 API Key）Preflight decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
@@ -446,25 +597,53 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent → verify �
 **result = ""**
 **mode = "dry"**
 **agent_out = None**
+**gated_out = ""**
 1. `key`
-  **standing = "你是求道工程智能体。必须遵守 Context Pack 与 REUSE/ADAPT/CREATE。优先 CALL:tool_reuse / tool_find / tool_verify。禁止再造第二套 Agent Runtime 或 EKC。CREATE 前确认 create_allowed。"**
+  **standing = > 契约提示 mode="build"**
   **助手 = > make_agent standing=`standing`**
   **use_sandbox = False**
   1. `decision` == "CREATE"
     **use_sandbox = `sandbox`**
   **agent_out = > `助手`.run task=`task` efi=True learn=True verify=True writeback=True reuse=True router="auto" max_rounds=4 sandbox=`use_sandbox` sandbox_profile="default" promote=True**
   **status = > json.get value=`agent_out` key="status"**
-  **result = > format_agent_outcome agent_out=`agent_out`**
+  **raw = > format_agent_outcome agent_out=`agent_out`**
   1. `status` == "ok"
     **mode = "live"**
+    **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
+    **gok = [ok](gated_out)**
+    1. not `gok`
+      1. `raw`
+        **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
+        **second = > `助手`.step task=`fix_task` writeback=False**
+        **s2 = > json.get value=`second` key="status"**
+        **r2 = > json.get value=`second` key="result"**
+        1. `s2` == "ok"
+          1. `r2`
+            **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
+            **gok = [ok](gated_out)**
+          2. *
+            **_ = 1**
+        2. *
+          **_ = 1**
+      2. *
+        **_ = 1**
+    **apath = > json.get value=`gated_out` key="answer_path"**
+    1. `gok`
+      **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
+    2. *
+      **stage = > json.get value=`gated_out` key="stage"**
+      **mode = "gated_error"**
+      **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "），未沉淀：" + `raw`**
   2. `status` == "blocked"
     **mode = "blocked"**
+    **result = `raw`**
   3. *
     **mode = "error"**
+    **result = `raw`**
     1. `decision` == "CREATE"
       **qslug = > agent_goal_slug goal=`task`**
       > agent_kb_quarantine kb_dir=".marqdo/agent-kb" slug=`qslug` reason="build_create_failed"
-  > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated`
+  > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated` gate_out=`gated_out`
 2. *
   **result = "（无 API Key）BUILD dry-run decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**

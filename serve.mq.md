@@ -97,6 +97,7 @@ import sys:lib/sys.mq.md
 | /api/eng/stale | POST | api.eng_stale | json | json |
 | /api/eng/duplicate | POST | api.eng_duplicate | json | json |
 | /api/eng/verify | POST | api.eng_verify | json | json |
+| /api/eng/docgate | POST | api.eng_docgate | json | json |
 | /api/eng/learn | POST | api.eng_learn | json | json |
 | /api/eng/metrics | GET | api.eng_metrics | query | json |
 | /api/eng/candidates | POST | api.eng_candidates | json | json |

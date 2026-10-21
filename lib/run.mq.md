@@ -45,14 +45,25 @@ import data:ext/data/db.mq.md
     + `surface`=""
     + `session_id`=""
 
-把一次执行写成可被 `marqdo view` 浏览的 `.mq.md` 文本。
+把一次执行写成**契约形态**的 `.mq.md`：叙述节给人读，`# main` 给机器跑。
 
+契约（与 `execution/docgate.mq.md` 一致）：`---` frontmatter → `# 任务`（叙述）
+→ `# 结果`（叙述）→ `# main`（无副作用，回声本次 run 标识）→ `# 元数据`。
+叙述行以文字开头，执行语句只在 `# main` 内，因此该笔记既能 `marqdo view`
+阅读，也能 `marqdo run` 跑通退出码 0。
+
+**qt = "\u{22}"**
+**star = "\u{2a}"**
+**pipe = "\u{7c}"**
 **fm = "---\ntitle: " + `title` + "\ndescription: qdagent run " + `slug`**
 1. `surface`
   **fm = `fm` + "\nsurface: " + `surface`**
 1. `session_id`
   **fm = `fm` + "\nsession_id: " + `session_id`**
 **fm = `fm` + "\n---\n\n# 任务\n\n" + `task` + "\n\n# 结果\n\n" + `result` + "\n"**
+**main_s = "\n# main\n\n> print text=" + `qt` + `slug` + `qt` + "\n" + `star` + "None" + `star` + "\n"**
+**meta_s = "\n# 元数据\n\n" + `pipe` + " field " + `pipe` + " value " + `pipe` + "\n" + `pipe` + "------" + `pipe` + "-------" + `pipe` + "\n" + `pipe` + " slug " + `pipe` + " " + `slug` + " " + `pipe` + "\n" + `pipe` + " surface " + `pipe` + " " + `surface` + " " + `pipe` + "\n"**
+**fm = `fm` + `main_s` + `meta_s`**
 *fm*
 
 ## 写出

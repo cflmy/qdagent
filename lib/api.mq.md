@@ -20,6 +20,7 @@ import org:lib/organize.mq.md
 import eng_pf:../agent/preflight.mq.md
 import eng_res:../knowledge/resolver.mq.md
 import eng_ver:../execution/verify.mq.md
+import eng_gate:../execution/docgate.mq.md
 import eng_qd:../agent/qdagent.mq.md
 import eng_met:../knowledge/metrics.mq.md
 import eng_promote:../execution/promote.mq.md
@@ -601,6 +602,28 @@ Capability detail — catalog Implemented By + linked constraints/failures.
     + `payload`=None
 
 **out = > eng_ver.run**
+*out*
+
+## eng_docgate
+    + `text`=""
+    + `root`="."
+    + `payload`=None
+
+Document Gate over arbitrary text — the same contract check that guards agent
+answers and sedimented notes (`execution/docgate.mq.md`): 提取 → 结构检查 →
+沙箱试跑. Returns `{ ok, stage, doc, stdout, error, violations }`.
+The UI uses this to show why a note or answer is not yet a runnable document.
+
+1. `payload`
+  **pt = > json.get value=`payload` key="text"**
+  1. `pt`
+    **text = `pt`**
+  **pr = > json.get value=`payload` key="root"**
+  1. `pr`
+    **root = `pr`**
+1. not `root`
+  **root = "."**
+**out = > eng_gate.门禁 text=`text` root=`root`**
 *out*
 
 ## eng_learn
