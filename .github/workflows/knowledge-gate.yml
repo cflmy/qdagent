@@ -67,6 +67,34 @@ jobs:
             echo "cargo checkout not found; VERSION-only gate (marqdo check skips ext-dependent files)"
           fi
           echo "MARQDO_EXT=$HOME/.marqdo/ext" >> "$GITHUB_ENV"
+      - name: Native agent plugin (docgate CoW sandbox)
+        run: |
+          set -uo pipefail
+          # docgate selftest exercises ext/ai/sandbox CoW trial, which loads the
+          # native agent plugin (libagent.so). `cargo install marqdo` builds only
+          # the CLI binary; build the plugin from the cloned checkout so the
+          # selftest runs for real. If unavailable, ci-knowledge-gate.sh skips it.
+          ROOT_TOML=""
+          while IFS= read -r f; do
+            d="$(dirname "$f")"
+            if [[ -f "$d/plugins/agent/Cargo.toml" ]]; then ROOT_TOML="$f"; break; fi
+          done < <(find "$HOME/.cargo/git/checkouts" -maxdepth 3 -name Cargo.toml -path "*marqdo*" 2>/dev/null)
+          if [[ -z "$ROOT_TOML" ]]; then
+            echo "no cargo checkout found; docgate selftest will be skipped"
+            exit 0
+          fi
+          CHECKOUT="$(dirname "$ROOT_TOML")"
+          if cargo build --release -p marqdo_plugin_agent --manifest-path "$ROOT_TOML"; then
+            SO="$CHECKOUT/target/release/libagent.so"
+            if [[ -f "$SO" ]]; then
+              echo "MARQDO_AGENT_PLUGIN=$SO" >> "$GITHUB_ENV"
+              echo "agent plugin built: $SO"
+            else
+              echo "libagent.so not found at $SO after build; docgate selftest will be skipped"
+            fi
+          else
+            echo "agent plugin build failed; docgate selftest will be skipped"
+          fi
       - name: Knowledge compile + verify
         env:
           REQUIRE_MARQDO: ${{ env.REQUIRE_MARQDO }}

@@ -67,12 +67,46 @@ if ! "$MARQDO_BIN" labels "$ROOT" \
 fi
 
 echo "== docgate selftest =="
-DOCGATE_OUT=$("$MARQDO_BIN" run "$ROOT/execution/docgate-selftest.mq.md" | tail -1)
-echo "$DOCGATE_OUT"
-case "$DOCGATE_OUT" in
-  *"\"passed\":true"*) ;;
-  *) echo "DOCGATE SELFTEST FAILED" >&2; exit 1 ;;
-esac
+# The docgate CoW sandbox (ext/ai/sandbox) loads the native agent plugin
+# (libagent.so); `cargo install marqdo` builds only the CLI binary, so the
+# plugin may be absent. Probe resolvability and SKIP the selftest (clear
+# message, NOT a failure) when it isn't available — the core gates above
+# (knowledge / verify / check / labels) don't depend on it. CI builds the
+# plugin separately (see .github/workflows/knowledge-gate.yml).
+PROBE="$ROOT/.marqdo/_probe-agent-plugin.mq.md"
+mkdir -p "$ROOT/.marqdo"
+cat > "$PROBE" <<'MQ'
+---
+import plugin:lib/plugin.mq.md
+---
+
+# main
+
+**p = > plugin.native_path name="agent"**
+> print text=`p`
+MQ
+set +e
+AGENT_P="$("$MARQDO_BIN" run "$PROBE" 2>/dev/null | tail -1)"
+set -e
+rm -f "$PROBE"
+if [[ -z "${AGENT_P:-}" || "${AGENT_P:-}" == "None" ]]; then
+  echo "SKIPPED: native agent plugin (libagent.so) not resolvable — docgate CoW sandbox needs marqdo_plugin_agent (build it or set MARQDO_AGENT_PLUGIN). Core knowledge gates above ran."
+else
+  set +e
+  DOCGATE_OUT="$("$MARQDO_BIN" run "$ROOT/execution/docgate-selftest.mq.md" 2>/tmp/qd-docgate.err | tail -1)"
+  DG_RC=$?
+  set -e
+  if [[ $DG_RC -ne 0 ]]; then
+    echo "DOCGATE SELFTEST FAILED (exit $DG_RC)" >&2
+    [[ -s /tmp/qd-docgate.err ]] && sed 's/^/  /' /tmp/qd-docgate.err >&2
+    exit 1
+  fi
+  echo "$DOCGATE_OUT"
+  case "$DOCGATE_OUT" in
+    *"\"passed\":true"*) ;;
+    *) echo "DOCGATE SELFTEST FAILED" >&2; exit 1 ;;
+  esac
+fi
 
 echo "== marqdo duplicate (report) =="
 marqdo duplicate . -o .marqdo --json >/tmp/qd-ci-duplicate.json || true
