@@ -7,14 +7,13 @@ capability: openai-gateway
 
 # Skill — Implement OpenAI gateway EFI
 
-## Steps
-
-1. Run `qdagent preflight` for the gateway task (EKC cites Constraint `openai-gateway-efi` + Policy `policies/openai-gateway-efi.mq.md`).
-2. REUSE `gateway/openai.mq.md` and `agent/qdagent.mq.md`.
-3. ADAPT thin HTTP adapter only; keep Agent logic in Marqdo.
-4. Call `gateway.precheck` before any upstream / Agent turn — deny short-circuits.
-5. Verify with `qdagent verify`.
-6. Record Knowledge Candidate; learn into EKC.
+Steps in execution order. First run `qdagent preflight` for the gateway task —
+the EKC Context Pack cites Constraint `openai-gateway-efi` + Policy
+`policies/openai-gateway-efi.mq.md`. Then REUSE `gateway/openai.mq.md` and
+`agent/qdagent.mq.md`, ADAPT only the thin HTTP adapter (keep Agent logic in
+Marqdo), call `gateway.precheck` before any upstream / Agent turn so a deny
+short-circuits, verify with `qdagent verify`, and finally record a Knowledge
+Candidate and learn it into EKC.
 
 ## Authored knowledge
 

@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| 状态 | **Accepted** · 2026-10-16 对齐 Marqdo **1.4.4**（soft LLM transport · table-first agent） |
+| 状态 | **Accepted** · 2026-10-16 对齐 Marqdo **1.4.4**（soft LLM transport · table-first agent）· 2026-10-22 升 **2.0.0**（occlusion · labels 棘轮 · Phase 16） |
 | 日期 | 2026-10-16 |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读，禁止改写） |
-| Marqdo | CLI **≥1.4.4** · Ext pack **≥1.4.4**（EKC · Agent EFI · sandbox · quarantine · soft transport） |
+| Marqdo | CLI **≥2.0.0** · Ext pack **≥2.0.0**（EKC · Agent EFI · sandbox · quarantine · soft transport · occlusion · access · migrate labels · debt ratchet） |
 
 ## 1. 定位
 
@@ -102,6 +102,24 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 | **13** | done | Candidates UI — `/eng/candidates` + `/api/eng/{candidates,promote,reject}` |
 | **14** | done | Marqdo **CLI≥1.4.2 · Ext≥1.4.3** — `agent.run efi=True` cold OKF · CREATE `sandbox=` · quarantine · thick `/v1` → 410 · `QDAGENT_DRY` |
 | **15** | done | Marqdo **1.4.4** — LLM 传输软失败 → `mode=error` · Ext/CLI 双门闩 ≥1.4.4 · preflight exit-2 JSON |
+| **16** | done | Marqdo **2.0.0** — 依赖下限与解析路径升到 2.0.0（`QDAGENT_MARQDO_SRC`，缺省 `/workspace/marqdo`）；自有语料 M7 迁移 occlusion（4 文件 / 58 索引 / 6 循环，工具等价性证明零漂移）；CI 增配 `marqdo check` 全量 + `labels --baseline --fail-on-increase` 债务棘轮；Preflight Context Pack 附带 `pending_labels`（M9 两级检索产品面）；`skills/gateway-efi` 行首数字陷阱修复 |
+
+### 10.1 Phase 16 — Marqdo 2.0.0 对齐（2026-10-22）
+
+**上游 2.0.0 核心**：核心表面无增删（19 构造不变）；遮蔽语法 `[描述](实现)` 按 per-file
+`markup: occlusion` 启用；`access`/`取元` 宿主函数（与旧取元逐字等价）；`migrate labels`
+迁移工具（改写 → 重解析 → 证明等价 → 才写）；`labels` 两级检索与 `--baseline` 债务棘轮；
+`check` 增加 `label.*` 诊断。
+
+**本仓落地**：
+
+| 项 | 内容 |
+|----|------|
+| 依赖 | `scripts/marqdo-env.sh` 下限 **2.0.0**（CLI + Ext）；解析顺序 `$HOME/work/marqdo` → `$QDAGENT_MARQDO_SRC`（缺省 `/workspace/marqdo`）→ `$HOME/.marqdo` |
+| 迁移 | `marqdo migrate labels --write`：`execution/run` · `execution/session` · `knowledge/policy` · `lib/kb_format`（幂等复跑 0 改动；verify / docgate 6/6 零漂移） |
+| 门禁 | `scripts/ci-knowledge-gate.sh`：`marqdo check` 逐文件契约（NUL 分隔防 quotePath）+ labels 棘轮（台账 `.marqdo/labels-baseline.json`，只许降不许升） |
+| Preflight | `knowledge/policy.pending_labels` → Context Pack `pending_labels` / `pending_label_count`（Agent 能看到"哪些能力还欠着"） |
+| 修复 | `skills/gateway-efi.mq.md` 行首数字列表 → 叙述段（陷阱手册 1.1）；EKC 计数 347→315 符号（check 可见性提升后重复符号合并，能力语义不变） |
 
 ## 11. Phase 10 — CLI 入口收纳（本仓增补）
 

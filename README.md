@@ -1,6 +1,6 @@
 # qdagent
 
-基于 [Marqdo](https://github.com/cflmy/marqdo) **CLI ≥ 1.4.4 · Ext pack ≥ 1.4.4** 的 **Executable Engineering Knowledge Agent**（**求道**）。
+基于 [Marqdo](https://github.com/cflmy/marqdo) **CLI ≥ 2.0.0 · Ext pack ≥ 2.0.0** 的 **Executable Engineering Knowledge Agent**（**求道**）。
 
 > **求道，把工程经验编译成可执行的工程知识。**
 
@@ -16,11 +16,12 @@ Preflight → REUSE/ADAPT/CREATE → Marqdo Agent (eng_preflight=True)
 ## 本机快速开始
 
 ```bash
-# 优先工作区 Marqdo CLI + Ext（含 LLM 传输软失败 · cold EFI）
-export MARQDO_BIN="${MARQDO_BIN:-$HOME/work/marqdo/target/release/marqdo}"
-export MARQDO_EXT="${MARQDO_EXT:-$HOME/work/marqdo/ext}"
-"$MARQDO_BIN" --version          # 期望 CLI ≥1.4.4
-cat "$MARQDO_EXT/VERSION"        # 期望 Ext ≥1.4.4
+# 优先工作区 Marqdo CLI + Ext（occlusion · access 取元 · labels 债务棘轮 · migrate labels）
+# 解析顺序：$MARQDO_BIN → $HOME/work/marqdo → $QDAGENT_MARQDO_SRC（缺省 /workspace/marqdo）→ PATH
+export MARQDO_BIN="${MARQDO_BIN:-/workspace/marqdo/target/release/marqdo}"
+export MARQDO_EXT="${MARQDO_EXT:-/workspace/marqdo/ext}"
+"$MARQDO_BIN" --version          # 期望 CLI ≥2.0.0
+cat "$MARQDO_EXT/VERSION"        # 期望 Ext ≥2.0.0
 chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 
 # 编译本仓工程知识（GENERATED → .marqdo/）
@@ -63,8 +64,12 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 - Personal Memory（用户画像）保留但非工程主轴
 - OKF `organize` 为 legacy（非 EFI 默认链）；知识主路径是 EKC + Knowledge Candidate
 - `/v1` Python 网关仅做 HTTP 传输；`QDAGENT_V1_EFI=0` 厚路径已移除（HTTP 410）
-- 依赖 Marqdo **CLI ≥1.4.4 · Ext ≥1.4.4**（下限不变）；已对齐 **Ext 1.5.2** 的 agent 表面
-  （`agent.run efi=` · `sandbox=` · `router=` · `quarantine` · `eng_record` · `mcp_server transport=http`）
+- 依赖 Marqdo **CLI ≥2.0.0 · Ext ≥2.0.0**；已对齐 Marqdo **2.0.0**（遮蔽语法 M1–M10 全量）：
+  自有语料已 `marqdo migrate labels` 迁移 occlusion（`markup: occlusion` per-file 声明）；
+  CI 有 `marqdo check` 全量契约 + `labels --baseline` 债务棘轮（只许降不许升）；
+  Preflight Context Pack 附带 `pending_labels`（显式 `[待开发]()` 桩即债，Agent 可见）；
+  Ext 1.4.4+ 表面保持（`agent.run efi=` · `sandbox=` · `router=` · `quarantine` ·
+  `eng_record` · `mcp_server transport=http`）
 
 ## 入口
 

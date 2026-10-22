@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: knowledge/policy
 description: >-
   L6 Policy product surface — list authored policies/, match task keywords into
@@ -35,7 +36,7 @@ List authored Engineering Policies (`policies/*.mq.md`) and L4 constraints.
 **has_p = > fs.exists path=`proot`**
 1. `has_p`
   **names = > fs.list_dir path=`proot`**
-  - [name](names)
+  - [name](遍历 names 为 name)
     **parts = > text.str_split s=`name` sep=".mq.md"**
     **n = > len value=`parts`**
     1. `n` == 2
@@ -52,7 +53,7 @@ List authored Engineering Policies (`policies/*.mq.md`) and L4 constraints.
 **has_c = > fs.exists path=`croot`**
 1. `has_c`
   **cnames = > fs.list_dir path=`croot`**
-  - [cname](cnames)
+  - [cname](遍历 cnames 为 cname)
     **cparts = > text.str_split s=`cname` sep=".md"**
     **cn = > len value=`cparts`**
     1. `cn` == 2
@@ -81,11 +82,11 @@ Returns hits for Preflight Context Pack (no LLM).
 
 **root = > resolve_root root=`root`**
 **listed = > list root=`root`**
-**rows = [policies](listed)**
+**rows = [policies](access(listed, "policies"))**
 **task_l = > text.to_lower text=`task`**
 **hits = > table.empty_list**
 1. `rows`
-  - [row](rows)
+  - [row](遍历 rows 为 row)
     **id = > json.get value=`row` key="id"**
     **excerpt = > json.get value=`row` key="excerpt"**
     **path = > json.get value=`row` key="path"**
@@ -147,11 +148,42 @@ Returns hits for Preflight Context Pack (no LLM).
 Merge matched L6 policies into a Preflight result map (product Context Pack enrichment).
 
 **m = > match task=`task` root=`root`**
-**hits = [matches](m)**
-**n = [count](m)**
+**hits = [matches](access(m, "matches"))**
+**n = [count](access(m, "count"))**
 **enriched = > table.put in=`pack` at="policies" value=`hits`**
 **enriched = > table.put in=`enriched` at="policy_count" value=`n`**
 *enriched*
+
+## pending_labels
+    + `root`="."
+
+M9 两级词表检索（product face）— run `marqdo labels <root> --json` and return
+the pending-debt rows (built-in 待开发 words + explicit `[描述]()` stubs).
+Zero LLM; Marqdo owns the search (no second word list here).
+
+**root = > resolve_root root=`root`**
+> sys.env_set name="QDAGENT_LABELS_ROOT" value=`root`
+`args` =
+
+| a |
+|---|
+| "-c" |
+| marqdo labels "$QDAGENT_LABELS_ROOT" --json |
+
+**proc = > sys.exec cmd="sh" args=args capture=True**
+**code = [code](access(proc, "code"))**
+**stdout = [stdout](access(proc, "stdout"))**
+**rows = > json.parse text=`stdout`**
+1. `code` != 0
+  **rows = > table.empty_list**
+**n = > len value=`rows`**
+`out` =
+
+| ok | count | rows |
+|----|------:|------|
+| True | `n` | `rows` |
+
+*out*
 
 ## compile_from_reuse
     + `task`
@@ -161,8 +193,8 @@ Surface matched L6 policies for a task (Marqdo owns `.marqdo/agent/policies`
 compile via `marqdo knowledge` — no second Policy Compiler in qdagent).
 
 **matched = > match task=`task` root=`root`**
-**hits = [matches](matched)**
-**n = [count](matched)**
+**hits = [matches](access(matched, "matches"))**
+**n = [count](access(matched, "count"))**
 `ret` =
 
 | ok | policies | count | compiled_hint |

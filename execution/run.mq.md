@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: execution/run
 description: >-
   Engineering Workbook — create / put_section / finalize.
@@ -52,21 +53,21 @@ import table:lib/table.mq.md
     + `slug`
     + `sec`
 
-**task = [task](sec)**
-**status = [status](sec)**
-**intent = [intent](sec)**
-**pf = [preflight](sec)**
-**caps = [existing](sec)**
-**dec = [decision](sec)**
-**plan = [plan](sec)**
-**ex = [execution](sec)**
-**tools = [tools](sec)**
-**chg = [changes](sec)**
-**ver = [verification](sec)**
-**ev = [evidence](sec)**
-**res = [result](sec)**
-**kc = [candidate](sec)**
-**met = [metrics](sec)**
+**task = [task](access(sec, "task"))**
+**status = [status](access(sec, "status"))**
+**intent = [intent](access(sec, "intent"))**
+**pf = [preflight](access(sec, "preflight"))**
+**caps = [existing](access(sec, "existing"))**
+**dec = [decision](access(sec, "decision"))**
+**plan = [plan](access(sec, "plan"))**
+**ex = [execution](access(sec, "execution"))**
+**tools = [tools](access(sec, "tools"))**
+**chg = [changes](access(sec, "changes"))**
+**ver = [verification](access(sec, "verification"))**
+**ev = [evidence](access(sec, "evidence"))**
+**res = [result](access(sec, "result"))**
+**kc = [candidate](access(sec, "candidate"))**
+**met = [metrics](access(sec, "metrics"))**
 
 **body = "---\ntitle: " + `slug` + "\ntype: Engineering Workbook\nstatus: " + `status` + "\ntask: " + `task` + "\n---\n\n# Task\n\n" + `task` + "\n\n# Intent\n\n" + `intent` + "\n\n# Preflight\n\n" + `pf` + "\n\n# Existing Capabilities\n\n" + `caps` + "\n\n# Decision\n\n" + `dec` + "\n\n# Plan\n\n" + `plan` + "\n\n# Execution\n\n" + `ex` + "\n\n# Tool Calls\n\n" + `tools` + "\n\n# Changes\n\n" + `chg` + "\n\n# Verification\n\n" + `ver` + "\n\n# Evidence\n\n" + `ev` + "\n\n# Result\n\n" + `res` + "\n\n# Knowledge Candidate\n\n" + `kc` + "\n\n# Metrics\n\n" + `met` + "\n"**
 *body*
@@ -203,10 +204,10 @@ Map display names to snake_case state keys.
   **key = "metrics"**
 
 **st = > load_state slug=`slug`**
-**ok = [ok](st)**
+**ok = [ok](access(st, "ok"))**
 1. not `ok`
   *st*
-**sec = [sections](st)**
+**sec = [sections](access(st, "sections"))**
 **sec = > table.put in=`sec` at=`key` value=`content`**
 *> save_state slug=`slug` sec=`sec`*
 
@@ -222,10 +223,10 @@ Map display names to snake_case state keys.
     + `status`
 
 **st = > load_state slug=`slug`**
-**ok = [ok](st)**
+**ok = [ok](access(st, "ok"))**
 1. not `ok`
   *st*
-**sec = [sections](st)**
+**sec = [sections](access(st, "sections"))**
 **sec = > table.put in=`sec` at="status" value=`status`**
 *> save_state slug=`slug` sec=`sec`*
 
@@ -294,7 +295,7 @@ List recent Engineering Workbooks (newest first by slug / timestamp name).
 **entries = > fs.list_dir path=`dir`**
 **acc = > table.empty_list**
 1. `entries`
-  - [name](entries)
+  - [name](遍历 entries 为 name)
     **parts = > split value=`name` sep=".mq.md"**
     **n = > len value=`parts`**
     1. `n` == 2
@@ -322,7 +323,7 @@ List recent Engineering Workbooks (newest first by slug / timestamp name).
   **take = `nacc`**
 - `i` < `take`
   **idx = `nacc` - `i`**
-  **row = [`idx`](acc)**
+  **row = [idx](access(acc, `idx`))**
   **out_rows = > table.append list=`out_rows` item=`row`**
   **i = i + 1**
 `out` =
@@ -339,16 +340,16 @@ List recent Engineering Workbooks (newest first by slug / timestamp name).
 Workbook body + sections map (for Web detail pane).
 
 **meta = > load_state slug=`slug`**
-**mok = [ok](meta)**
+**mok = [ok](access(meta, "ok"))**
 1. not `mok`
   *meta*
 **body = > read slug=`slug`**
-**bok = [ok](body)**
+**bok = [ok](access(body, "ok"))**
 1. not `bok`
   *body*
-**sec = [sections](meta)**
-**text = [body](body)**
-**path = [path](body)**
+**sec = [sections](access(meta, "sections"))**
+**text = [body](access(body, "body"))**
+**path = [path](access(body, "path"))**
 `out` =
 
 | ok | slug | path | body | sections |

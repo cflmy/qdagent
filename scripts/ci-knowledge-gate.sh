@@ -38,6 +38,34 @@ echo "== marqdo knowledge =="
 echo "== marqdo verify suite =="
 "$ROOT/scripts/qdagent" verify
 
+echo "== marqdo check (full contract) =="
+CHECK_FAIL=0
+while IFS= read -r -d '' f; do
+  out="$("$MARQDO_BIN" check "$f" 2>&1 || true)"
+  case "$out" in
+    *"contract check OK"*| "") ;;
+    *)
+      echo "CHECK FAIL: $f"
+      echo "$out" | sed 's/^/    /'
+      CHECK_FAIL=1
+      ;;
+  esac
+done < <(git ls-files -z '*.mq.md')
+if [[ "$CHECK_FAIL" != "0" ]]; then
+  echo "marqdo check: FAILED (contract diagnostics above)" >&2
+  exit 1
+fi
+echo "marqdo check: OK ($(git ls-files -z '*.mq.md' | grep -c .) files)"
+
+echo "== labels debt ratchet (M8) =="
+# Debt may shrink, never grow. Baseline lives in-repo; first run seeds it.
+if ! "$MARQDO_BIN" labels "$ROOT" \
+    --baseline "$ROOT/.marqdo/labels-baseline.json" \
+    --fail-on-increase; then
+  echo "labels ratchet: 未完成项增加 — 先清债或显式降基线" >&2
+  exit 1
+fi
+
 echo "== docgate selftest =="
 DOCGATE_OUT=$("$MARQDO_BIN" run "$ROOT/execution/docgate-selftest.mq.md" | tail -1)
 echo "$DOCGATE_OUT"

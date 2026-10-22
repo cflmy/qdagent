@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: lib/kb_format
 description: 把检索命中与笔记行格式化为可读 Markdown（禁止 JSON dump）。
 import json:lib/json.mq.md
@@ -14,25 +15,25 @@ import json:lib/json.mq.md
 **n = > len value=`parts`**
 **pick = ""**
 1. `n` >= 1
-  **a = [1](parts)**
+  **a = [1](access(parts, "1"))**
   1. `a`
     1. `a` != "---"
       **pick = `a`**
 1. not `pick`
   1. `n` >= 2
-    **b = [2](parts)**
+    **b = [2](access(parts, "2"))**
     1. `b`
       1. `b` != "---"
         **pick = `b`**
 1. not `pick`
   1. `n` >= 3
-    **c = [3](parts)**
+    **c = [3](access(parts, "3"))**
     1. `c`
       1. `c` != "---"
         **pick = `c`**
 1. not `pick`
   1. `n` >= 4
-    **d = [4](parts)**
+    **d = [4](access(parts, "4"))**
     1. `d`
       1. `d` != "---"
         **pick = `d`**
@@ -45,18 +46,18 @@ import json:lib/json.mq.md
 
 1. not `hit`
   *""*
-**path = [path](hit)**
+**path = [path](access(hit, "path"))**
 1. not `path`
-  **path = [slug](hit)**
+  **path = [slug](access(hit, "slug"))**
 1. not `path`
   **path = "（未知路径）"**
-**score = [score](hit)**
+**score = [score](access(hit, "score"))**
 **score_s = > json.stringify value=`score`**
 1. not `score_s`
   **score_s = "-"**
 1. `score_s` == "null"
   **score_s = "-"**
-**ex = [excerpt](hit)**
+**ex = [excerpt](access(hit, "excerpt"))**
 **ex1 = > 单行摘要 text=`ex`**
 *"| " + `path` + " | " + `score_s` + " | " + `ex1` + " |"*
 
@@ -65,13 +66,13 @@ import json:lib/json.mq.md
 
 1. not `row`
   *""*
-**title = [title](row)**
+**title = [title](access(row, "title"))**
 1. not `title`
   **title = "（无标题）"**
-**slug = [slug](row)**
+**slug = [slug](access(row, "slug"))**
 1. not `slug`
   **slug = "-"**
-**sum = [summary](row)**
+**sum = [summary](access(row, "summary"))**
 **sum1 = > 单行摘要 text=`sum`**
 *"| " + `title` + " | " + `slug` + " | " + `sum1` + " |"*
 
@@ -85,28 +86,28 @@ import json:lib/json.mq.md
 1. `n` < 1
   *`head` + "| （无命中） | - | - |\n"*
 **body = `head`**
-**l = > 证据条目 hit=[1](hits)**
+**l = > 证据条目 hit=[1](access(hits, "1"))**
 **body = `body` + `l` + "\n"**
 1. `n` >= 2
-  **l = > 证据条目 hit=[2](hits)**
+  **l = > 证据条目 hit=[2](access(hits, "2"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 3
-  **l = > 证据条目 hit=[3](hits)**
+  **l = > 证据条目 hit=[3](access(hits, "3"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 4
-  **l = > 证据条目 hit=[4](hits)**
+  **l = > 证据条目 hit=[4](access(hits, "4"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 5
-  **l = > 证据条目 hit=[5](hits)**
+  **l = > 证据条目 hit=[5](access(hits, "5"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 6
-  **l = > 证据条目 hit=[6](hits)**
+  **l = > 证据条目 hit=[6](access(hits, "6"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 7
-  **l = > 证据条目 hit=[7](hits)**
+  **l = > 证据条目 hit=[7](access(hits, "7"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 8
-  **l = > 证据条目 hit=[8](hits)**
+  **l = > 证据条目 hit=[8](access(hits, "8"))**
   **body = `body` + `l` + "\n"**
 *`body`*
 
@@ -120,28 +121,28 @@ import json:lib/json.mq.md
 1. `n` < 1
   *`head` + "| （无笔记） | - | - |\n"*
 **body = `head`**
-**l = > 笔记条目 row=[1](rows)**
+**l = > 笔记条目 row=[1](access(rows, "1"))**
 **body = `body` + `l` + "\n"**
 1. `n` >= 2
-  **l = > 笔记条目 row=[2](rows)**
+  **l = > 笔记条目 row=[2](access(rows, "2"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 3
-  **l = > 笔记条目 row=[3](rows)**
+  **l = > 笔记条目 row=[3](access(rows, "3"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 4
-  **l = > 笔记条目 row=[4](rows)**
+  **l = > 笔记条目 row=[4](access(rows, "4"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 5
-  **l = > 笔记条目 row=[5](rows)**
+  **l = > 笔记条目 row=[5](access(rows, "5"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 6
-  **l = > 笔记条目 row=[6](rows)**
+  **l = > 笔记条目 row=[6](access(rows, "6"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 7
-  **l = > 笔记条目 row=[7](rows)**
+  **l = > 笔记条目 row=[7](access(rows, "7"))**
   **body = `body` + `l` + "\n"**
 1. `n` >= 8
-  **l = > 笔记条目 row=[8](rows)**
+  **l = > 笔记条目 row=[8](access(rows, "8"))**
   **body = `body` + `l` + "\n"**
 *`body`*
 

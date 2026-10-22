@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: execution/session
 description: >-
   Server-side Session index (D10) — continuity handle linking surface ·
@@ -94,7 +95,7 @@ List recent Session files (newest first by name).
 **entries = > fs.list_dir path=`dir`**
 **acc = > table.empty_list**
 1. `entries`
-  - [name](entries)
+  - [name](遍历 entries 为 name)
     **parts = > split value=`name` sep=".mq.md"**
     **n = > len value=`parts`**
     1. `n` == 2
@@ -105,7 +106,7 @@ List recent Session files (newest first by name).
       **wb = ""**
       **rid = ""**
       **lines = > text.str_split s=`body` sep="\n"**
-      - [line](lines)
+      - [line](遍历 lines 为 line)
         **is_surf = > text.starts_with text=`line` prefix="surface: "**
         1. `is_surf`
           **sp = > text.str_split s=`line` sep="surface: "**
@@ -133,7 +134,7 @@ List recent Session files (newest first by name).
   **take = `nacc`**
 - `i` < `take`
   **idx = `nacc` - `i`**
-  **row = [`idx`](acc)**
+  **row = [idx](access(acc, `idx`))**
   **out_rows = > table.append list=`out_rows` item=`row`**
   **i = i + 1**
 `out` =

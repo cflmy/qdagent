@@ -160,11 +160,19 @@ blocked) — stdout still carries the Context Pack JSON. Prefer parse-over-exit-
 **pol_n = [count](pol)**
 **pf = > table.put in=`pf` at="policies" value=`pol_hits`**
 **pf = > table.put in=`pf` at="policy_count" value=`pol_n`**
+
+M9 label debt — pending stubs / 未完成词 (Marqdo `labels --json`; zero LLM).
+
+**labels = > policy.pending_labels root=`root`**
+**label_rows = [rows](labels)**
+**label_n = [count](labels)**
+**pf = > table.put in=`pf` at="pending_labels" value=`label_rows`**
+**pf = > table.put in=`pf` at="pending_label_count" value=`label_n`**
 `result` =
 
-| ok | status | decision | create_allowed | context_path | preflight | policies | policy_count |
-|----|--------|----------|----------------|--------------|-----------|----------|-------------:|
-| True | `status` | `decision` | `allowed` | `path` | `pf` | `pol_hits` | `pol_n` |
+| ok | status | decision | create_allowed | context_path | preflight | policies | policy_count | pending_label_count |
+|----|--------|----------|----------------|--------------|-----------|----------|-------------:|--------------------:|
+| True | `status` | `decision` | `allowed` | `path` | `pf` | `pol_hits` | `pol_n` | `label_n` |
 
 *result*
 

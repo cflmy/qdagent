@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared Marqdo env for qdagent — prefer workspace CLI ≥1.4.4 + Ext pack ≥1.4.4.
+# Shared Marqdo env for qdagent — prefer workspace CLI ≥2.0.0 + Ext pack ≥2.0.0.
 # Sourced by scripts/qdagent and scripts/mq.sh (not executed alone).
 # shellcheck shell=bash
 
@@ -22,11 +22,15 @@ _qdagent_semver_ge() {
 }
 
 qdagent_resolve_marqdo() {
-  local min_cli="${QDAGENT_MARQDO_MIN:-1.4.4}"
-  local min_ext="${QDAGENT_EXT_MIN:-1.4.4}"
+  # Floor raised to Marqdo 2.0.0 (occlusion markup · access/取元 · labels 两级
+  # 检索 · migrate labels · 债务棘轮 — M1–M10 全量落地).
+  local min_cli="${QDAGENT_MARQDO_MIN:-2.0.0}"
+  local min_ext="${QDAGENT_EXT_MIN:-2.0.0}"
   if [[ -z "${MARQDO_EXT:-}" ]]; then
     if [[ -d "$HOME/work/marqdo/ext" ]]; then
       export MARQDO_EXT="$HOME/work/marqdo/ext"
+    elif [[ -d "${QDAGENT_MARQDO_SRC:-/workspace/marqdo}/ext" ]]; then
+      export MARQDO_EXT="${QDAGENT_MARQDO_SRC:-/workspace/marqdo}/ext"
     else
       export MARQDO_EXT="$HOME/.marqdo/ext"
     fi
@@ -34,6 +38,8 @@ qdagent_resolve_marqdo() {
   if [[ -z "${MARQDO_LIB:-}" ]]; then
     if [[ -d "$HOME/work/marqdo/lib" ]]; then
       export MARQDO_LIB="$HOME/work/marqdo/lib"
+    elif [[ -d "${QDAGENT_MARQDO_SRC:-/workspace/marqdo}/lib" ]]; then
+      export MARQDO_LIB="${QDAGENT_MARQDO_SRC:-/workspace/marqdo}/lib"
     else
       export MARQDO_LIB="$HOME/.marqdo/lib"
     fi
@@ -46,6 +52,8 @@ qdagent_resolve_marqdo() {
     :
   elif [[ -x "$HOME/work/marqdo/target/release/marqdo" ]]; then
     export MARQDO_BIN="$HOME/work/marqdo/target/release/marqdo"
+  elif [[ -x "${QDAGENT_MARQDO_SRC:-/workspace/marqdo}/target/release/marqdo" ]]; then
+    export MARQDO_BIN="${QDAGENT_MARQDO_SRC:-/workspace/marqdo}/target/release/marqdo"
   else
     export MARQDO_BIN="$(command -v marqdo || true)"
   fi
@@ -67,7 +75,7 @@ qdagent_resolve_marqdo() {
   if ! _qdagent_semver_ge "$ver" "$min_cli"; then
     echo "qdagent: marqdo CLI ${ver} is too old (need ≥ ${min_cli})" >&2
     echo "  found: ${MARQDO_BIN}" >&2
-    echo "  tip:   cargo build --release in ~/work/marqdo" >&2
+    echo "  tip:   cargo build --release in ~/work/marqdo (or \$QDAGENT_MARQDO_SRC, default /workspace/marqdo)" >&2
     return 1
   fi
 
