@@ -130,7 +130,26 @@ workbook 的 Evidence 行新增 `docgate_ok` / `docgate_stage` / `docgate_repair
 拼接时 `"`、`*`、`|` 必须用 Unicode 转义（`\u{22}`、`\u{2a}`、`\u{7c}`），
 否则会在被拼装的正文里提前闭合标记。
 
-## 7. 路由对齐
+## 7. 整理笔记契约化
+
+`lib/kb_format.mq.md` 的 `## 整理文稿` 是「笔记整理 · <关键词>」页面的生成器。
+它曾把「建议动作」写成 `1.` / `2.` / `3.` / `4.` 编号列表——**行首数字在
+Marqdo 里是语句**，于是整理页自己就不是一份合法文档（门禁 `narration_marker` 四连）。
+
+改法：
+
+1. 编号列表改为以文字开头的自然段（`把重复主题合并为…；把稳定偏好写回…；…`）。
+2. 追加 `# main`：`> print text="organize: <query>"` + `*None*`，使整理页可运行。
+3. 表格（证据表 / 笔记表）保留——表格是**结构行**，在 `# main` 之外属于合法叙述。
+
+实测：
+
+| 场景 | 门禁 | `marqdo run` |
+|------|------|--------------|
+| 空数据 | `ok=true`，stdout `organize: host-fix` | 退出码 0 |
+| 真实命中（2 条证据 + 2 条笔记） | `ok=true`，`violations=[]` | 退出码 0 |
+
+## 8. 路由对齐
 
 产品面新增一条只读校验路由，供 UI 解释「为什么这份笔记还不能跑」：
 
@@ -147,7 +166,7 @@ workbook 的 Evidence 行新增 `docgate_ok` / `docgate_stage` / `docgate_repair
 `/v1/chat/completions` 的 `choices[0].message.content` 现在是**通过门禁的文档**
 而非自由文本——对 OpenAI 兼容客户端来说仍是字符串，但对求道来说可运行、可沉淀。
 
-## 8. 验收证据
+## 9. 验收证据
 
 | 项 | 命令 | 结果 |
 |----|------|------|
@@ -155,11 +174,27 @@ workbook 的 Evidence 行新增 `docgate_ok` / `docgate_stage` / `docgate_repair
 | 语法错拦截 | `gate.门禁` on `**x = = 3**` | `ok=false stage=sandbox error="11:1: unknown function `=`"` |
 | 好输出通过 | `gate.门禁` on 契约文档 | `ok=true stdout="answer computed\n"` |
 | 沉淀笔记可运行 | `marqdo run data/runs/<slug>.mq.md` | 退出码 0，stdout 为 slug |
+| 整理笔记可运行 | `整理文稿` 产出后 `marqdo run` | 退出码 0，stdout 为 `organize: <query>` |
 | 门禁沉淀 | `qd.门禁沉淀` | `sedimented=true` / 失败时 `false` 且无文件 |
 | 验证套件 | `marqdo run cli/求道-验证.mq.md` | `{"ok":true,"passed":true}` |
 | v1 薄网关 | `./scripts/check-v1-thin.sh` | `OK (C2b)` |
 
-## 9. 红线与不做的事
+## 10. 上游缺陷记录
+
+本次实现对 Marqdo 运行时提出的问题已整理成册并提交在 Marqdo 仓库
+（`marqdo@f2d651e`）：
+
+`marqdo/doc/research/qdagent-refactor-defects-2026-10.md`
+
+与本文直接相关的三条：
+
+| ID | 与契约的关系 |
+|----|--------------|
+| D3 | 叙述行行首执行标记（数字 / `-` / `>` / `\|` / `[`）→ 中文文档解析失败，正是契约要规避的根因 |
+| D4 | `sandbox.run source=` 报错丢上下文，影响门禁诊断质量 |
+| D5 | `[key](map)` 键缺失硬崩；`sandbox.run` 成功形状无 `error` 键 |
+
+## 11. 红线与不做的事
 
 - 门禁是**验证步骤**（four-truths 的 Verification），不是第二个 agent 循环。
 - 不引入新的知识真相源：门禁结论写进既有 workbook Evidence 与磁盘文档。

@@ -151,6 +151,18 @@ import json:lib/json.mq.md
     + `hits`=None
     + `rows`=None
 
+整理页同时服务两种读者：人读叙述与表格，机器跑 `# main`。
+
+契约要点（与 `execution/docgate.mq.md` 一致）：叙述行必须以文字开头，
+因此「建议动作」不写成 `1.` / `-` 列表（行首数字与连字符会被当成语句），
+改写为以文字开头的自然段；`# main` 回声检索关键词，使笔记可 `marqdo run`。
+
+**qt = "\u{22}"**
+**star = "\u{2a}"**
 **ev = > 证据表 hits=`hits`**
 **notes = > 笔记表 rows=`rows`**
-*"---\ntitle: 笔记整理 · " + `query` + "\ndescription: PARA 风格主题索引（不改写历史 runs）\nupdated: " + `day` + "\nquery: " + `query` + "\n---\n\n# 说明\n\n本页是可读索引，不是原始 JSON。历史 data/runs 保持不变；可将稳定结论晋升到 skills 或用户画像。\n\n组织参考：PARA（项目 / 领域 / 资源 / 归档）+ 原子笔记摘要。\n\n# 检索主题\n\n关键词：" + `query` + "\n\n# 相关证据\n\n" + `ev` + "\n\n# 近期笔记\n\n" + `notes` + "\n\n# 建议动作\n\n1. 把重复主题合并为一条 Resource 笔记（写进 data/kb）\n2. 把稳定偏好写回 data/kb/用户画像.mq.md 对应维度\n3. 过时或干跑笔记在笔记库中归档，勿继续当作权威\n4. 需要执行的事项记入 Projects；长期职责记入 Areas\n"*
+**head = "---\ntitle: 笔记整理 · " + `query` + "\ndescription: PARA 风格主题索引（不改写历史 runs）\nupdated: " + `day` + "\nquery: " + `query` + "\n---\n\n"**
+**intro = "# 说明\n\n本页是可读索引，不是原始 JSON。历史 data/runs 保持不变；可将稳定结论晋升到 skills 或用户画像。组织参考 PARA（项目 / 领域 / 资源 / 归档）与原子笔记摘要。\n\n# 检索主题\n\n关键词：" + `query` + "\n\n# 相关证据\n\n" + `ev` + "\n\n# 近期笔记\n\n" + `notes` + "\n\n"**
+**acts = "# 建议动作\n\n把重复主题合并为一条 Resource 笔记并写进 data/kb；把稳定偏好写回 data/kb/用户画像.mq.md 对应维度；过时或干跑笔记在笔记库中归档，勿继续当作权威；需要执行的事项记入 Projects，长期职责记入 Areas。\n\n"**
+**main_s = "# main\n\n> print text=" + `qt` + "organize: " + `query` + `qt` + "\n" + `star` + "None" + `star` + "\n"**
+*`head` + `intro` + `acts` + `main_s`*
