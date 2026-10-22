@@ -75,6 +75,7 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 | `knowledge/context.mq.md` | Context Pack（零 LLM） |
 | `execution/run.mq.md` | Engineering Workbook |
 | `execution/docgate.mq.md` | 文档门禁（输出契约机械校验 + 沉淀） |
+| `execution/docgate-selftest.mq.md` | 门禁回归自检（5 条夹具断言，CI 强制） |
 | `gateway/openai.mq.md` · `gateway/mcp.mq.md` | 产品面 |
 | `serve.mq.md` · `index.mq.md` | Web Gateway（根目录 KEEP） |
 | `cli/求道-*.mq.md` | 产品 CLI / MCP 薄入口 |

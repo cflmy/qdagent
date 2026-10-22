@@ -149,7 +149,34 @@ Marqdo 里是语句**，于是整理页自己就不是一份合法文档（门�
 | 空数据 | `ok=true`，stdout `organize: host-fix` | 退出码 0 |
 | 真实命中（2 条证据 + 2 条笔记） | `ok=true`，`violations=[]` | 退出码 0 |
 
-## 8. 路由对齐
+## 8. 回归自检
+
+`execution/docgate-selftest.mq.md` 用 5 条固定夹具断言门禁自身没有退化，
+无 API Key 也能跑，已接入 `scripts/ci-knowledge-gate.sh`（失败即非零退出）。
+
+| 夹具 | 期望 | 断言 |
+|------|------|------|
+| 干净文档 | 通过 | `ok=true` 且 stdout 非空 |
+| 行首数字文档 | 结构阶段拦下 | `stage=structure` |
+| 语法错文档 | 沙箱阶段拦下 | `stage=sandbox` |
+| 缺入口文档 | 结构规则命中 | violations 含 `missing_main` |
+| 整理页 | 通过 | `ok=true` |
+
+输出单行 JSON：`{"ok":true,"passed":true,"cases":5,"ok_count":5,"fail_count":0,"failures":"[]"}`。
+
+**双向验证**：故意把行首数字夹具的期望阶段改成 `sandbox`，
+自检立即返回 `{"passed":false,"ok_count":4,"fail_count":1,"failures":["digit_stage"]}`；
+改回后恢复全绿。这说明自检不是在空跑。
+
+设计约定（写自检时踩到的坑，也是给后来者的护栏）：
+
+- 断言函数只返回布尔/字符串，**状态用返回值串联**，不依赖函数间共享变量
+  （模块级变量在不同 `##` 之间不可见）。
+- 函数名与叙述里不要出现裸的入口章节名与参数名（会被当变量插值），
+  描述文字里的记号一律用行内代码包裹。
+- 拼接夹具正文时 `"`、`*`、换行必须用 \u 转义，否则提前闭合标记。
+
+## 9. 路由对齐
 
 产品面新增一条只读校验路由，供 UI 解释「为什么这份笔记还不能跑」：
 
@@ -166,7 +193,7 @@ Marqdo 里是语句**，于是整理页自己就不是一份合法文档（门�
 `/v1/chat/completions` 的 `choices[0].message.content` 现在是**通过门禁的文档**
 而非自由文本——对 OpenAI 兼容客户端来说仍是字符串，但对求道来说可运行、可沉淀。
 
-## 9. 验收证据
+## 10. 验收证据
 
 | 项 | 命令 | 结果 |
 |----|------|------|
@@ -178,8 +205,10 @@ Marqdo 里是语句**，于是整理页自己就不是一份合法文档（门�
 | 门禁沉淀 | `qd.门禁沉淀` | `sedimented=true` / 失败时 `false` 且无文件 |
 | 验证套件 | `marqdo run cli/求道-验证.mq.md` | `{"ok":true,"passed":true}` |
 | v1 薄网关 | `./scripts/check-v1-thin.sh` | `OK (C2b)` |
+| 门禁自检 | `marqdo run execution/docgate-selftest.mq.md` | `{"passed":true,"cases":5}` |
+| 全量 CI | `./scripts/ci-knowledge-gate.sh` | 退出码 0，`ci-knowledge-gate: OK` |
 
-## 10. 上游缺陷记录
+## 11. 上游缺陷记录
 
 本次实现对 Marqdo 运行时提出的问题已整理成册并提交在 Marqdo 仓库
 （`marqdo@f2d651e`）：
@@ -194,7 +223,7 @@ Marqdo 里是语句**，于是整理页自己就不是一份合法文档（门�
 | D4 | `sandbox.run source=` 报错丢上下文，影响门禁诊断质量 |
 | D5 | `[key](map)` 键缺失硬崩；`sandbox.run` 成功形状无 `error` 键 |
 
-## 11. 红线与不做的事
+## 12. 红线与不做的事
 
 - 门禁是**验证步骤**（four-truths 的 Verification），不是第二个 agent 循环。
 - 不引入新的知识真相源：门禁结论写进既有 workbook Evidence 与磁盘文档。

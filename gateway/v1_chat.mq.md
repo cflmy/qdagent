@@ -20,4 +20,4 @@ import json:lib/json.mq.md
 **out = > gw.chat message=`task` mode=`mode`**
 **s = > json.stringify value=`out`**
 > print text=`s`
-*out*
+*""*
