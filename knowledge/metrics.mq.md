@@ -5,6 +5,7 @@ description: >-
 import fs:lib/fs.mq.md
 import json:lib/json.mq.md
 import ctx:context.mq.md
+import amort:./amortization.mq.md
 ---
 
 ## path
@@ -18,14 +19,26 @@ import ctx:context.mq.md
     + `out`=".marqdo"
     + `root`="."
 
+Reasoning Amortization is computed from `data/amortization.json` (Execution
+truth), independent of whether `.marqdo/.../reuse_metrics.json` exists yet — so
+it is fetched once up front and surfaced in both the missing-metrics and the
+populated branches.
+
+**ra = > amort.read root=`root`**
+**ra_val = > json.get value=`ra` key="ra"**
+**ra_amortized = > json.get value=`ra` key="amortized_kinds"**
+**ra_measured = > json.get value=`ra` key="measured_kinds"**
+**ra_total = > json.get value=`ra` key="total_kinds"**
+**ra_baseline = > json.get value=`ra` key="baseline_weight"**
+**ra_recent = > json.get value=`ra` key="recent_weight"**
 **p = > path out=`out` root=`root`**
 **exists = > fs.exists path=`p`**
 1. not `exists`
   `empty` =
 
-  | ok | reuse_ratio | adapt_ratio | novel_ratio | duplication_rate | note |
-  |----|-------------|-------------|-------------|------------------|------|
-  | True | 0 | 0 | 0 | 0 | missing_metrics |
+  | ok | reuse_ratio | adapt_ratio | novel_ratio | duplication_rate | note | ra | ra_amortized | ra_measured | ra_total | ra_baseline | ra_recent |
+  |----|-------------|-------------|-------------|------------------|------|-----|--------------|-------------|----------|-------------|-----------|
+  | True | 0 | 0 | 0 | 0 | missing_metrics | `ra_val` | `ra_amortized` | `ra_measured` | `ra_total` | `ra_baseline` | `ra_recent` |
 
   *empty*
 **raw = > fs.read_text path=`p`**
@@ -45,8 +58,8 @@ import ctx:context.mq.md
   **llm_calls = 0**
 `ret` =
 
-| ok | reuse_ratio | adapt_ratio | novel_ratio | duplication_rate | reused | adapted | created | token_cost | llm_calls | raw |
-|----|-------------|-------------|-------------|------------------|--------|---------|---------|------------|-----------|-----|
-| True | `reuse` | `adapt` | `novel` | `dup` | `reused` | `adapted` | `created` | `token_cost` | `llm_calls` | `m` |
+| ok | reuse_ratio | adapt_ratio | novel_ratio | duplication_rate | reused | adapted | created | token_cost | llm_calls | ra | ra_amortized | ra_measured | ra_total | ra_baseline | ra_recent | raw |
+|----|-------------|-------------|-------------|------------------|--------|---------|---------|------------|-----------|-----|--------------|-------------|----------|-------------|-----------|-----|
+| True | `reuse` | `adapt` | `novel` | `dup` | `reused` | `adapted` | `created` | `token_cost` | `llm_calls` | `ra_val` | `ra_amortized` | `ra_measured` | `ra_total` | `ra_baseline` | `ra_recent` | `m` |
 
 *ret*

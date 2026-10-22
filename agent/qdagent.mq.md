@@ -12,6 +12,7 @@ import pf:preflight.mq.md
 import ctx:../knowledge/context.mq.md
 import resolver:../knowledge/resolver.mq.md
 import metrics:../knowledge/metrics.mq.md
+import amort:../knowledge/amortization.mq.md
 import dec:../knowledge/decision.mq.md
 import run:../execution/run.mq.md
 import gate:../execution/docgate.mq.md
@@ -389,6 +390,7 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
 **allowed = > json.get value=`gated` key="create_allowed"**
 **path = > json.get value=`gated` key="context_path"**
 **pf_body = > json.get value=`gated` key="preflight"**
+**_ra = > amort.record task=`task` decision=`decision` root=`root`**
 
 `merged` =
 
@@ -655,8 +657,12 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent â†’ verify â†
 **v = > verify.run slug=`slug` root=`root` out=`out` l1_ok=True**
 **promote = [promote_allowed](v)**
 **kpi = > metrics.read out=`out` root=`root`**
+**ra_obs = > amort.record task=`task` decision=`decision` root=`root`**
+**ra = > amort.read root=`root`**
+**ra_s = > json.stringify value=`ra`**
 **kpi_s = > json.stringify value=`kpi`**
 > run.put_section slug=`slug` section="Metrics" content=`kpi_s`
+> run.put_section slug=`slug` section="ReasoningAmortization" content=`ra_s`
 1. `promote`
   > record.from_workbook workbook_slug=`slug` capability=`task` evidence=`path` verification="L3 passed" promote_allowed=True
 2. *

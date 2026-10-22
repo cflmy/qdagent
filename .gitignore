@@ -39,6 +39,7 @@ _s.mq.md
 /data/tmp/
 /data/workbooks/
 /data/candidates/
+/data/amortization.json
 
 # EKC generated projection
 .marqdo/

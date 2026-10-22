@@ -638,6 +638,31 @@
         esc(kpi.novel_ratio) +
         "</p>";
     }
+    // Reasoning Amortization (design §85) — the cross-run KPI proving compiled
+    // knowledge lets the agent reason cheaper on repeat task-kinds. ra=null
+    // while no kind is both measured and non-zero (e.g. all amortized to free).
+    if (
+      kpi.ra_total != null ||
+      kpi.ra_measured != null ||
+      kpi.ra_amortized != null
+    ) {
+      const raVal =
+        kpi.ra != null ? esc(kpi.ra) : "—";
+      html +=
+        '<p class="qd-muted"><strong>推理摊销 RA</strong> ' +
+        raVal +
+        " · 已摊销 " +
+        esc(kpi.ra_amortized) +
+        "/" +
+        esc(kpi.ra_measured) +
+        " 类 · 基线 " +
+        esc(kpi.ra_baseline) +
+        " → 近期 " +
+        esc(kpi.ra_recent) +
+        "（共 " +
+        esc(kpi.ra_total) +
+        " 类任务）</p>";
+    }
     el.innerHTML = html;
   }
 

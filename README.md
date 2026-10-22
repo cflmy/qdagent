@@ -52,13 +52,19 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 | `qdagent promote` / `reject` | Verify-before-Promote |
 | `qdagent find` / `reuse` | 工程查询 |
 | `qdagent labels` | 工程债务（M8 棘轮 + M9 待完成桩；违约 exit 1） |
-| `qdagent serve` / `mcp` | Web / MCP |
+| `qdagent metrics` | KPI（reuse/adapt/novel/duplication + **推理摊销 RA**） |
+| `qdagent serve` / `mcp` | Web / MCP（鉴权对 `QDAGENT_API_KEY`） |
 
 ## 架构要点
 
 - **Marqdo = 唯一 Agent Runtime**；Python `/v1` 默认 `QDAGENT_V1_EFI=1` 仅做 HTTP 传输
 - **不重造 EKC**：调用 `marqdo knowledge|find|reuse|verify|…`
 - **四真相**：Program · Knowledge · Execution (Workbook) · Evidence
+- **推理摊销 RA**（设计 §85）：`knowledge/amortization.mq.md` 跨 Run 累积同类任务的
+  推理成本基线 vs 近期——REUSE 命中编译知识≈0 成本、CREATE≈全推理——证明"工程知识
+  编译让 Agent 越用越省"；`qdagent metrics` 与 Web Today 面展示
+- **鉴权**：`gateway/auth.mq.md` 对 `QDAGENT_API_KEY`（缺省 `qdagent-local`，远程必设）+
+  §46 追踪头（`X-QDAgent-{Run,Context,Knowledge-Version}-Id`）
 - **输出契约**：智能体答复与沉淀笔记都必须是**沙箱可运行**的 `.mq.md`，
   由 `execution/docgate.mq.md` 三段式机械门禁（提取 → 结构 → 沙箱试跑）把关，
   失败走至多一轮修复（见 [doc/design/09-document-contract-and-docgate.md](doc/design/09-document-contract-and-docgate.md)）
@@ -80,9 +86,10 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 | `agent/preflight.mq.md` | Preflight façade |
 | `knowledge/context.mq.md` | Context Pack（零 LLM） |
 | `knowledge/debt.mq.md` | 工程债务面（M8 棘轮 + M9 pending） |
+| `knowledge/amortization.mq.md` | 推理摊销 RA（§85 跨 Run KPI） |
 | `execution/run.mq.md` | Engineering Workbook |
 | `execution/docgate.mq.md` | 文档门禁（输出契约机械校验 + 沉淀） |
 | `execution/docgate-selftest.mq.md` | 门禁回归自检（6 条夹具断言，CI 强制） |
-| `gateway/openai.mq.md` · `gateway/mcp.mq.md` | 产品面 |
+| `gateway/openai.mq.md` · `gateway/auth.mq.md` · `gateway/mcp.mq.md` | 产品面 · 鉴权 |
 | `serve.mq.md` · `index.mq.md` | Web Gateway（根目录 KEEP） |
 | `cli/求道-*.mq.md` | 产品 CLI / MCP 薄入口 |

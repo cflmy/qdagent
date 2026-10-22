@@ -6,6 +6,7 @@ description: >-
   Upstream path always runs `precheck` first (EFI gate + optional product Preflight).
 import qd:../agent/qdagent.mq.md
 import pf:../agent/preflight.mq.md
+import auth:auth.mq.md
 import session:../execution/session.mq.md
 import json:lib/json.mq.md
 import table:lib/table.mq.md
@@ -95,9 +96,25 @@ optional product Preflight so EFI chat always has a Context Pack handle.
     + `root`="."
     + `out`=".marqdo"
     + `session_id`=""
+    + `authorization`=""
+    + `api_key`=""
+    + `payload`=None
 
-Map one user message to qdagent.run. Precheck first (with product Preflight);
-deny never reaches Agent. Optional `session_id` links `data/sessions/<id>.mq.md`.
+Map one user message to qdagent.run. Auth gate first (design §20/§46: credential
+vs QDAGENT_API_KEY + tracing headers X-QDAgent-*), then precheck (with product
+Preflight); deny never reaches Agent.
+
+**authres = > auth.check authorization=`authorization` api_key=`api_key` payload=`payload`**
+**aok = > json.get value=`authres` key="ok"**
+1. not `aok`
+  **areason = > json.get value=`authres` key="reason"**
+  `authdeny` =
+
+  | ok | content | run_id | decision | mode | error | code |
+  |----|---------|--------|----------|------|-------|------|
+  | False | `areason` |  | deny | `mode` | unauthorized | unauthorized |
+
+  *authdeny*
 
 **gate = > precheck message=`message` root=`root` out=`out` with_preflight=True**
 **gd = [decision](gate)**
