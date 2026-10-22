@@ -55,7 +55,12 @@ qdagent_resolve_marqdo() {
   elif [[ -x "${QDAGENT_MARQDO_SRC:-/workspace/marqdo}/target/release/marqdo" ]]; then
     export MARQDO_BIN="${QDAGENT_MARQDO_SRC:-/workspace/marqdo}/target/release/marqdo"
   else
-    export MARQDO_BIN="$(command -v marqdo || true)"
+    # Fallback to PATH lookup. Use `type -P` (NOT `command -v`): this file
+    # defines a shell FUNCTION named `marqdo` further down, which `command -v`
+    # would return as the bare token `marqdo` instead of the binary path —
+    # breaking resolution whenever no sibling checkout exists (i.e. CI).
+    # `type -P` ignores functions/aliases and returns only the executable path.
+    export MARQDO_BIN="$(type -P marqdo || true)"
   fi
 
   if [[ -z "${MARQDO_BIN}" || ! -x "${MARQDO_BIN}" ]]; then

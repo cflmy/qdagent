@@ -38,6 +38,10 @@ jobs:
             fi
           fi
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          # cargo installs the binary to ~/.cargo/bin (release asset went to
+          # ~/.local/bin). Add both so subsequent steps find marqdo on PATH
+          # regardless of the runner's default PATH layout.
+          [[ -d "$HOME/.cargo/bin" ]] && echo "$HOME/.cargo/bin" >> "$GITHUB_PATH" || true
           if command -v marqdo >/dev/null 2>&1; then
             marqdo --version
             echo "REQUIRE_MARQDO=1" >> "$GITHUB_ENV"
@@ -45,10 +49,23 @@ jobs:
             echo "Marqdo CLI not installed; knowledge job will soft-skip"
             echo "REQUIRE_MARQDO=0" >> "$GITHUB_ENV"
           fi
-      - name: Ext pack (minimal VERSION gate)
+      - name: Ext pack (from cargo checkout, fallback VERSION gate)
         run: |
+          set -euo pipefail
           mkdir -p "$HOME/.marqdo/ext"
-          echo "2.0.0" > "$HOME/.marqdo/ext/VERSION"
+          # `marqdo check` resolves ext/ imports (ext/web, ext/data, ...) that
+          # qdagent core files (serve, lib/*, docgate) depend on. `cargo install
+          # --git` cloned the marqdo repo incl. ext/ — copy the full pack so the
+          # contract gate can run. Fall back to a VERSION-only gate if the
+          # checkout isn't found (check then skips ext-dependent files).
+          EXT_SRC="$(find "$HOME/.cargo/git/checkouts" -maxdepth 4 -type d -name ext -path "*marqdo*" 2>/dev/null | head -1 || true)"
+          if [[ -n "$EXT_SRC" && -d "$EXT_SRC" ]]; then
+            cp -a "$EXT_SRC/." "$HOME/.marqdo/ext/"
+            echo "ext pack copied from cargo checkout: $EXT_SRC"
+          else
+            echo "2.0.0" > "$HOME/.marqdo/ext/VERSION"
+            echo "cargo checkout not found; VERSION-only gate (marqdo check skips ext-dependent files)"
+          fi
           echo "MARQDO_EXT=$HOME/.marqdo/ext" >> "$GITHUB_ENV"
       - name: Knowledge compile + verify
         env:
