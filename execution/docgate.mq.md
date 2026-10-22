@@ -45,6 +45,12 @@ Documentation echo of the prefix list (unbound table is narration data).
 The machine-usable list. A bound single-column table IS a List (v0.3
 table geometry) — no copy loop needed.
 
+Measured on 1.5.2: only leading DIGIT and leading `+` are rejected as
+statement syntax; `-` / `>` / `|` / `[` in narration are safe (they do
+not form a complete statement, so the parser skips them as prose).
+Blocking them would reject legitimate prose, so they are NOT listed here.
+See marqdo doc/tutorial/15-常见陷阱.md §1.3.
+
 `pres` =
 
 | p |
@@ -59,12 +65,8 @@ table geometry) — no copy loop needed.
 | "7" |
 | "8" |
 | "9" |
-| "-" |
-| ">" |
-| "\|" |
 | "**" |
 | "*" |
-| "[" |
 | "#" |
 | "+" |
 

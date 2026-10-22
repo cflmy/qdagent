@@ -55,6 +55,17 @@ import txt:lib/text.mq.md
 **head = "---" + `nl` + "title: 缺入口" + `nl` + "---" + `nl` + `nl` + "# 结论" + `nl` + `nl` + "只有叙述。" + `nl`**
 *head*
 
+## 安全叙述文档
+
+叙述区含 - 列表、> 引用、| 竖线、[ 数组 —— 实测都是安全叙述，必须通过。
+
+**qt = "\u{22}"**
+**pipe = "\u{7c}"**
+**nl = "\n"**
+**head = "---" + `nl` + "title: 安全叙述" + `nl` + "---" + `nl` + `nl` + "# 结论" + `nl` + `nl` + "这里是解释文字。" + `nl` + `nl` + "- 列表项一" + `nl` + "- 列表项二" + `nl` + `nl` + "> 引用一段" + `nl` + `nl` + `pipe` + " a " + `pipe` + " b " + `pipe` + `nl` + "这不是表格" + `nl` + `nl` + "# main" + `nl` + `nl`**
+**body = "> print text=ok" + `nl` + "*None*" + `nl`**
+*`head` + `body`*
+
 ## 阶段
     + `doc`
 
@@ -112,6 +123,7 @@ doc 通过门禁且 stdout 非空。
 **d2 = > 行首数字文档**
 **d3 = > 语法错文档**
 **d4 = > 缺入口文档**
+**d5 = > 安全叙述文档**
 
 **c1 = > 整洁 doc=`d1`**
 **s2 = > 阶段 doc=`d2`**
@@ -119,6 +131,7 @@ doc 通过门禁且 stdout 非空。
 **s3 = > 阶段 doc=`d3`**
 **c3 = `s3` == "sandbox"**
 **c4 = > 违规含 doc=`d4` needle="missing_main"**
+**c4b = > 通过 doc=`d5`**
 **c5 = > 整理页**
 
 **ok_n = 0**
@@ -149,6 +162,12 @@ doc 通过门禁且 stdout 非空。
 2. *
   **fail_n = `fail_n` + 1**
   **fails = > json.append list=`fails` item="missing_main_rule"**
+
+1. `c4b`
+  **ok_n = `ok_n` + 1**
+2. *
+  **fail_n = `fail_n` + 1**
+  **fails = > json.append list=`fails` item="safe_prose"**
 
 1. `c5`
   **ok_n = `ok_n` + 1**

@@ -149,9 +149,35 @@ Marqdo 里是语句**，于是整理页自己就不是一份合法文档（门�
 | 空数据 | `ok=true`，stdout `organize: host-fix` | 退出码 0 |
 | 真实命中（2 条证据 + 2 条笔记） | `ok=true`，`violations=[]` | 退出码 0 |
 
+## 7.5 禁区表按实测收敛
+
+门禁的叙述禁区最初列了 18 个前缀（数字、`-`、`>`、`|`、`[`、`**`、`*`、`#`、`+`）。
+在 Marqdo 1.5.2 上逐条实测后收敛为 14 个：
+
+| 前缀 | 叙述区实测 | 处置 |
+|------|-----------|------|
+| 数字 `0`–`9` | `unrecognized statement` | **保留**拦截 |
+| `+` | `unrecognized statement` | **保留**拦截 |
+| `**` / `*` / `#` | 标记/标题语法 | **保留**拦截 |
+| `-` | 不构成有效 foreach → 当叙述跳过 | 移除 |
+| `>` | 无对应函数时不当调用 | 移除 |
+| `\|` | 未绑定表不算语句 | 移除 |
+| `[` | 无归属的链接索引 → 跳过 | 移除 |
+
+判据是「该行能否被解析成一条完整语句」。过度拦截的代价是**把合法中文叙述判成违规**
+（「- 列表」是中文文档最常见的列表写法），属于假阳性，比漏检更伤可用性。
+
+实测对照（同一段叙述，含 `-` / `>` / `|` / `[` 四种前缀）：
+
+- 修正前：假阳性
+- 修正后：`ok=true`、`violations=[]`
+- 行首数字仍被拦：`ok=false`、`rule=narration_marker`
+
+上游依据见 marqdo `doc/tutorial/15-常见陷阱.md` §1.3。
+
 ## 8. 回归自检
 
-`execution/docgate-selftest.mq.md` 用 5 条固定夹具断言门禁自身没有退化，
+`execution/docgate-selftest.mq.md` 用 6 条固定夹具断言门禁自身没有退化，
 无 API Key 也能跑，已接入 `scripts/ci-knowledge-gate.sh`（失败即非零退出）。
 
 | 夹具 | 期望 | 断言 |
@@ -160,12 +186,13 @@ Marqdo 里是语句**，于是整理页自己就不是一份合法文档（门�
 | 行首数字文档 | 结构阶段拦下 | `stage=structure` |
 | 语法错文档 | 沙箱阶段拦下 | `stage=sandbox` |
 | 缺入口文档 | 结构规则命中 | violations 含 `missing_main` |
+| 安全叙述 | 通过 | 叙述区 `-` / `>` / `\|` / `[` 不误判 |
 | 整理页 | 通过 | `ok=true` |
 
-输出单行 JSON：`{"ok":true,"passed":true,"cases":5,"ok_count":5,"fail_count":0,"failures":"[]"}`。
+输出单行 JSON：`{"ok":true,"passed":true,"cases":6,"ok_count":6,"fail_count":0,"failures":"[]"}`。
 
 **双向验证**：故意把行首数字夹具的期望阶段改成 `sandbox`，
-自检立即返回 `{"passed":false,"ok_count":4,"fail_count":1,"failures":["digit_stage"]}`；
+自检立即返回 `{"passed":false,"fail_count":1,"failures":["digit_stage"]}`；
 改回后恢复全绿。这说明自检不是在空跑。
 
 设计约定（写自检时踩到的坑，也是给后来者的护栏）：
@@ -205,7 +232,7 @@ Marqdo 里是语句**，于是整理页自己就不是一份合法文档（门�
 | 门禁沉淀 | `qd.门禁沉淀` | `sedimented=true` / 失败时 `false` 且无文件 |
 | 验证套件 | `marqdo run cli/求道-验证.mq.md` | `{"ok":true,"passed":true}` |
 | v1 薄网关 | `./scripts/check-v1-thin.sh` | `OK (C2b)` |
-| 门禁自检 | `marqdo run execution/docgate-selftest.mq.md` | `{"passed":true,"cases":5}` |
+| 门禁自检 | `marqdo run execution/docgate-selftest.mq.md` | `{"passed":true,"cases":6}` |
 | 全量 CI | `./scripts/ci-knowledge-gate.sh` | 退出码 0，`ci-knowledge-gate: OK` |
 
 ## 11. 上游缺陷记录
