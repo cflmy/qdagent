@@ -51,6 +51,7 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 | `qdagent candidates` | 列出 Knowledge Candidates |
 | `qdagent promote` / `reject` | Verify-before-Promote |
 | `qdagent find` / `reuse` | 工程查询 |
+| `qdagent labels` | 工程债务（M8 棘轮 + M9 待完成桩；违约 exit 1） |
 | `qdagent serve` / `mcp` | Web / MCP |
 
 ## 架构要点
@@ -78,6 +79,7 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 | `agent/qdagent.mq.md` | ASK / BUILD / LEARN |
 | `agent/preflight.mq.md` | Preflight façade |
 | `knowledge/context.mq.md` | Context Pack（零 LLM） |
+| `knowledge/debt.mq.md` | 工程债务面（M8 棘轮 + M9 pending） |
 | `execution/run.mq.md` | Engineering Workbook |
 | `execution/docgate.mq.md` | 文档门禁（输出契约机械校验 + 沉淀） |
 | `execution/docgate-selftest.mq.md` | 门禁回归自检（6 条夹具断言，CI 强制） |

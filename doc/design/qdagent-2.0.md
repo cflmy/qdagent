@@ -103,6 +103,7 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 | **14** | done | Marqdo **CLI≥1.4.2 · Ext≥1.4.3** — `agent.run efi=True` cold OKF · CREATE `sandbox=` · quarantine · thick `/v1` → 410 · `QDAGENT_DRY` |
 | **15** | done | Marqdo **1.4.4** — LLM 传输软失败 → `mode=error` · Ext/CLI 双门闩 ≥1.4.4 · preflight exit-2 JSON |
 | **16** | done | Marqdo **2.0.0** — 依赖下限与解析路径升到 2.0.0（`QDAGENT_MARQDO_SRC`，缺省 `/workspace/marqdo`）；自有语料 M7 迁移 occlusion（4 文件 / 58 索引 / 6 循环，工具等价性证明零漂移）；CI 增配 `marqdo check` 全量 + `labels --baseline --fail-on-increase` 债务棘轮；Preflight Context Pack 附带 `pending_labels`（M9 两级检索产品面）；`skills/gateway-efi` 行首数字陷阱修复 |
+| **17** | done | 工程债务产品面 — `knowledge/debt.mq.md`（M8 棘轮 `ratchet` + M9 `pending`）；`cli/求道-债务.mq.md` + `qdagent labels`（退出码传播，违约 exit 1）；Web `/eng/preflight` 结构化渲染（决策徽章 · Reuse Gate · EFI facets · 债务块），裸 JSON 收进 `<details>` |
 
 ### 10.1 Phase 16 — Marqdo 2.0.0 对齐（2026-10-22）
 
@@ -120,6 +121,19 @@ EKC 编译跳过 `docker/` · `data/` · `.cursor/`（Marqdo extract），避免
 | 门禁 | `scripts/ci-knowledge-gate.sh`：`marqdo check` 逐文件契约（NUL 分隔防 quotePath）+ labels 棘轮（台账 `.marqdo/labels-baseline.json`，只许降不许升） |
 | Preflight | `knowledge/policy.pending_labels` → Context Pack `pending_labels` / `pending_label_count`（Agent 能看到"哪些能力还欠着"） |
 | 修复 | `skills/gateway-efi.mq.md` 行首数字列表 → 叙述段（陷阱手册 1.1）；EKC 计数 347→315 符号（check 可见性提升后重复符号合并，能力语义不变） |
+
+### 10.2 Phase 17 — 工程债务产品面（2026-10-22）
+
+把 2.0.0 的 labels 能力（M8 棘轮 · M9 两级检索）变成求道跨 CLI + Web 的一致产品面：
+**显式 `[待开发]()` 桩即债**，工程师与 Agent 都能看见、CI 只许降不许升。
+
+| 面 | 落地 |
+|----|------|
+| 模块 | `knowledge/debt.mq.md`（`markup: occlusion`）：`ratchet(root, baseline)` 包装 `marqdo labels --baseline --fail-on-increase` 返回 `{ok, exit_code, baseline, message}`；`pending(root)` 复用同一 `labels --json` 扫描（单一真相源） |
+| CLI | `cli/求道-债务.mq.md` + `scripts/qdagent labels\|debt`：先打 pending 列表再跑棘轮，`sys.exit` 传播退出码（违约 exit 1 / 清债 exit 0）；台账默认 `.marqdo/labels-baseline.json`（与 CI 同源，跨机一致） |
+| Web | `public/eng.js::renderPreflight`：`/eng/preflight` 结果从裸 JSON dump 升级为结构化面板——决策徽章（REUSE/ADAPT/CREATE）· Reuse Gate（create_allowed · status · 债务计数）· EFI facets（recommended/existing/constraints/decisions/failures/policies）· **工程债务块**（pending rows：`label · file:line [unit] ← words`）；原始 JSON 收进 `<details>` |
+
+红线遵守：CLI 入口只做 env → 调 `knowledge/debt`，不承载逻辑；不重造 labels 词表或第二门禁（Marqdo 拥有）。
 
 ## 11. Phase 10 — CLI 入口收纳（本仓增补）
 

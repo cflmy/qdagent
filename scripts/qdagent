@@ -57,6 +57,11 @@ case "$cmd" in
   metrics|kpi)
     exec marqdo run cli/求道-指标.mq.md
     ;;
+  labels|debt)
+    # M8 debt ratchet (local mirror of the CI gate) + M9 pending list.
+    # Exit code propagates from marqdo labels --fail-on-increase.
+    exec marqdo run cli/求道-债务.mq.md
+    ;;
   find|know)
     export QDAGENT_QUERY="${*:-authentication}"
     marqdo find "$QDAGENT_QUERY" . -o .marqdo --json
@@ -89,7 +94,7 @@ case "$cmd" in
     ;;
   ""|-h|--help|help)
     cat <<'EOF'
-qdagent — Executable Engineering Knowledge Agent (CLI ≥1.4.4 · Ext ≥1.4.4)
+qdagent — Executable Engineering Knowledge Agent (CLI ≥2.0.0 · Ext ≥2.0.0)
 
 Usage:
   qdagent preflight [task]
@@ -101,6 +106,7 @@ Usage:
   qdagent promote <slug>
   qdagent reject <slug> [reason]
   qdagent metrics
+  qdagent labels|debt        # engineering debt ratchet + pending list (M8/M9)
   qdagent find|know [query]
   qdagent reuse [task]
   qdagent impact [path...]
@@ -119,6 +125,7 @@ Dogfood example:
   qdagent candidates
   qdagent promote cand-YYYYMMDD-HHMMSS
   qdagent learn
+  qdagent labels
   qdagent impact lib/api.mq.md
   qdagent conflicts
 EOF

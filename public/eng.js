@@ -39,6 +39,112 @@
       .replace(/"/g, "&quot;");
   }
 
+  // Structured Preflight renderer — turns the raw Context Pack JSON into a
+  // human-readable panel: decision badge · Reuse Gate · EFI facets ·
+  // engineering debt (M9 pending labels). Falls back to raw JSON in a
+  // <details>. Used by the /eng/preflight "工程预检" button.
+  function chip(cls, label) {
+    return '<span class="qd-flow-node ' + cls + '">' + esc(label) + "</span>";
+  }
+  function facetList(title, items) {
+    const arr = items || [];
+    if (!arr.length) return "";
+    let h = '<p><strong>' + esc(title) + "</strong></p>";
+    h += '<ul class="qd-eng-today-list">';
+    arr.forEach(function (x) {
+      h += "<li>" + esc(typeof x === "string" ? x : JSON.stringify(x)) + "</li>";
+    });
+    return h + "</ul>";
+  }
+  function renderPreflight(rawEl, data) {
+    if (!rawEl) return;
+    const pf = (data && data.preflight) || {};
+    const debtRows = pf.pending_labels || [];
+    const debtN =
+      typeof data.pending_label_count === "number"
+        ? data.pending_label_count
+        : debtRows.length;
+    const decClass =
+      data && data.decision === "REUSE"
+        ? "core"
+        : data && data.decision === "CREATE"
+        ? "bad"
+        : "";
+    let panel = document.getElementById("qd-eng-pf-panel");
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "qd-eng-pf-panel";
+      panel.className = "qd-ekc-section";
+      rawEl.parentNode.insertBefore(panel, rawEl);
+    }
+    let html = '<h2>工程预检结果</h2>';
+    if (!data || data.ok === false) {
+      html +=
+        '<p class="qd-muted">预检失败：' +
+        esc((data && data.error) || JSON.stringify(data)) +
+        "</p>";
+    } else {
+      html += '<div class="qd-gate">';
+      html +=
+        '<div class="qd-gate-item">' +
+        chip(decClass, data.decision || "?") +
+        "<p>Reuse Gate 决策</p></div>";
+      html +=
+        '<div class="qd-gate-item"><strong>' +
+        (data.create_allowed ? "允许 CREATE" : "禁止 CREATE") +
+        "</strong><p>" +
+        esc(pf.status || "") +
+        "</p></div>";
+      html +=
+        '<div class="qd-gate-item"><strong>债务 ' +
+        debtN +
+        "</strong><p>M9 pending labels</p></div>";
+      html += "</div>";
+      if (pf.intent && pf.intent.capability) {
+        html +=
+          '<p class="qd-muted">intent capability: <code>' +
+          esc(pf.intent.capability) +
+          "</code></p>";
+      }
+      html += facetList("Recommended", pf.recommended);
+      html += facetList("Existing capabilities", pf.existing);
+      html += facetList("Constraints", pf.constraints);
+      html += facetList("Decisions", pf.decisions);
+      html += facetList("Failures", pf.failures);
+      html += facetList("L6 Policies", data.policies || pf.policies);
+      // Engineering debt block — explicit [待开发]() stubs are debt.
+      html +=
+        '<p><strong>工程债务</strong> <span class="qd-muted">显式桩 / 未完成词 · ' +
+        debtN +
+        " 项</span></p>";
+      if (debtRows.length) {
+        html += '<ul class="qd-eng-today-list">';
+        debtRows.forEach(function (r) {
+          const where = (r.file || "").replace(/^.*\/qdagent\//, "") +
+            ":" + (r.line || "?") + " [" + (r.unit || "") + "]";
+          html +=
+            "<li><code>" +
+            esc(r.label || "") +
+            "</code> · " +
+            esc(where) +
+            " ← " +
+            esc((r.words || []).join(",")) +
+            "</li>";
+        });
+        html += "</ul>";
+      } else {
+        html +=
+          '<p class="qd-muted">无未完成桩（本地可跑 <code>qdagent labels</code> 复核）</p>';
+      }
+    }
+    panel.innerHTML = html;
+    // Keep the raw Context Pack available, collapsed.
+    rawEl.innerHTML =
+      '<details><summary>原始 Context Pack JSON</summary><pre>' +
+      esc(JSON.stringify(data, null, 2)) +
+      "</pre></details>";
+  }
+
   function engSessionId() {
     if (window.QdSession && window.QdSession.currentId) {
       return window.QdSession.currentId();
@@ -87,7 +193,8 @@
     pfBtn.addEventListener("click", async () => {
       const task = ($("qd-eng-task") && $("qd-eng-task").value) || "";
       show($("qd-eng-out"), { status: "running…" });
-      show($("qd-eng-out"), await post("/api/eng/preflight", { task: task }));
+      const data = await post("/api/eng/preflight", { task: task });
+      renderPreflight($("qd-eng-out"), data);
     });
   }
 
