@@ -26,6 +26,7 @@ import db:../db/index.mq.md
 import sys:lib/sys.mq.md
 import json:lib/json.mq.md
 import table:lib/table.mq.md
+import text:lib/text.mq.md
 import fs:lib/fs.mq.md
 ---
 
@@ -412,10 +413,17 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
 1. `key`
   **standing = > 契约提示 mode="ask"**
   **助手 = > make_agent standing=`standing`**
-  **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="auto" max_rounds=3 sandbox=False**
-  **status = > json.get value=`agent_out` key="status"**
-  **raw = > format_agent_outcome agent_out=`agent_out`**
-  **err = > json.get value=`agent_out` key="error"**
+  **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="marqdo" max_rounds=3 sandbox=False**
+  **ao_s = > json.stringify value=`agent_out`**
+  **is_map = > text.contains text=`ao_s` sub="\"status\""**
+  1. not `is_map`
+    **status = "ok"**
+    **raw = > text.str_trim s=`agent_out`**
+    **err = ""**
+  2. *
+    **status = > json.get value=`agent_out` key="status"**
+    **raw = > format_agent_outcome agent_out=`agent_out`**
+    **err = > json.get value=`agent_out` key="error"**
   1. `status` == "ok"
     **mode = "live"**
     **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**

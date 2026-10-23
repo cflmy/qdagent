@@ -1095,7 +1095,7 @@ OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` 
           **task = `content`**
 1. not `task`
   **task = "ping"**
-**chat = > eng_openai.chat message=`task` mode=""**
+**chat = > eng_openai.chat message=`task` mode="" authorization=`authorization` api_key=`api_key` payload=`payload`**
 **content = [content](chat)**
 **run_id = [run_id](chat)**
 **cok = [ok](chat)**
