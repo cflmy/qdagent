@@ -10,10 +10,12 @@ import web:ext/web/web.mq.md
 import site:lib/site.mq.md
 import ui:lib/ui.mq.md
 import pages:pages/build.mq.md
+import spa:lib/spa.mq.md
 import db:db/index.mq.md
 import data:ext/data/db.mq.md
 import api:lib/api.mq.md
 import sys:lib/sys.mq.md
+import table:lib/table.mq.md
 ---
 
 # main
@@ -132,7 +134,15 @@ import sys:lib/sys.mq.md
 **page_capability = > pages.工程能力**
 **page_candidates = > pages.知识候选**
 
-**app = > web.app page=`page_preflight` db=`store` admin=True admin_prefix="/account" host=`host` port=`port`**
+**spa_html = > spa.bootstrap root="."**
+**spa_home = > table.empty_map**
+**spa_home = > table.put in=`spa_home` at="title" value="求道"**
+**spa_home = > table.put in=`spa_home` at="route" value="/"**
+**spa_home = > table.put in=`spa_home` at="layout" value="bare"**
+**spa_home = > table.put in=`spa_home` at="images_html" value=`spa_html`**
+**spa_home = > table.put in=`spa_home` at="styles_css" value="html,body{height:100%;margin:0;padding:0}body{background:transparent!important}body.layout-bare main.main{padding:0!important;margin:0!important;max-width:none!important}header.topnav,footer.foot{display:none!important}#root{min-height:100vh}"**
+
+**app = > web.app page=`spa_home` db=`store` admin=True admin_prefix="/account" host=`host` port=`port`**
 
 **app = > web.route app=`app` path="/chat" page=`page`**
 **app = > web.route app=`app` path="/notes" page=`notes`**

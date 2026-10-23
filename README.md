@@ -57,6 +57,11 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 
 ## 架构要点
 
+- **前端 = React SPA**（`frontend/`，Vite + react-router HashRouter）：`npm run build`
+  产出 `public/app/`；`qdagent serve` 在 `/` 提供——`lib/spa.mq.md` 启动时读取
+  `public/app/index.html` 提取带哈希的 `<script>/<link>`，经首页 `layout: bare` 壳
+  注入 `<main>`（`images_html` 透传、框架 chrome 隐藏），浏览器执行模块脚本 → React
+  挂载 `#root` 接管视口。SPA 同源调用 `/api/*`（cookie 鉴权）。产物缺失时优雅降级。
 - **Marqdo = 唯一 Agent Runtime**；Python `/v1` 默认 `QDAGENT_V1_EFI=1` 仅做 HTTP 传输
 - **不重造 EKC**：调用 `marqdo knowledge|find|reuse|verify|…`
 - **四真相**：Program · Knowledge · Execution (Workbook) · Evidence
@@ -90,6 +95,7 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 | `execution/run.mq.md` | Engineering Workbook |
 | `execution/docgate.mq.md` | 文档门禁（输出契约机械校验 + 沉淀） |
 | `execution/docgate-selftest.mq.md` | 门禁回归自检（6 条夹具断言，CI 强制） |
+| `lib/spa.mq.md` | React SPA 首页引导（读 public/app/index.html 注入 `/`） |
 | `gateway/openai.mq.md` · `gateway/auth.mq.md` · `gateway/mcp.mq.md` | 产品面 · 鉴权 |
 | `serve.mq.md` · `index.mq.md` | Web Gateway（根目录 KEEP） |
 | `cli/求道-*.mq.md` | 产品 CLI / MCP 薄入口 |
