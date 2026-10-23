@@ -55,6 +55,7 @@ Reference/
 # Frontend build artifacts
 frontend/node_modules/
 frontend/dist/
+frontend/tsconfig.tsbuildinfo
 public/app/
 
 # Local build helpers (zig cc wrappers, caches) — machine-specific

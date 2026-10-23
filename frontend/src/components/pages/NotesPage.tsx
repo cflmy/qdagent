@@ -7,6 +7,44 @@ import {
 
 type View = 'list' | 'detail' | 'new'
 
+/**
+ * Run notes are Marqdo documents: they start with a YAML frontmatter block
+ * (`--- title: … ---`). Showing it verbatim in the UI is noise, so parse it
+ * and render only the markdown body.
+ */
+function splitFrontmatter(raw?: string): { meta: Record<string, string>; body: string } {
+  const text = typeof raw === 'string' ? raw : ''
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text)
+  if (!match) return { meta: {}, body: text }
+  const meta: Record<string, string> = {}
+  for (const line of match[1].split(/\r?\n/)) {
+    const kv = /^([A-Za-z0-9_-]+)\s*:\s*(.*)$/.exec(line)
+    if (kv) meta[kv[1]] = kv[2].replace(/^["']|["']$/g, '').trim()
+  }
+  return { meta, body: text.slice(match[0].length) }
+}
+
+function stripFrontmatter(raw?: string): string {
+  return splitFrontmatter(raw).body
+}
+
+function frontmatterOf(raw?: string): Record<string, string> {
+  return splitFrontmatter(raw).meta
+}
+
+/** Plain-text preview of a run: body only, markdown noise trimmed. */
+function previewOf(run: Run): string {
+  const raw = run.content ?? (typeof run.summary === 'string' ? run.summary : undefined)
+  const body = stripFrontmatter(raw)
+  return body
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/[*_`>#-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160)
+}
+
 export function NotesPage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -27,10 +65,16 @@ export function NotesPage() {
       return
     }
     setView('list')
-    api.listRuns().then(setRuns).catch(() => {}).finally(() => setLoading(false))
+    api.listRuns()
+      .then((list) => setRuns(Array.isArray(list) ? list : []))
+      .catch((err) => { console.error('[notes] list failed:', err); setRuns([]) })
+      .finally(() => setLoading(false))
   }, [location.pathname])
 
-  const filtered = runs.filter((r) => {
+  // Defensive: never let a malformed payload take the page down.
+  const safeRuns = Array.isArray(runs) ? runs : []
+
+  const filtered = safeRuns.filter((r) => {
     if (!search) return true
     const q = search.toLowerCase()
     return (r.title || '').toLowerCase().includes(q) ||
@@ -166,9 +210,9 @@ export function NotesPage() {
                         </span>
                       )}
                     </div>
-                    {run.content && (
+                    {previewOf(run) && (
                       <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--dsw-alias-label-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                        {run.content.slice(0, 200)}
+                        {previewOf(run)}
                       </p>
                     )}
                   </div>
@@ -186,14 +230,16 @@ export function NotesPage() {
               </div>
             ) : currentRun ? (
               <article>
-                <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>{currentRun.title || currentRun.slug}</h2>
+                <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>
+                  {frontmatterOf(currentRun.content).title || currentRun.title || currentRun.slug}
+                </h2>
                 {currentRun.created_at && (
                   <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--dsw-alias-label-secondary)' }}>
                     {new Date(currentRun.created_at).toLocaleString('zh-CN')}
                   </p>
                 )}
                 <div style={{ marginTop: '24px', whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: 1.7 }}>
-                  {currentRun.content || '（空内容）'}
+                  {stripFrontmatter(currentRun.content) || '（空内容）'}
                 </div>
               </article>
             ) : (

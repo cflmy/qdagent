@@ -29,6 +29,7 @@ import eng_sess:../execution/session.mq.md
 import eng_openai:../gateway/openai.mq.md
 import eng_policy:../knowledge/policy.mq.md
 import text:lib/text.mq.md
+import settings:../db/settings.mq.md
 ---
 
 ## 成功
@@ -132,6 +133,86 @@ import text:lib/text.mq.md
 **rows = > db.recent limit=`limit`**
 **字段 = > table.put in=None at="runs" value=`rows`**
 *> 成功 字段=`字段`*
+
+## settings_get
+
+Read the model / voice settings row so the SPA settings form can populate.
+Secrets are never echoed back: `llm_api_key` / `asr_api_key` / `tts_api_key`
+are replaced by an `*_api_key_set` boolean.
+
+**store = > db.open**
+**rows = > `store`.select table="settings" limit=1**
+**cfg = [1](rows)**
+**llm_key = [llm_api_key](cfg)**
+**asr_key = [asr_api_key](cfg)**
+**tts_key = [tts_api_key](cfg)**
+**llm_base = [llm_base_url](cfg)**
+**llm_model = [llm_model](cfg)**
+**asr_base = [asr_base_url](cfg)**
+**asr_model = [asr_model](cfg)**
+**tts_base = [tts_base_url](cfg)**
+**tts_model = [tts_model](cfg)**
+**lang = [dictation_lang](cfg)**
+**has_llm = False**
+1. `llm_key`
+  **has_llm = True**
+**has_asr = False**
+1. `asr_key`
+  **has_asr = True**
+**has_tts = False**
+1. `tts_key`
+  **has_tts = True**
+`字段` =
+
+| llm_base_url | llm_model | llm_api_key_set | tts_base_url | tts_model | tts_api_key_set | asr_base_url | asr_model | asr_api_key_set | dictation_lang |
+|--------------|-----------|-----------------|--------------|-----------|-----------------|--------------|-----------|-----------------|----------------|
+| `llm_base` | `llm_model` | `has_llm` | `tts_base` | `tts_model` | `has_tts` | `asr_base` | `asr_model` | `has_asr` | `lang` |
+
+*> 成功 字段=`字段`*
+
+## settings_update
+    + `payload`=None
+
+Patch the settings row. Only the fields present in the payload are written;
+empty strings clear a field, and `*_api_key` is only overwritten when provided.
+
+1. not `payload`
+  *> 失败 error="payload required"*
+
+**store = > db.open**
+**rows = > `store`.select table="settings" limit=1**
+1. not `rows`
+  **seed = > settings.seed**
+  > `store`.insert table=settings rows=`seed`
+
+**row = > table.empty_map**
+**llm_base = > json.get value=`payload` key="llm_base_url"**
+**llm_model = > json.get value=`payload` key="llm_model"**
+**llm_key = > json.get value=`payload` key="llm_api_key"**
+**tts_base = > json.get value=`payload` key="tts_base_url"**
+**asr_base = > json.get value=`payload` key="asr_base_url"**
+**lang = > json.get value=`payload` key="dictation_lang"**
+**u = > time.now_unix**
+
+1. `llm_base`
+  **row = > table.put in=`row` at="llm_base_url" value=`llm_base`**
+1. `llm_model`
+  **row = > table.put in=`row` at="llm_model" value=`llm_model`**
+1. `llm_key`
+  **row = > table.put in=`row` at="llm_api_key" value=`llm_key`**
+1. `tts_base`
+  **row = > table.put in=`row` at="tts_base_url" value=`tts_base`**
+1. `asr_base`
+  **row = > table.put in=`row` at="asr_base_url" value=`asr_base`**
+1. `lang`
+  **row = > table.put in=`row` at="dictation_lang" value=`lang`**
+**row = > table.put in=`row` at="updated_at" value=`u`**
+
+**saved = > `store`.update table="settings" id=1 row=`row`**
+**字段 = > table.put in=None at="saved" value=True**
+*> 成功 字段=`字段`*
+
+
 
 ## search
     + `query`=""
@@ -1000,10 +1081,9 @@ OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` 
     **stream = True**
 **task = ""**
 1. `messages`
-  **msg_s = `messages`**
-  **is_text = > text.starts_with text=`msg_s` prefix="["**
-  1. `is_text`
-    **arr = > json.parse text=`msg_s`**
+  **arr = > json.parse text="[]"**
+  1. `messages` == ""
+    **arr = > json.parse text="[]"**
   2. *
     **arr = `messages`**
   1. `arr`
@@ -1042,7 +1122,10 @@ OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` 
 **choices = > table.append list=`choices` item=`choice`**
 1. `stream`
   **delta_s = > json.stringify value=`content`**
-  **chunk = "{\"id\":\"" + `cid` + "\",\"object\":\"chat.completion.chunk\",\"created\":" + `u` + ",\"model\":\"" + `model` + "\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":" + `delta_s` + "},\"finish_reason\":\"stop\"}]}"**
+  **cok_s = "false"**
+  1. `cok`
+    **cok_s = "true"**
+  **chunk = "{\"id\":\"" + `cid` + "\",\"object\":\"chat.completion.chunk\",\"created\":" + `u` + ",\"model\":\"" + `model` + "\",\"ok\":" + `cok_s` + ",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":" + `delta_s` + "},\"finish_reason\":\"stop\"}]}"**
   **sse = "data: " + `chunk` + "\n\ndata: [DONE]\n\n"**
   `sse_out` =
 

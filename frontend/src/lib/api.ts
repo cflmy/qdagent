@@ -3,10 +3,26 @@
  * Base URL is same-origin (empty string); Marqdo proxy handles auth via cookie.
  */
 
+/**
+ * The Marqdo backend answers with envelopes: `{ok, runs}`, `{ok, body, path}`,
+ * `{ok, error}` … Callers expect the payload itself, so unwrap here once.
+ * Errors are surfaced (thrown) instead of becoming silent `undefined`, which is
+ * what previously made pages render an unrecoverable blank screen.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function unwrapEnvelope<T>(json: any, path: string): T {
+  if (json && typeof json === 'object' && !Array.isArray(json) && 'ok' in json) {
+    if (json.ok === false) {
+      throw new Error(json.error || json.message || `${path} returned ok:false`)
+    }
+  }
+  return json as T
+}
+
 async function GET<T = unknown>(path: string, headers?: Record<string, string>): Promise<T> {
   const res = await fetch(path, { credentials: 'same-origin', headers })
   if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
-  return res.json() as Promise<T>
+  return unwrapEnvelope<T>(await res.json(), path)
 }
 
 async function POST<T = unknown>(path: string, body: unknown): Promise<T> {
@@ -96,6 +112,23 @@ export interface Profile {
   [key: string]: unknown
 }
 
+export interface Settings {
+  llm_base_url?: string
+  llm_model?: string
+  llm_api_key?: string
+  llm_api_key_set?: boolean
+  tts_base_url?: string
+  tts_model?: string
+  tts_api_key?: string
+  tts_api_key_set?: boolean
+  asr_base_url?: string
+  asr_model?: string
+  asr_api_key?: string
+  asr_api_key_set?: boolean
+  dictation_lang?: string
+  [key: string]: unknown
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -119,14 +152,41 @@ export const api = {
   syncRun: (data: unknown) => POST('/api/store/sync', data),
   search: (data: unknown) => POST('/api/store/search', data),
   list: (data: unknown) => POST('/api/store/list', data),
-  listRuns: () => GET<Run[]>('/api/store/runs'),
-  getRun: (data: { slug: string }) => POST<Run>('/api/store/get', data),
+  listRuns: async (): Promise<Run[]> => {
+    const json = await GET<Run[] | { ok?: boolean; runs?: Array<Run & { body?: string }> }>('/api/store/runs')
+    // Backend returns {ok, runs}; tolerate a bare array too.
+    const list = Array.isArray(json) ? json : Array.isArray(json?.runs) ? json.runs : []
+    // The list payload carries `body`, while callers speak `content`.
+    return list.map<Run>((r) => {
+      const content = typeof r.content === 'string' ? r.content : r.body
+      return { ...r, content: typeof content === 'string' ? content : undefined }
+    })
+  },
+  getRun: async (data: { slug: string }): Promise<Run> => {
+    const json = await POST<Partial<Run> & { ok?: boolean }>('/api/store/get', data)
+    // Backend returns {ok, slug, path, body} where body is the note markdown.
+    return { ...json, slug: json.slug ?? data.slug, content: json.content ?? json.body } as Run
+  },
   context: (data: unknown) => POST('/api/store/context', data),
 
-  // Profile
-  getProfile: (data?: unknown) => POST<Profile>('/api/store/profile', data || {}),
+  // Profile — backend returns {ok, body, path}; callers want the profile object.
+  getProfile: async (data?: unknown): Promise<Profile> => {
+    const json = await POST<Partial<Profile> & { ok?: boolean; body?: string; path?: string }>(
+      '/api/store/profile',
+      data || {},
+    )
+    const merged = { ...json } as Profile
+    if (typeof json.body === 'string' && json.body.length > 0) {
+      merged.markdown = json.body
+    }
+    return merged
+  },
   updateProfile: (data: unknown) => POST('/api/store/profile/update', data),
   resetProfile: (data?: unknown) => POST('/api/store/profile/reset', data || {}),
+
+  // Settings — the model / voice config row (secrets reported as *_set flags).
+  getSettings: () => GET<Settings>('/api/config'),
+  updateSettings: (data: Partial<Settings>) => POST<{ saved: boolean }>('/api/config/update', data),
 
   // Knowledge
   organize: (data: unknown) => POST('/api/store/organize', data),

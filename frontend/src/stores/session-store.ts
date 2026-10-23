@@ -139,7 +139,16 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         )
 
         for await (const chunk of stream) {
-          const c = chunk as ChatCompletionChunk
+          const c = chunk as ChatCompletionChunk & { error?: string; ok?: boolean }
+          // The gateway may answer 200 with {ok:false, error} — surface it as an
+          // error rather than letting it look like an assistant reply.
+          if (c?.ok === false || c?.error) {
+            const detail = c.error || c.choices?.[0]?.delta?.content || ''
+            const hint = /unauthor|invalid.*key|401/i.test(String(detail))
+              ? '模型鉴权失败：请检查「设置 → 模型」中的 API Key 与地址。'
+              : String(detail) || '上游模型调用失败'
+            throw new Error(hint)
+          }
           const delta = c.choices?.[0]?.delta?.content
           if (delta) {
             get().updateLastAssistant(sessionId, delta)

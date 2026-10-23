@@ -75,6 +75,8 @@ import table:lib/table.mq.md
 | /api/store/get | POST | api.get_run | json | json |
 | /api/store/context | POST | api.context | json | json |
 | /api/store/profile | POST | api.profile_get | json | json |
+| /api/config | GET | api.settings_get | query | json |
+| /api/config/update | POST | api.settings_update | json | json |
 | /api/store/profile/update | POST | api.profile_update | json | json |
 | /api/store/profile/reset | POST | api.profile_reset | json | json |
 | /api/store/organize | POST | api.organize | json | json |
@@ -140,7 +142,7 @@ import table:lib/table.mq.md
 **spa_home = > table.put in=`spa_home` at="route" value="/"**
 **spa_home = > table.put in=`spa_home` at="layout" value="bare"**
 **spa_home = > table.put in=`spa_home` at="images_html" value=`spa_html`**
-**spa_home = > table.put in=`spa_home` at="styles_css" value="html,body{height:100%;margin:0;padding:0}body{background:transparent!important}body.layout-bare main.main{padding:0!important;margin:0!important;max-width:none!important}header.topnav,footer.foot{display:none!important}#root{min-height:100vh}"**
+**spa_home = > table.put in=`spa_home` at="styles_css" value="html,body{height:100%;margin:0;padding:0}body{background-color:var(--dsw-alias-bg-base,#fafaf9)!important;color:var(--dsw-alias-label-primary,#1c1917)!important}body.layout-bare main.main{padding:0!important;margin:0!important;max-width:none!important}header.topnav,footer.foot{display:none!important}#root{min-height:100vh}"**
 
 **app = > web.app page=`spa_home` db=`store` admin=True admin_prefix="/account" host=`host` port=`port`**
 

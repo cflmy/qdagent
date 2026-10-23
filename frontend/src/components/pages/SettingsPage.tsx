@@ -32,19 +32,25 @@ export function SettingsPage() {
     asr_base_url: '',
     dictation_lang: 'zh-CN',
   })
+  // Whether a key is already stored server-side (the value itself is never sent back).
+  const [keySet, setKeySet] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    api.getProfile().then((p) => {
+    api.getSettings().then((s) => {
       setForm({
-        llm_base_url: p.llm_base_url || '',
-        api_key: p.api_key || '',
-        model: p.model || '',
-        tts_base_url: p.tts_base_url || '',
-        asr_base_url: p.asr_base_url || '',
-        dictation_lang: p.dictation_lang || 'zh-CN',
+        llm_base_url: s.llm_base_url || '',
+        api_key: '',
+        model: s.llm_model || '',
+        tts_base_url: s.tts_base_url || '',
+        asr_base_url: s.asr_base_url || '',
+        dictation_lang: s.dictation_lang || 'zh-CN',
       })
-    }).catch(() => {}).finally(() => setLoading(false))
+      setKeySet(Boolean(s.llm_api_key_set))
+    }).catch((err) => {
+      setLoadError(err instanceof Error ? err.message : String(err))
+    }).finally(() => setLoading(false))
   }, [])
 
   // Close on Escape
@@ -62,21 +68,38 @@ export function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true)
-    try { await api.updateProfile(form) } catch (err) { console.error('Save failed:', err) }
-    finally { setSaving(false) }
+    try {
+      const patch: Record<string, string> = {
+        llm_base_url: form.llm_base_url,
+        llm_model: form.model,
+        tts_base_url: form.tts_base_url,
+        asr_base_url: form.asr_base_url,
+        dictation_lang: form.dictation_lang,
+      }
+      // Only send the key when the user actually typed a new one.
+      if (form.api_key) patch.llm_api_key = form.api_key
+      await api.updateSettings(patch)
+      const s = await api.getSettings()
+      setKeySet(Boolean(s.llm_api_key_set))
+      setForm((f) => ({ ...f, api_key: '' }))
+    } catch (err) {
+      console.error('Save failed:', err)
+      setLoadError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleReset = async () => {
     try {
-      await api.resetProfile()
-      const p = await api.getProfile()
+      const s = await api.getSettings()
       setForm({
-        llm_base_url: p.llm_base_url || '',
-        api_key: p.api_key || '',
-        model: p.model || '',
-        tts_base_url: p.tts_base_url || '',
-        asr_base_url: p.asr_base_url || '',
-        dictation_lang: p.dictation_lang || 'zh-CN',
+        llm_base_url: s.llm_base_url || '',
+        api_key: '',
+        model: s.llm_model || '',
+        tts_base_url: s.tts_base_url || '',
+        asr_base_url: s.asr_base_url || '',
+        dictation_lang: s.dictation_lang || 'zh-CN',
       })
     } catch (err) { console.error('Reset failed:', err) }
   }
@@ -298,10 +321,17 @@ export function SettingsPage() {
                         type="password"
                         value={form.api_key}
                         onChange={(e) => setForm({ ...form, api_key: e.target.value })}
+                        placeholder={keySet ? '已配置（留空则保持不变）' : '尚未配置，请填写'}
                         style={inputStyle}
                         onFocus={handleFocus}
                         onBlur={handleBlur}
                       />
+                      <p style={{ margin: '6px 0 0', fontSize: '12px', color: keySet ? 'var(--dsw-alias-label-secondary)' : '#f59e0b' }}>
+                        {keySet ? '已保存 API Key（出于安全不会回显）。' : '还没有保存 API Key，聊天会返回鉴权失败。'}
+                      </p>
+                      {loadError && (
+                        <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#f87171' }}>{loadError}</p>
+                      )}
                     </SettingRow>
                     <SettingRow label="模型名称">
                       <input
