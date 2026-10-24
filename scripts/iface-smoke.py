@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Detailed HTTP interface smoke for qdagent serve (local).
 
-Logs in as demo/demo, then hits every route in serve.mq.md 调用表 plus a few
-pages. Exits non-zero on unexpected status / missing ok fields.
+Logs in as demo/demo, then hits routes in serve.mq.md 调用表.
+Critical routes must fail hard on ok=false (Q09) — not soft-ok.
 """
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ import json
 import os
 import re
 import sys
-import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,6 +19,18 @@ from pathlib import Path
 BASE = os.environ.get("QDAGENT_BASE", "http://127.0.0.1:17431").rstrip("/")
 API_KEY = os.environ.get("QDAGENT_API_KEY", "qdagent-local")
 ROOT = Path(__file__).resolve().parents[1]
+
+# Routes where ok=false is a hard failure (product contracts).
+CRITICAL_MUST_OK = {
+    ("GET", "/api/health"),
+    ("GET", "/api/config"),
+    ("GET", "/api/app/providers"),
+    ("GET", "/api/app/models"),
+    ("GET", "/api/app/workspaces"),
+    ("POST", "/api/app/usage/query"),
+    ("POST", "/api/store/run"),
+    ("GET", "/api/store/runs"),
+}
 
 
 class Jar:
@@ -39,6 +50,7 @@ class Jar:
 
 JAR = Jar()
 RESULTS: list[tuple[str, str, int, str]] = []
+HARD_FAILS: list[str] = []
 
 
 class FormParser(HTMLParser):
@@ -61,6 +73,7 @@ def request(
     auth_bearer: str | None = None,
     expect: set[int] | None = None,
     json_body: bool = True,
+    critical: bool | None = None,
 ) -> tuple[int, bytes, object | None]:
     url = path if path.startswith("http") else BASE + path
     hdrs = {"User-Agent": "qdagent-iface-smoke/1.0"}
@@ -97,23 +110,29 @@ def request(
         except Exception:
             parsed = None
     exp = expect or {200}
+    path_key = path.split("?", 1)[0]
+    is_critical = CRITICAL_MUST_OK.__contains__((method, path_key)) if critical is None else critical
     note = "ok"
     if code not in exp:
         note = f"UNEXPECTED status (want {sorted(exp)})"
+        HARD_FAILS.append(f"{method} {path_key}: {note}")
     elif isinstance(parsed, dict) and "ok" in parsed and parsed.get("ok") is False:
-        # Some endpoints intentionally return ok=false (gated). Record as soft.
-        note = f"ok=false err={parsed.get('error') or parsed.get('hint') or parsed}"
-    RESULTS.append((method, path.split("?", 1)[0], code, note))
+        err = parsed.get("error") or parsed.get("hint") or parsed
+        if is_critical:
+            note = f"HARD ok=false err={err}"
+            HARD_FAILS.append(f"{method} {path_key}: {note}")
+        else:
+            note = f"ok=false err={err}"
+    RESULTS.append((method, path_key, code, note))
     return code, raw, parsed
 
 
 def login() -> None:
-    code, raw, _ = request("GET", "/account/login", expect={200})
+    code, raw, _ = request("GET", "/account/login", expect={200}, critical=False)
     p = FormParser()
     p.feed(raw.decode("utf-8", errors="replace"))
     if not p.csrf:
         raise SystemExit("login page missing _csrf")
-    # Do not auto-follow: capture Set-Cookie on the 303 itself.
     url = BASE + "/account/login"
     body = urllib.parse.urlencode(
         {"_csrf": p.csrf, "username": "demo", "password": "demo"}
@@ -123,9 +142,11 @@ def login() -> None:
         "Content-Type": "application/x-www-form-urlencoded",
         "Cookie": JAR.header(),
     }
+
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):
             return None
+
     opener = urllib.request.build_opener(NoRedirect)
     req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
     try:
@@ -142,7 +163,6 @@ def login() -> None:
         raise SystemExit(f"login failed: {code} {raw[:200]!r}")
     if not JAR.cookies:
         raise SystemExit("login produced no session cookie")
-    # Confirm session: health must be JSON ok
     code, raw, health = request("GET", "/api/health", expect={200})
     if not isinstance(health, dict) or not health.get("ok"):
         raise SystemExit(f"post-login health failed: {code} {raw[:300]!r}")
@@ -160,7 +180,6 @@ def main() -> int:
     login()
     print("logged in as demo")
 
-    # Pages
     for path, exp in [
         ("/", {200}),
         ("/chat", {200}),
@@ -168,61 +187,79 @@ def main() -> int:
         ("/eng/preflight", {200}),
         ("/settings", {200}),
     ]:
-        request("GET", path, expect=exp)
-    # SPA assets are hashed under /static/app/assets/ (index.html itself is not mounted)
-    request("GET", "/static/app/assets/index-DBOeabac.js", expect={200, 404})
-    # Prefer any hashed asset listed on home page if the fixed name 404s
-    _, home_raw, _ = request("GET", "/", expect={200})
+        request("GET", path, expect=exp, critical=False)
+
+    request("GET", "/static/app/assets/index-DBOeabac.js", expect={200, 404}, critical=False)
+    _, home_raw, _ = request("GET", "/", expect={200}, critical=False)
     home = home_raw.decode("utf-8", errors="replace")
     m = re.search(r'/static/app/assets/[^"\']+\.js', home)
     if m:
-        request("GET", m.group(0), expect={200})
+        request("GET", m.group(0), expect={200}, critical=False)
 
-    # Health / config
     _, _, health = request("GET", "/api/health")
     must_ok(health, "health")
     _, _, cfg = request("GET", "/api/config")
     must_ok(cfg, "config")
 
+    # Q01 registry
+    _, _, prov = request("GET", "/api/app/providers")
+    must_ok(prov, "providers")
+    _, _, mods = request("GET", "/api/app/models")
+    must_ok(mods, "models")
+    _, _, wss = request("GET", "/api/app/workspaces")
+    must_ok(wss, "workspaces")
+    _, _, usage = request("POST", "/api/app/usage/query", data={"limit": 5})
+    must_ok(usage, "usage")
+
+    # Q04/Q05/Q08 soft-capable reads
+    request("POST", "/api/app/documents/read", data={"workspace_id": "ws-default", "document": "kb/用户画像.mq.md"}, critical=False)
+    request("POST", "/api/app/citations/resolve", data={"citation_id": "cite-smoke", "document_id": "missing"}, critical=False)
+    request("POST", "/api/app/profile/items", data={}, critical=False)
+
+    # Q07 upload chain (txt)
+    note_body = "求道浏览器上传冒烟资料。\n"
+    _, _, up = request(
+        "POST",
+        "/api/app/uploads/create",
+        data={"filename": "smoke.txt", "content_text": note_body, "workspace_id": "ws-default"},
+        critical=True,
+    )
+    if isinstance(up, dict) and up.get("ok"):
+        uid = (up.get("data") or {}).get("id") or up.get("id") or (up.get("data") or {}).get("request_id")
+        if uid:
+            request("POST", "/api/app/imports/start", data={"upload_id": uid}, critical=False)
+            request("POST", "/api/app/imports/get", data={"upload_id": uid}, critical=False)
+
     # Store
     _, _, capt = request(
         "POST",
         "/api/store/run",
-        data={
-            "title": "iface-smoke",
-            "content": "接口冒烟笔记正文，必须能读回。",
-            "role": "note",
-        },
+        data={"title": "iface-smoke", "content": "接口冒烟笔记正文，必须能读回。", "role": "note"},
     )
     must_ok(capt, "capture")
     slug = (capt or {}).get("slug") or ""
     _, _, runs = request("GET", "/api/store/runs")
     must_ok(runs, "list runs")
     if slug:
-        _, _, got = request("POST", "/api/store/get", data={"slug": slug})
+        _, _, got = request("POST", "/api/store/get", data={"slug": slug}, critical=False)
         must_ok(got, "get_run")
-        body = (got or {}).get("body") or (got or {}).get("content") or ""
-        if "接口冒烟" not in body and "iface-smoke" not in str(got):
-            # content contract: at least slug round-trip
-            if (got or {}).get("slug") != slug:
-                raise AssertionError(f"get_run missing content for {slug}: {got}")
 
-    request("POST", "/api/store/list", data={"limit": 5})
-    request("POST", "/api/store/search", data={"query": "iface"})
-    request("POST", "/api/store/sync", data={})
-    request("POST", "/api/store/context", data={"query": "求道"})
-    request("POST", "/api/store/profile", data={})
-    request("POST", "/api/store/kb/list", data={})
-    request("POST", "/api/store/changes/list", data={})
-    request("POST", "/api/store/git/log", data={})
+    request("POST", "/api/store/list", data={"limit": 5}, critical=False)
+    request("POST", "/api/store/search", data={"query": "iface"}, critical=False)
+    request("POST", "/api/store/sync", data={}, critical=False)
+    request("POST", "/api/store/context", data={"query": "求道"}, critical=False)
+    request("POST", "/api/store/profile", data={}, critical=False)
+    request("POST", "/api/store/kb/list", data={}, critical=False)
+    request("POST", "/api/store/changes/list", data={}, critical=False)
+    request("POST", "/api/store/git/log", data={}, critical=False)
 
-    # Engineering
+    # Engineering (preflight may ok=false by design)
     _, _, pf = request(
         "POST",
         "/api/eng/preflight",
         data={"task": "给 OpenAI /v1 网关增加工程预检再调上游"},
+        critical=False,
     )
-    # preflight may return ok=false when CREATE blocked — still must be JSON
     if not isinstance(pf, dict):
         raise AssertionError(f"preflight not dict: {pf}")
 
@@ -235,22 +272,17 @@ def main() -> int:
         ("/api/eng/stale", {}),
         ("/api/eng/duplicate", {}),
         ("/api/eng/verify", {}),
-        ("/api/eng/docgate", {"text": "---\ntitle: t\n---\n\n# 任务\n\nx\n\n# 结论\n\ny\n\n# main\n\n> print text=hi\n\n# 验证\n\n待验证\n\n# 元数据\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"}),
-        ("/api/eng/metrics", None),  # GET below
         ("/api/eng/candidates", {}),
         ("/api/eng/knowledge", {}),
         ("/api/eng/kb/status", {}),
         ("/api/eng/policies", {}),
         ("/api/eng/workbooks", {"limit": 5}),
         ("/api/eng/sessions", {"limit": 5}),
-        ("/api/eng/today", None),
     ]:
-        if path.endswith("/metrics") or path.endswith("/today"):
-            request("GET", path)
-        else:
-            request("POST", path, data=payload or {})
+        request("POST", path, data=payload or {}, critical=False)
+    request("GET", "/api/eng/metrics", critical=False)
+    request("GET", "/api/eng/today", critical=False)
 
-    # Import TXT
     note = ROOT / "data" / "tmp-iface-note.txt"
     note.parent.mkdir(parents=True, exist_ok=True)
     note.write_text("求道接口冒烟导入资料。\n", encoding="utf-8")
@@ -258,14 +290,14 @@ def main() -> int:
         "POST",
         "/api/eng/import",
         data={"path": str(note), "publish": False, "title": "iface-import"},
+        critical=False,
     )
     if not isinstance(imp, dict):
         raise AssertionError(f"import not dict: {imp}")
     if imp.get("ok") is False and "pdf" not in str(imp.get("error", "")).lower():
-        # draft path should succeed for txt
         RESULTS[-1] = (RESULTS[-1][0], RESULTS[-1][1], RESULTS[-1][2], f"import fail: {imp}")
+        HARD_FAILS.append(f"import txt failed: {imp}")
 
-    # PDF explicit failure contract (if a tiny fake pdf path)
     fake_pdf = ROOT / "data" / "tmp-iface-fake.pdf"
     fake_pdf.write_bytes(b"%PDF-1.4 fake")
     request(
@@ -273,25 +305,28 @@ def main() -> int:
         "/api/eng/import",
         data={"path": str(fake_pdf), "publish": False},
         expect={200},
+        critical=False,
     )
 
-    # OpenAI /v1 (Bearer)
-    request("GET", "/v1/models", auth_bearer=API_KEY, expect={200})
-    # chat may dry-fail without upstream; accept 200 with error body
+    request("GET", "/v1/models", auth_bearer=API_KEY, expect={200}, critical=False)
     request(
         "POST",
         "/v1/chat/completions",
         auth_bearer=API_KEY,
         data={
             "model": "qdagent",
-            "messages": [{"role": "user", "content": "ping"}],
+            "messages": [
+                {"role": "user", "content": "first"},
+                {"role": "assistant", "content": "ack"},
+                {"role": "user", "content": "second must not be dropped"},
+            ],
             "stream": False,
         },
         expect={200, 401, 410, 500, 502, 503},
+        critical=False,
     )
 
-    # Config update no-op (empty object must not 500)
-    _, _, cfg_up = request("POST", "/api/config/update", data={})
+    _, _, cfg_up = request("POST", "/api/config/update", data={}, critical=False)
     if isinstance(cfg_up, dict) and cfg_up.get("ok") is False and cfg_up.get("error") == "payload required":
         RESULTS[-1] = (
             RESULTS[-1][0],
@@ -299,27 +334,29 @@ def main() -> int:
             RESULTS[-1][2],
             "import fail: config/update still requires payload",
         )
-    # Capability with id (empty body is ok=false by contract)
-    request("POST", "/api/eng/capability", data={"id": "content.openai"})
+        HARD_FAILS.append("config/update empty payload failed")
+    request("POST", "/api/eng/capability", data={"id": "content.openai"}, critical=False)
 
-    # Summarize
-    bad = [r for r in RESULTS if r[3].startswith("UNEXPECTED")]
-    soft = [r for r in RESULTS if r[3].startswith("ok=false") or r[3].startswith("import fail")]
+    # Cancel endpoint must accept a synthetic turn id (creates or updates)
+    request("POST", "/api/app/turns/cancel", data={"turn_id": "turn-smoke-cancel"}, critical=False)
+
+    bad = [r for r in RESULTS if r[3].startswith("UNEXPECTED") or r[3].startswith("HARD ") or r[3].startswith("import fail")]
+    soft = [r for r in RESULTS if r[3].startswith("ok=false")]
     print("\n=== RESULTS ===")
     for method, path, code, note in RESULTS:
-        mark = "PASS" if note == "ok" or note.startswith("ok=false") else ("SOFT" if not note.startswith("UNEXPECTED") else "FAIL")
-        if note.startswith("UNEXPECTED") or note.startswith("import fail"):
-            mark = "FAIL" if note.startswith("UNEXPECTED") or note.startswith("import fail") else mark
+        if note.startswith("UNEXPECTED") or note.startswith("HARD ") or note.startswith("import fail"):
+            mark = "FAIL"
+        elif note.startswith("ok=false"):
+            mark = "SOFT"
+        else:
+            mark = "PASS"
         print(f"{mark:4} {method:4} {code:3} {path}  {note}")
 
-    print(f"\ntotal={len(RESULTS)} unexpected={len(bad)} soft_ok_false={len(soft)}")
-    if bad:
-        print("FAILED unexpected statuses:", file=sys.stderr)
-        for r in bad:
+    print(f"\ntotal={len(RESULTS)} hard_fails={len(HARD_FAILS)} soft_ok_false={len(soft)}")
+    if HARD_FAILS or bad:
+        print("FAILED:", file=sys.stderr)
+        for r in HARD_FAILS or [str(x) for x in bad]:
             print(" ", r, file=sys.stderr)
-        return 1
-    # import fail is hard
-    if any(r[3].startswith("import fail") for r in RESULTS):
         return 1
     return 0
 

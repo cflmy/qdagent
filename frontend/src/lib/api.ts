@@ -238,6 +238,8 @@ export const api = {
   v1Models: () => GET('/v1/models', { 'Authorization': 'Bearer qdagent-local' }),
   v1ChatCompletions: (data: {
     model?: string
+    model_id?: string
+    selection?: { mode?: string; model_id: string }
     messages: ChatMessage[]
     stream?: boolean
     [key: string]: unknown
@@ -247,4 +249,23 @@ export const api = {
     signal,
     { 'Authorization': 'Bearer qdagent-local' },
   ),
+
+  // Workbench app APIs (Q01–Q08)
+  appProviders: () => GET('/api/app/providers'),
+  appProvidersSave: (data: unknown) => POST('/api/app/providers/save', data),
+  appModels: () => GET('/api/app/models'),
+  appModelsSave: (data: unknown) => POST('/api/app/models/save', data),
+  appUsageQuery: (data?: unknown) => POST('/api/app/usage/query', data || {}),
+  appWorkspaces: () => GET('/api/app/workspaces'),
+  appWorkspacesSave: (data: unknown) => POST('/api/app/workspaces/save', data),
+  appDocumentsRead: (data: unknown) => POST('/api/app/documents/read', data),
+  appCitationsResolve: (data: unknown) => POST('/api/app/citations/resolve', data),
+  appUploadsCreate: (data: unknown) => POST('/api/app/uploads/create', data),
+  appImportsStart: (data: unknown) => POST('/api/app/imports/start', data),
+  appImportsGet: (data: unknown) => POST('/api/app/imports/get', data),
+  appProfileItems: (data?: unknown) => POST('/api/app/profile/items', data || {}),
+  appProfilePropose: (data: unknown) => POST('/api/app/profile/propose', data),
+  appProfileSetStatus: (data: { id: string; status: string }) =>
+    POST('/api/app/profile/set_status', data),
+  appTurnsCancel: (data: unknown) => POST('/api/app/turns/cancel', data),
 }

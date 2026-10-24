@@ -1,22 +1,47 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSessionStore } from '@/stores/session-store'
 import { useRightbar } from '@/components/layout/DesktopFrame'
+import { ModelPicker } from '@/components/chat/ModelPicker'
+import { UsageFooter } from '@/components/chat/UsageFooter'
+import { CitationLink } from '@/components/chat/CitationLink'
 import { Send, Square, PanelRightOpen } from 'lucide-react'
+
+function renderWithCitations(text: string, workspaceId = 'ws-default') {
+  const parts: Array<string | { n: number; id: string }> = []
+  const re = /\[(\d+)\]/g
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push(text.slice(last, m.index))
+    parts.push({ n: Number(m[1]), id: `cite-${m[1]}` })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return parts.map((p, i) =>
+    typeof p === 'string' ? (
+      <span key={i}>{p}</span>
+    ) : (
+      <CitationLink key={i} index={p.n} citationId={p.id} workspaceId={workspaceId} />
+    ),
+  )
+}
 
 export function ChatPage() {
   const {
-    sessions, currentId, streaming,
-    selectSession, createSession,
-    addMessage, streamChat, loadFromStorage,
+    sessions, currentId, isStreaming,
+    createSession, setSessionModel,
+    addMessage, streamChat, cancelTurn, loadFromStorage,
   } = useSessionStore()
   const rightbar = useRightbar()
 
   const [input, setInput] = useState('')
+  const [composing, setComposing] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const currentSession = sessions.find((s) => s.id === currentId)
+  const streaming = isStreaming(currentId)
 
   useEffect(() => { loadFromStorage() }, [loadFromStorage])
 
@@ -34,7 +59,7 @@ export function ChatPage() {
 
   const handleSend = useCallback(async () => {
     const text = input.trim()
-    if (!text || streaming) return
+    if (!text || streaming || composing) return
 
     let sid = currentId
     if (!sid) {
@@ -46,18 +71,17 @@ export function ChatPage() {
 
     const ctrl = new AbortController()
     abortRef.current = ctrl
-
     try {
       await streamChat(sid, ctrl.signal)
     } catch {
       // aborted or network error
     }
     abortRef.current = null
-  }, [input, streaming, currentId, createSession, addMessage, streamChat])
+  }, [input, streaming, composing, currentId, createSession, addMessage, streamChat])
 
   const handleStop = useCallback(() => {
-    abortRef.current?.abort()
-  }, [])
+    if (currentId) void cancelTurn(currentId, abortRef.current)
+  }, [currentId, cancelTurn])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && streaming) {
@@ -65,7 +89,7 @@ export function ChatPage() {
       handleStop()
       return
     }
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !composing) {
       e.preventDefault()
       handleSend()
     }
@@ -212,7 +236,12 @@ export function ChatPage() {
                   wordBreak: 'break-word',
                 }
               }>
-                {msg.content}
+                {msg.role === 'assistant' ? renderWithCitations(msg.content) : msg.content}
+                {msg.role === 'assistant' && msg.usage ? (
+                  <UsageFooter usage={msg.usage} />
+                ) : msg.role === 'assistant' && i === messages.length - 1 && !streaming ? (
+                  <UsageFooter usage={{ usage_state: 'unknown', status: '完成' }} />
+                ) : null}
               </div>
             </div>
           ))}
@@ -276,6 +305,8 @@ export function ChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onCompositionStart={() => setComposing(true)}
+                onCompositionEnd={() => setComposing(false)}
                 placeholder="给求道发送消息…"
                 disabled={streaming}
                 rows={1}
@@ -310,8 +341,20 @@ export function ChatPage() {
               padding: '2px 8px 6px',
               minWidth: 0,
             }}>
-              {/* Left side */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }} />
+              {/* Left side — model picker (Q01/Q02) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                <ModelPicker
+                  value={currentSession?.modelId || ''}
+                  disabled={streaming}
+                  onChange={(mid) => {
+                    if (currentId) setSessionModel(currentId, mid)
+                    else {
+                      const sid = createSession()
+                      setSessionModel(sid, mid)
+                    }
+                  }}
+                />
+              </div>
 
               {/* Right side — send button */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 'none', marginLeft: 'auto' }}>

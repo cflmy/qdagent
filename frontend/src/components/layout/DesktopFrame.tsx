@@ -1,5 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSessionStore } from '@/stores/session-store'
+import { DocumentReader } from '@/components/reader/DocumentReader'
+import { useContextPanelStore } from '@/stores/context-panel-store'
 import {
   MessageSquare,
   BookOpen,
@@ -80,6 +82,8 @@ export function DesktopFrame() {
   const [rightDragging, setRightDragging] = useState(false)
   const rightDragStartX = useRef(0)
   const rightDragStartWidth = useRef(0)
+  const readerOpen = useContextPanelStore((s) => s.open)
+  const readerWidth = useContextPanelStore((s) => s.width)
 
   useEffect(() => { loadFromStorage() }, [loadFromStorage])
 
@@ -145,7 +149,7 @@ export function DesktopFrame() {
 
   // Grid columns
   const leftCol = sidebarCollapsed ? SIDEBAR_COLLAPSED : sidebarWidth
-  const rightCol = rightbarOpen ? rightbarWidth : 0
+  const rightCol = readerOpen ? readerWidth : (rightbarOpen ? rightbarWidth : 0)
 
   return (
     <RightbarContext.Provider value={rightbarState}>
@@ -447,8 +451,11 @@ export function DesktopFrame() {
           <Outlet />
         </main>
 
+        {/* ═══ Context reader (Q04) preferred over legacy right tabs ═══ */}
+        {readerOpen && <DocumentReader />}
+
         {/* ═══ Right Sidebar — DSH rightbarCol ═══ */}
-        {rightbarOpen && (
+        {!readerOpen && rightbarOpen && (
           <>
             <div
               style={{

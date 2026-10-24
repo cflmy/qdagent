@@ -66,6 +66,41 @@ export function KnowledgePage() {
     }
   }
 
+  const onBrowserUpload = async (file: File | null) => {
+    if (!file) return
+    const lower = file.name.toLowerCase()
+    if (!(lower.endsWith('.md') || lower.endsWith('.txt'))) {
+      setMsg('首批仅支持 .md / .txt；PDF/DOCX 需框架提取能力')
+      return
+    }
+    setBusy(true)
+    setMsg('')
+    try {
+      const content_text = await file.text()
+      const up = await api.appUploadsCreate({
+        filename: file.name,
+        content_text,
+        workspace_id: 'ws-default',
+      }) as { ok?: boolean; data?: { id?: string; request_id?: string }; id?: string; error?: { message?: string } }
+      if (up?.ok === false) {
+        setMsg(up.error?.message || '上传失败')
+        return
+      }
+      const uploadId = up.data?.id || up.data?.request_id || up.id
+      const started = await api.appImportsStart({ upload_id: uploadId }) as { ok?: boolean; data?: { status?: string; draft_path?: string }; error?: { message?: string } }
+      if (started?.ok === false) {
+        setMsg(started.error?.message || '导入失败')
+        return
+      }
+      setMsg(`浏览器上传完成 · 状态 ${started.data?.status || 'draft_ready'} · ${started.data?.draft_path || ''}`)
+      refresh()
+    } catch (e) {
+      setMsg(String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const tabs: { id: KbState; label: string }[] = [
     { id: 'corpus', label: '资料' },
     { id: 'runs', label: 'Runs' },
@@ -131,6 +166,22 @@ export function KnowledgePage() {
       </div>
 
       <div style={{
+        margin: '0 16px 8px', padding: 12, borderRadius: 8,
+        border: '1px dashed var(--dsw-alias-border-l2)', display: 'flex', gap: 8, alignItems: 'center',
+      }}>
+        <FileUp style={{ width: 16, height: 16, flexShrink: 0 }} />
+        <label style={{ flex: 1, fontSize: 13, cursor: 'pointer' }}>
+          浏览器上传 TXT/Markdown
+          <input
+            type="file"
+            accept=".txt,.md,text/plain,text/markdown"
+            disabled={busy}
+            style={{ display: 'block', marginTop: 6 }}
+            onChange={(e) => { void onBrowserUpload(e.target.files?.[0] || null); e.target.value = '' }}
+          />
+        </label>
+      </div>
+      <div style={{
         margin: '0 16px 16px', padding: 12, borderRadius: 8,
         border: '1px solid var(--dsw-alias-border-l2)', display: 'flex', gap: 8, alignItems: 'center',
       }}>
@@ -138,7 +189,7 @@ export function KnowledgePage() {
         <input
           value={path}
           onChange={(e) => setPath(e.target.value)}
-          placeholder="服务器路径：.txt / .md（PDF 需外挂，失败会显式提示）"
+          placeholder="高级：服务器路径 .txt / .md（PDF 需外挂，失败会显式提示）"
           style={{
             flex: 1, padding: '8px 10px', borderRadius: 8,
             border: '1px solid var(--dsw-alias-border-l2)', background: 'transparent',

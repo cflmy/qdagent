@@ -19,6 +19,23 @@ const tabs: { id: Tab; label: string; icon: typeof Brain }[] = [
   { id: 'account', label: '账户', icon: User },
 ]
 
+type ProviderRow = {
+  id: string
+  display_name: string
+  adapter: string
+  base_url?: string
+  credential_configured?: boolean
+  models?: Array<{ id: string; display_name: string; upstream_model_id: string; enabled?: number }>
+}
+
+type ProfileItem = {
+  id: string
+  text: string
+  scope: string
+  status: string
+  category?: string
+}
+
 export function SettingsPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<Tab>('general')
@@ -35,7 +52,29 @@ export function SettingsPage() {
   // Whether a key is already stored server-side (the value itself is never sent back).
   const [keySet, setKeySet] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const [providers, setProviders] = useState<ProviderRow[]>([])
+  const [newModelName, setNewModelName] = useState('')
+  const [profileItems, setProfileItems] = useState<ProfileItem[]>([])
+  const [proposeText, setProposeText] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
+
+  const refreshProviders = () => {
+    api.appProviders().then((res) => {
+      const list = (res as { providers?: ProviderRow[] }).providers
+        ?? (res as { data?: ProviderRow[] }).data
+        ?? []
+      setProviders(Array.isArray(list) ? list : [])
+    }).catch(() => setProviders([]))
+  }
+
+  const refreshProfile = () => {
+    api.appProfileItems({}).then((res) => {
+      const data = (res as { data?: ProfileItem[]; items?: ProfileItem[] }).items
+        ?? (res as { data?: ProfileItem[] }).data
+        ?? []
+      setProfileItems(Array.isArray(data) ? data : [])
+    }).catch(() => setProfileItems([]))
+  }
 
   useEffect(() => {
     api.getSettings().then((s) => {
@@ -51,6 +90,8 @@ export function SettingsPage() {
     }).catch((err) => {
       setLoadError(err instanceof Error ? err.message : String(err))
     }).finally(() => setLoading(false))
+    refreshProviders()
+    refreshProfile()
   }, [])
 
   // Close on Escape
@@ -303,58 +344,22 @@ export function SettingsPage() {
                 )}
 
                 {activeTab === 'models' && (
-                  <>
-                    <SectionTitle>模型配置</SectionTitle>
-                    <SettingRow label="API Base URL">
-                      <input
-                        type="text"
-                        value={form.llm_base_url}
-                        onChange={(e) => setForm({ ...form, llm_base_url: e.target.value })}
-                        placeholder="https://api.openai.com/v1"
-                        style={inputStyle}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                      />
-                    </SettingRow>
-                    <SettingRow label="API Key">
-                      <input
-                        type="password"
-                        value={form.api_key}
-                        onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-                        placeholder={keySet ? '已配置（留空则保持不变）' : '尚未配置，请填写'}
-                        style={inputStyle}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                      />
-                      <p style={{ margin: '6px 0 0', fontSize: '12px', color: keySet ? 'var(--dsw-alias-label-secondary)' : '#f59e0b' }}>
-                        {keySet ? '已保存 API Key（出于安全不会回显）。' : '还没有保存 API Key，聊天会返回鉴权失败。'}
-                      </p>
-                      {loadError && (
-                        <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#f87171' }}>{loadError}</p>
-                      )}
-                    </SettingRow>
-                    <SettingRow label="模型名称">
-                      <input
-                        type="text"
-                        value={form.model}
-                        onChange={(e) => setForm({ ...form, model: e.target.value })}
-                        placeholder="gpt-4o"
-                        style={inputStyle}
-                        onFocus={handleFocus}
-                        onBlur={handleBlur}
-                      />
-                    </SettingRow>
-                    <div style={{ display: 'flex', gap: '12px', paddingTop: '8px' }}>
-                      <PrimaryButton onClick={handleSave} disabled={saving}>
-                        {saving ? <Loader2 size={14} /> : <Save size={14} />}
-                        保存
-                      </PrimaryButton>
-                      <SecondaryButton onClick={handleReset}>
-                        <RotateCcw size={14} />
-                        重置
-                      </SecondaryButton>
-                    </div>
-                  </>
+                  <ModelsRegistryTab
+                    llmBase={form.llm_base_url}
+                    apiKey={form.api_key}
+                    model={form.model}
+                    setLlmBase={(v) => setForm({ ...form, llm_base_url: v })}
+                    setApiKey={(v) => setForm({ ...form, api_key: v })}
+                    setModel={(v) => setForm({ ...form, model: v })}
+                    keySet={keySet}
+                    loadError={loadError}
+                    inputStyle={inputStyle}
+                    handleFocus={handleFocus}
+                    handleBlur={handleBlur}
+                    handleSave={handleSave}
+                    handleReset={handleReset}
+                    saving={saving}
+                  />
                 )}
 
                 {activeTab === 'plugins' && (
@@ -421,21 +426,7 @@ export function SettingsPage() {
                   </>
                 )}
 
-                {activeTab === 'memory' && (
-                  <>
-                    <SectionTitle>记忆管理</SectionTitle>
-                    <div style={{
-                      padding: '24px', textAlign: 'center',
-                      borderRadius: 'var(--dsw-radius-lg, 10px)',
-                      border: '0.5px solid var(--dsw-alias-border-l3)',
-                      color: 'var(--dsw-alias-label-tertiary)',
-                      fontSize: '13px',
-                    }}>
-                      <Database size={24} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
-                      <div>知识库与记忆系统的管理入口 [开发中]</div>
-                    </div>
-                  </>
-                )}
+                {activeTab === 'memory' && <ProfileItemsTab />}
 
                 {activeTab === 'account' && (
                   <>
@@ -539,5 +530,170 @@ function SecondaryButton({ onClick, children }: { onClick: () => void; children:
     >
       {children}
     </button>
+  )
+}
+
+/** Q01 provider/model registry — also keeps legacy single-row settings editable. */
+function ModelsRegistryTab(props: {
+  llmBase: string
+  apiKey: string
+  model: string
+  setLlmBase: (v: string) => void
+  setApiKey: (v: string) => void
+  setModel: (v: string) => void
+  keySet: boolean
+  loadError: string
+  inputStyle: React.CSSProperties
+  handleFocus: (e: React.FocusEvent<HTMLInputElement>) => void
+  handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void
+  handleSave: () => void
+  handleReset: () => void
+  saving: boolean
+}) {
+  const [providers, setProviders] = useState<Array<Record<string, unknown>>>([])
+  const [name, setName] = useState('本地兼容端点')
+  const [base, setBase] = useState('http://127.0.0.1:11434/v1')
+  const [cred, setCred] = useState('')
+  const [upstream, setUpstream] = useState('llama3.2')
+  const [msg, setMsg] = useState('')
+
+  const refresh = () => {
+    api.appProviders().then((res) => {
+      const list = (res as { providers?: unknown[]; data?: unknown[] }).providers
+        ?? (res as { data?: unknown[] }).data
+        ?? []
+      setProviders(list as Array<Record<string, unknown>>)
+    }).catch((e) => setMsg(String(e)))
+  }
+  useEffect(() => { refresh() }, [])
+
+  const addProvider = async () => {
+    setMsg('')
+    try {
+      const saved = await api.appProvidersSave({
+        display_name: name,
+        adapter: 'openai-compatible',
+        base_url: base,
+        auth_mode: cred ? 'api_key' : 'none',
+        credential_action: cred ? 'replace' : 'keep',
+        credential: cred || undefined,
+        enabled: 1,
+      }) as { id?: string; ok?: boolean }
+      const pid = (saved as { id?: string }).id
+      if (pid) {
+        await api.appModelsSave({
+          provider_id: pid,
+          upstream_model_id: upstream,
+          display_name: upstream,
+          enabled: 1,
+        })
+      }
+      setMsg('已保存提供商与模型')
+      refresh()
+    } catch (e) {
+      setMsg(String(e))
+    }
+  }
+
+  return (
+    <>
+      <SectionTitle>提供商与模型</SectionTitle>
+      <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)', marginTop: 0 }}>
+        一个提供商可有多个模型；密钥不会回显。旧版单行设置仍可在下方兼容编辑。
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        {providers.map((p) => (
+          <div key={String(p.id)} style={{ border: '0.5px solid var(--dsw-alias-border-l3)', borderRadius: 8, padding: 12 }}>
+            <div style={{ fontWeight: 500 }}>{String(p.display_name)} · {String(p.adapter)}</div>
+            <div style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>{String(p.base_url)}</div>
+            <div style={{ fontSize: 12 }}>
+              凭证：{p.credential_configured ? '已配置' : '未配置'} · 模型 {(p.models as unknown[] | undefined)?.length ?? 0} 个
+            </div>
+          </div>
+        ))}
+        {!providers.length && <div style={{ fontSize: 13, color: 'var(--dsw-alias-label-tertiary)' }}>尚无提供商（将从旧 settings 迁移，或在下方新建）</div>}
+      </div>
+      <SettingRow label="新建提供商名称">
+        <input value={name} onChange={(e) => setName(e.target.value)} style={props.inputStyle} />
+      </SettingRow>
+      <SettingRow label="Base URL">
+        <input value={base} onChange={(e) => setBase(e.target.value)} style={props.inputStyle} />
+      </SettingRow>
+      <SettingRow label="API Key（可选）">
+        <input type="password" value={cred} onChange={(e) => setCred(e.target.value)} style={props.inputStyle} placeholder="无密钥本地端点可留空" />
+      </SettingRow>
+      <SettingRow label="首个上游模型 id">
+        <input value={upstream} onChange={(e) => setUpstream(e.target.value)} style={props.inputStyle} />
+      </SettingRow>
+      <div style={{ display: 'flex', gap: 12, paddingTop: 8 }}>
+        <PrimaryButton onClick={addProvider}><Save size={14} /> 添加提供商</PrimaryButton>
+      </div>
+      {msg && <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>{msg}</p>}
+
+      <SectionTitle>兼容：旧版单行设置</SectionTitle>
+      <SettingRow label="API Base URL">
+        <input type="text" value={props.llmBase} onChange={(e) => props.setLlmBase(e.target.value)} placeholder="https://api.openai.com/v1" style={props.inputStyle} onFocus={props.handleFocus} onBlur={props.handleBlur} />
+      </SettingRow>
+      <SettingRow label="API Key">
+        <input type="password" value={props.apiKey} onChange={(e) => props.setApiKey(e.target.value)} placeholder={props.keySet ? '已配置（留空则保持不变）' : '尚未配置，请填写'} style={props.inputStyle} onFocus={props.handleFocus} onBlur={props.handleBlur} />
+      </SettingRow>
+      <SettingRow label="模型名称">
+        <input type="text" value={props.model} onChange={(e) => props.setModel(e.target.value)} placeholder="gpt-4o" style={props.inputStyle} onFocus={props.handleFocus} onBlur={props.handleBlur} />
+      </SettingRow>
+      <div style={{ display: 'flex', gap: 12, paddingTop: 8 }}>
+        <PrimaryButton onClick={props.handleSave} disabled={props.saving}>{props.saving ? <Loader2 size={14} /> : <Save size={14} />} 保存旧设置</PrimaryButton>
+        <SecondaryButton onClick={props.handleReset}><RotateCcw size={14} /> 重置</SecondaryButton>
+      </div>
+      {props.loadError && <p style={{ fontSize: 12, color: '#f87171' }}>{props.loadError}</p>}
+    </>
+  )
+}
+
+function ProfileItemsTab() {
+  const [items, setItems] = useState<Array<Record<string, unknown>>>([])
+  const [text, setText] = useState('')
+  const [msg, setMsg] = useState('')
+
+  const refresh = () => {
+    api.appProfileItems({}).then((res) => {
+      const data = (res as { data?: unknown[] }).data ?? (Array.isArray(res) ? res : [])
+      setItems(data as Array<Record<string, unknown>>)
+    }).catch((e) => setMsg(String(e)))
+  }
+  useEffect(() => { refresh() }, [])
+
+  const propose = async () => {
+    if (!text.trim()) return
+    try {
+      await api.appProfilePropose({ text: text.trim(), scope: 'user', category: 'preference' })
+      setText('')
+      setMsg('已提出待确认条目（未确认不会注入上下文）')
+      refresh()
+    } catch (e) {
+      setMsg(String(e))
+    }
+  }
+
+  return (
+    <>
+      <SectionTitle>用户画像条目</SectionTitle>
+      <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>
+        仅 status=confirmed 且作用域匹配的条目会进入下一轮上下文。
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+        {items.map((it) => (
+          <div key={String(it.id)} style={{ border: '0.5px solid var(--dsw-alias-border-l3)', borderRadius: 8, padding: 10, fontSize: 13 }}>
+            <div><strong>{String(it.status)}</strong> · {String(it.scope)} · {String(it.category)}</div>
+            <div>{String(it.text)}</div>
+          </div>
+        ))}
+        {!items.length && <div style={{ fontSize: 13, color: 'var(--dsw-alias-label-tertiary)' }}>暂无画像条目</div>}
+      </div>
+      <SettingRow label="提出新偏好（待确认）">
+        <input value={text} onChange={(e) => setText(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '0.5px solid var(--dsw-alias-border-l3)' }} />
+      </SettingRow>
+      <PrimaryButton onClick={propose}><Save size={14} /> 提出</PrimaryButton>
+      {msg && <p style={{ fontSize: 12 }}>{msg}</p>}
+    </>
   )
 }

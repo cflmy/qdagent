@@ -12,6 +12,22 @@
 
 /* DSH Web Theme Integration */
 :root {
+  /* App semantic tokens (map to DSH; also used by Marqdo fragment theming) */
+  --qd-bg: var(--dsw-alias-bg-base);
+  --qd-surface: var(--dsw-alias-bg-layer-1);
+  --qd-text: var(--dsw-alias-label-primary);
+  --qd-muted: var(--dsw-alias-label-secondary);
+  --qd-border: var(--dsw-alias-border-l2);
+  --qd-accent: var(--dsw-alias-state-business-primary);
+  --mq-bg: var(--qd-bg);
+  --mq-surface: var(--qd-surface);
+  --mq-text: var(--qd-text);
+  --mq-muted: var(--qd-muted);
+  --mq-border: var(--qd-border);
+  --mq-accent: var(--qd-accent);
+  --mq-font-body: var(--dsw-font-sans, system-ui, "PingFang SC", "Noto Sans SC", sans-serif);
+  --mq-font-code: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+
   /* Map DSH tokens to Tailwind-compatible names */
   --color-background: var(--dsw-alias-bg-base);
   --color-foreground: var(--dsw-alias-label-primary);
