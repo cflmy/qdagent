@@ -1,10 +1,12 @@
 ---
+markup: occlusion
 title: lib/profile
 description: 用户画像 — 多维度可读模板与追加试算（权威 data/kb/用户画像.mq.md；改写经变更提案）。
-import run:lib/run.mq.md
-import fs:lib/fs.mq.md
-import time:lib/time.mq.md
-import json:lib/json.mq.md
+import:
+  run: lib/run.mq.md
+  fs: lib/fs.mq.md
+  time: lib/time.mq.md
+  json: lib/json.mq.md
 ---
 
 ## 路径
@@ -54,7 +56,7 @@ import json:lib/json.mq.md
 1. not `s`
   *""*
 **parts = > split value=`s` sep="\n"**
-**first = [1](parts)**
+**first = [1](access(parts, "1"))**
 1. not `first`
   **first = `s`**
 *`first`*
@@ -75,19 +77,19 @@ import json:lib/json.mq.md
 
 **pref = ""**
 **p1 = > split value=`focus` sep="喜欢"**
-1. [1](`p1`)
+1. [1](access(`p1`, "1"))
   **pref = `focus`**
 1. not `pref`
   **p2 = > split value=`focus` sep="偏好"**
-  1. [1](`p2`)
+  1. [1](access(`p2`, "1"))
     **pref = `focus`**
 1. not `pref`
   **p3 = > split value=`focus` sep="不喜欢"**
-  1. [1](`p3`)
+  1. [1](access(`p3`, "1"))
     **pref = `focus`**
 1. not `pref`
   **p4 = > split value=`focus` sep="记住"**
-  1. [1](`p4`)
+  1. [1](access(`p4`, "1"))
     **pref = `focus`**
 
 **body = `body` + "\n- [" + `day` + "] 焦点：" + `focus`**
@@ -107,7 +109,7 @@ import json:lib/json.mq.md
 兼容旧调用：试算后写盘。新流程请用「试算追加」+ 变更提案。不做超长静默重置。
 
 **draft = > 试算追加 task=`task` result=`result`**
-**path = [path](draft)**
-**body = [body](draft)**
+**path = [path](access(draft, "path"))**
+**body = [body](access(draft, "body"))**
 > fs.write_text path=`path` text=`body`
 *path*

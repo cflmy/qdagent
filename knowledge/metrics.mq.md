@@ -1,11 +1,13 @@
 ---
+markup: occlusion
 title: knowledge/metrics
 description: >-
   Engineering KPI surface — reads Marqdo reuse_metrics.json (no second metrics store).
-import fs:lib/fs.mq.md
-import json:lib/json.mq.md
-import ctx:context.mq.md
-import amort:./amortization.mq.md
+import:
+  fs: lib/fs.mq.md
+  json: lib/json.mq.md
+  ctx: context.mq.md
+  amort: ./amortization.mq.md
 ---
 
 ## path

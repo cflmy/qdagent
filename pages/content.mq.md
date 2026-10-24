@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: pages/content
 description: >-
   Document bodies as Markdown (ADR 0007). Rendered via site.page_md — the page

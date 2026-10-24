@@ -4,6 +4,7 @@ import { DesktopFrame } from './components/layout/DesktopFrame'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ChatPage } from './components/pages/ChatPage'
 import { NotesPage } from './components/pages/NotesPage'
+import { KnowledgePage } from './components/pages/KnowledgePage'
 import { SettingsPage } from './components/pages/SettingsPage'
 import { EngPage } from './components/pages/EngPage'
 import { WorkspacePage } from './components/pages/WorkspacePage'
@@ -27,6 +28,7 @@ export function App() {
           <Route path="/notes" element={<Boundary><NotesPage /></Boundary>} />
           <Route path="/notes/new" element={<Boundary><NotesPage /></Boundary>} />
           <Route path="/notes/:slug" element={<Boundary><NotesPage /></Boundary>} />
+          <Route path="/knowledge" element={<Boundary><KnowledgePage /></Boundary>} />
           <Route path="/settings" element={<Boundary><SettingsPage /></Boundary>} />
           <Route path="/eng" element={<Boundary><EngPage /></Boundary>} />
           <Route path="/plugins" element={<Boundary><PluginPage /></Boundary>} />

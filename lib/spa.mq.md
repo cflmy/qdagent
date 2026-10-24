@@ -8,9 +8,10 @@ description: >-
   page map's images_html field. Dynamic extraction means rebuilds with new
   content hashes keep working without editing this module.
 markup: occlusion
-import fs:lib/fs.mq.md
-import text:lib/text.mq.md
-import table:lib/table.mq.md
+import:
+  fs: lib/fs.mq.md
+  text: lib/text.mq.md
+  table: lib/table.mq.md
 ---
 
 ## bootstrap

@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: Skill — Implement gateway EFI
 type: Marqdo Skill
 status: stable

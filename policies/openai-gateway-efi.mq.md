@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: Policy — OpenAI gateway must use EFI
 type: Marqdo Policy
 status: stable

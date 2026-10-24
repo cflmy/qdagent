@@ -1,13 +1,15 @@
 ---
+markup: occlusion
 title: execution/record
 description: >-
   Record Knowledge Candidates after verification. Never promote without Evidence.
-import fs:lib/fs.mq.md
-import time:lib/time.mq.md
-import sys:lib/sys.mq.md
-import run:run.mq.md
-import table:lib/table.mq.md
-import promote:promote.mq.md
+import:
+  fs: lib/fs.mq.md
+  time: lib/time.mq.md
+  sys: lib/sys.mq.md
+  run: run.mq.md
+  table: lib/table.mq.md
+  promote: promote.mq.md
 ---
 
 ## data_root
@@ -75,10 +77,10 @@ Hard gate: refuse promote path when promote_allowed is false.
     + `promote_allowed`=False
 
 **cand = > write_candidate capability=`capability` evidence=`evidence` verification=`verification` task=`workbook_slug` promote_allowed=`promote_allowed`**
-**ok = [ok](cand)**
+**ok = [ok](access(cand, "ok"))**
 1. not `ok`
   *cand*
-**path = [path](cand)**
+**path = [path](access(cand, "path"))**
 **summary = "candidate: " + `path`**
 > run.append_section slug=`workbook_slug` section="Knowledge Candidate" content=`summary`
 *cand*

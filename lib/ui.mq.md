@@ -1,11 +1,13 @@
 ---
+markup: occlusion
 title: lib/ui
 description: >-
   Shared UI tables for qdagent Documents — form fields/rules, head links, users.
   Data as GFM tables (code-as-documentation).
-import nav:../components/nav.mq.md
-import side:../components/side.mq.md
-import foot:../components/foot.mq.md
+import:
+  nav: ../components/nav.mq.md
+  side: ../components/side.mq.md
+  foot: ../components/foot.mq.md
 ---
 
 ## nav

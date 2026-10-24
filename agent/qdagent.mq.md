@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: agent/qdagent
 description: >-
   求道 — Executable Engineering Knowledge Agent (CLI≥1.4.4 · Ext≥1.5.2).
@@ -8,26 +9,28 @@ description: >-
   Tools are ## in this file (code-as-documentation).
   Output contract: agent output AND sedimented notes MUST be runnable
   marqdo documents, gated by execution/docgate (structure + sandbox trial).
-import pf:preflight.mq.md
-import ctx:../knowledge/context.mq.md
-import resolver:../knowledge/resolver.mq.md
-import metrics:../knowledge/metrics.mq.md
-import amort:../knowledge/amortization.mq.md
-import dec:../knowledge/decision.mq.md
-import run:../execution/run.mq.md
-import gate:../execution/docgate.mq.md
-import session:../execution/session.mq.md
-import verify:../execution/verify.mq.md
-import record:../execution/record.mq.md
-import agent:ext/ai/agent.mq.md
-import llm:ext/ai/llm.mq.md
-import plugin:lib/plugin.mq.md
-import db:../db/index.mq.md
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import table:lib/table.mq.md
-import text:lib/text.mq.md
-import fs:lib/fs.mq.md
+import:
+  pf: preflight.mq.md
+  ctx: ../knowledge/context.mq.md
+  resolver: ../knowledge/resolver.mq.md
+  metrics: ../knowledge/metrics.mq.md
+  amort: ../knowledge/amortization.mq.md
+  reuse_met: ../knowledge/metrics_reuse.mq.md
+  dec: ../knowledge/decision.mq.md
+  run: ../execution/run.mq.md
+  gate: ../execution/docgate.mq.md
+  session: ../execution/session.mq.md
+  verify: ../execution/verify.mq.md
+  record: ../execution/record.mq.md
+  agent: ext/ai/agent.mq.md
+  llm: ext/ai/llm.mq.md
+  plugin: lib/plugin.mq.md
+  db: ../db/index.mq.md
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  table: lib/table.mq.md
+  text: lib/text.mq.md
+  fs: lib/fs.mq.md
 ---
 
 ## tool_find
@@ -44,7 +47,8 @@ Engineering find via Marqdo EKC (read-only). Prefer CALL:tool_find when locating
 ## tool_reuse
     + `task`=""
 
-Engineering reuse / preflight payload (read-only). Prefer CALL:tool_reuse before CREATE.
+Engineering reuse / preflight payload (read-only / discovery). Prefer CALL:tool_reuse before CREATE.
+Discovery alone is never actual reuse — use tool_bind / try_bind_execute for execution.
 
 1. not `task`
   **task = > sys.env_get name="QDAGENT_TASK"**
@@ -52,9 +56,22 @@ Engineering reuse / preflight payload (read-only). Prefer CALL:tool_reuse before
   *"tool_reuse requires task"*
 *> resolver.reuse task=`task`*
 
+## tool_bind
+    + `query`=""
+    + `policy`="pure"
+    + `project`="."
+
+Actual reuse: agent_eng_bind_execute (bind → execute → actual_reuse trace).
+
+1. not `query`
+  **query = > sys.env_get name="QDAGENT_TOOL_QUERY"**
+1. not `query`
+  *"tool_bind requires query"*
+*> try_bind_execute project=`project` query=`query` policy=`policy`*
+
 ## tool_verify
 
-Run L3 knowledge checks (verify / duplicate / conflicts / stale). Prefer CALL:tool_verify before promote.
+Run L3 knowledge checks (verify / duplicate --fail / adjudicate --fail). Prefer CALL:tool_verify before promote.
 
 *> verify.knowledge_checks*
 
@@ -67,6 +84,43 @@ Human-readable summary of a Context Pack map. Prefer CALL:tool_summarize for bri
   *"tool_summarize requires preflight map"*
 *> ctx.summarize preflight=`preflight`*
 
+## try_bind_execute
+    + `project`="."
+    + `query`=""
+    + `policy`="pure"
+    + `candidate_only`=True
+
+M04: discover → bind → execute. Returns map with actual_reuse / artifact_id / digest.
+Never treat discovery_only scores as success.
+
+> ensure_agent_plugin
+1. not `query`
+  `miss` =
+
+  | ok | actual_reuse | error |
+  |----|--------------|-------|
+  | False | False | empty_query |
+
+  *miss*
+**exec = > agent_eng_bind_execute project=`project` query=`query` policy=`policy` candidate_only=`candidate_only`**
+1. `exec`
+  **aru = > json.get value=`exec` key="actual_reuse"**
+  **kb = > sys.env_get name="QDAGENT_KB_ROOT"**
+  1. not `kb`
+    **kb = "."**
+  1. `aru`
+    > reuse_met.record_bind root=`kb` actual_reuse=True
+  2. *
+    > reuse_met.record_bind root=`kb` actual_reuse=False
+  *exec*
+`fail` =
+
+| ok | actual_reuse | error |
+|----|--------------|-------|
+| False | False | bind_execute_unavailable |
+
+*fail*
+
 ## eng_tools
 
 Whitelist list for Marqdo agent CALL: (same-file ## tools). Must be a real list,
@@ -75,6 +129,7 @@ not a columnar GFM table (agent.run iterates tool names).
 **t = > table.empty_list**
 **t = > table.append list=`t` item="tool_find"**
 **t = > table.append list=`t` item="tool_reuse"**
+**t = > table.append list=`t` item="tool_bind"**
 **t = > table.append list=`t` item="tool_verify"**
 **t = > table.append list=`t` item="tool_summarize"**
 *t*
@@ -97,11 +152,11 @@ Set `QDAGENT_DRY=1` to skip credentials (force dry-run / no upstream LLM).
 1. not `key`
   **store = > db.open**
   **rows = > `store`.select table="settings" limit=1**
-  **cfg = [1](rows)**
+  **cfg = [1](access(rows, "1"))**
   1. `cfg`
-    **key = [llm_api_key](cfg)**
-    **base = [llm_base_url](cfg)**
-    **model = [llm_model](cfg)**
+    **key = [llm_api_key](access(cfg, "llm_api_key"))**
+    **base = [llm_base_url](access(cfg, "llm_base_url"))**
+    **model = [llm_model](access(cfg, "llm_model"))**
     1. `key`
       > sys.env_set name="OPENAI_API_KEY" value=`key`
     1. `base`
@@ -305,9 +360,9 @@ output contract: the text is injected as agent standing, and the same rules
 are enforced mechanically by `execution/docgate.mq.md` afterwards.
 
 **head = "你正在以 marqdo 语言工作，最终答复必须是一篇完整、可在沙箱中运行的 marqdo 文档（后缀 .mq.md）。这不是建议，是硬性输出契约：答复里只能有这篇文档，禁止任何前言、后记、解释或围栏包裹。\n\n"**
-**body = "文档结构（顺序固定）：\n1. 首行起 --- frontmatter，含 title 与 description。\n2. # 任务 —— 用叙述复述用户目标。\n3. # 结论 —— 用叙述写出结论，这是给人读的部分。\n4. # main —— 给机器跑的部分，至少一条可执行语句，用 **粗体** 写代码、用 > 写调用。\n5. # 验证 —— 用叙述写明该文档在沙箱中试跑通过。\n6. # 元数据 —— 用表格写 mode 与 slug。\n\n"**
-**rules = "硬规则：\n1. 叙述行（非标题行）必须以文字开头；禁止以数字、连字符、大于号、竖线、星号、方括号、井号、加号开头。行内反引号与围栏代码块内不受限。\n2. 执行语句只允许出现在 # main 之内；# main 之外不得出现 ## 子对象。\n3. # main 必须无副作用、不写宿主文件、不联网，只做计算与打印，且能跑通。\n4. 结论中的数字必须来自 # main 的实际输出，不得编造。\n5. 工具协议半角冒号：CALL:tool_find、CALL:tool_reuse。禁止 CALL 框架内部函数。\n\n"**
-**tail = "工程纪律：先读 Preflight Context Pack；遵守 Reuse 先于 Adapt、Adapt 先于 Create；CREATE 前确认 create_allowed 为 true；禁止再造第二套 Agent Runtime 或 EKC。写完文档后在心里跑一遍 # main，确认没有语法错误再输出。"**
+**body = "文档结构（顺序固定）：\n1. 首行起 --- frontmatter，含 title 与 description。\n2. # 任务 —— 用叙述复述用户目标（人读）。\n3. # 结论 —— 人读结论；可引用但不得伪造运行结果。\n4. # main —— 知识源码 / 试跑入口：可执行函数与调用；事实函数可无副作用。\n5. # 验证 —— 初稿只写「待验证」；由求道工具填写真实试跑结果，禁止模型自称试跑通过。\n6. # 元数据 —— mode / slug / 来源 digest 表。\n\n"**
+**rules = "硬规则：\n1. 叙述行（非标题行）必须以文字开头；禁止以数字、连字符、大于号、竖线、星号、方括号、井号、加号开头。行内反引号与围栏代码块内不受限。\n2. 执行语句只允许出现在 # main 之内；# main 之外不得出现 ## 子对象。\n3. # main 必须无副作用、不写宿主文件、不联网，只做计算与打印。\n4. 结论中的数字必须可追溯到 # main；不得编造。\n5. 验证节禁止写「试跑通过」——由工具回填。\n6. 工具协议半角冒号：CALL:tool_find、CALL:tool_reuse、CALL:tool_bind。禁止 CALL 框架内部函数。\n\n"**
+**tail = "工程纪律：先读 Preflight Context Pack；REUSE 走实际 bind_execute（禁止把 discovery_only 当执行）；CREATE 前确认 create_allowed；禁止再造第二套 Agent Runtime 或 EKC。"**
 **skill = "求道工程智能体正在执行 BUILD：除上述输出契约外，必须先判定 Reuse / Adapt / Create 并在 # 结论 里写明判定依据；若决定 Create 而 create_allowed 为 false，则在 # 结论 里说明被阻断的原因，不要绕过。\n\n"**
 1. `mode` == "build"
   **p = `head` + `skill` + `body` + `rules` + `tail`**
@@ -334,7 +389,7 @@ A failed gate never sediments; the caller may run one repair round via
   1. not `data_root`
     **data_root = "data"**
 **g = > gate.门禁 text=`result` root=`root`**
-**gok = [ok](g)**
+**gok = [ok](access(g, "ok"))**
 **doc = > json.get value=`g` key="doc"**
 **stage = > json.get value=`g` key="stage"**
 **gerr = > json.get value=`g` key="error"**
@@ -427,7 +482,7 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
   1. `status` == "ok"
     **mode = "live"**
     **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
-    **gok = [ok](gated_out)**
+    **gok = [ok](access(gated_out, "ok"))**
     **repaired = False**
     1. not `gok`
       1. `raw`
@@ -438,7 +493,7 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
         1. `s2` == "ok"
           1. `r2`
             **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
-            **gok = [ok](gated_out)**
+            **gok = [ok](access(gated_out, "ok"))**
             **repaired = `gok`**
           2. *
             **_ = 1**
@@ -492,15 +547,15 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
 BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Verify → Record.
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
-**ok = [ok](pack)**
+**ok = [ok](access(pack, "ok"))**
 1. not `ok`
   *pack*
 
 **gated = > latch_efi task=`task` pack=`pack` root=`root` out=`out`**
-**decision = [decision](gated)**
-**allowed = [create_allowed](gated)**
-**path = [context_path](gated)**
-**pf_body = [preflight](gated)**
+**decision = [decision](access(gated, "decision"))**
+**allowed = [create_allowed](access(gated, "create_allowed"))**
+**path = [context_path](access(gated, "context_path"))**
+**pf_body = [preflight](access(gated, "preflight"))**
 
 1. `decision` == "CREATE"
   1. not `allowed`
@@ -520,11 +575,11 @@ BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Ve
 | True | `decision` | `allowed` | `path` | `pf_body` |
 
 **wb = > run.create task=`task` intent="build" surface="build"**
-**slug = [slug](wb)**
+**slug = [slug](access(wb, "slug"))**
 > attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
 > run.set_status slug=`slug` status="executing"
 **sess = > session.link session_id=`session_id` surface="build" workbook_slug=`slug` run_id=`slug`**
-**sid = [session_id](sess)**
+**sid = [session_id](access(sess, "session_id"))**
 *> build_finish slug=`slug` task=`task` decision=`decision` allowed=`allowed` path=`path` gated=`gated` root=`root` out=`out` sandbox=`sandbox` session_id=`sid`*
 
 ## build_start
@@ -538,14 +593,14 @@ Async BUILD start — Preflight + workbook + status=executing, returns immediate
 Caller (Web) must spawn `build_finish` / `cli/求道-构建-继续` as orphan job.
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
-**ok = [ok](pack)**
+**ok = [ok](access(pack, "ok"))**
 1. not `ok`
   *pack*
 **gated = > latch_efi task=`task` pack=`pack` root=`root` out=`out`**
-**decision = [decision](gated)**
-**allowed = [create_allowed](gated)**
-**path = [context_path](gated)**
-**pf_body = [preflight](gated)**
+**decision = [decision](access(gated, "decision"))**
+**allowed = [create_allowed](access(gated, "create_allowed"))**
+**path = [context_path](access(gated, "context_path"))**
+**pf_body = [preflight](access(gated, "preflight"))**
 1. `decision` == "CREATE"
   1. not `allowed`
     1. not `force_create`
@@ -563,11 +618,11 @@ Caller (Web) must spawn `build_finish` / `cli/求道-构建-继续` as orphan jo
 | True | `decision` | `allowed` | `path` | `pf_body` |
 
 **wb = > run.create task=`task` intent="build" surface="build"**
-**slug = [slug](wb)**
+**slug = [slug](access(wb, "slug"))**
 > attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
 > run.set_status slug=`slug` status="executing"
 **sess = > session.link session_id=`session_id` surface="build" workbook_slug=`slug` run_id=`slug`**
-**sid = [session_id](sess)**
+**sid = [session_id](access(sess, "session_id"))**
 **job = > json.stringify value=`merged`**
 > run.put_section slug=`slug` section="Plan" content=`job`
 `ret` =
@@ -594,76 +649,103 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent → verify �
 
 1. not `task`
   **meta = > run.load_state slug=`slug`**
-  **sec = [sections](meta)**
-  **task = [task](sec)**
+  **sec = [sections](access(meta, "sections"))**
+  **task = [task](access(sec, "task"))**
 1. not `gated`
   **pack = > pf.run task=`task` root=`root` out=`out`**
   **gated = > latch_efi task=`task` pack=`pack` root=`root` out=`out`**
-  **decision = [decision](gated)**
-  **allowed = [create_allowed](gated)**
-  **path = [context_path](gated)**
+  **decision = [decision](access(gated, "decision"))**
+  **allowed = [create_allowed](access(gated, "create_allowed"))**
+  **path = [context_path](access(gated, "context_path"))**
 
 **key = > ensure_llm**
 **result = ""**
 **mode = "dry"**
 **agent_out = None**
 **gated_out = ""**
-1. `key`
-  **standing = > 契约提示 mode="build"**
-  **助手 = > make_agent standing=`standing`**
-  **use_sandbox = False**
-  1. `decision` == "CREATE"
-    **use_sandbox = `sandbox`**
-  **agent_out = > `助手`.run task=`task` efi=True learn=True verify=True writeback=True reuse=True router="auto" max_rounds=4 sandbox=`use_sandbox` sandbox_profile="default" promote=True**
-  **status = > json.get value=`agent_out` key="status"**
-  **raw = > format_agent_outcome agent_out=`agent_out`**
-  1. `status` == "ok"
+**reuse_trace = None**
+**actual_reuse = False**
+**artifact_id = ""**
+**artifact_digest = ""**
+
+REUSE path: actual bind_execute before LLM CREATE (discovery_only is never success).
+
+1. `decision` == "REUSE"
+  **reuse_trace = > try_bind_execute project=`root` query=`task`**
+  **actual_reuse = > json.get value=`reuse_trace` key="actual_reuse"**
+  **artifact_id = > json.get value=`reuse_trace` key="artifact_id"**
+  **artifact_digest = > json.get value=`reuse_trace` key="digest"**
+  1. `actual_reuse`
     **mode = "live"**
-    **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
-    **gok = [ok](gated_out)**
-    1. not `gok`
-      1. `raw`
-        **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
-        **second = > `助手`.step task=`fix_task` writeback=False**
-        **s2 = > json.get value=`second` key="status"**
-        **r2 = > json.get value=`second` key="result"**
-        1. `s2` == "ok"
-          1. `r2`
-            **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
-            **gok = [ok](gated_out)**
+    **status = "ok"**
+    **result = > json.stringify value=`reuse_trace`**
+    > run.put_section slug=`slug` section="ActualReuse" content=`result`
+
+1. not `actual_reuse`
+  1. `key`
+    **standing = > 契约提示 mode="build"**
+    **助手 = > make_agent standing=`standing`**
+    **use_sandbox = False**
+    1. `decision` == "CREATE"
+      **use_sandbox = `sandbox`**
+    **agent_out = > `助手`.run task=`task` efi=True learn=True verify=True writeback=True reuse=True router="auto" max_rounds=4 sandbox=`use_sandbox` sandbox_profile="default" promote=False**
+    **status = > json.get value=`agent_out` key="status"**
+    **raw = > format_agent_outcome agent_out=`agent_out`**
+    1. `status` == "ok"
+      **mode = "live"**
+      **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
+      **gok = access(gated_out, "ok")**
+      1. not `gok`
+        1. `raw`
+          **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
+          **second = > `助手`.step task=`fix_task` writeback=False**
+          **s2 = > json.get value=`second` key="status"**
+          **r2 = > json.get value=`second` key="result"**
+          1. `s2` == "ok"
+            1. `r2`
+              **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
+              **gok = access(gated_out, "ok")**
+            2. *
+              **_ = 1**
           2. *
             **_ = 1**
         2. *
           **_ = 1**
+      **apath = > json.get value=`gated_out` key="answer_path"**
+      1. `gok`
+        **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
       2. *
-        **_ = 1**
-    **apath = > json.get value=`gated_out` key="answer_path"**
-    1. `gok`
-      **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
-    2. *
-      **stage = > json.get value=`gated_out` key="stage"**
-      **mode = "gated_error"**
-      **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "），未沉淀：" + `raw`**
-  2. `status` == "blocked"
-    **mode = "blocked"**
-    **result = `raw`**
-  3. *
-    **mode = "error"**
-    **result = `raw`**
-    1. `decision` == "CREATE"
-      **qslug = > agent_goal_slug goal=`task`**
-      > agent_kb_quarantine kb_dir=".marqdo/agent-kb" slug=`qslug` reason="build_create_failed"
-  > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated` gate_out=`gated_out`
-2. *
-  **result = "（无 API Key）BUILD dry-run decision=" + `decision` + " context=" + `path`**
-  **mode = "dry"**
-  **status = "dry"**
+        **stage = > json.get value=`gated_out` key="stage"**
+        **mode = "gated_error"**
+        **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "），未沉淀：" + `raw`**
+    2. `status` == "blocked"
+      **mode = "blocked"**
+      **result = `raw`**
+    3. *
+      **mode = "error"**
+      **result = `raw`**
+      1. `decision` == "CREATE"
+        **qslug = > agent_goal_slug goal=`task`**
+        > agent_kb_quarantine kb_dir=".marqdo/agent-kb" slug=`qslug` reason="build_create_failed"
+    > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated` gate_out=`gated_out`
+  2. *
+    **result = "（无 API Key）BUILD dry-run decision=" + `decision` + " context=" + `path`**
+    **mode = "dry"**
+    **status = "dry"**
 
 > run.attach_result slug=`slug` result=`result`
 > run.put_section slug=`slug` section="Execution" content=`result`
 
-**v = > verify.run slug=`slug` root=`root` out=`out` l1_ok=True**
-**promote = [promote_allowed](v)**
+L1 success only for live mode that is not gated_error / error / dry / blocked.
+
+**l1_ok = False**
+1. `mode` == "live"
+  **l1_ok = True**
+**v = > verify.run slug=`slug` root=`root` out=`out` l1_ok=`l1_ok` artifact_digest=`artifact_digest` result=`result`**
+**promote = access(v, "promote_allowed")**
+1. `promote`
+  1. not `l1_ok`
+    **promote = False**
 **kpi = > metrics.read out=`out` root=`root`**
 **ra_obs = > amort.record task=`task` decision=`decision` root=`root`**
 **ra = > amort.read root=`root`**
@@ -672,9 +754,9 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent → verify �
 > run.put_section slug=`slug` section="Metrics" content=`kpi_s`
 > run.put_section slug=`slug` section="ReasoningAmortization" content=`ra_s`
 1. `promote`
-  > record.from_workbook workbook_slug=`slug` capability=`task` evidence=`path` verification="L3 passed" promote_allowed=True
+  > record.from_workbook workbook_slug=`slug` capability=`task` evidence=`path` verification="L3 verify+duplicate+adjudicate passed" promote_allowed=True
 2. *
-  > record.from_workbook workbook_slug=`slug` capability=`task` evidence=`path` verification="pending" promote_allowed=False
+  > record.from_workbook workbook_slug=`slug` capability=`task` evidence=`path` verification="pending — mode=" + `mode` promote_allowed=False
 
 > run.set_status slug=`slug` status="completed"
 
@@ -684,7 +766,7 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent → verify �
 2. *
   **_ = 1**
 **sess = > session.link session_id=`session_id` surface="build" workbook_slug=`slug` run_id=`slug`**
-**sid = [session_id](sess)**
+**sid = [session_id](access(sess, "session_id"))**
 `ret` =
 
 | ok | mode | slug | decision | create_allowed | context_path | promote_allowed | status | error | result | session_id | async |
@@ -714,7 +796,7 @@ LEARN — feed Marqdo knowledge learn (official compiler). Optional quarantine o
   **constraint = ""**
 
 **gate = > ctx.ensure_graph root=`root` out=`out`**
-**ok = [ok](gate)**
+**ok = [ok](access(gate, "ok"))**
 1. not `ok`
   *gate*
 
@@ -739,9 +821,9 @@ LEARN — feed Marqdo knowledge learn (official compiler). Optional quarantine o
 | if [ -n "$QDAGENT_FAILURE" ]; then marqdo knowledge learn --task "$QDAGENT_TASK" --failure "$QDAGENT_FAILURE" "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT"; elif [ -n "$QDAGENT_DECISION" ]; then marqdo knowledge learn --task "$QDAGENT_TASK" --decision-title "$QDAGENT_DECISION" --decision-body "$QDAGENT_DECISION" "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT"; elif [ -n "$QDAGENT_CONSTRAINT" ]; then marqdo knowledge learn --task "$QDAGENT_TASK" --constraint-title "$QDAGENT_CONSTRAINT" --constraint-body "$QDAGENT_CONSTRAINT" "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT"; else marqdo knowledge "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT"; fi |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
-**stdout = [stdout](proc)**
-**stderr = [stderr](proc)**
+**code = [code](access(proc, "code"))**
+**stdout = [stdout](access(proc, "stdout"))**
+**stderr = [stderr](access(proc, "stderr"))**
 1. `code` != 0
   `fail` =
 

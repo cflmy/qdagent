@@ -3,6 +3,7 @@ import { useSessionStore } from '@/stores/session-store'
 import {
   MessageSquare,
   BookOpen,
+  BookMarked,
   Settings,
   Wrench,
   Plus,
@@ -21,6 +22,7 @@ import { useEffect, useState, useCallback, useRef, createContext, useContext } f
 const navItems = [
   { path: '/', icon: MessageSquare, label: '对话' },
   { path: '/notes', icon: BookOpen, label: '笔记' },
+  { path: '/knowledge', icon: BookMarked, label: '知识' },
   { path: '/eng', icon: Wrench, label: '工程' },
   { path: '/plugins', icon: Plug, label: '插件' },
   { path: '/workspace', icon: FolderOpen, label: '工作区', dev: true },

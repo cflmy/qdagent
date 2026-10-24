@@ -1,12 +1,14 @@
 ---
+markup: occlusion
 title: lib/site
 description: >-
   qdagent site Resource helpers for Marqdo 1.3 (ADR 0007).
   Wraps still-registered web ABI for auth / form mount / proxy+invoke / page chrome
   without compose_* or app.configure junk drawers. Import web capability first.
-import cap:ext/web/_capability.mq.md
-import table:lib/table.mq.md
-import web:ext/web/web.mq.md
+import:
+  cap: ext/web/_capability.mq.md
+  table: lib/table.mq.md
+  web: ext/web/web.mq.md
 ---
 
 ## page

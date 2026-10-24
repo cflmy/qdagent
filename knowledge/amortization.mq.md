@@ -12,13 +12,14 @@ description: >-
   tracks first-vs-subsequent cost per task-kind in data/amortization.json.
   Forward-compatible: if a run outcome ever carries real llm_calls/token_cost,
   prefer those over the decision proxy.
-import fs:lib/fs.mq.md
-import json:lib/json.mq.md
-import table:lib/table.mq.md
-import text:lib/text.mq.md
-import math:lib/math.mq.md
-import time:lib/time.mq.md
-import ctx:./context.mq.md
+import:
+  fs: lib/fs.mq.md
+  json: lib/json.mq.md
+  table: lib/table.mq.md
+  text: lib/text.mq.md
+  math: lib/math.mq.md
+  time: lib/time.mq.md
+  ctx: ./context.mq.md
 ---
 
 ## resolve_root

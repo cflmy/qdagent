@@ -5,11 +5,12 @@ description: >-
   L6 Policy product surface — list authored policies/, match task keywords into
   Preflight Context Pack, compile reuse decisions via Marqdo knowledge policy.
   Does not invent a second Policy Compiler (Marqdo owns compilation).
-import fs:lib/fs.mq.md
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import table:lib/table.mq.md
-import text:lib/text.mq.md
+import:
+  fs: lib/fs.mq.md
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  table: lib/table.mq.md
+  text: lib/text.mq.md
 ---
 
 ## resolve_root

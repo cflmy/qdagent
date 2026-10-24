@@ -1,12 +1,14 @@
 ---
+markup: occlusion
 title: 求道-mcp
 description: >-
   Marqdo MCP Server — Engineering Knowledge + legacy notes tools.
   transport=stdio (default) or http/streamable-http via QDAGENT_MCP_TRANSPORT.
-import agent:ext/ai/agent.mq.md
-import api:../lib/api.mq.md
-import gw:../gateway/mcp.mq.md
-import sys:lib/sys.mq.md
+import:
+  agent: ext/ai/agent.mq.md
+  api: ../lib/api.mq.md
+  gw: ../gateway/mcp.mq.md
+  sys: lib/sys.mq.md
 ---
 
 # main

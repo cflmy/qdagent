@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 类型: 端点
 方法: GET
 路径: /api/health
@@ -7,7 +8,8 @@
 鉴权: user
 title: api/health
 description: Host health Endpoint — Document is the API docs (ADR 0007).
-导入 api:lib/api.mq.md
+导入:
+  api: lib/api.mq.md
 ---
 
 # main

@@ -6,11 +6,12 @@ description: >-
   Section state lives in sibling `<slug>.sections.json`; body is always regenerated
   (no duplicate headings). Shared by CLI, Web, MCP, OpenAI.
   State keys are snake_case (no spaces) for safe table index.
-import fs:lib/fs.mq.md
-import time:lib/time.mq.md
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import table:lib/table.mq.md
+import:
+  fs: lib/fs.mq.md
+  time: lib/time.mq.md
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  table: lib/table.mq.md
 ---
 
 ## data_root

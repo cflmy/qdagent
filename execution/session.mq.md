@@ -4,11 +4,12 @@ title: execution/session
 description: >-
   Server-side Session index (D10) — continuity handle linking surface ·
   workbook_slug · run_id. Not Personal Memory; not a second Run store.
-import fs:lib/fs.mq.md
-import time:lib/time.mq.md
-import sys:lib/sys.mq.md
-import text:lib/text.mq.md
-import table:lib/table.mq.md
+import:
+  fs: lib/fs.mq.md
+  time: lib/time.mq.md
+  sys: lib/sys.mq.md
+  text: lib/text.mq.md
+  table: lib/table.mq.md
 ---
 
 ## data_root

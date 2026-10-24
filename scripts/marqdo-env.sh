@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared Marqdo env for qdagent — prefer workspace CLI ≥2.0.0 + Ext pack ≥2.0.0.
+# Shared Marqdo env for qdagent — prefer workspace CLI ≥2.1.2 + Ext pack ≥2.1.2.
 # Sourced by scripts/qdagent and scripts/mq.sh (not executed alone).
 # shellcheck shell=bash
 
@@ -22,10 +22,10 @@ _qdagent_semver_ge() {
 }
 
 qdagent_resolve_marqdo() {
-  # Floor raised to Marqdo 2.0.0 (occlusion markup · access/取元 · labels 两级
-  # 检索 · migrate labels · 债务棘轮 — M1–M10 全量落地).
-  local min_cli="${QDAGENT_MARQDO_MIN:-2.0.0}"
-  local min_ext="${QDAGENT_EXT_MIN:-2.0.0}"
+  # Floor raised to Marqdo 2.1.2 (EK production chain · verify/adjudicate ·
+  # reuse_execute / eng_bind_execute · document.extract · publish_manifest).
+  local min_cli="${QDAGENT_MARQDO_MIN:-2.1.2}"
+  local min_ext="${QDAGENT_EXT_MIN:-2.1.2}"
   if [[ -z "${MARQDO_EXT:-}" ]]; then
     if [[ -d "$HOME/work/marqdo/ext" ]]; then
       export MARQDO_EXT="$HOME/work/marqdo/ext"
@@ -102,6 +102,7 @@ qdagent_resolve_marqdo() {
   fi
 
   export PATH="$(dirname "$MARQDO_BIN"):$PATH"
+  export QDAGENT_MARQDO_VERSION="$ver"
   return 0
 }
 

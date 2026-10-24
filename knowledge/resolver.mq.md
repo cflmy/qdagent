@@ -1,15 +1,17 @@
 ---
+markup: occlusion
 title: knowledge/resolver
 description: >-
   Resolve engineering candidates via Marqdo find/reuse — no second EKC.
   Capability detail + thin graph CLI (impact/conflicts/stale/duplicate).
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import fs:lib/fs.mq.md
-import text:lib/text.mq.md
-import re:lib/re.mq.md
-import table:lib/table.mq.md
-import ctx:context.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  fs: lib/fs.mq.md
+  text: lib/text.mq.md
+  re: lib/re.mq.md
+  table: lib/table.mq.md
+  ctx: context.mq.md
 ---
 
 ## find
@@ -19,7 +21,7 @@ import ctx:context.mq.md
     + `limit`=20
 
 **gate = > ctx.ensure_graph root=`root` out=`out`**
-**ok = [ok](gate)**
+**ok = [ok](access(gate, "ok"))**
 1. not `ok`
   *gate*
 
@@ -36,10 +38,10 @@ import ctx:context.mq.md
 | marqdo find "$QDAGENT_QUERY" "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" --limit "$QDAGENT_FIND_LIMIT" --json |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
-**stdout = [stdout](proc)**
+**code = [code](access(proc, "code"))**
+**stdout = [stdout](access(proc, "stdout"))**
 1. `code` != 0
-  **err = [stderr](proc)**
+  **err = [stderr](access(proc, "stderr"))**
   `fail` =
 
   | ok | error |
@@ -65,7 +67,7 @@ import ctx:context.mq.md
 REUSE / ADAPT / CREATE via Marqdo reuse (+ context pack).
 
 **gate = > ctx.ensure_graph root=`root` out=`out`**
-**ok = [ok](gate)**
+**ok = [ok](access(gate, "ok"))**
 1. not `ok`
   *gate*
 
@@ -80,10 +82,10 @@ REUSE / ADAPT / CREATE via Marqdo reuse (+ context pack).
 | marqdo reuse --preflight --json "$QDAGENT_TASK" "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
-**stdout = [stdout](proc)**
+**code = [code](access(proc, "code"))**
+**stdout = [stdout](access(proc, "stdout"))**
 1. `code` != 0
-  **err = [stderr](proc)**
+  **err = [stderr](access(proc, "stderr"))**
   `fail` =
 
   | ok | error |
@@ -133,7 +135,7 @@ Symbol path via regex (avoids backtick literals in source).
 **sec = > at value=`chunks` index=0**
 **lines = > text.str_split s=`sec` sep="\n"**
 **acc = > table.empty_list**
-- [line](lines)
+- [line](遍历 lines 为 line)
   **trim = > text.str_trim s=`line`**
   **bullet = > text.starts_with text=`trim` prefix="- "**
   1. `bullet`
@@ -160,7 +162,7 @@ List projected knowledge files under `.marqdo/knowledge/<kind>` whose frontmatte
 **names = > fs.list_dir path=`dir`**
 **acc = > table.empty_list**
 **needle = "capability: " + `id`**
-- [name](names)
+- [name](遍历 names 为 name)
   **parts = > split value=`name` sep=".md"**
   **n = > len value=`parts`**
   1. `n` == 2
@@ -196,7 +198,7 @@ Read-only Capability detail from EKC catalog (+ linked constraints / failures).
   *fail*
 **id = > normalize_id id=`id`**
 **gate = > ctx.ensure_graph root=`root` out=`out`**
-**ok = [ok](gate)**
+**ok = [ok](access(gate, "ok"))**
 1. not `ok`
   *gate*
 **out = > ctx.resolve_out out=`out` root=`root`**
@@ -243,7 +245,7 @@ Reverse-read `.marqdo/graph/edges.json`: symbols that `uses` implementors of thi
 **cap = "capability:" + `id`**
 **impl = > table.empty_list**
 1. `edges`
-  - [e](edges)
+  - [e](遍历 edges 为 e)
     **kind = > json.get value=`e` key="kind"**
     **fr = > json.get value=`e` key="from"**
     **to = > json.get value=`e` key="to"**
@@ -252,13 +254,13 @@ Reverse-read `.marqdo/graph/edges.json`: symbols that `uses` implementors of thi
         **impl = > table.append list=`impl` item=`to`**
 **users = > table.empty_list**
 1. `edges`
-  - [e2](edges)
+  - [e2](遍历 edges 为 e2)
     **kind2 = > json.get value=`e2` key="kind"**
     **fr2 = > json.get value=`e2` key="from"**
     **to2 = > json.get value=`e2` key="to"**
     1. `kind2` == "uses"
       **hit = False**
-      - [sym](impl)
+      - [sym](遍历 impl 为 sym)
         1. `to2` == `sym`
           **hit = True**
       1. `hit`
@@ -273,7 +275,7 @@ Reverse-read `.marqdo/graph/edges.json`: symbols that `uses` implementors of thi
 Thin wrap: `marqdo impact … --json`.
 
 **gate = > ctx.ensure_graph root=`root` out=`out`**
-**ok = [ok](gate)**
+**ok = [ok](access(gate, "ok"))**
 1. not `ok`
   *gate*
 > sys.env_set name="QDAGENT_EKC_ROOT" value=`root`
@@ -287,10 +289,10 @@ Thin wrap: `marqdo impact … --json`.
 | marqdo impact $QDAGENT_IMPACT_PATHS --root "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" --json |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
-**stdout = [stdout](proc)**
+**code = [code](access(proc, "code"))**
+**stdout = [stdout](access(proc, "stdout"))**
 1. `code` != 0
-  **err = [stderr](proc)**
+  **err = [stderr](access(proc, "stderr"))**
   `fail` =
 
   | ok | error |
@@ -333,7 +335,7 @@ Thin wrap: `marqdo impact … --json`.
 Shared thin wrap for `marqdo conflicts|stale|duplicate --json`.
 
 **gate = > ctx.ensure_graph root=`root` out=`out`**
-**ok = [ok](gate)**
+**ok = [ok](access(gate, "ok"))**
 1. not `ok`
   *gate*
 > sys.env_set name="QDAGENT_EKC_ROOT" value=`root`
@@ -347,10 +349,10 @@ Shared thin wrap for `marqdo conflicts|stale|duplicate --json`.
 | marqdo "$QDAGENT_GRAPH_CMD" "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" --json |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
-**stdout = [stdout](proc)**
+**code = [code](access(proc, "code"))**
+**stdout = [stdout](access(proc, "stdout"))**
 1. `code` != 0
-  **err = [stderr](proc)**
+  **err = [stderr](access(proc, "stderr"))**
   `fail` =
 
   | ok | error | cmd |

@@ -66,6 +66,24 @@ if ! "$MARQDO_BIN" labels "$ROOT" \
   exit 1
 fi
 
+echo "== S0/S1/S2 offline fixtures =="
+for t in tests/s0/access-truth.mq.md tests/s0/promote-negative.mq.md; do
+  if [[ -f "$t" ]]; then
+    echo "-- $t"
+    "$MARQDO_BIN" run "$t" || { echo "FAIL $t" >&2; exit 1; }
+  fi
+done
+# S1/S2 need agent plugin for full bind; allow soft skip when plugin missing
+for t in tests/s1/import-reuse.mq.md tests/s2/evolve-impact.mq.md; do
+  if [[ -f "$t" ]]; then
+    echo "-- $t"
+    if ! "$MARQDO_BIN" run "$t"; then
+      echo "WARN: $t failed (check plugin / MARQDO_SRC)" >&2
+      if [[ "${REQUIRE_MARQDO:-0}" == "1" ]]; then exit 1; fi
+    fi
+  fi
+done
+
 echo "== docgate selftest =="
 # The docgate CoW sandbox (ext/ai/sandbox) loads the native agent plugin
 # (libagent.so); `cargo install marqdo` builds only the CLI binary, so the

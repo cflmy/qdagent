@@ -1,12 +1,14 @@
 ---
+markup: occlusion
 title: pages/build
 description: >-
   Build Document page bags for qdagent (ADR 0007). Markdown bodies live in
   pages/content.mq.md; chrome/forms attach via lib/site — no compose_*.
-import site:../lib/site.mq.md
-import ui:../lib/ui.mq.md
-import content:content.mq.md
-import form:ext/data/form.mq.md
+import:
+  site: ../lib/site.mq.md
+  ui: ../lib/ui.mq.md
+  content: content.mq.md
+  form: ext/data/form.mq.md
 ---
 
 ## 壳

@@ -1,13 +1,15 @@
 ---
+markup: occlusion
 title: knowledge/context
 description: >-
   Engineering Context Pack lifecycle — Task → Preflight → .mq.md pack.
   Zero LLM. Consumes Marqdo EKC CLI (does not reimplement resolver).
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import fs:lib/fs.mq.md
-import table:lib/table.mq.md
-import policy:./policy.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  fs: lib/fs.mq.md
+  table: lib/table.mq.md
+  policy: ./policy.mq.md
 ---
 
 ## resolve_root
@@ -75,7 +77,7 @@ Ensure EKC projections exist. Missing graph → compile first (never skip EFI).
   | marqdo knowledge "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" |
 
   **proc = > sys.exec cmd="sh" args=args capture=True**
-  **code = [code](proc)**
+  **code = [code](access(proc, "code"))**
   1. `code` == 0
     `ok3` =
 
@@ -85,7 +87,7 @@ Ensure EKC projections exist. Missing graph → compile first (never skip EFI).
 
     *ok3*
   2. *
-    **err = [stderr](proc)**
+    **err = [stderr](access(proc, "stderr"))**
     `fail` =
 
     | ok | status | error |
@@ -105,7 +107,7 @@ Run Marqdo engineering preflight. Writes Context Pack under `.marqdo/agent/conte
 **out = > resolve_out out=`out` root=`root`**
 
 **gate = > ensure_graph root=`root` out=`out`**
-**ok = [ok](gate)**
+**ok = [ok](access(gate, "ok"))**
 1. not `ok`
   *gate*
 
@@ -120,14 +122,14 @@ Run Marqdo engineering preflight. Writes Context Pack under `.marqdo/agent/conte
 | marqdo knowledge preflight "$QDAGENT_TASK" "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" --json |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
-**stdout = [stdout](proc)**
+**code = [code](access(proc, "code"))**
+**stdout = [stdout](access(proc, "stdout"))**
 
 Marqdo CLI exits **2** when `decision=CREATE` and `create_allowed=false` (Reuse Gate
 blocked) — stdout still carries the Context Pack JSON. Prefer parse-over-exit-code.
 
 1. not `stdout`
-  **err = [stderr](proc)**
+  **err = [stderr](access(proc, "stderr"))**
   1. not `err`
     **err = "preflight produced no JSON (exit " + `code` + ")"**
   `fail` =
@@ -142,7 +144,7 @@ blocked) — stdout still carries the Context Pack JSON. Prefer parse-over-exit-
 **path = > json.get value=`pf` key="context_path"**
 **decision = > json.get value=`pf` key="decision"**
 1. not `decision`
-  **err = [stderr](proc)**
+  **err = [stderr](access(proc, "stderr"))**
   1. not `err`
     **err = `stdout`**
   `fail2` =
@@ -156,16 +158,16 @@ blocked) — stdout still carries the Context Pack JSON. Prefer parse-over-exit-
 **allowed = > json.get value=`pf` key="create_allowed"**
 **status = > json.get value=`pf` key="status"**
 **pol = > policy.match task=`task` root=`root`**
-**pol_hits = [matches](pol)**
-**pol_n = [count](pol)**
+**pol_hits = [matches](access(pol, "matches"))**
+**pol_n = [count](access(pol, "count"))**
 **pf = > table.put in=`pf` at="policies" value=`pol_hits`**
 **pf = > table.put in=`pf` at="policy_count" value=`pol_n`**
 
 M9 label debt — pending stubs / 未完成词 (Marqdo `labels --json`; zero LLM).
 
 **labels = > policy.pending_labels root=`root`**
-**label_rows = [rows](labels)**
-**label_n = [count](labels)**
+**label_rows = [rows](access(labels, "rows"))**
+**label_n = [count](access(labels, "count"))**
 **pf = > table.put in=`pf` at="pending_labels" value=`label_rows`**
 **pf = > table.put in=`pf` at="pending_label_count" value=`label_n`**
 `result` =

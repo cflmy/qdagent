@@ -1,11 +1,13 @@
 ---
+markup: occlusion
 title: knowledge/decision
 description: >-
   Record REUSE/ADAPT/CREATE into Marqdo reuse_metrics via CLI
   (`marqdo knowledge record`). No second metrics store.
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import ctx:context.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  ctx: context.mq.md
 ---
 
 ## record
@@ -38,10 +40,10 @@ import ctx:context.mq.md
   | marqdo knowledge record "$QDAGENT_DECISION" "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" --json |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
-**stdout = [stdout](proc)**
+**code = [code](access(proc, "code"))**
+**stdout = [stdout](access(proc, "stdout"))**
 1. `code` != 0
-  **err = [stderr](proc)**
+  **err = [stderr](access(proc, "stderr"))**
   `fail` =
 
   | ok | error |

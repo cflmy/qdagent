@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: execution/docgate
 description: >-
   Document Gate — 智能体输出与沉淀笔记的 marqdo 文档契约门禁（v0.3 语法）。
@@ -7,12 +8,13 @@ description: >-
   '[' / '#' / '+'（行内代码与围栏块豁免）；执行代码只允许出现在 `# main`。
   Verify: ext/ai/sandbox CoW 试跑（exec/net/plugin 关闭），exit 0 才放行。
   依据：markdown-mapping-v0.3.md · user-site.md（.mq.md 必须 run 退出码 0）。
-import fs:lib/fs.mq.md
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import table:lib/table.mq.md
-import txt:lib/text.mq.md
-import sandbox:ext/ai/sandbox.mq.md
+import:
+  fs: lib/fs.mq.md
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  table: lib/table.mq.md
+  txt: lib/text.mq.md
+  sandbox: ext/ai/sandbox.mq.md
 ---
 
 ## 原始禁区表
@@ -95,7 +97,7 @@ Returns `{ ok, doc, error }`.
   **doc = ""**
   **in_fence = False**
   **seen_open = False**
-  - [ln](lines)
+  - [ln](遍历 lines 为 ln)
     1. `in_fence`
       **is_close = > txt.starts_with text=`ln` prefix="\u{60}\u{60}\u{60}"**
       1. `is_close`
@@ -262,7 +264,7 @@ Heading (`# `) lines are handled by the caller and never reach here.
 1. not `t`
   *False*
 **pres = > 叙述禁区**
-- [p](pres)
+- [p](遍历 pres 为 p)
   **hit = > txt.starts_with text=`t` prefix=`p`**
   1. `hit`
     *True*
@@ -280,11 +282,11 @@ Returns `{ ok, stdout, error }`.
   **s = > sandbox.open root=`root`**
 2. *
   **s = > sandbox.open**
-**id = [id](s)**
+**id = [id](access(s, "id"))**
 > sandbox.write id=`id` path="docgate.mq.md" text=`doc`
 **r = > sandbox.run id=`id` path="docgate.mq.md"**
 > sandbox.discard id=`id`
-**rok = [ok](r)**
+**rok = [ok](access(r, "ok"))**
 **stdout = > table.get map=`r` key="stdout"**
 **err = > table.get map=`r` key="error"**
 1. not `stdout`
@@ -307,8 +309,8 @@ Full gate over raw agent output: 提取 → 结构检查 → 沙箱试跑.
 Returns the doc plus evidence; `ok=False` carries the stage that failed.
 
 **ext = > 提取 text=`text`**
-**eok = [ok](ext)**
-**eerr = [error](ext)**
+**eok = [ok](access(ext, "ok"))**
+**eerr = [error](access(ext, "error"))**
 1. not `eok`
   `out` =
 
@@ -317,10 +319,10 @@ Returns the doc plus evidence; `ok=False` carries the stage that failed.
   | False | extract | "" | "" | "" | `eerr` |
 
   *out*
-**doc = [doc](ext)**
+**doc = [doc](access(ext, "doc"))**
 **chk = > 结构检查 doc=`doc`**
-**cok = [ok](chk)**
-**viol = [violations](chk)**
+**cok = [ok](access(chk, "ok"))**
+**viol = [violations](access(chk, "violations"))**
 1. not `cok`
   `out` =
 
@@ -330,9 +332,9 @@ Returns the doc plus evidence; `ok=False` carries the stage that failed.
 
   *out*
 **v = > 沙箱试跑 doc=`doc` root=`root`**
-**vok = [ok](v)**
-**stdout = [stdout](v)**
-**verr = [error](v)**
+**vok = [ok](access(v, "ok"))**
+**stdout = [stdout](access(v, "stdout"))**
+**verr = [error](access(v, "error"))**
 1. not `vok`
   `out` =
 
@@ -355,17 +357,17 @@ Returns the doc plus evidence; `ok=False` carries the stage that failed.
 Turn a failed gate result into a concise structured repair instruction
 (feed back to the agent for one more round).
 
-**stage = [stage](gate_out)**
-**viol = [violations](gate_out)**
-**verr = [error](gate_out)**
+**stage = [stage](access(gate_out, "stage"))**
+**viol = [violations](access(gate_out, "violations"))**
+**verr = [error](access(gate_out, "error"))**
 **msg = "输出不满足 marqdo 文档契约，请修复后重新输出完整文档。"**
 1. `stage` == "extract"
   **msg = `msg` + " 未找到文档：必须以 --- frontmatter 开头，或为单个代码围栏包裹的完整 .mq.md。"**
 2. `stage` == "structure"
   **msg = `msg` + " 结构问题："**
-  - [v](viol)
-    **rule = [rule](v)**
-    **text = [text](v)**
+  - [v](遍历 viol 为 v)
+    **rule = [rule](access(v, "rule"))**
+    **text = [text](access(v, "text"))**
     **msg = `msg` + "[" + `rule` + "] " + `text` + "；"**
   **msg = `msg` + " 契约：--- frontmatter → # 任务 / # 结论（叙述）→ # main（执行）→ # 验证 / # 元数据。叙述行以文字开头，禁止行首数字、-、>、|、*、[、#、+；执行代码只允许写在 # main 内，且 # main 至少一条可执行语句。"**
 3. `stage` == "sandbox"

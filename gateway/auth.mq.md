@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: gateway/auth
 description: >-
   Gateway authentication + request-tracing surface (design §20 lists the
@@ -8,10 +9,11 @@ description: >-
   X-QDAgent-{Run,Context,Knowledge-Version} headers let Cursor / IDE trace a
   request through Context → Run → Knowledge. Auth is a qdagent product concern
   (§4); Marqdo owns the runtime, not product auth.
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import table:lib/table.mq.md
-import text:lib/text.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  table: lib/table.mq.md
+  text: lib/text.mq.md
 ---
 
 ## resolve_key

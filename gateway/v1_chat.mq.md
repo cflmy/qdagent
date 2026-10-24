@@ -1,11 +1,13 @@
 ---
+markup: occlusion
 title: gateway/v1_chat
 description: >-
   Entry for thin /v1 compatibility process — reads QDAGENT_TASK / QDAGENT_MODE,
   delegates to gateway/openai.chat (Marqdo Agent path).
-import gw:openai.mq.md
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
+import:
+  gw: openai.mq.md
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
 ---
 
 # main

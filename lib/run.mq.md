@@ -1,10 +1,12 @@
 ---
+markup: occlusion
 title: lib/run
 description: 求道运行沉淀 — 把一次捕捉写成 data/runs/*.mq.md，并可同步到笔记库。
-import fs:lib/fs.mq.md
-import time:lib/time.mq.md
-import sys:lib/sys.mq.md
-import data:ext/data/db.mq.md
+import:
+  fs: lib/fs.mq.md
+  time: lib/time.mq.md
+  sys: lib/sys.mq.md
+  data: ext/data/db.mq.md
 ---
 
 ## 数据根
@@ -122,7 +124,7 @@ import data:ext/data/db.mq.md
 1. not `sum`
   **sum = `result`**
 **parts = > split value=`sum` sep="\n"**
-**sum1 = [1](parts)**
+**sum1 = [1](access(parts, "1"))**
 1. not `sum1`
   **sum1 = `sum`**
 **n = > len value=`sum1`**
@@ -139,9 +141,9 @@ import data:ext/data/db.mq.md
 
 **root = > 确保目录**
 **rows = > `store`.select table="runs" limit=500 order="-created_at"**
-- [r](rows)
-  **slug = [slug](r)**
-  **body = [body](r)**
+- [r](遍历 rows 为 r)
+  **slug = [slug](access(r, "slug"))**
+  **body = [body](access(r, "body"))**
   1. `slug`
     1. `body`
       > fs.write_text path=`root` + "/runs/" + `slug` + ".mq.md" text=`body`

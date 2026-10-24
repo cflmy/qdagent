@@ -1,16 +1,18 @@
 ---
+markup: occlusion
 title: gateway/mcp
 description: >-
   MCP product surface for Engineering Knowledge tools.
   Internals call knowledge / agent / execution — never a second Agent framework.
-import pf:../agent/preflight.mq.md
-import resolver:../knowledge/resolver.mq.md
-import verify:../execution/verify.mq.md
-import record:../execution/record.mq.md
-import promote:../execution/promote.mq.md
-import qd:../agent/qdagent.mq.md
-import table:lib/table.mq.md
-import json:lib/json.mq.md
+import:
+  pf: ../agent/preflight.mq.md
+  resolver: ../knowledge/resolver.mq.md
+  verify: ../execution/verify.mq.md
+  record: ../execution/record.mq.md
+  promote: ../execution/promote.mq.md
+  qd: ../agent/qdagent.mq.md
+  table: lib/table.mq.md
+  json: lib/json.mq.md
 ---
 
 ## qd_preflight

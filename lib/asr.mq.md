@@ -1,10 +1,12 @@
 ---
+markup: occlusion
 title: lib/asr
 description: Cloud ASR via scripts/legacy/asr_transcribe.py (optional proxy.cflmy.top).
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import fs:lib/fs.mq.md
-import run:lib/run.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  fs: lib/fs.mq.md
+  run: lib/run.mq.md
 ---
 
 ## 转写

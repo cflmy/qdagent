@@ -1,13 +1,15 @@
 ---
+markup: occlusion
 title: execution/docgate-selftest
 description: >-
   文档门禁回归自检 — 固定夹具验证 execution/docgate 的三段式判定
   （提取 / 结构 / 沙箱）与整理页契约。无 API Key 也能跑。
   CLI: marqdo run execution/docgate-selftest.mq.md
-import gate:docgate.mq.md
-import fmt:../lib/kb_format.mq.md
-import json:lib/json.mq.md
-import txt:lib/text.mq.md
+import:
+  gate: docgate.mq.md
+  fmt: ../lib/kb_format.mq.md
+  json: lib/json.mq.md
+  txt: lib/text.mq.md
 ---
 
 每个断言函数返回布尔；主入口逐个调用并累加，最后打印一行 JSON。

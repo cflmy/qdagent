@@ -1,10 +1,12 @@
 ---
+markup: occlusion
 title: lib/organize
 description: OKF 智能整理 — corpus + settings → scripts/legacy/organize_okf.py → concepts/notes。
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import fs:lib/fs.mq.md
-import run:lib/run.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  fs: lib/fs.mq.md
+  run: lib/run.mq.md
 ---
 
 ## 确保包

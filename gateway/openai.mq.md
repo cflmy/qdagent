@@ -1,15 +1,17 @@
 ---
+markup: occlusion
 title: gateway/openai
 description: >-
   Thin OpenAI-compatible request adapter — HTTP concerns stay outside;
   domain work delegates to agent/qdagent (no Python Agent loop).
   Upstream path always runs `precheck` first (EFI gate + optional product Preflight).
-import qd:../agent/qdagent.mq.md
-import pf:../agent/preflight.mq.md
-import auth:auth.mq.md
-import session:../execution/session.mq.md
-import json:lib/json.mq.md
-import table:lib/table.mq.md
+import:
+  qd: ../agent/qdagent.mq.md
+  pf: ../agent/preflight.mq.md
+  auth: auth.mq.md
+  session: ../execution/session.mq.md
+  json: lib/json.mq.md
+  table: lib/table.mq.md
 ---
 
 ## classify
@@ -69,14 +71,14 @@ optional product Preflight so EFI chat always has a Context Pack handle.
 1. `decision` == "proceed"
   1. `with_preflight`
     **pack = > pf.run task=`message` root=`root` out=`out`**
-    **pok = [ok](pack)**
+    **pok = [ok](access(pack, "ok"))**
     1. not `pok`
       **decision = "deny"**
       **reason = "preflight_failed"**
       **code = "preflight_failed"**
     2. *
-      **context_path = [context_path](pack)**
-      **pf_decision = [decision](pack)**
+      **context_path = [context_path](access(pack, "context_path"))**
+      **pf_decision = [decision](access(pack, "decision"))**
       1. not `context_path`
         **decision = "deny"**
         **reason = "missing_context_pack"**
@@ -117,10 +119,10 @@ Preflight); deny never reaches Agent.
   *authdeny*
 
 **gate = > precheck message=`message` root=`root` out=`out` with_preflight=True**
-**gd = [decision](gate)**
+**gd = [decision](access(gate, "decision"))**
 1. `gd` == "deny"
-  **reason = [reason](gate)**
-  **code = [code](gate)**
+  **reason = [reason](access(gate, "reason"))**
+  **code = [code](access(gate, "code"))**
   `blocked` =
 
   | ok | content | run_id | decision | mode | error | code |
@@ -133,7 +135,7 @@ Preflight); deny never reaches Agent.
   **mode = > classify text=`message`**
 
 **agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out` session_id=`session_id`**
-**ok = [ok](agent_out)**
+**ok = [ok](access(agent_out, "ok"))**
 1. not `ok`
   *agent_out*
 
@@ -154,8 +156,8 @@ Preflight); deny never reaches Agent.
   **sid = `session_id`**
 1. not `sid`
   **linked = > session.link session_id="" surface="api" workbook_slug=`slug` run_id=`slug`**
-  **sid = [session_id](linked)**
-**ctx = [context_path](gate)**
+  **sid = [session_id](access(linked, "session_id"))**
+**ctx = [context_path](access(gate, "context_path"))**
 **live_ok = True**
 1. `run_mode` == "error"
   **live_ok = False**

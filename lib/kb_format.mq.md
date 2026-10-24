@@ -2,7 +2,8 @@
 markup: occlusion
 title: lib/kb_format
 description: 把检索命中与笔记行格式化为可读 Markdown（禁止 JSON dump）。
-import json:lib/json.mq.md
+import:
+  json: lib/json.mq.md
 ---
 
 ## 单行摘要

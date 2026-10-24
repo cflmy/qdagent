@@ -226,6 +226,9 @@ export const api = {
   engSession: (data: unknown) => POST('/api/eng/session', data),
   engSessions: (data?: unknown) => POST('/api/eng/sessions', data || {}),
   engKnowledge: (data?: unknown) => POST('/api/eng/knowledge', data || {}),
+  engKbStatus: (data?: unknown) => POST('/api/eng/kb/status', data || {}),
+  engImport: (data: { path: string; kb_root?: string; publish?: boolean; title?: string }) =>
+    POST('/api/eng/import', data),
   engPolicies: (data?: unknown) => POST('/api/eng/policies', data || {}),
   engWorkbooks: (data?: unknown) => POST('/api/eng/workbooks', data || {}),
   engWorkbook: (data: { id: string }) => POST('/api/eng/workbook', data),

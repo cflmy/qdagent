@@ -1,10 +1,12 @@
 ---
+markup: occlusion
 title: lib/kb_git
 description: Nested git under data/ via scripts/legacy/kb_git.py (stdout via temp JSON).
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import fs:lib/fs.mq.md
-import run:lib/run.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  fs: lib/fs.mq.md
+  run: lib/run.mq.md
 ---
 
 ## 跑

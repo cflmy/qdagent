@@ -1,14 +1,18 @@
 ---
+markup: occlusion
 title: execution/promote
 description: >-
   Knowledge Candidate → Promote / Reject.
   Verify-before-Promote: L3 must pass; never promote without Evidence.
-import fs:lib/fs.mq.md
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import time:lib/time.mq.md
-import verify:verify.mq.md
-import ctx:../knowledge/context.mq.md
+import:
+  fs: lib/fs.mq.md
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  text: lib/text.mq.md
+  time: lib/time.mq.md
+  verify: verify.mq.md
+  ctx: ../knowledge/context.mq.md
+  plugin: lib/plugin.mq.md
 ---
 
 ## data_root
@@ -81,14 +85,17 @@ import ctx:../knowledge/context.mq.md
     + `task`=""
     + `path`=""
     + `kind`="decision"
+    + `artifact_digest`=""
+    + `source_digest`=""
+    + `exception`=""
 
 **paths = > cand_paths slug=`slug`**
-**meta_path = [meta](paths)**
+**meta_path = access(paths, "meta")**
 `meta` =
 
-| slug | capability | evidence | verification | status | task | path | kind |
-|------|------------|----------|--------------|--------|------|------|------|
-| `slug` | `capability` | `evidence` | `verification` | `status` | `task` | `path` | `kind` |
+| slug | capability | evidence | verification | status | task | path | kind | artifact_digest | source_digest | exception |
+|------|------------|----------|--------------|--------|------|------|------|-----------------|---------------|-----------|
+| `slug` | `capability` | `evidence` | `verification` | `status` | `task` | `path` | `kind` | `artifact_digest` | `source_digest` | `exception` |
 
 **raw = > json.stringify value=`meta`**
 > fs.write_text path=`meta_path` text=`raw`
@@ -114,14 +121,14 @@ List candidate slugs (optionally filter by status via sidecar json).
 **names = > fs.list_dir path=`dir`**
 **slugs = > json.parse text=[]**
 
-- [`name`](`names`)
+- [name](遍历 `names` 为 `name`)
   **parts = > split value=`name` sep=".mq.md"**
   **n = > len value=`parts`**
   1. `n` == 2
     **slug = > at value=`parts` index=0**
     1. `status`
       **paths = > cand_paths slug=`slug`**
-      **mp = [meta](paths)**
+      **mp = [meta](access(paths, "meta"))**
       **has = > fs.exists path=`mp`**
       1. `has`
         **raw = > fs.read_text path=`mp`**
@@ -146,8 +153,8 @@ List candidate slugs (optionally filter by status via sidecar json).
     + `slug`
 
 **paths = > cand_paths slug=`slug`**
-**mq = [mq](paths)**
-**mp = [meta](paths)**
+**mq = [mq](access(paths, "mq"))**
+**mp = [meta](access(paths, "meta"))**
 **has = > fs.exists path=`mq`**
 1. not `has`
   `fail` =
@@ -222,14 +229,22 @@ Fallback file stem from capability text (keep alnum / hyphen).
     + `root`="."
     + `out`=".marqdo"
     + `force`=False
+    + `product_gate_ok`=True
+    + `artifact_id`=""
+    + `artifact_digest`=""
+    + `source_digest`=""
 
-Promote one candidate into authored L4 under knowledge/. Re-runs L3 verify unless force=True.
-Marqdo 1.4.2: require Evidence (sandbox/L3 proof text) before promote — no silent promote.
+Promote one candidate into authored L4 under knowledge/. Staging write → compile →
+activate. `force` records `exception_force` and never pretends tests passed.
+Compile failure keeps previous active version (staging discarded).
 
-**v = > verify.run root=`root` out=`out` l1_ok=True**
-**passed = [passed](v)**
-1. not `passed`
-  1. not `force`
+**exception = ""**
+1. `force`
+  **exception = "exception_force"**
+2. *
+  **v = > verify.run root=`root` out=`out` l1_ok=True artifact_digest=`artifact_digest` source_digest=`source_digest`**
+  **passed = access(v, "passed")**
+  1. not `passed`
     `blocked` =
 
     | ok | error | verify |
@@ -237,16 +252,31 @@ Marqdo 1.4.2: require Evidence (sandbox/L3 proof text) before promote — no sil
     | False | verify_before_promote | `v` |
 
     *blocked*
+  **gate = > eng_publish_gate_safe project=`root` artifact_id=`artifact_id` product_gate_ok=`product_gate_ok`**
+  **may_promote = access(gate, "may_promote")**
+  1. `may_promote` == False
+    `gate_block` =
+
+    | ok | error | publish_gate |
+    |----|-------|--------------|
+    | False | publish_gate_blocked | `gate` |
+
+    *gate_block*
 
 **cand = > read slug=`slug`**
-**ok = [ok](cand)**
+**ok = access(cand, "ok")**
 1. not `ok`
   *cand*
 
-**meta = [meta](cand)**
-**body = [body](cand)**
+**meta = access(cand, "meta")**
+**body = access(cand, "body")**
 **ev0 = > json.get value=`meta` key="evidence"**
 **ver0 = > json.get value=`meta` key="verification"**
+**dig0 = > json.get value=`meta` key="artifact_digest"**
+1. not `artifact_digest`
+  **artifact_digest = `dig0`**
+1. not `source_digest`
+  **source_digest = > json.get value=`meta` key="source_digest"**
 1. not `force`
   1. not `ev0`
     `no_ev` =
@@ -261,25 +291,24 @@ Marqdo 1.4.2: require Evidence (sandbox/L3 proof text) before promote — no sil
 
     | ok | error | slug |
     |----|-------|------|
-    | False | sandbox_or_l3_proof_required | `slug` |
+    | False | verification_record_required | `slug` |
 
     *no_ver*
-  **ver_l = > split value=`ver0` sep="pass"**
-  **n_pass = > len value=`ver_l`**
-  **ver_l2 = > split value=`ver0` sep="L3"**
-  **n_l3 = > len value=`ver_l2`**
-  **ver_l3 = > split value=`ver0` sep="sandbox"**
-  **n_sb = > len value=`ver_l3`**
-  1. `n_pass` < 2
-    1. `n_l3` < 2
-      1. `n_sb` < 2
-        `no_proof` =
+  **has_adj = > text.contains text=`ver0` sub="adjudicate"**
+  **has_l3 = > text.contains text=`ver0` sub="L3"**
+  **has_pass = > text.contains text=`ver0` sub="passed"**
+  **has_bound = > text.contains text=`ver0` sub="artifact_digest"**
+  1. not `has_adj`
+    1. not `has_l3`
+      1. not `has_pass`
+        1. not `has_bound`
+          `no_proof` =
 
-        | ok | error | slug | verification |
-        |----|-------|------|--------------|
-        | False | sandbox_or_l3_proof_required | `slug` | `ver0` |
+          | ok | error | slug | verification |
+          |----|-------|------|--------------|
+          | False | structured_verification_required | `slug` | `ver0` |
 
-        *no_proof*
+          *no_proof*
 
 **st = > json.get value=`meta` key="status"**
 1. `st` == "stable"
@@ -310,7 +339,10 @@ Marqdo 1.4.2: require Evidence (sandbox/L3 proof text) before promote — no sil
 1. not `evidence`
   **evidence = "see candidate " + `slug`**
 1. not `verification`
-  **verification = "L3 re-verified on promote"**
+  1. `force`
+    **verification = "exception_force — human override; tests not claimed"**
+  2. *
+    **verification = "L3 re-verified on promote"**
 1. not `title`
   **title = `capability`**
 
@@ -320,25 +352,20 @@ Marqdo 1.4.2: require Evidence (sandbox/L3 proof text) before promote — no sil
 
 **kdir = > knowledge_dir kind=`kind`**
 > fs.make_dir path=`kdir`
+> fs.make_dir path=`kdir` + "/.staging"
 **file_stem = > slugify text=`capability`**
 **kpath = `kdir` + "/" + `file_stem` + ".md"**
+**staging = `kdir` + "/.staging/" + `file_stem` + ".md"**
+**prev = `kpath` + ".prev"**
 **kbody = > knowledge_body title=`title` kind=`kind` capability=`capability` evidence=`evidence` verification=`verification` task=`task` source_slug=`slug`**
+> fs.write_text path=`staging` text=`kbody`
+
+Write candidate to active path after backing up any previous version; restore on compile fail.
+
+**had_prev = > fs.exists path=`kpath`**
+1. `had_prev`
+  > fs.copy_file src=`kpath` dst=`prev`
 > fs.write_text path=`kpath` text=`kbody`
-
-**cpath = [path](cand)**
-**new_body = "---\ntype: Knowledge Candidate\nstatus: stable"**
-**new_body = `new_body` + "\npromoted_to: " + `kpath` + "\n---\n\n"**
-**new_body = `new_body` + "# Knowledge Candidate\n\n"**
-**new_body = `new_body` + "## Capability\n\n" + `capability` + "\n\n"**
-**new_body = `new_body` + "## Evidence\n\n" + `evidence` + "\n\n"**
-**new_body = `new_body` + "## Verification\n\n" + `verification` + "\n\n"**
-**new_body = `new_body` + "## Task\n\n" + `task` + "\n\n"**
-**new_body = `new_body` + "## Status\n\nstable\n\n"**
-**new_body = `new_body` + "## Promoted To\n\n" + `kpath` + "\n"**
-> fs.write_text path=`cpath` text=`new_body`
-> write_meta slug=`slug` capability=`capability` evidence=`evidence` verification=`verification` status="stable" task=`task` path=`cpath` kind=`kind`
-
-Always recompile EKC so promoted L4 enters the graph.
 
 **root = > ctx.resolve_root root=`root`**
 **out = > ctx.resolve_out out=`out` root=`root`**
@@ -352,29 +379,101 @@ Always recompile EKC so promoted L4 enters the graph.
 | marqdo knowledge "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
+**code = access(proc, "code")**
 **compile_ok = False**
 1. `code` == 0
   **compile_ok = True**
+  1. `had_prev`
+    > fs.remove path=`prev`
+2. *
+  1. `had_prev`
+    > fs.copy_file src=`prev` dst=`kpath`
+    > fs.remove path=`prev`
+  2. *
+    > fs.remove path=`kpath`
+  `compile_fail` =
+
+  | ok | error | slug | staging | compile_ok |
+  |----|-------|------|---------|------------|
+  | False | compile_failed_previous_kept | `slug` | `staging` | False |
+
+  *compile_fail*
+
+**cpath = access(cand, "path")**
+**final_status = "stable"**
+1. `force`
+  **final_status = "stable_exception"**
+**new_body = "---\ntype: Knowledge Candidate\nstatus: " + `final_status`**
+**new_body = `new_body` + "\npromoted_to: " + `kpath` + "\n---\n\n"**
+**new_body = `new_body` + "# Knowledge Candidate\n\n"**
+**new_body = `new_body` + "## Capability\n\n" + `capability` + "\n\n"**
+**new_body = `new_body` + "## Evidence\n\n" + `evidence` + "\n\n"**
+**new_body = `new_body` + "## Verification\n\n" + `verification` + "\n\n"**
+**new_body = `new_body` + "## Task\n\n" + `task` + "\n\n"**
+**new_body = `new_body` + "## Status\n\n" + `final_status` + "\n\n"**
+1. `exception`
+  **new_body = `new_body` + "## Exception\n\n" + `exception` + "\n\n"**
+**new_body = `new_body` + "## Promoted To\n\n" + `kpath` + "\n"**
+> fs.write_text path=`cpath` text=`new_body`
+> write_meta slug=`slug` capability=`capability` evidence=`evidence` verification=`verification` status=`final_status` task=`task` path=`cpath` kind=`kind` artifact_digest=`artifact_digest` source_digest=`source_digest` exception=`exception`
 
 `ret` =
 
-| ok | slug | status | knowledge_path | compile_ok | verify |
-|----|------|--------|----------------|------------|--------|
-| True | `slug` | stable | `kpath` | `compile_ok` | `v` |
+| ok | slug | status | knowledge_path | compile_ok | exception | artifact_digest |
+|----|------|--------|----------------|------------|-----------|-----------------|
+| True | `slug` | `final_status` | `kpath` | `compile_ok` | `exception` | `artifact_digest` |
 
 *ret*
+
+## eng_publish_gate_safe
+    + `project`="."
+    + `artifact_id`=""
+    + `product_gate_ok`=True
+    + `candidate_only`=False
+
+Call Marqdo `agent_eng_publish_gate` when the agent plugin is loadable; otherwise
+defer to product_gate_ok only (still refuses when product_gate_ok=false).
+
+1. `product_gate_ok` == False
+  `deny` =
+
+  | may_promote | reason |
+  |-------------|--------|
+  | False | product_gate_ok=false |
+
+  *deny*
+1. not `artifact_id`
+  `defer` =
+
+  | may_promote | reason |
+  |-------------|--------|
+  | True | no_artifact_id_deferred |
+
+  *defer*
+**p = > plugin.native_path name="agent"**
+1. `p`
+  > plugin.load path=`p`
+  **gate = > agent_eng_publish_gate project=`project` artifact_id=`artifact_id` candidate_only=`candidate_only` product_gate_ok=`product_gate_ok`**
+  1. `gate`
+    *gate*
+`fallback` =
+
+| may_promote | reason |
+|-------------|--------|
+| True | plugin_unavailable_product_ok |
+
+*fallback*
 
 ## reject
     + `slug`
     + `reason`="rejected"
 
 **cand = > read slug=`slug`**
-**ok = [ok](cand)**
+**ok = [ok](access(cand, "ok"))**
 1. not `ok`
   *cand*
 
-**meta = [meta](cand)**
+**meta = [meta](access(cand, "meta"))**
 **capability = > json.get value=`meta` key="capability"**
 **evidence = > json.get value=`meta` key="evidence"**
 **verification = > json.get value=`meta` key="verification"**
@@ -388,7 +487,7 @@ Always recompile EKC so promoted L4 enters the graph.
 1. not `task`
   **task = ""**
 
-**cpath = [path](cand)**
+**cpath = [path](access(cand, "path"))**
 **new_body = "---\ntype: Knowledge Candidate\nstatus: rejected"**
 **new_body = `new_body` + "\nreason: " + `reason` + "\n---\n\n"**
 **new_body = `new_body` + "# Knowledge Candidate\n\n"**

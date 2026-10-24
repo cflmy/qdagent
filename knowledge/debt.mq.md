@@ -5,12 +5,13 @@ description: >-
   Engineering debt surface — the M8 debt ratchet (CI/local gate) and the M9
   pending-label list. Marqdo owns `labels`; this module only shells out and
   shapes the result (no second word list, no second gate).
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import fs:lib/fs.mq.md
-import table:lib/table.mq.md
-import text:lib/text.mq.md
-import ctx:./context.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  fs: lib/fs.mq.md
+  table: lib/table.mq.md
+  text: lib/text.mq.md
+  ctx: ./context.mq.md
 ---
 
 ## resolve_root

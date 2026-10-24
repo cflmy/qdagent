@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 title: serve
 description: >-
   qdagent Gateway (Marqdo CLI≥1.4.4 · Ext≥1.4.4 / ADR 0007).
@@ -6,16 +7,17 @@ description: >-
   API: GFM 调用表 → lib/api；声明式 Endpoint 文档见 api/*.mq.md。
   Resource: ext/data · lib/site（auth / form / proxy）。
   /v1 is Bearer-auth (OpenAI clients); not session-gated.
-import web:ext/web/web.mq.md
-import site:lib/site.mq.md
-import ui:lib/ui.mq.md
-import pages:pages/build.mq.md
-import spa:lib/spa.mq.md
-import db:db/index.mq.md
-import data:ext/data/db.mq.md
-import api:lib/api.mq.md
-import sys:lib/sys.mq.md
-import table:lib/table.mq.md
+import:
+  web: ext/web/web.mq.md
+  site: lib/site.mq.md
+  ui: lib/ui.mq.md
+  pages: pages/build.mq.md
+  spa: lib/spa.mq.md
+  db: db/index.mq.md
+  data: ext/data/db.mq.md
+  api: lib/api.mq.md
+  sys: lib/sys.mq.md
+  table: lib/table.mq.md
 ---
 
 # main
@@ -35,14 +37,14 @@ import table:lib/table.mq.md
 **store = > db.open**
 
 **cfg_rows = > `store`.select table="settings" limit=1**
-**cfg = [1](cfg_rows)**
-**llm_base = [llm_base_url](cfg)**
+**cfg = [1](access(cfg_rows, "1"))**
+**llm_base = [llm_base_url](access(cfg, "llm_base_url"))**
 1. not `llm_base`
   **llm_base = "https://api.openai.com/v1"**
-**tts_base = [tts_base_url](cfg)**
+**tts_base = [tts_base_url](access(cfg, "tts_base_url"))**
 1. not `tts_base`
   **tts_base = `llm_base`**
-**asr_base = [asr_base_url](cfg)**
+**asr_base = [asr_base_url](access(cfg, "asr_base_url"))**
 1. not `asr_base`
   **asr_base = `llm_base`**
 
@@ -111,6 +113,8 @@ import table:lib/table.mq.md
 | /api/eng/session | POST | api.eng_session | json | json |
 | /api/eng/sessions | POST | api.eng_sessions | json | json |
 | /api/eng/knowledge | POST | api.eng_knowledge | json | json |
+| /api/eng/kb/status | POST | api.eng_kb_status | json | json |
+| /api/eng/import | POST | api.eng_import | json | json |
 | /api/eng/policies | POST | api.eng_policies | json | json |
 | /v1/models | GET | api.v1_models | query | json |
 | /v1/chat/completions | POST | api.v1_chat_completions | json | json |
@@ -162,16 +166,16 @@ import table:lib/table.mq.md
 **app = > web.route app=`app` path="/settings/mcp" page=`settings_mcp`**
 **app = > web.route app=`app` path="/settings/openai" page=`settings_openai`**
 
-**note_form = [form](page)**
+**note_form = [form](access(page, "form"))**
 1. `note_form`
   **app = > site.mount_form app=`app` id="note" form=`note_form`**
-**manual = [form](new)**
+**manual = [form](access(new, "form"))**
 1. `manual`
   **app = > site.mount_form app=`app` id="manual-note" form=`manual`**
-**llm_form = [form](settings_llm)**
+**llm_form = [form](access(settings_llm, "form"))**
 1. `llm_form`
   **app = > site.mount_form app=`app` id="settings-llm" form=`llm_form`**
-**voice_form = [form](settings_voice)**
+**voice_form = [form](access(settings_voice, "form"))**
 1. `voice_form`
   **app = > site.mount_form app=`app` id="settings-voice" form=`voice_form`**
 

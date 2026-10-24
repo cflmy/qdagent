@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Pack local marqdo ≥2.0.0 binary + ~/.marqdo (or workspace ext) into docker/ for image build.
+# Pack local marqdo ≥2.1.2 binary + ~/.marqdo (or workspace ext) into docker/ for image build.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$ROOT/docker"
 MARQDO_SRC="${QDAGENT_MARQDO_SRC:-/workspace/marqdo}"
 mkdir -p "$DEST/bin" "$DEST/marqdo-home"
 
-# Prefer workspace release binary (2.0.0+), then MARQDO_BIN, then PATH.
+# Prefer workspace release binary (2.1.2+), then MARQDO_BIN, then PATH.
 if [[ -z "${MARQDO_BIN:-}" ]]; then
   if [[ -x "$MARQDO_SRC/target/release/marqdo" ]]; then
     MARQDO_BIN="$MARQDO_SRC/target/release/marqdo"
@@ -18,7 +18,7 @@ if [[ -z "${MARQDO_BIN:-}" ]]; then
 fi
 ver="$("$MARQDO_BIN" --version 2>/dev/null || true)"
 if [[ "$ver" != *2.* ]]; then
-  echo "pack-marqdo: need marqdo ≥2.0.0 (occlusion surface), got: $ver ($MARQDO_BIN)" >&2
+  echo "pack-marqdo: need marqdo ≥2.1.2 (EK production chain), got: $ver ($MARQDO_BIN)" >&2
   exit 1
 fi
 cp -f "$MARQDO_BIN" "$DEST/bin/marqdo"

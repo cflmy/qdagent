@@ -1,4 +1,5 @@
 ---
+markup: occlusion
 类型: 端点
 方法: POST
 路径: /api/store/run
@@ -7,7 +8,8 @@
 鉴权: user
 title: api/store/run
 description: Capture Endpoint — 沉淀一次对话/结论为 data/runs/*.mq.md。
-导入 api:lib/api.mq.md
+导入:
+  api: lib/api.mq.md
 ---
 
 # main

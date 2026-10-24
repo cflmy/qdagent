@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| 状态 | **Accepted** · 2026-10-16 对齐 Marqdo **1.4.4**（soft LLM transport · table-first agent）· 2026-10-22 升 **2.0.0**（occlusion · labels 棘轮 · Phase 16–18） |
+| 状态 | **Accepted** · 2026-10-16 对齐 Marqdo **1.4.4** · 2026-10-22 升 **2.0.0** · **2026-10-24 升 2.1.2**（EK 生产链 · verify/adjudicate · bind_execute） |
 | 日期 | 2026-10-16 |
 | 计划源 | `doc/next/001.md` · `doc/next/002.md`（只读，禁止改写） |
-| Marqdo | CLI **≥2.0.0** · Ext pack **≥2.0.0**（EKC · Agent EFI · sandbox · quarantine · soft transport · occlusion · access · migrate labels · debt ratchet） |
+| Marqdo | CLI **≥2.1.2** · Ext pack **≥2.1.2**（EKC · Agent EFI · occlusion · access · reuse_execute · publish_gate · document.extract · publish_manifest） |
+| 实现跟踪 | [`qdagent-2.0-implementation.md`](qdagent-2.0-implementation.md)（非 next） |
 
 ## 1. 定位
 

@@ -1,35 +1,40 @@
 ---
+markup: occlusion
 title: lib/api
 description: HTTP invoke 入口 — 沉淀 / 同步 / 列表 / 搜索 / 画像 / 整理 / 变更提案（供 Endpoint / MCP 共用）。
-import run:lib/run.mq.md
-import db:../db/index.mq.md
-import data:ext/data/db.mq.md
-import fs:lib/fs.mq.md
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import table:lib/table.mq.md
-import agent:ext/ai/agent.mq.md
-import profile:lib/profile.mq.md
-import time:lib/time.mq.md
-import fmt:lib/kb_format.mq.md
-import websearch:lib/web_search.mq.md
-import kbgit:lib/kb_git.mq.md
-import changes:lib/changes.mq.md
-import asr:lib/asr.mq.md
-import org:lib/organize.mq.md
-import eng_pf:../agent/preflight.mq.md
-import eng_res:../knowledge/resolver.mq.md
-import eng_ver:../execution/verify.mq.md
-import eng_gate:../execution/docgate.mq.md
-import eng_qd:../agent/qdagent.mq.md
-import eng_met:../knowledge/metrics.mq.md
-import eng_promote:../execution/promote.mq.md
-import eng_run:../execution/run.mq.md
-import eng_sess:../execution/session.mq.md
-import eng_openai:../gateway/openai.mq.md
-import eng_policy:../knowledge/policy.mq.md
-import text:lib/text.mq.md
-import settings:../db/settings.mq.md
+import:
+  run: lib/run.mq.md
+  db: ../db/index.mq.md
+  data: ext/data/db.mq.md
+  fs: lib/fs.mq.md
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  table: lib/table.mq.md
+  agent: ext/ai/agent.mq.md
+  profile: lib/profile.mq.md
+  time: lib/time.mq.md
+  fmt: lib/kb_format.mq.md
+  websearch: lib/web_search.mq.md
+  kbgit: lib/kb_git.mq.md
+  changes: lib/changes.mq.md
+  asr: lib/asr.mq.md
+  org: lib/organize.mq.md
+  eng_pf: ../agent/preflight.mq.md
+  eng_res: ../knowledge/resolver.mq.md
+  eng_ver: ../execution/verify.mq.md
+  eng_gate: ../execution/docgate.mq.md
+  eng_qd: ../agent/qdagent.mq.md
+  eng_met: ../knowledge/metrics.mq.md
+  eng_promote: ../execution/promote.mq.md
+  eng_run: ../execution/run.mq.md
+  eng_sess: ../execution/session.mq.md
+  eng_openai: ../gateway/openai.mq.md
+  eng_policy: ../knowledge/policy.mq.md
+  eng_imp: ../knowledge/import.mq.md
+  eng_evo: ../knowledge/evolve.mq.md
+  eng_reuse_met: ../knowledge/metrics_reuse.mq.md
+  text: lib/text.mq.md
+  settings: ../db/settings.mq.md
 ---
 
 ## 成功
@@ -85,26 +90,45 @@ import settings:../db/settings.mq.md
   **pr = > json.get value=`payload` key="result"**
   1. `pr`
     **result = `pr`**
+  **pc = > json.get value=`payload` key="content"**
+  1. `pc`
+    1. not `result`
+      **result = `pc`**
+    1. not `task`
+      **task = `pc`**
   **psu = > json.get value=`payload` key="summary"**
   1. `psu`
     **summary = `psu`**
+  1. not `summary`
+    1. `result`
+      **summary = `result`**
   **ps = > json.get value=`payload` key="slug"**
   1. `ps`
     **slug = `ps`**
   **pf = > json.get value=`payload` key="surface"**
   1. `pf`
     **surface = `pf`**
+  **prole = > json.get value=`payload` key="role"**
+  1. `prole`
+    1. not `surface`
+      **surface = `prole`**
   **sid = > json.get value=`payload` key="session_id"**
   1. `sid`
     **session_id = `sid`**
 
 1. `slug` == ""
   **slug = > run.新标识**
+1. not `result`
+  **result = ""**
+1. not `summary`
+  **summary = `result`**
+1. not `task`
+  **task = `title`**
 
 **store = > db.open**
 **path = > run.沉淀 store=`store` title=`title` task=`task` result=`result` summary=`summary` slug=`slug` surface=`surface` session_id=`session_id`**
 **sess = > eng_sess.link session_id=`session_id` surface=`surface` workbook_slug="" run_id=`slug`**
-**sid = [session_id](sess)**
+**sid = [session_id](access(sess, "session_id"))**
 **git = > kbgit.提交 message="capture: " + `slug`**
 `字段` =
 
@@ -142,17 +166,17 @@ are replaced by an `*_api_key_set` boolean.
 
 **store = > db.open**
 **rows = > `store`.select table="settings" limit=1**
-**cfg = [1](rows)**
-**llm_key = [llm_api_key](cfg)**
-**asr_key = [asr_api_key](cfg)**
-**tts_key = [tts_api_key](cfg)**
-**llm_base = [llm_base_url](cfg)**
-**llm_model = [llm_model](cfg)**
-**asr_base = [asr_base_url](cfg)**
-**asr_model = [asr_model](cfg)**
-**tts_base = [tts_base_url](cfg)**
-**tts_model = [tts_model](cfg)**
-**lang = [dictation_lang](cfg)**
+**cfg = [1](access(rows, "1"))**
+**llm_key = [llm_api_key](access(cfg, "llm_api_key"))**
+**asr_key = [asr_api_key](access(cfg, "asr_api_key"))**
+**tts_key = [tts_api_key](access(cfg, "tts_api_key"))**
+**llm_base = [llm_base_url](access(cfg, "llm_base_url"))**
+**llm_model = [llm_model](access(cfg, "llm_model"))**
+**asr_base = [asr_base_url](access(cfg, "asr_base_url"))**
+**asr_model = [asr_model](access(cfg, "asr_model"))**
+**tts_base = [tts_base_url](access(cfg, "tts_base_url"))**
+**tts_model = [tts_model](access(cfg, "tts_model"))**
+**lang = [dictation_lang](access(cfg, "dictation_lang"))**
 **has_llm = False**
 1. `llm_key`
   **has_llm = True**
@@ -240,7 +264,7 @@ empty strings clear a field, and `*_api_key` is only overwritten when provided.
 **root = > run.确保目录**
 **corpus = `root` + "/runs"**
 **raw = > agent.corpus_search query=`query` root=`corpus` limit=`top_k`**
-**hits = [hits](raw)**
+**hits = [hits](access(raw, "hits"))**
 `字段` =
 
 | mode | hint | hits | top_k | query |
@@ -305,7 +329,7 @@ empty strings clear a field, and `*_api_key` is only overwritten when provided.
   **root = > run.确保目录**
   **corpus = `root` + "/runs"**
   **raw = > agent.corpus_search query=`query` root=`corpus` limit=`top_k`**
-  **hits = [hits](raw)**
+  **hits = [hits](access(raw, "hits"))**
 
 `字段` =
 
@@ -331,8 +355,8 @@ empty strings clear a field, and `*_api_key` is only overwritten when provided.
     **result = `pr`**
 
 **draft = > profile.试算追加 task=`task` result=`result`**
-**body = [body](draft)**
-**ppath = [path](draft)**
+**body = [body](access(draft, "body"))**
+**ppath = [path](access(draft, "path"))**
 **root = > run.确保目录**
 **payload_path = `root` + "/tmp/propose_payload.json"**
 **prop_title = "画像追加 · " + `task`**
@@ -374,14 +398,14 @@ empty strings clear a field, and `*_api_key` is only overwritten when provided.
 **root = > run.确保目录**
 **corpus = `root` + "/runs"**
 **raw = > agent.corpus_search query=`query` root=`corpus` limit=`limit`**
-**hits = [hits](raw)**
+**hits = [hits](access(raw, "hits"))**
 **rows = > db.recent limit=`limit`**
 **store = > db.open**
 **cfg_rows = > `store`.select table="settings" limit=1**
-**cfg = [1](cfg_rows)**
-**llm_key = [llm_api_key](cfg)**
-**llm_base = [llm_base_url](cfg)**
-**llm_model = [llm_model](cfg)**
+**cfg = [1](access(cfg_rows, "1"))**
+**llm_key = [llm_api_key](access(cfg, "llm_api_key"))**
+**llm_base = [llm_base_url](access(cfg, "llm_base_url"))**
+**llm_model = [llm_model](access(cfg, "llm_model"))**
 1. not `llm_base`
   **llm_base = "https://api.openai.com/v1"**
 1. not `llm_model`
@@ -394,16 +418,16 @@ empty strings clear a field, and `*_api_key` is only overwritten when provided.
 | True | `mode` | `query` | `limit` | `rows` | `hits` | `llm_key` | `llm_base` | `llm_model` |
 
 **prom = > org.整理 payload=`req`**
-**prom_ok = [ok](prom)**
+**prom_ok = [ok](access(prom, "ok"))**
 **u = > time.now_unix**
 **day = > time.format unix=`u` pattern="%Y-%m-%d"**
 **stamp = > time.format unix=`u` pattern="%Y%m%d-%H%M%S"**
 **slug = "organize-" + `stamp`**
 
 1. `prom_ok`
-  **brief = [summary](prom)**
+  **brief = [summary](access(prom, "summary"))**
   1. not `brief`
-    **n = [promoted](prom)**
+    **n = [promoted](access(prom, "promoted"))**
     **brief = "OKF 智能整理完成：晋升 " + `n` + " 条概念笔记（mode=" + `mode` + "）。历史 runs 未改写。"**
   **git = > kbgit.提交 message="organize-okf: " + `query`**
   **run_path = > run.沉淀 store=`store` title="OKF 整理 · " + `query` task=`query` result=`brief` summary=`brief` slug=`slug` surface="organize"**
@@ -418,7 +442,7 @@ empty strings clear a field, and `*_api_key` is only overwritten when provided.
 **kb_path = `root` + "/kb/整理-" + `stamp` + ".mq.md"**
 **plan = > fmt.整理文稿 query=`query` day=`day` hits=`hits` rows=`rows`**
 > fs.write_text path=`kb_path` text=`plan`
-**err = [error](prom)**
+**err = [error](access(prom, "error"))**
 1. not `err`
   **err = "okf promote failed"**
 **brief = "OKF 晋升未完成（" + `err` + "），已回退写出表格索引 kb/整理-" + `stamp` + ".mq.md。历史 runs 未改写。"**
@@ -938,9 +962,9 @@ Compile EKC (`marqdo knowledge`) — promote 后刷新图。
 | marqdo knowledge "$QDAGENT_EKC_ROOT" -o "$QDAGENT_EKC_OUT" |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
-**code = [code](proc)**
-**stdout = [stdout](proc)**
-**stderr = [stderr](proc)**
+**code = access(proc, "code")**
+**stdout = access(proc, "stdout")**
+**stderr = access(proc, "stderr")**
 1. `code` != 0
   `fail` =
 
@@ -957,6 +981,84 @@ Compile EKC (`marqdo knowledge`) — promote 后刷新图。
 
 *out*
 
+## eng_kb_status
+    + `kb_root`=""
+    + `payload`=None
+
+Knowledge UI state machine snapshot: corpus / drafts / published / evidence +
+reuse metrics. Same shape for CLI/Web/MCP.
+
+1. `payload`
+  **pk = > json.get value=`payload` key="kb_root"**
+  1. `pk`
+    **kb_root = `pk`**
+**lay = > eng_imp.ensure_layout kb_root=`kb_root`**
+**kb = access(lay, "kb_root")**
+**corpus = > fs.list_dir path=`kb` + "/corpus"**
+**drafts = > fs.list_dir path=`kb` + "/drafts"**
+**published = > fs.list_dir path=`kb` + "/knowledge"**
+**evidence = > fs.list_dir path=`kb` + "/evidence"**
+**gen = > eng_evo.refuse_mixed_generation kb_root=`kb`**
+**reuse = > eng_reuse_met.read root=`kb`**
+`out` =
+
+| ok | kb_root | states | corpus | drafts | published | evidence | generation | reuse_metrics |
+|----|---------|--------|--------|--------|-----------|----------|------------|---------------|
+| True | `kb` | "corpus|runs|drafts|published" | `corpus` | `drafts` | `published` | `evidence` | `gen` | `reuse` |
+
+*out*
+
+## eng_import
+    + `path`=""
+    + `kb_root`=""
+    + `publish`=False
+    + `title`=""
+    + `payload`=None
+
+TXT/Markdown import task. PDF/OCR failures surface as extract_failed (explicit).
+
+1. `payload`
+  **pp = > json.get value=`payload` key="path"**
+  1. `pp`
+    **path = `pp`**
+  **pk = > json.get value=`payload` key="kb_root"**
+  1. `pk`
+    **kb_root = `pk`**
+  **pt = > json.get value=`payload` key="title"**
+  1. `pt`
+    **title = `pt`**
+  **pb = > json.get value=`payload` key="publish"**
+  1. `pb`
+    **publish = `pb`**
+1. not `path`
+  `need` =
+
+  | ok | error |
+  |----|-------|
+  | False | path_required |
+
+  *need*
+**is_pdf = > text.contains text=`path` sub=".pdf"**
+1. not `is_pdf`
+  **is_pdf = > text.contains text=`path` sub=".PDF"**
+1. `is_pdf`
+  **ext = > eng_imp.mlsp_extract path=`path` format="pdf"**
+  **eok = access(ext, "ok")**
+  1. not `eok`
+    *ext*
+  **result = access(ext, "result")**
+  **st = > json.get value=`result` key="status"**
+  1. `st` == "failed"
+    `pdf_fail` =
+
+    | ok | error | format | result | hint |
+    |----|-------|--------|--------|------|
+    | False | pdf_extract_needs_plugin | pdf | `result` | "PDF/OCR 需外挂提取器；求道 S1 仅 TXT/Markdown" |
+
+    *pdf_fail*
+**out = > eng_imp.import_txt path=`path` kb_root=`kb_root` title=`title` publish=`publish` product_gate_ok=True**
+*out*
+
 ## eng_policies
     + `task`=""
     + `payload`=None
@@ -971,7 +1073,7 @@ Optional `task` → also return matched policies for Preflight enrichment.
 **listed = > eng_policy.list**
 1. `task`
   **matched = > eng_policy.match task=`task`**
-  **hits = [matches](matched)**
+  **hits = [matches](access(matched, "matches"))**
   **out = > table.put in=`listed` at="matches" value=`hits`**
   **out = > table.put in=`out` at="task" value=`task`**
   *out*
@@ -1087,7 +1189,7 @@ OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` 
   2. *
     **arr = `messages`**
   1. `arr`
-    - [m](arr)
+    - [m](遍历 arr 为 m)
       **role = > json.get value=`m` key="role"**
       **content = > json.get value=`m` key="content"**
       1. `role` == "user"
@@ -1096,12 +1198,12 @@ OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` 
 1. not `task`
   **task = "ping"**
 **chat = > eng_openai.chat message=`task` mode="" authorization=`authorization` api_key=`api_key` payload=`payload`**
-**content = [content](chat)**
-**run_id = [run_id](chat)**
-**cok = [ok](chat)**
+**content = [content](access(chat, "content"))**
+**run_id = [run_id](access(chat, "run_id"))**
+**cok = [ok](access(chat, "ok"))**
 1. not `cok`
   1. not `content`
-    **content = [error](chat)**
+    **content = [error](access(chat, "error"))**
 **u = > time.now_unix**
 **cid = "chatcmpl-" + `run_id`**
 1. not `run_id`

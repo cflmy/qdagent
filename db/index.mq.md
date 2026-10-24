@@ -1,10 +1,12 @@
 ---
+markup: occlusion
 title: db/index
 description: Open sqlite via ext/data; init runs + settings; seed; sync run bodies to disk.
-import data:ext/data/db.mq.md
-import runs:runs.mq.md
-import settings:settings.mq.md
-import run:../lib/run.mq.md
+import:
+  data: ext/data/db.mq.md
+  runs: runs.mq.md
+  settings: settings.mq.md
+  run: ../lib/run.mq.md
 ---
 
 ## open

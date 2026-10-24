@@ -1,9 +1,11 @@
 ---
+markup: occlusion
 title: lib/web_search
 description: Web search via scripts/legacy/web_search.py (DDG then Bing CN). Evidence only.
-import sys:lib/sys.mq.md
-import json:lib/json.mq.md
-import fs:lib/fs.mq.md
+import:
+  sys: lib/sys.mq.md
+  json: lib/json.mq.md
+  fs: lib/fs.mq.md
 ---
 
 ## search

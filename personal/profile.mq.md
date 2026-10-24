@@ -1,9 +1,11 @@
 ---
+markup: occlusion
 title: personal/profile
 description: >-
   Personal Memory façade — user preference profile (not Engineering Knowledge).
   Engineering Memory is EKC; this stays demoted to personal context only.
-import profile:../lib/profile.mq.md
+import:
+  profile: ../lib/profile.mq.md
 ---
 
 ## get

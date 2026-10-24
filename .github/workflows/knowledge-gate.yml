@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Marqdo CLI (GitHub Release)
         env:
-          MARQDO_MIN: "2.0.0"
+          MARQDO_MIN: "2.1.2"
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.local/bin"
@@ -63,7 +63,7 @@ jobs:
             cp -a "$EXT_SRC/." "$HOME/.marqdo/ext/"
             echo "ext pack copied from cargo checkout: $EXT_SRC"
           else
-            echo "2.0.0" > "$HOME/.marqdo/ext/VERSION"
+            echo "2.1.2" > "$HOME/.marqdo/ext/VERSION"
             echo "cargo checkout not found; VERSION-only gate (marqdo check skips ext-dependent files)"
           fi
           echo "MARQDO_EXT=$HOME/.marqdo/ext" >> "$GITHUB_ENV"
