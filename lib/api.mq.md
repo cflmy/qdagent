@@ -62,11 +62,14 @@ import:
 
 **root = > run.确保目录**
 **git = > kbgit.确保**
+**ver = > sys.env_get name="QDAGENT_MARQDO_VERSION"**
+1. not `ver`
+  **ver = "2.1.2"**
 `字段` =
 
 | role | marqdo | data_root | git |
 |------|--------|-----------|-----|
-| marqdo-host | 1.4.4 | `root` | `git` |
+| marqdo-host | `ver` | `root` | `git` |
 
 *> 成功 字段=`字段`*
 
@@ -199,9 +202,12 @@ are replaced by an `*_api_key_set` boolean.
 
 Patch the settings row. Only the fields present in the payload are written;
 empty strings clear a field, and `*_api_key` is only overwritten when provided.
+Empty / missing payload is a no-op success (SPA may POST `{}`).
 
 1. not `payload`
-  *> 失败 error="payload required"*
+  **字段 = > table.put in=None at="saved" value=True**
+  **字段 = > table.put in=`字段` at="noop" value=True**
+  *> 成功 字段=`字段`*
 
 **store = > db.open**
 **rows = > `store`.select table="settings" limit=1**

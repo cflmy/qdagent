@@ -661,6 +661,7 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent â†’ verify â†
 **key = > ensure_llm**
 **result = ""**
 **mode = "dry"**
+**status = "dry"**
 **agent_out = None**
 **gated_out = ""**
 **reuse_trace = None**

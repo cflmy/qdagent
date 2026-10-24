@@ -17,11 +17,22 @@ import:
 ## classify
     + `text`
 
-Heuristic task mode from user text.
+Heuristic task mode from user text. Default ASK; BUILD only on explicit cues.
 
 **mode = "ask"**
 1. `text`
-  **mode = "build"**
+  **parts = > split value=`text` sep="BUILD"**
+  **n = > len value=`parts`**
+  1. `n` > 1
+    **mode = "build"**
+  **parts2 = > split value=`text` sep="构建"**
+  **n2 = > len value=`parts2`**
+  1. `n2` > 1
+    **mode = "build"**
+  **parts3 = > split value=`text` sep="实现"**
+  **n3 = > len value=`parts3`**
+  1. `n3` > 1
+    **mode = "build"**
 *mode*
 
 ## precheck

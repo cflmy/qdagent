@@ -63,3 +63,6 @@ public/app/
 
 # marqdo fs.make_temp leftovers under tests/
 tests/**/mqtmp-*
+drafts/
+data/tmp-*
+evidence/

@@ -11,6 +11,7 @@ import:
   record: ../execution/record.mq.md
   promote: ../execution/promote.mq.md
   qd: ../agent/qdagent.mq.md
+  api: ../lib/api.mq.md
   table: lib/table.mq.md
   json: lib/json.mq.md
 ---
@@ -203,3 +204,59 @@ For JSON reports use qd_impact / qd_conflicts / qd_stale / qd_duplicate.
   1. `f`
     **failure = `f`**
 *> qd.learn task=`task` failure=`failure`*
+
+## qd_kb_status
+    + `kb_root`=""
+    + `payload`=None
+
+Knowledge UI state machine snapshot (corpus/drafts/published + reuse metrics).
+
+1. `payload`
+  **k = > json.get value=`payload` key="kb_root"**
+  1. `k`
+    **kb_root = `k`**
+*> api.eng_kb_status kb_root=`kb_root`*
+
+## qd_import
+    + `path`=""
+    + `kb_root`=""
+    + `publish`=False
+    + `title`=""
+    + `payload`=None
+
+TXT/Markdown import via document.extract. PDF failures are explicit.
+
+1. `payload`
+  **p = > json.get value=`payload` key="path"**
+  1. `p`
+    **path = `p`**
+  **k = > json.get value=`payload` key="kb_root"**
+  1. `k`
+    **kb_root = `k`**
+  **t = > json.get value=`payload` key="title"**
+  1. `t`
+    **title = `t`**
+  **pb = > json.get value=`payload` key="publish"**
+  1. `pb`
+    **publish = `pb`**
+*> api.eng_import path=`path` kb_root=`kb_root` title=`title` publish=`publish`*
+
+## qd_bind
+    + `query`=""
+    + `project`="."
+    + `policy`="pure"
+    + `payload`=None
+
+Actual reuse: eng_bind_execute (never discovery_only as success).
+
+1. `payload`
+  **q = > json.get value=`payload` key="query"**
+  1. `q`
+    **query = `q`**
+  **p = > json.get value=`payload` key="project"**
+  1. `p`
+    **project = `p`**
+  **pol = > json.get value=`payload` key="policy"**
+  1. `pol`
+    **policy = `pol`**
+*> qd.try_bind_execute project=`project` query=`query` policy=`policy`*

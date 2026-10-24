@@ -30,6 +30,9 @@ Engineering Knowledge tools (qdagent 2.0):
 **srv = > srv.tool name="qd_promote" fn="gw.qd_promote" description="Promote candidate to knowledge/* after L3 verify"**
 **srv = > srv.tool name="qd_reject" fn="gw.qd_reject" description="Reject a Knowledge Candidate"**
 **srv = > srv.tool name="qd_learn" fn="gw.qd_learn" description="Learn failure/decision into EKC"**
+**srv = > srv.tool name="qd_kb_status" fn="gw.qd_kb_status" description="Knowledge UI state: corpus/drafts/published + reuse metrics"**
+**srv = > srv.tool name="qd_import" fn="gw.qd_import" description="TXT/Markdown document.extract → drafts (optional publish)"**
+**srv = > srv.tool name="qd_bind" fn="gw.qd_bind" description="Actual reuse via eng_bind_execute (not discovery_only)"**
 
 Legacy notes tools (compat):
 

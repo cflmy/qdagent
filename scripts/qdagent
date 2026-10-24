@@ -86,6 +86,17 @@ case "$cmd" in
   knowledge|compile)
     exec marqdo knowledge . -o .marqdo
     ;;
+  import)
+    # TXT/Markdown → document.extract → drafts → optional publish
+    export QDAGENT_IMPORT_PATH="${1:-}"
+    export QDAGENT_KB_ROOT="${QDAGENT_KB_ROOT:-}"
+    export QDAGENT_IMPORT_PUBLISH="${QDAGENT_IMPORT_PUBLISH:-0}"
+    if [[ -z "${QDAGENT_IMPORT_PATH}" ]]; then
+      echo "usage: qdagent import <path.txt|.md>   # set QDAGENT_IMPORT_PUBLISH=1 to publish" >&2
+      exit 2
+    fi
+    exec marqdo run cli/求道-导入.mq.md
+    ;;
   serve|web)
     exec "$ROOT/scripts/mq.sh" run serve.mq.md
     ;;
@@ -94,7 +105,7 @@ case "$cmd" in
     ;;
   ""|-h|--help|help)
     cat <<'EOF'
-qdagent — Executable Engineering Knowledge Agent (CLI ≥2.0.0 · Ext ≥2.0.0)
+qdagent — Executable Engineering Knowledge Agent (CLI ≥2.1.2 · Ext ≥2.1.2)
 
 Usage:
   qdagent preflight [task]
@@ -114,6 +125,7 @@ Usage:
   qdagent stale
   qdagent duplicate
   qdagent knowledge   # marqdo knowledge compile
+  qdagent import <path>  # TXT/MD → drafts (QDAGENT_IMPORT_PUBLISH=1 to publish)
   qdagent serve
   qdagent mcp
 
@@ -128,6 +140,7 @@ Dogfood example:
   qdagent labels
   qdagent impact lib/api.mq.md
   qdagent conflicts
+  qdagent import corpus/note.txt
 EOF
     ;;
   *)
