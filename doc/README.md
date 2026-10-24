@@ -13,6 +13,7 @@
 ## 阅读顺序（建议）
 
 0. [**qdagent 2.0 设计（Accepted）**](design/qdagent-2.0.md) · [下一阶段开发计划](design/qdagent-dev-plan-2026-10.md) · [再下一阶段（审阅稿）](design/qdagent-dev-plan-2026-10-next.md)  
+   本轮产品扩展：[**多提供商与知识工作台（2026-10-25，Proposed）**](design/multi-provider-and-knowledge-workbench-2026-10-25.md) — 基于 `643dd31` / Marqdo 2.1.2 的增量审阅；含模型切换、用量账本、View 侧栏与引用、工作区、笔记/画像、统一可读性规范、API 合同、迁移及逐项验收。
 1. [总览与产品愿景](00-overview.md)（档案）  
 2. [竞品调研：OpenClaw / Hermes / GoClaw](research/01-competitive-openclaw-hermes.md)  
 3. [Marqdo 原生能力与差异化设计](design/02-marqdo-native-agent.md)  
