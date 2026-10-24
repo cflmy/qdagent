@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "description": "Q00 citation resolve contract",
+  "example": {
+    "citation_id": "cite-1",
+    "message_id": "msg-9",
+    "workspace_id": "ws-1",
+    "document_id": "doc-17",
+    "document_revision": "sha256:example",
+    "knowledge_generation": "generation-4",
+    "artifact_id": "mq://project/example/function",
+    "node_id": "stable-node-1",
+    "locator": { "kind": "node", "value": "stable-node-1" },
+    "relation": "cites",
+    "label": "适用条件",
+    "excerpt": "经过授权且版本一致时可复用",
+    "resolution": "resolved"
+  },
+  "resolution_enum": [
+    "resolved",
+    "stale",
+    "unresolved",
+    "ambiguous",
+    "version_unavailable",
+    "forbidden"
+  ],
+  "relation_enum": ["cites", "supports", "derived_from", "executed"],
+  "invariants": [
+    "UI [1] is message-local ordinal, not citation_id",
+    "executed requires a bound run id",
+    "LLM markdown text alone cannot mint trusted citation_ref"
+  ]
+}

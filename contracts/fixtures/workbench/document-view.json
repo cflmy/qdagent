@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "description": "Q00 DocumentView envelope from /api/app/documents/read",
+  "success": {
+    "ok": true,
+    "schema_version": 1,
+    "data": {
+      "document_id": "doc-17",
+      "workspace_id": "ws-1",
+      "title": "适用条件",
+      "revision": "sha256:example",
+      "renderer": "marqdo-view-document",
+      "capability": "available",
+      "html_fragment": "<article data-mq-doc=\"1\"><h1>适用条件</h1><p>经过授权且版本一致时可复用</p></article>",
+      "outline": [
+        { "level": 1, "title": "适用条件", "node_id": "stable-node-1" }
+      ],
+      "nodes": [
+        { "node_id": "stable-node-1", "kind": "heading", "locator": { "kind": "node", "value": "stable-node-1" } }
+      ],
+      "highlight_node_id": "stable-node-1",
+      "sediment_status": "published",
+      "no_exec": true
+    },
+    "request_id": "req-doc-1"
+  },
+  "capability_unavailable": {
+    "ok": true,
+    "schema_version": 1,
+    "data": {
+      "document_id": "doc-17",
+      "workspace_id": "ws-1",
+      "title": "适用条件",
+      "revision": null,
+      "renderer": "static-fallback",
+      "capability": "unavailable",
+      "html_fragment": null,
+      "text": "（capability unavailable）Marqdo view.document 未就绪；已提供静态只读摘录，未执行文档。",
+      "outline": [],
+      "nodes": [],
+      "no_exec": true,
+      "honest_reason": "view.document_bridge_missing"
+    },
+    "request_id": "req-doc-2"
+  },
+  "invariants": [
+    "reading never triggers execution, model calls, or writeback",
+    "HTML must be server-sanitized",
+    "capability unavailable is explicit, not a silent empty panel"
+  ]
+}

@@ -16,6 +16,10 @@ export default defineConfig({
     emptyOutDir: true,
     target: 'es2022',
   },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+  },
   server: {
     proxy: {
       '/api': 'http://localhost:7431',

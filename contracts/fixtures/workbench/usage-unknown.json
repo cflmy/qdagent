@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "description": "Q00 usage ledger states — unknown must never render as zero tokens or free",
+  "examples": [
+    {
+      "call_id": "call-1",
+      "attempt_id": "att-1",
+      "purpose": "answer",
+      "status": "completed",
+      "input_tokens": null,
+      "output_tokens": null,
+      "total_tokens": null,
+      "usage_state": "unknown",
+      "measurement_source": "provider_omitted",
+      "display": {
+        "summary": "用量未知",
+        "forbid_zero": true
+      }
+    },
+    {
+      "call_id": "call-2",
+      "attempt_id": "att-1",
+      "purpose": "answer",
+      "status": "completed",
+      "input_tokens": 120,
+      "output_tokens": 40,
+      "total_tokens": 160,
+      "usage_state": "final",
+      "measurement_source": "provider_usage",
+      "display": {
+        "summary": "160 tokens",
+        "forbid_zero": false
+      }
+    },
+    {
+      "call_id": "call-3",
+      "attempt_id": "att-1",
+      "purpose": "answer",
+      "status": "completed",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0,
+      "usage_state": "zero_calls",
+      "measurement_source": "runtime_confirmed_no_llm",
+      "display": {
+        "summary": "本轮未调用模型 · 0 tokens",
+        "forbid_zero": false,
+        "note": "Distinct from unknown: framework confirmed zero model calls"
+      }
+    },
+    {
+      "call_id": "call-4",
+      "attempt_id": "att-2",
+      "purpose": "repair",
+      "status": "cancelled",
+      "input_tokens": 50,
+      "output_tokens": null,
+      "total_tokens": null,
+      "usage_state": "partial",
+      "measurement_source": "stream_partial",
+      "display": {
+        "summary": "至少 50 tokens · 另有用量未知",
+        "forbid_zero": true
+      }
+    }
+  ],
+  "invariants": [
+    "null numeric fields stay null",
+    "usage_state=unknown never displays as 0",
+    "token_cost from Marqdo Agent equals tokens, never currency",
+    "unique key is (call_id, attempt_id)"
+  ]
+}

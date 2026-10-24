@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "description": "Q00 ModelSelection contract — manual default; policy must list allowed models",
+  "examples": [
+    {
+      "mode": "manual",
+      "model_id": "mdl-legacy-default",
+      "revision": 1
+    },
+    {
+      "mode": "policy",
+      "model_id": "mdl-2",
+      "policy_id": "pol-workspace-default",
+      "revision": 3
+    }
+  ],
+  "invariants": [
+    "mode is manual|policy",
+    "manual is the product default",
+    "policy requires policy_id and an explicit allow-list",
+    "chat submits model_id only; base_url and secrets never come from the client"
+  ]
+}
