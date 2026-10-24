@@ -5,11 +5,14 @@ description: >-
   Thin OpenAI-compatible request adapter — HTTP concerns stay outside;
   domain work delegates to agent/qdagent (no Python Agent loop).
   Upstream path always runs `precheck` first (EFI gate + optional product Preflight).
+  Passes full messages + explicit model selection into qd.run (Q02).
 import:
   qd: ../agent/qdagent.mq.md
   pf: ../agent/preflight.mq.md
   auth: auth.mq.md
   session: ../execution/session.mq.md
+  registry: ../lib/registry.mq.md
+  turns: ../execution/turns.mq.md
   json: lib/json.mq.md
   table: lib/table.mq.md
 ---
@@ -104,18 +107,22 @@ optional product Preflight so EFI chat always has a Context Pack handle.
 *ret*
 
 ## chat
-    + `message`
+    + `message`=""
+    + `messages`=None
     + `mode`=""
     + `root`="."
     + `out`=".marqdo"
     + `session_id`=""
+    + `model_id`=""
+    + `selection`=None
+    + `turn_id`=""
+    + `workspace_id`=""
     + `authorization`=""
     + `api_key`=""
     + `payload`=None
 
-Map one user message to qdagent.run. Auth gate first (design §20/§46: credential
-vs QDAGENT_API_KEY + tracing headers X-QDAgent-*), then precheck (with product
-Preflight); deny never reaches Agent.
+Map conversation to qdagent.run. Auth gate first, then precheck; deny never reaches Agent.
+Full `messages` preferred over last-user-only. Explicit selection freezes the model for this turn.
 
 **authres = > auth.check authorization=`authorization` api_key=`api_key` payload=`payload`**
 **aok = > json.get value=`authres` key="ok"**
@@ -128,6 +135,32 @@ Preflight); deny never reaches Agent.
   | False | `areason` |  | deny | `mode` | unauthorized | unauthorized |
 
   *authdeny*
+
+1. `payload`
+  **pm = > json.get value=`payload` key="messages"**
+  1. `pm`
+    **messages = `pm`**
+  **pmodel = > json.get value=`payload` key="model"**
+  1. `pmodel`
+    1. not `model_id`
+      **model_id = `pmodel`**
+  **psel = > json.get value=`payload` key="selection"**
+  1. `psel`
+    **selection = `psel`**
+  **psid = > json.get value=`payload` key="session_id"**
+  1. `psid`
+    **session_id = `psid`**
+  **ptid = > json.get value=`payload` key="turn_id"**
+  1. `ptid`
+    **turn_id = `ptid`**
+  **pws = > json.get value=`payload` key="workspace_id"**
+  1. `pws`
+    **workspace_id = `pws`**
+
+1. `messages`
+  **message = > qd.compose_messages messages=`messages` fallback=`message`**
+1. not `message`
+  **message = ""**
 
 **gate = > precheck message=`message` root=`root` out=`out` with_preflight=True**
 **gd = [decision](access(gate, "decision"))**
@@ -145,9 +178,23 @@ Preflight); deny never reaches Agent.
 1. `mode` == ""
   **mode = > classify text=`message`**
 
-**agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out` session_id=`session_id`**
+1. `model_id` == "qdagent"
+  **model_id = ""**
+2. `model_id` == "qdagent-fast"
+  **model_id = ""**
+
+1. not `selection`
+  1. `model_id`
+    **selection = > json.parse text="{\"mode\":\"manual\",\"model_id\":\"" + `model_id` + "\"}"**
+
+1. not `turn_id`
+  **created = > turns.create session_id=`session_id` workspace_id=`workspace_id` model_id=`model_id` payload=`payload`**
+  **turn_id = [turn_id](access(created, "turn_id"))**
+
+**agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` messages=`messages`**
 **ok = [ok](access(agent_out, "ok"))**
 1. not `ok`
+  > turns.complete turn_id=`turn_id` state="failed" usage_state="unknown" error="agent_failed"
   *agent_out*
 
 **result = > json.get value=`agent_out` key="result"**
@@ -163,6 +210,7 @@ Preflight); deny never reaches Agent.
 **slug = > json.get value=`agent_out` key="slug"**
 **decision = > json.get value=`agent_out` key="decision"**
 **sid = > json.get value=`agent_out` key="session_id"**
+**model_pub = > json.get value=`agent_out` key="model"**
 1. not `sid`
   **sid = `session_id`**
 1. not `sid`
@@ -176,10 +224,16 @@ Preflight); deny never reaches Agent.
   **live_ok = False**
 3. *
   **_ = 1**
+
+1. `live_ok`
+  > turns.complete turn_id=`turn_id` state="completed" usage_state="unknown"
+2. *
+  > turns.complete turn_id=`turn_id` state="failed" usage_state="unknown" error=`err`
+
 `ret` =
 
-| ok | content | run_id | decision | mode | status | error | context_path | session_id | raw |
-|----|---------|--------|----------|------|--------|-------|--------------|------------|-----|
-| `live_ok` | `result` | `slug` | `decision` | `mode` | `st` | `err` | `ctx` | `sid` | `agent_out` |
+| ok | content | run_id | decision | mode | status | error | context_path | session_id | turn_id | model | raw |
+|----|---------|--------|----------|------|--------|-------|--------------|------------|---------|-------|-----|
+| `live_ok` | `result` | `slug` | `decision` | `mode` | `st` | `err` | `ctx` | `sid` | `turn_id` | `model_pub` | `agent_out` |
 
 *ret*

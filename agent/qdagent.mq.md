@@ -26,6 +26,8 @@ import:
   llm: ext/ai/llm.mq.md
   plugin: lib/plugin.mq.md
   db: ../db/index.mq.md
+  registry: ../lib/registry.mq.md
+  usage: ../execution/usage.mq.md
   sys: lib/sys.mq.md
   json: lib/json.mq.md
   table: lib/table.mq.md
@@ -135,8 +137,12 @@ not a columnar GFM table (agent.run iterates tool names).
 *t*
 
 ## ensure_llm
+    + `model_id`=""
+    + `selection`=None
 
-Load LLM credentials: process env → `.env` → `data/qdagent.db` settings.
+Resolve LLM credentials for this call via registry snapshot.
+When `model_id` / `selection` is set, do **not** write process env (concurrent sessions).
+Legacy path (no selection): env → `.env` → settings, may seed env for single-tenant CLI.
 Set `QDAGENT_DRY=1` to skip credentials (force dry-run / no upstream LLM).
 
 **dry = > sys.env_get name="QDAGENT_DRY"**
@@ -145,18 +151,30 @@ Set `QDAGENT_DRY=1` to skip credentials (force dry-run / no upstream LLM).
 1. `dry` == "true"
   *""*
 
+1. `model_id`
+  **snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
+  **sok = [ok](access(snap, "ok"))**
+  1. `sok`
+    **key = [api_key](access(snap, "api_key"))**
+    *key*
+1. `selection`
+  **snap2 = > registry.resolve_selection model_id=`model_id` selection=`selection`**
+  **sok2 = [ok](access(snap2, "ok"))**
+  1. `sok2`
+    **key2 = [api_key](access(snap2, "api_key"))**
+    *key2*
+
 > llm.load_env path=".env"
 **key = > sys.env_get name="OPENAI_API_KEY"**
 1. not `key`
   **key = > sys.env_get name="MARQDO_LLM_API_KEY"**
 1. not `key`
-  **store = > db.open**
-  **rows = > `store`.select table="settings" limit=1**
-  **cfg = [1](access(rows, "1"))**
-  1. `cfg`
-    **key = [llm_api_key](access(cfg, "llm_api_key"))**
-    **base = [llm_base_url](access(cfg, "llm_base_url"))**
-    **model = [llm_model](access(cfg, "llm_model"))**
+  **snap3 = > registry.resolve_selection model_id="" selection=None**
+  **sok3 = [ok](access(snap3, "ok"))**
+  1. `sok3`
+    **key = [api_key](access(snap3, "api_key"))**
+    **base = [base_url](access(snap3, "base_url"))**
+    **model = [upstream_model_id](access(snap3, "upstream_model_id"))**
     1. `key`
       > sys.env_set name="OPENAI_API_KEY" value=`key`
     1. `base`
@@ -182,11 +200,28 @@ Load Marqdo agent ABI plugin once (no LLM required).
 ## make_agent
     + `standing`
     + `tools`=None
+    + `model_id`=""
+    + `selection`=None
+    + `snap`=None
 
-Construct Marqdo agent (loads agent plugin + LLM handle). Call only when API key present.
+Construct Marqdo agent with an explicit LLM handle when selection/snap is provided.
+Never relies on mutating process env for the selected model.
 
 1. not `tools`
   **tools = > eng_tools**
+1. not `snap`
+  1. `model_id`
+    **snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
+  2. `selection`
+    **snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
+1. `snap`
+  **sok = [ok](access(snap, "ok"))**
+  1. `sok`
+    **base = [base_url](access(snap, "base_url"))**
+    **key = [api_key](access(snap, "api_key"))**
+    **uname = [upstream_model_id](access(snap, "upstream_model_id"))**
+    **model = > llm.create model=`uname` base_url=`base` api_key=`key` backend="openai-compatible"**
+    *> agent.agent model=`model` tools=`tools` standing=`standing`*
 **model = > llm.llm**
 *> agent.agent model=`model` tools=`tools` standing=`standing`*
 
@@ -432,9 +467,14 @@ of regenerating from scratch.
     + `root`="."
     + `out`=".marqdo"
     + `session_id`=""
+    + `model_id`=""
+    + `selection`=None
+    + `turn_id`=""
+    + `workspace_id`=""
 
 ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No host mutation.
 The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo doc.
+Model selection is frozen for this call via `model_id` / `selection` (no env clobber).
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
 **ok = > json.get value=`pack` key="ok"**
@@ -458,7 +498,8 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
 **slug = > json.get value=`wb` key="slug"**
 > attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
 
-**key = > ensure_llm**
+**snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
+**key = > ensure_llm model_id=`model_id` selection=`selection`**
 **result = ""**
 **mode = "dry"**
 **status = "dry"**
@@ -467,7 +508,7 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
 **gated_out = ""**
 1. `key`
   **standing = > 契约提示 mode="ask"**
-  **助手 = > make_agent standing=`standing`**
+  **助手 = > make_agent standing=`standing` model_id=`model_id` selection=`selection` snap=`snap`**
   **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="marqdo" max_rounds=3 sandbox=False**
   **ao_s = > json.stringify value=`agent_out`**
   **is_map = > text.contains text=`ao_s` sub="\"status\""**
@@ -517,6 +558,10 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
     **mode = "error"**
     **result = `raw`**
   > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated` gate_out=`gated_out`
+  **pub = > registry.public_snapshot snap=`snap`**
+  **ms = > json.stringify value=`pub`**
+  **mid = [model_id](access(snap, "model_id"))**
+  > usage.record_from_agent agent_out=`agent_out` run_id=`slug` session_id=`session_id` turn_id=`turn_id` workspace_id=`workspace_id` purpose="answer" model_id=`mid` model_snapshot=`ms`
 2. *
   **result = "（无 API Key）Preflight decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
@@ -528,11 +573,12 @@ The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo d
 > run.put_section slug=`slug` section="Metrics" content=`kpi_s`
 **sess = > session.link session_id=`session_id` surface="ask" workbook_slug=`slug` run_id=`slug`**
 **sid = > json.get value=`sess` key="session_id"**
+**model_pub = > registry.public_snapshot snap=`snap`**
 `ret` =
 
-| ok | mode | slug | decision | context_path | status | error | result | session_id |
-|----|------|------|----------|--------------|--------|-------|--------|------------|
-| True | `mode` | `slug` | `decision` | `path` | `status` | `err` | `result` | `sid` |
+| ok | mode | slug | decision | context_path | status | error | result | session_id | model |
+|----|------|------|----------|--------------|--------|-------|--------|------------|-------|
+| True | `mode` | `slug` | `decision` | `path` | `status` | `err` | `result` | `sid` | `model_pub` |
 
 *ret*
 
@@ -659,6 +705,7 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent → verify �
   **path = [context_path](access(gated, "context_path"))**
 
 **key = > ensure_llm**
+**snap = > registry.resolve_selection model_id="" selection=None**
 **result = ""**
 **mode = "dry"**
 **status = "dry"**
@@ -681,11 +728,12 @@ REUSE path: actual bind_execute before LLM CREATE (discovery_only is never succe
     **status = "ok"**
     **result = > json.stringify value=`reuse_trace`**
     > run.put_section slug=`slug` section="ActualReuse" content=`result`
+    > usage.record call_id="call-" + `slug` attempt_id="1" run_id=`slug` session_id=`session_id` purpose="answer" status="completed" input_tokens=0 output_tokens=0 total_tokens=0 usage_state="zero_calls" measurement_source="runtime_confirmed_no_llm"
 
 1. not `actual_reuse`
   1. `key`
     **standing = > 契约提示 mode="build"**
-    **助手 = > make_agent standing=`standing`**
+    **助手 = > make_agent standing=`standing` snap=`snap`**
     **use_sandbox = False**
     1. `decision` == "CREATE"
       **use_sandbox = `sandbox`**
@@ -842,17 +890,53 @@ LEARN — feed Marqdo knowledge learn (official compiler). Optional quarantine o
 
 *ret*
 
+## compose_messages
+    + `messages`
+    + `fallback`=""
+
+Compose a single task string from OpenAI-style messages. Preserves role boundaries;
+does not drop the latest user message.
+
+1. not `messages`
+  *fallback*
+**joined = ""**
+**n = 0**
+- [m](遍历 messages 为 m)
+  **role = > json.get value=`m` key="role"**
+  **content = > json.get value=`m` key="content"**
+  1. `content`
+    1. not `role`
+      **role = "user"**
+    1. `joined`
+      **joined = `joined` + "\n\n[" + `role` + "]\n" + `content`**
+    2. *
+      **joined = "[" + `role` + "]\n" + `content`**
+    **n = `n` + 1**
+1. `n` == 0
+  *fallback*
+*joined*
+
 ## run
     + `task`
     + `mode`="build"
     + `root`="."
     + `out`=".marqdo"
     + `session_id`=""
+    + `model_id`=""
+    + `selection`=None
+    + `messages`=None
+    + `turn_id`=""
+    + `workspace_id`=""
 
 Dispatch ASK / BUILD / LEARN. Optional `session_id` links server Session (D10).
+`model_id` / `selection` freeze the ModelSelection for this turn (Q02).
+When `messages` is provided, compose full history into `task` (no last-user-only ping).
+
+1. `messages`
+  **task = > compose_messages messages=`messages` fallback=`task`**
 
 1. `mode` == "ask"
-  *> ask task=`task` root=`root` out=`out` session_id=`session_id`*
+  *> ask task=`task` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id`*
 2. `mode` == "learn"
   *> learn task=`task` root=`root` out=`out`*
 3. *

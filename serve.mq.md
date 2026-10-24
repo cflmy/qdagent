@@ -121,6 +121,22 @@ import:
 | /api/eng/workbooks | POST | api.eng_workbooks | json | json |
 | /api/eng/workbook | POST | api.eng_workbook | json | json |
 | /api/eng/today | GET | api.eng_today | query | json |
+| /api/app/providers | GET | api.app_providers | query | json |
+| /api/app/providers/save | POST | api.app_providers_save | json | json |
+| /api/app/models | GET | api.app_models | query | json |
+| /api/app/models/save | POST | api.app_models_save | json | json |
+| /api/app/usage/query | POST | api.app_usage_query | json | json |
+| /api/app/workspaces | GET | api.app_workspaces | query | json |
+| /api/app/workspaces/save | POST | api.app_workspaces_save | json | json |
+| /api/app/documents/read | POST | api.app_documents_read | json | json |
+| /api/app/citations/resolve | POST | api.app_citations_resolve | json | json |
+| /api/app/uploads/create | POST | api.app_uploads_create | json | json |
+| /api/app/imports/start | POST | api.app_imports_start | json | json |
+| /api/app/imports/get | POST | api.app_imports_get | json | json |
+| /api/app/profile/items | POST | api.app_profile_items | json | json |
+| /api/app/profile/propose | POST | api.app_profile_propose | json | json |
+| /api/app/profile/set_status | POST | api.app_profile_set_status | json | json |
+| /api/app/turns/cancel | POST | api.app_turns_cancel | json | json |
 
 **接口 = > ui.接口**
 

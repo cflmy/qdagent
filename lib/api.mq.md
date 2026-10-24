@@ -35,6 +35,9 @@ import:
   eng_reuse_met: ../knowledge/metrics_reuse.mq.md
   text: lib/text.mq.md
   settings: ../db/settings.mq.md
+  registry: lib/registry.mq.md
+  workbench: lib/workbench.mq.md
+  turns: ../execution/turns.mq.md
 ---
 
 ## 成功
@@ -1161,6 +1164,68 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
 
 *out*
 
+## app_providers
+*> registry.list_providers*
+
+## app_providers_save
+    + `payload`=None
+*> registry.save_provider payload=`payload`*
+
+## app_models
+    + `workspace_id`=""
+*> registry.list_models workspace_id=`workspace_id`*
+
+## app_models_save
+    + `payload`=None
+*> registry.save_model payload=`payload`*
+
+## app_usage_query
+    + `payload`=None
+*> workbench.usage_query payload=`payload`*
+
+## app_workspaces
+*> workbench.workspaces_list*
+
+## app_workspaces_save
+    + `payload`=None
+*> workbench.workspaces_save payload=`payload`*
+
+## app_documents_read
+    + `payload`=None
+*> workbench.documents_read payload=`payload`*
+
+## app_citations_resolve
+    + `payload`=None
+*> workbench.citations_resolve payload=`payload`*
+
+## app_uploads_create
+    + `payload`=None
+*> workbench.uploads_create payload=`payload`*
+
+## app_imports_start
+    + `payload`=None
+*> workbench.imports_start payload=`payload`*
+
+## app_imports_get
+    + `payload`=None
+*> workbench.imports_get payload=`payload`*
+
+## app_profile_items
+    + `payload`=None
+*> workbench.profile_items_get payload=`payload`*
+
+## app_profile_propose
+    + `payload`=None
+*> workbench.profile_items_propose payload=`payload`*
+
+## app_turns_cancel
+    + `payload`=None
+*> workbench.turns_cancel payload=`payload`*
+
+## app_profile_set_status
+    + `payload`=None
+*> workbench.profile_items_set_status payload=`payload`*
+
 ## v1_chat_completions
     + `messages`=""
     + `model`="qdagent"
@@ -1170,11 +1235,13 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
     + `payload`=None
 
 OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` (C2b).
+Accepts full `messages` history and optional `selection.model_id` / `model_id` (Q02).
 
 **auth = > _v1_check_bearer authorization=`authorization` api_key=`api_key` payload=`payload`**
 **aok = > json.get value=`auth` key="ok"**
 1. not `aok`
   *auth*
+**selection_model_id = ""**
 1. `payload`
   **pm = > json.get value=`payload` key="messages"**
   1. `pm`
@@ -1187,7 +1254,13 @@ OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` 
     **stream = True**
   2. `ps` == "true"
     **stream = True**
+  **sel = > json.get value=`payload` key="selection"**
+  1. `sel`
+    **selection_model_id = > json.get value=`sel` key="model_id"**
+  1. not `selection_model_id`
+    **selection_model_id = > json.get value=`payload` key="model_id"**
 **task = ""**
+**history = > table.empty_list**
 1. `messages`
   **arr = > json.parse text="[]"**
   1. `messages` == ""
@@ -1198,15 +1271,20 @@ OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` 
     - [m](遍历 arr 为 m)
       **role = > json.get value=`m` key="role"**
       **content = > json.get value=`m` key="content"**
+      1. `role`
+        1. `content`
+          **history = > table.append list=`history` item=`m`**
       1. `role` == "user"
         1. `content`
           **task = `content`**
 1. not `task`
-  **task = "ping"**
-**chat = > eng_openai.chat message=`task` mode="" authorization=`authorization` api_key=`api_key` payload=`payload`**
+  *> 失败 error="empty messages: latest user content required"*
+**chat = > eng_openai.chat message=`task` mode="" authorization=`authorization` api_key=`api_key` payload=`payload` model_id=`selection_model_id` messages=`history`**
 **content = [content](access(chat, "content"))**
 **run_id = [run_id](access(chat, "run_id"))**
 **cok = [ok](access(chat, "ok"))**
+**turn_id = [turn_id](access(chat, "turn_id"))**
+**model_pub = [model](access(chat, "model"))**
 1. not `cok`
   1. not `content`
     **content = [error](access(chat, "error"))**
@@ -1229,23 +1307,23 @@ OpenAI-compatible `POST /v1/chat/completions` — EFI via `gateway/openai.chat` 
 **choices = > table.empty_list**
 **choices = > table.append list=`choices` item=`choice`**
 1. `stream`
-  **delta_s = > json.stringify value=`content`**
-  **cok_s = "false"**
-  1. `cok`
-    **cok_s = "true"**
-  **chunk = "{\"id\":\"" + `cid` + "\",\"object\":\"chat.completion.chunk\",\"created\":" + `u` + ",\"model\":\"" + `model` + "\",\"ok\":" + `cok_s` + ",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":" + `delta_s` + "},\"finish_reason\":\"stop\"}]}"**
-  **sse = "data: " + `chunk` + "\n\ndata: [DONE]\n\n"**
+  **ms = "{}"**
+  1. `model_pub`
+    **ms = > json.stringify value=`model_pub`**
+  **events = > turns.sse_events turn_id=`turn_id` content=`content` model_snapshot=`ms` ok=`cok`**
+  **sse = [sse](access(events, "sse"))**
+  **contract = [streaming_contract](access(events, "streaming_contract"))**
   `sse_out` =
 
-  | sse | run_id | ok |
-  |-----|--------|-----|
-  | `sse` | `run_id` | `cok` |
+  | sse | run_id | ok | turn_id | streaming_contract | model |
+  |-----|--------|----|---------|--------------------|-------|
+  | `sse` | `run_id` | `cok` | `turn_id` | `contract` | `model_pub` |
 
   *sse_out*
 `out` =
 
-| id | object | created | model | choices | qdagent_run_id | ok |
-|----|--------|---------|-------|---------|----------------|-----|
-| `cid` | chat.completion | `u` | `model` | `choices` | `run_id` | `cok` |
+| id | object | created | model | choices | qdagent_run_id | ok | turn_id | model_snapshot |
+|----|--------|---------|-------|---------|----------------|-----|---------|----------------|
+| `cid` | chat.completion | `u` | `model` | `choices` | `run_id` | `cok` | `turn_id` | `model_pub` |
 
 *out*
