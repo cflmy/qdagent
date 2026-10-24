@@ -25,6 +25,7 @@
 10. [分阶段任务路线图](roadmap/07-task-roadmap.md) ← 以 2.0 为准  
 11. [**Marqdo 能力缺口**](gaps/01-marqdo-hard-limits.md) ← GAP-13 CLOSED（C2a）  
 12. [Marqdo 解析 / 运行时缺陷](gaps/02-marqdo-parser-and-runtime.md)  
+13. [**知识沉淀、文档导入与原生能力接入缺口（2026-10-24）**](gaps/03-knowledge-ingestion-and-sedimentation-2026-10-24.md) — 当前源码审计、提示词契约、跨库分工与验收；含 Marqdo 2.1.1 复现结果，非已交付声明。
 
 ## 目录结构
 
