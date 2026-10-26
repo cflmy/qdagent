@@ -117,7 +117,7 @@ import:
 | /api/eng/import | POST | api.eng_import | json | json |
 | /api/eng/policies | POST | api.eng_policies | json | json |
 | /v1/models | GET | api.v1_models | query | json |
-| /v1/chat/completions | POST | api.v1_chat_completions | json | json |
+| /v1/chat/completions | POST | api.v1_chat_completions | json | sse-live |
 | /api/eng/workbooks | POST | api.eng_workbooks | json | json |
 | /api/eng/workbook | POST | api.eng_workbook | json | json |
 | /api/eng/today | GET | api.eng_today | query | json |

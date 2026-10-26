@@ -12,12 +12,14 @@ import:
   text: lib/text.mq.md
   fs: lib/fs.mq.md
   sys: lib/sys.mq.md
+  net: lib/net.mq.md
 ---
 
 ## list_providers
 
-Ensure legacy settings migration before listing (T17 idempotent).
+Ensure legacy settings migration + credential repair before listing (T17 idempotent).
 > migrate_legacy_settings
+> repair_legacy_credentials
 
 **store = > db.open**
 **rows = > `store`.select table="providers" limit=200 order="-updated_at"**
@@ -97,14 +99,25 @@ Catalog of enabled models (no secrets). Optional workspace filter reserved.
       **prov = > `store`.get table="providers" id=`pid`**
       **pname = ""**
       **adapter = ""**
+      **cred_ok = False**
       1. `prov`
         **pname = [display_name](access(prov, "display_name"))**
         **adapter = [adapter](access(prov, "adapter"))**
+        **cref = [credential_ref](access(prov, "credential_ref"))**
+        **auth = [auth_mode](access(prov, "auth_mode"))**
+        1. `auth` == "none"
+          **cred_ok = True**
+        1. `cref`
+          **cred = > `store`.get table="credentials" id=`cref`**
+          1. `cred`
+            **sec = [secret](access(cred, "secret"))**
+            1. `sec`
+              **cred_ok = True**
       `mrow` =
 
-      | id | provider_id | provider_name | adapter | upstream_model_id | display_name | enabled | revision |
-      |----|-------------|---------------|---------|-------------------|--------------|---------|----------|
-      | `mid` | `pid` | `pname` | `adapter` | `uname` | `dname` | `en` | `rev` |
+      | id | provider_id | provider_name | adapter | upstream_model_id | display_name | enabled | revision | credential_configured |
+      |----|-------------|---------------|---------|-------------------|--------------|---------|----------|------------------------|
+      | `mid` | `pid` | `pname` | `adapter` | `uname` | `dname` | `en` | `rev` | `cred_ok` |
 
       **out = > table.append list=`out` item=`mrow`**
 `ret` =
@@ -360,6 +373,40 @@ Never echoes secrets.
   | False | provider not found | resource.not_found |
 
   *nfp*
+
+**existing_mid = ""**
+**allm = > `store`.select table="models" limit=500**
+1. `allm`
+  - [em](遍历 allm 为 em)
+    **epid = [provider_id](access(em, "provider_id"))**
+    **eup = [upstream_model_id](access(em, "upstream_model_id"))**
+    1. `epid` == `pid`
+      1. `eup` == `uname`
+        **existing_mid = [id](access(em, "id"))**
+1. `existing_mid`
+  **cur2 = > `store`.get table="models" id=`existing_mid`**
+  **crev2 = [revision](access(cur2, "revision"))**
+  **nrev2 = `crev2` + 1**
+  **row2 = > table.empty_map**
+  1. `dname`
+    **row2 = > table.put in=`row2` at="display_name" value=`dname`**
+  1. `enabled` == False
+    **row2 = > table.put in=`row2` at="enabled" value=0**
+  2. `enabled` == 0
+    **row2 = > table.put in=`row2` at="enabled" value=0**
+  3. *
+    **row2 = > table.put in=`row2` at="enabled" value=1**
+  **row2 = > table.put in=`row2` at="revision" value=`nrev2`**
+  **row2 = > table.put in=`row2` at="updated_at" value=`u`**
+  > `store`.update table="models" id=`existing_mid` row=`row2`
+  `okup` =
+
+  | ok | id | revision | upserted |
+  |----|----|----------|----------|
+  | True | `existing_mid` | `nrev2` | True |
+
+  *okup*
+
 1. not `mid`
   **mid = "mdl-" + `u`**
 `mrow` =
@@ -381,8 +428,8 @@ Never echoes secrets.
     + `model_id`=""
     + `selection`=None
 
-Resolve a ModelSnapshot for this request. Returns handle fields without writing process env.
-Fallback: legacy default model, then settings row.
+Resolve a ModelSnapshot for this request from the provider registry only.
+Never reads settings.llm_* or process env for secrets / model identity.
 
 1. `selection`
   **sm = > json.get value=`selection` key="model_id"**
@@ -397,22 +444,13 @@ Fallback: legacy default model, then settings row.
     **model_id = [id](access(d0, "id"))**
 
 1. not `model_id`
-  **cfg_rows = > `store`.select table="settings" limit=1**
-  **cfg = [1](access(cfg_rows, "1"))**
-  **key = [llm_api_key](access(cfg, "llm_api_key"))**
-  **base = [llm_base_url](access(cfg, "llm_base_url"))**
-  **model = [llm_model](access(cfg, "llm_model"))**
-  1. not `base`
-    **base = "https://api.openai.com/v1"**
-  1. not `model`
-    **model = "gpt-4o-mini"**
-  `legacy` =
+  `none` =
 
-  | ok | model_id | provider_id | upstream_model_id | display_name | adapter | base_url | api_key | credential_ref | credential_version | revision |
-  |----|----------|-------------|-------------------|--------------|---------|----------|---------|----------------|--------------------|----------|
-  | True |  |  | `model` | `model` | openai-compatible | `base` | `key` |  | 0 | 0 |
+  | ok | error | code |
+  |----|-------|------|
+  | False | no model configured — open Settings → 模型 | model.unavailable |
 
-  *legacy*
+  *none*
 
 **mod = > `store`.get table="models" id=`model_id`**
 1. not `mod`
@@ -477,15 +515,93 @@ Fallback: legacy default model, then settings row.
 
 *snap*
 
+## repair_legacy_credentials
+
+One-shot heal: if historical `settings.llm_api_key` has a secret but
+`cred-legacy-default` is missing/empty, copy into the registry credential.
+Runtime never reads settings afterward — Settings UI writes providers only.
+
+**store = > db.open**
+**cfg_rows = > `store`.select table="settings" limit=1**
+**cfg = [1](access(cfg_rows, "1"))**
+1. not `cfg`
+  *False*
+**key = [llm_api_key](access(cfg, "llm_api_key"))**
+**base = [llm_base_url](access(cfg, "llm_base_url"))**
+**model = [llm_model](access(cfg, "llm_model"))**
+1. not `key`
+  *False*
+
+**u = > time.now_unix**
+**cref = "cred-legacy-default"**
+**cred = > `store`.get table="credentials" id=`cref`**
+**need = True**
+1. `cred`
+  **sec = [secret](access(cred, "secret"))**
+  1. `sec`
+    **need = False**
+1. `need`
+  1. `cred`
+    **cv = [version](access(cred, "version"))**
+    **nv = `cv` + 1**
+    `cpatch` =
+
+    | secret | configured | version | updated_at |
+    |--------|------------|---------|------------|
+    | `key` | 1 | `nv` | `u` |
+
+    > `store`.update table="credentials" id=`cref` row=`cpatch`
+  2. *
+    `cins` =
+
+    | id | version | secret | configured | owner_scope | created_at | updated_at |
+    |----|---------|--------|------------|-------------|------------|------------|
+    | `cref` | 1 | `key` | 1 | app | `u` | `u` |
+
+    > `store`.insert table=credentials rows=`cins`
+
+**prov = > `store`.get table="providers" id="prov-legacy-default"**
+1. `prov`
+  **ppatch = > table.empty_map**
+  **ppatch = > table.put in=`ppatch` at="credential_ref" value=`cref`**
+  **ppatch = > table.put in=`ppatch` at="updated_at" value=`u`**
+  1. `base`
+    **ppatch = > table.put in=`ppatch` at="base_url" value=`base`**
+  > `store`.update table="providers" id="prov-legacy-default" row=`ppatch`
+2. *
+  1. not `base`
+    **base = "https://api.openai.com/v1"**
+  `prow` =
+
+  | id | display_name | adapter | base_url | auth_mode | enabled | credential_ref | revision | created_at | updated_at |
+  |----|--------------|---------|----------|-----------|---------|----------------|----------|------------|------------|
+  | prov-legacy-default | Legacy settings | openai-compatible | `base` | api_key | 1 | `cref` | 1 | `u` | `u` |
+
+  > `store`.insert table=providers rows=`prow`
+
+1. `model`
+  **mod = > `store`.get table="models" id="mdl-legacy-default"**
+  1. not `mod`
+    `mrow` =
+
+    | id | provider_id | upstream_model_id | display_name | enabled | capabilities | limits | default_params | revision | created_at | updated_at |
+    |----|-------------|-------------------|--------------|---------|--------------|--------|----------------|----------|------------|------------|
+    | mdl-legacy-default | prov-legacy-default | `model` | `model` | 1 |  |  |  | 1 | `u` | `u` |
+
+    > `store`.insert table=models rows=`mrow`
+*True*
+
 ## migrate_legacy_settings
 
 Idempotent T17: seed one legacy provider + model from the single-row settings table.
 Re-running must not insert duplicates (stable ids `prov-legacy-default` / `mdl-legacy-default`).
+When already present, `repair_legacy_credentials` heals empty secrets from settings once.
 
 **store = > db.open**
 **u = > time.now_unix**
 **existing = > `store`.get table="providers" id="prov-legacy-default"**
 1. `existing`
+  > repair_legacy_credentials
   `done` =
 
   | ok | migrated | idempotent | provider_id | model_id |
@@ -617,7 +733,6 @@ Native/non openai-compatible adapters report honest `unavailable`.
 
   *unavail*
 
-Soft rate-limit: if a same-second stamp already exists for this provider, refuse.
 **data = > sys.env_get name="QDAGENT_DATA"**
 1. not `data`
   **data = "data"**
@@ -642,27 +757,94 @@ Soft rate-limit: if a same-second stamp already exists for this provider, refuse
 
 **base = > json.get value=`prov` key="base_url"**
 **cref = > json.get value=`prov` key="credential_ref"**
+**auth = > json.get value=`prov` key="auth_mode"**
 **configured = False**
+**sec = ""**
 1. `cref`
   **cred = > `store`.get table="credentials" id=`cref`**
   1. `cred`
     **sec = > json.get value=`cred` key="secret"**
     1. `sec`
       **configured = True**
-`okp` =
+1. `auth` == "none"
+  **configured = True**
 
-| ok | status | adapter | base_url | credential_configured | rate_limited | probed_at |
-|----|--------|---------|----------|------------------------|--------------|-----------|
-| True | reachable_config | `adapter` | `base` | `configured` | False | `u` |
+1. not `base`
+  `nobase` =
 
-*okp*
+  | ok | status | adapter | credential_configured | rate_limited | may_incur_cost | note |
+  |----|--------|---------|------------------------|--------------|----------------|------|
+  | False | unreachable | `adapter` | `configured` | False | False | "base_url missing" |
+
+  *nobase*
+
+**url = `base` + "/models"**
+**auth_header = "Bearer " + `sec`**
+**headers = > table.empty_map**
+1. `sec`
+  **headers = > table.put in=`headers` at="Authorization" value=`auth_header`**
+
+**t0 = > time.now_unix**
+**resp = > net.http_get url=`url` headers=`headers`**
+**t1 = > time.now_unix**
+**latency = `t1` - `t0`**
+1. not `resp`
+  `unreach` =
+
+  | ok | status | adapter | base_url | credential_configured | rate_limited | may_incur_cost | latency_ms | probed_at | note |
+  |----|--------|---------|----------|------------------------|--------------|----------------|------------|-----------|------|
+  | False | unreachable | `adapter` | `base` | `configured` | False | False | 0 | `u` | "no response" |
+
+  *unreach*
+
+**status = > json.get value=`resp` key="status"**
+**body = > json.get value=`resp` key="body"**
+1. `status` == 401
+  `authf` =
+
+  | ok | status | adapter | base_url | credential_configured | rate_limited | may_incur_cost | latency_ms | probed_at | note |
+  |----|--------|---------|----------|------------------------|--------------|----------------|------------|-----------|------|
+  | False | auth_failed | `adapter` | `base` | `configured` | False | False | `latency` | `u` | "HTTP 401" |
+
+  *authf*
+1. `status` == 403
+  `authf2` =
+
+  | ok | status | adapter | base_url | credential_configured | rate_limited | may_incur_cost | latency_ms | probed_at | note |
+  |----|--------|---------|----------|------------------------|--------------|----------------|------------|-----------|------|
+  | False | auth_failed | `adapter` | `base` | `configured` | False | False | `latency` | `u` | "HTTP 403" |
+
+  *authf2*
+1. `status` == 200
+  `okp` =
+
+  | ok | status | adapter | base_url | credential_configured | rate_limited | may_incur_cost | latency_ms | probed_at |
+  |----|--------|---------|----------|------------------------|--------------|----------------|------------|-----------|
+  | True | ok | `adapter` | `base` | `configured` | False | False | `latency` | `u` |
+
+  *okp*
+1. `status` == 201
+  `okp2` =
+
+  | ok | status | adapter | base_url | credential_configured | rate_limited | may_incur_cost | latency_ms | probed_at |
+  |----|--------|---------|----------|------------------------|--------------|----------------|------------|-----------|
+  | True | ok | `adapter` | `base` | `configured` | False | False | `latency` | `u` |
+
+  *okp2*
+`fail` =
+
+| ok | status | adapter | base_url | credential_configured | rate_limited | may_incur_cost | latency_ms | probed_at | http_status | note |
+|----|--------|---------|----------|------------------------|--------------|----------------|------------|-----------|-------------|------|
+| False | unreachable | `adapter` | `base` | `configured` | False | False | `latency` | `u` | `status` | "upstream error" |
+
+*fail*
 
 ## discover
     + `provider_id`=""
     + `payload`=None
 
-List registered models for a provider (local catalog). Rate-limited like probe.
-Does not invent remote model lists for unavailable adapters.
+Fetch upstream OpenAI-compatible `/models` and return **candidates** (not auto-enabled).
+Registered models are marked `already_registered`. Native adapters: honest unavailable.
 
 1. `payload`
   **pp = > json.get value=`payload` key="provider_id"**
@@ -693,23 +875,108 @@ Does not invent remote model lists for unavailable adapters.
 2. *
   `unavail` =
 
-  | ok | status | adapter | models | note |
-  |----|--------|---------|--------|------|
+  | ok | status | adapter | candidates | note |
+  |----|--------|---------|------------|------|
   | True | unavailable | `adapter` |  | "native adapter not wired — honest unavailable" |
 
   *unavail*
 
-**mods = > `store`.select table="models" limit=200**
-**out = > table.empty_list**
+**base = > json.get value=`prov` key="base_url"**
+**cref = > json.get value=`prov` key="credential_ref"**
+**sec = ""**
+1. `cref`
+  **cred = > `store`.get table="credentials" id=`cref`**
+  1. `cred`
+    **sec = > json.get value=`cred` key="secret"**
+
+1. not `base`
+  `nob` =
+
+  | ok | status | error | code |
+  |----|--------|-------|------|
+  | False | unreachable | base_url missing | resource.not_found |
+
+  *nob*
+
+**url = `base` + "/models"**
+**auth_header = "Bearer " + `sec`**
+**headers = > table.empty_map**
+1. `sec`
+  **headers = > table.put in=`headers` at="Authorization" value=`auth_header`**
+
+**resp = > net.http_get url=`url` headers=`headers`**
+1. not `resp`
+  `ur` =
+
+  | ok | status | error |
+  |----|--------|-------|
+  | False | unreachable | no response |
+
+  *ur*
+**http_st = > json.get value=`resp` key="status"**
+**body = > json.get value=`resp` key="body"**
+1. `http_st` == 401
+  `af` =
+
+  | ok | status | error |
+  |----|--------|-------|
+  | False | auth_failed | HTTP 401 |
+
+  *af*
+1. `http_st` == 403
+  `af3` =
+
+  | ok | status | error |
+  |----|--------|-------|
+  | False | auth_failed | HTTP 403 |
+
+  *af3*
+1. `http_st` == 200
+  **_okhttp = True**
+2. `http_st` == 201
+  **_okhttp = True**
+3. *
+  `bad` =
+
+  | ok | status | error | http_status |
+  |----|--------|-------|-------------|
+  | False | unreachable | upstream error | `http_st` |
+
+  *bad*
+
+**parsed = > json.parse text=`body`**
+**data = > json.get value=`parsed` key="data"**
+**registered = > table.empty_map**
+**mods = > `store`.select table="models" limit=500**
 1. `mods`
   - [m](遍历 mods 为 m)
     **mp = > json.get value=`m` key="provider_id"**
     1. `mp` == `provider_id`
-      **out = > table.append list=`out` item=`m`**
+      **uid = > json.get value=`m` key="upstream_model_id"**
+      1. `uid`
+        **registered = > table.put in=`registered` at=`uid` value=True**
+
+**candidates = > table.empty_list**
+1. `data`
+  - [item](遍历 data 为 item)
+    **uid = > json.get value=`item` key="id"**
+    1. `uid`
+      **already = False**
+      **hit = > json.get value=`registered` key=`uid`**
+      1. `hit`
+        **already = True**
+      `cand` =
+
+      | upstream_model_id | display_name | already_registered |
+      |-------------------|--------------|--------------------|
+      | `uid` | `uid` | `already` |
+
+      **candidates = > table.append list=`candidates` item=`cand`**
+
 `ret` =
 
-| ok | provider_id | models | source |
-|----|-------------|--------|--------|
-| True | `provider_id` | `out` | "local_registry" |
+| ok | provider_id | candidates | source | status |
+|----|-------------|------------|--------|--------|
+| True | `provider_id` | `candidates` | "upstream_models" | ok |
 
 *ret*

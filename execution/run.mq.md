@@ -11,6 +11,7 @@ import:
   time: lib/time.mq.md
   sys: lib/sys.mq.md
   json: lib/json.mq.md
+  text: lib/text.mq.md
   table: lib/table.mq.md
 ---
 
@@ -262,11 +263,21 @@ Map display names to snake_case state keys.
     + `agent_out`
 
 Persist Marqdo 1.4.2 `usage` / `token_cost` / `execution` into Metrics (merge later with KPI read).
+Tolerates non-map `agent_out` (bare text / None) without `json get needs map`.
 
-**usage = > json.get value=`agent_out` key="usage"**
-**token_cost = > json.get value=`agent_out` key="token_cost"**
-**execution = > json.get value=`agent_out` key="execution"**
-**efi = > json.get value=`agent_out` key="efi"**
+**usage = None**
+**token_cost = None**
+**execution = None**
+**efi = None**
+**ao_s = > json.stringify value=`agent_out`**
+**ao_map = > text.starts_with text=`ao_s` prefix="{"**
+1. `ao_map`
+  **usage = > json.get value=`agent_out` key="usage"**
+  **token_cost = > json.get value=`agent_out` key="token_cost"**
+  **execution = > json.get value=`agent_out` key="execution"**
+  **efi = > json.get value=`agent_out` key="efi"**
+2. *
+  **_ = 1**
 `met` =
 
 | usage | token_cost | execution | efi |

@@ -71,9 +71,62 @@ import:
   > `store`.insert table=settings rows=`sseed`
 
 > migrate_legacy_settings store=`store`
+> repair_legacy_credentials store=`store`
 
 > run.同步库 store=`store`
 *store*
+
+## repair_legacy_credentials
+    + `store`
+
+If settings still holds a historical llm_api_key but registry credential is empty,
+copy once into `cred-legacy-default`. Runtime truth remains credentials only.
+
+**cfg_rows = > `store`.select table="settings" limit=1**
+**cfg = [1](access(cfg_rows, "1"))**
+1. not `cfg`
+  *False*
+**llm_key = [llm_api_key](access(cfg, "llm_api_key"))**
+**llm_base = [llm_base_url](access(cfg, "llm_base_url"))**
+1. not `llm_key`
+  *False*
+
+**cred = > `store`.get table="credentials" id="cred-legacy-default"**
+**sec = ""**
+1. `cred`
+  **sec = [secret](access(cred, "secret"))**
+1. `sec`
+  *False*
+
+**u = > time.now_unix**
+1. `cred`
+  **cv = [version](access(cred, "version"))**
+  **nv = `cv` + 1**
+  `cpatch` =
+
+  | secret | configured | version | updated_at |
+  |--------|------------|---------|------------|
+  | `llm_key` | 1 | `nv` | `u` |
+
+  > `store`.update table="credentials" id="cred-legacy-default" row=`cpatch`
+2. *
+  `cins` =
+
+  | id | version | secret | configured | owner_scope | created_at | updated_at |
+  |----|---------|--------|------------|-------------|------------|------------|
+  | cred-legacy-default | 1 | `llm_key` | 1 | app | `u` | `u` |
+
+  > `store`.insert table=credentials rows=`cins`
+
+**prov = > `store`.get table="providers" id="prov-legacy-default"**
+1. `prov`
+  **pp = > table.empty_map**
+  **pp = > table.put in=`pp` at="credential_ref" value="cred-legacy-default"**
+  **pp = > table.put in=`pp` at="updated_at" value=`u`**
+  1. `llm_base`
+    **pp = > table.put in=`pp` at="base_url" value=`llm_base`**
+  > `store`.update table="providers" id="prov-legacy-default" row=`pp`
+*True*
 
 ## migrate_legacy_settings
     + `store`

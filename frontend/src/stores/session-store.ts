@@ -3,9 +3,19 @@ import { immer } from 'zustand/middleware/immer'
 import { api, type ChatMessage, type ChatCompletionChunk } from '@/lib/api'
 import type { UsageInfo } from '@/components/chat/UsageFooter'
 
+/** Live execution trail — every agent step visible as it happens. */
+export interface ProcessStep {
+  id: string
+  kind: string
+  label: string
+  detail?: string
+}
+
 export interface SessionMessage extends ChatMessage {
   usage?: UsageInfo | null
   citations?: Array<{ id: string; label?: string; document_id?: string; node_id?: string }>
+  /** Streaming process / plan / tool / reasoning — never hidden. */
+  process?: ProcessStep[]
 }
 
 export interface Session {
@@ -32,6 +42,10 @@ interface SessionActions {
   setSessionModel: (sessionId: string, modelId: string) => void
   addMessage: (sessionId: string, msg: SessionMessage) => void
   updateLastAssistant: (sessionId: string, delta: string) => void
+  appendProcess: (
+    sessionId: string,
+    step: { kind: string; label: string; detail?: string; appendDetail?: boolean },
+  ) => void
   setLastUsage: (sessionId: string, usage: UsageInfo) => void
   finalizeAssistant: (sessionId: string) => void
   streamChat: (sessionId: string, signal?: AbortSignal) => Promise<void>
@@ -130,6 +144,29 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       })
     },
 
+    appendProcess: (sessionId, step) => {
+      set((state) => {
+        const session = state.sessions.find((s) => s.id === sessionId)
+        if (!session) return
+        const last = session.messages[session.messages.length - 1]
+        if (!last || last.role !== 'assistant') return
+        if (!last.process) last.process = []
+        if (step.appendDetail && last.process.length > 0) {
+          const prev = last.process[last.process.length - 1]
+          if (prev.kind === step.kind) {
+            prev.detail = (prev.detail || '') + (step.detail || '')
+            return
+          }
+        }
+        last.process.push({
+          id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          kind: step.kind,
+          label: step.label,
+          detail: step.detail,
+        })
+      })
+    },
+
     setLastUsage: (sessionId, usage) => {
       set((state) => {
         const session = state.sessions.find((s) => s.id === sessionId)
@@ -170,8 +207,20 @@ export const useSessionStore = create<SessionState & SessionActions>()(
 
       // Snapshot history BEFORE adding the empty assistant placeholder.
       // Using a stale snapshot + slice(0,-1) previously dropped the latest user message (A04).
+      // Drop empty / cancelled / prior dry-run stubs so they don't poison EFI task text.
       const history = session.messages
         .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
+        .filter((m) => {
+          const t = (m.content || '').trim()
+          if (m.role === 'assistant') {
+            if (!t) return false
+            if (/^\[已停止\]$/.test(t)) return false
+            if (/^\[错误:/.test(t)) return false
+            if (/^（未在设置中配置提供商凭证）/.test(t)) return false
+            if (/^（无 API Key）/.test(t)) return false
+          }
+          return Boolean(t) || m.role === 'user'
+        })
         .map(({ role, content }) => ({ role, content }))
 
       const frozenModelId = session.modelId
@@ -220,17 +269,90 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               if (sess) sess.lastTurnId = turnId
             })
           }
+          if (c?.type === 'run.started') {
+            get().appendProcess(sessionId, { kind: 'run', label: '请求开始' })
+          }
+          if (c?.type === 'turn.started') {
+            get().appendProcess(sessionId, { kind: 'turn', label: '回合开始' })
+          }
 
           if (c?.type === 'message.delta') {
             const p = c.payload as {
               delta?: string
               text?: string
               kind?: string
+              type?: string
+              result?: string
+              decision?: string
+              summary?: string
+              name?: string
+              workbook?: string
+              round?: number | string
+              exit_code?: number | string
             } | undefined
-            const delta = p?.delta || p?.text
-            if (delta && p?.kind !== 'reasoning') {
-              get().updateLastAssistant(sessionId, delta)
+            const evType = p?.type || ''
+            // Execution trail — every agent step visible immediately (never drop).
+            if (
+              evType === 'decompose' ||
+              evType === 'decision' ||
+              evType === 'await' ||
+              evType === 'round' ||
+              evType === 'done' ||
+              evType === 'tool_start' ||
+              evType === 'tool_end' ||
+              evType === 'plan_act'
+            ) {
+              const label =
+                evType === 'decompose' ? '分解工作簿' :
+                evType === 'decision' ? `决策 ${p?.decision || ''}`.trim() :
+                evType === 'await' ? '等待子任务' :
+                evType === 'round' ? `子任务完成 #${p?.round ?? ''}`.trim() :
+                evType === 'done' ? '回合收尾' :
+                evType === 'plan_act' ? `计划动作 ${p?.kind || ''} ${p?.name || ''}`.trim() :
+                evType === 'tool_start' ? `调用工具 ${p?.name || ''}`.trim() :
+                `工具结束 ${p?.name || ''}`.trim()
+              const detail = String(
+                p?.summary || p?.result || p?.workbook || '',
+              ).slice(0, 240)
+              get().appendProcess(sessionId, {
+                kind: evType,
+                label,
+                detail: detail || undefined,
+              })
+              continue
             }
+            if (p?.kind === 'plan') {
+              const token = p?.delta || p?.text || ''
+              if (token) {
+                get().appendProcess(sessionId, {
+                  kind: 'plan',
+                  label: '计划',
+                  detail: token,
+                  appendDetail: true,
+                })
+              }
+              continue
+            }
+            if (p?.kind === 'reasoning') {
+              const token = p?.delta || p?.text || ''
+              if (token) {
+                get().appendProcess(sessionId, {
+                  kind: 'reasoning',
+                  label: '推理',
+                  detail: token,
+                  appendDetail: true,
+                })
+              }
+              continue
+            }
+            // Answer bubble: only real token deltas (OpenAI-style concat).
+            const token = p?.delta || (p?.kind === 'delta' ? p?.text : '') || ''
+            if (!token) continue
+            const sess = get().sessions.find((s) => s.id === sessionId)
+            const last = sess?.messages[sess.messages.length - 1]
+            const cur = last?.content || ''
+            if (cur && (token === cur || (cur.endsWith(token) && token.length > 24))) continue
+            get().updateLastAssistant(sessionId, token)
             continue
           }
 
@@ -257,20 +379,49 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               provider: p.provider_id,
               usage_state: 'unknown',
             })
+            get().appendProcess(sessionId, {
+              kind: 'model',
+              label: '模型',
+              detail: [p.provider_id, p.display_name || p.model_id].filter(Boolean).join(' / '),
+            })
             continue
           }
 
           if (c?.type === 'run.completed') {
-            const result = (c.payload as { result?: { content?: string; result?: string } })?.result
-            const text = typeof result === 'string'
-              ? result
-              : (result?.content || result?.result || '')
+            get().appendProcess(sessionId, { kind: 'completed', label: '完成' })
+            const payload = c.payload as {
+              result?: string | {
+                content?: string
+                result?: string
+                choices?: Array<{ message?: { content?: string } }>
+              }
+            } | undefined
+            const result = payload?.result
+            let text = ''
+            if (typeof result === 'string') {
+              text = result
+            } else if (result && typeof result === 'object') {
+              text = result.content
+                || result.result
+                || result.choices?.[0]?.message?.content
+                || ''
+            }
             if (text) {
-              // Prefer live deltas; only fill if assistant still empty.
+              // Final envelope: fill if empty/stub; replace if final differs
+              // (never append — streaming already concatenated deltas).
+              // Process trail is kept — only the answer bubble is updated.
               const sess = get().sessions.find((s) => s.id === sessionId)
               const last = sess?.messages[sess.messages.length - 1]
-              if (last?.role === 'assistant' && !last.content) {
-                get().updateLastAssistant(sessionId, text)
+              const cur = (last?.content || '').trim()
+              const stub = !cur || /^\[错误:/.test(cur) || /^\[已停止\]$/.test(cur)
+              if (last?.role === 'assistant' && (stub || cur !== text.trim())) {
+                set((s) => {
+                  const sess2 = s.sessions.find((x) => x.id === sessionId)
+                  if (!sess2) return
+                  const m = sess2.messages[sess2.messages.length - 1]
+                  if (m?.role === 'assistant') m.content = text
+                })
+                get().saveToStorage()
               }
             }
             continue
@@ -280,13 +431,20 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             const err = (c.payload as { error?: string; reason?: string } | undefined)?.error
               || (c.payload as { reason?: string } | undefined)?.reason
               || '流式中断'
+            get().appendProcess(sessionId, { kind: 'failed', label: '失败', detail: err })
             get().updateLastAssistant(sessionId, `\n\n[错误: ${err}]`)
             continue
           }
 
-          // Legacy OpenAI chunk shape (compat)
-          if (c?.ok === false || c?.error) {
-            const detail = c.error || c.choices?.[0]?.delta?.content || ''
+          // Legacy OpenAI chunk shape / non-SSE JSON completion (compat)
+          const anyChunk = c as unknown as {
+            content?: string
+            error?: string
+            ok?: boolean
+            choices?: Array<{ message?: { content?: string }; delta?: { content?: string } }>
+          }
+          if (c?.ok === false || (c?.error && !c?.choices && anyChunk.content == null)) {
+            const detail = c.error || ''
             const hint = /unauthor|invalid.*key|401/i.test(String(detail))
               ? '模型鉴权失败：请检查「设置 → 模型」中的 API Key 与地址。'
               : String(detail) || '上游模型调用失败'
@@ -295,6 +453,14 @@ export const useSessionStore = create<SessionState & SessionActions>()(
           const delta = c.choices?.[0]?.delta?.content
           if (delta) {
             get().updateLastAssistant(sessionId, delta)
+          }
+          const full = anyChunk.choices?.[0]?.message?.content || anyChunk.content || ''
+          if (full) {
+            const sess = get().sessions.find((s) => s.id === sessionId)
+            const last = sess?.messages[sess.messages.length - 1]
+            if (last?.role === 'assistant' && !last.content) {
+              get().updateLastAssistant(sessionId, full)
+            }
           }
         }
       } catch (err) {

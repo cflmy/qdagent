@@ -14,6 +14,7 @@ import:
   registry: ../lib/registry.mq.md
   turns: ../execution/turns.mq.md
   json: lib/json.mq.md
+  text: lib/text.mq.md
   table: lib/table.mq.md
 ---
 
@@ -132,9 +133,9 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
   **areason = > json.get value=`authres` key="reason"**
   `authdeny` =
 
-  | ok | content | run_id | decision | mode | error | code |
-  |----|---------|--------|----------|------|-------|------|
-  | False | `areason` |  | deny | `mode` | unauthorized | unauthorized |
+  | ok | content | run_id | decision | mode | error | code | turn_id | model |
+  |----|---------|--------|----------|------|-------|------|---------|-------|
+  | False | `areason` |  | deny | `mode` | unauthorized | unauthorized |  |  |
 
   *authdeny*
 
@@ -170,15 +171,15 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
   **message = ""**
 
 **gate = > precheck message=`message` root=`root` out=`out` with_preflight=True**
-**gd = [decision](access(gate, "decision"))**
+**gd = > json.get value=`gate` key="decision"**
 1. `gd` == "deny"
-  **reason = [reason](access(gate, "reason"))**
-  **code = [code](access(gate, "code"))**
+  **reason = > json.get value=`gate` key="reason"**
+  **code = > json.get value=`gate` key="code"**
   `blocked` =
 
-  | ok | content | run_id | decision | mode | error | code |
-  |----|---------|--------|----------|------|-------|------|
-  | False | `reason` |  | deny | `mode` | precheck_denied | `code` |
+  | ok | content | run_id | decision | mode | error | code | turn_id | model |
+  |----|---------|--------|----------|------|-------|------|---------|-------|
+  | False | `reason` |  | deny | `mode` | precheck_denied | `code` |  |  |
 
   *blocked*
 
@@ -196,13 +197,45 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
 
 1. not `turn_id`
   **created = > turns.create session_id=`session_id` workspace_id=`workspace_id` model_id=`model_id` payload=`payload`**
-  **turn_id = [turn_id](access(created, "turn_id"))**
+  **turn_id = > json.get value=`created` key="turn_id"**
+  1. not `turn_id`
+    **turn_id = > json.get value=`created` key="id"**
+  2. *
+    **_ = 1**
 
 **agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` messages=`messages` stream=`stream`**
-**ok = [ok](access(agent_out, "ok"))**
+**ao_s = > json.stringify value=`agent_out`**
+**ao_obj = > text.starts_with text=`ao_s` prefix="{"**
+**ok = None**
+1. `ao_obj`
+  **ok = > json.get value=`agent_out` key="ok"**
+2. *
+  **ok = False**
+  1. not `agent_out`
+    **agent_out = > json.parse text="{\"ok\":false,\"error\":\"agent_out_empty\",\"result\":\"\"}"**
+  2. *
+    **agent_out = > json.parse text="{\"ok\":false,\"error\":\"agent_out_not_map\",\"result\":" + `ao_s` + "}"**
 1. not `ok`
-  > turns.complete turn_id=`turn_id` state="failed" usage_state="unknown" error="agent_failed"
-  *agent_out*
+  1. `turn_id`
+    > turns.complete turn_id=`turn_id` state="failed" usage_state="unknown" error="agent_failed"
+  2. *
+    **_ = 1**
+  **fail_content = > json.get value=`agent_out` key="result"**
+  1. not `fail_content`
+    **fail_content = > json.get value=`agent_out` key="error"**
+  2. *
+    **_ = 1**
+  1. not `fail_content`
+    **fail_content = > json.stringify value=`agent_out`**
+  2. *
+    **_ = 1**
+  `agent_fail` =
+
+  | ok | content | run_id | decision | mode | status | error | context_path | session_id | turn_id | model | raw |
+  |----|---------|--------|----------|------|--------|-------|--------------|------------|---------|-------|-----|
+  | False | `fail_content` |  |  | `mode` | error | agent_failed |  | `session_id` | `turn_id` |  | `agent_out` |
+
+  *agent_fail*
 
 **result = > json.get value=`agent_out` key="result"**
 **err = > json.get value=`agent_out` key="error"**
@@ -222,8 +255,8 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
   **sid = `session_id`**
 1. not `sid`
   **linked = > session.link session_id="" surface="api" workbook_slug=`slug` run_id=`slug`**
-  **sid = [session_id](access(linked, "session_id"))**
-**ctx = [context_path](access(gate, "context_path"))**
+  **sid = > json.get value=`linked` key="session_id"**
+**ctx = > json.get value=`gate` key="context_path"**
 **live_ok = True**
 1. `run_mode` == "error"
   **live_ok = False**
@@ -233,9 +266,15 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
   **_ = 1**
 
 1. `live_ok`
-  > turns.complete turn_id=`turn_id` state="completed" usage_state="unknown"
+  1. `turn_id`
+    > turns.complete turn_id=`turn_id` state="completed" usage_state="unknown"
+  2. *
+    **_ = 1**
 2. *
-  > turns.complete turn_id=`turn_id` state="failed" usage_state="unknown" error=`err`
+  1. `turn_id`
+    > turns.complete turn_id=`turn_id` state="failed" usage_state="unknown" error=`err`
+  2. *
+    **_ = 1**
 
 `ret` =
 

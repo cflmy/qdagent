@@ -171,21 +171,42 @@ Secrets are never echoed back: `llm_api_key` / `asr_api_key` / `tts_api_key`
 are replaced by an `*_api_key_set` boolean.
 
 **store = > db.open**
+> registry.repair_legacy_credentials
 **rows = > `store`.select table="settings" limit=1**
 **cfg = [1](access(rows, "1"))**
-**llm_key = [llm_api_key](access(cfg, "llm_api_key"))**
 **asr_key = [asr_api_key](access(cfg, "asr_api_key"))**
 **tts_key = [tts_api_key](access(cfg, "tts_api_key"))**
-**llm_base = [llm_base_url](access(cfg, "llm_base_url"))**
-**llm_model = [llm_model](access(cfg, "llm_model"))**
 **asr_base = [asr_base_url](access(cfg, "asr_base_url"))**
 **asr_model = [asr_model](access(cfg, "asr_model"))**
 **tts_base = [tts_base_url](access(cfg, "tts_base_url"))**
 **tts_model = [tts_model](access(cfg, "tts_model"))**
 **lang = [dictation_lang](access(cfg, "dictation_lang"))**
+
+**llm_base = ""**
+**llm_model = ""**
 **has_llm = False**
-1. `llm_key`
-  **has_llm = True**
+**prov = > `store`.get table="providers" id="prov-legacy-default"**
+1. not `prov`
+  **provs = > `store`.select table="providers" limit=1 order="-updated_at"**
+  **prov = [1](access(provs, "1"))**
+1. `prov`
+  **llm_base = [base_url](access(prov, "base_url"))**
+  **cref = [credential_ref](access(prov, "credential_ref"))**
+  1. `cref`
+    **cred = > `store`.get table="credentials" id=`cref`**
+    1. `cred`
+      **sec = [secret](access(cred, "secret"))**
+      1. `sec`
+        **has_llm = True**
+  **pid = [id](access(prov, "id"))**
+  **mods = > `store`.select table="models" limit=20**
+  1. `mods`
+    - [m](遍历 mods 为 m)
+      **mp = [provider_id](access(m, "provider_id"))**
+      1. `mp` == `pid`
+        1. not `llm_model`
+          **llm_model = [upstream_model_id](access(m, "upstream_model_id"))**
+
 **has_asr = False**
 1. `asr_key`
   **has_asr = True**
@@ -203,9 +224,9 @@ are replaced by an `*_api_key_set` boolean.
 ## settings_update
     + `payload`=None
 
-Patch the settings row. Only the fields present in the payload are written;
-empty strings clear a field, and `*_api_key` is only overwritten when provided.
-Empty / missing payload is a no-op success (SPA may POST `{}`).
+Patch **voice / dictation** settings. LLM fields (`llm_*`), if still posted by an
+old client, are forwarded into the provider registry (single runtime path) and
+are not treated as a second credential store for ASK/BUILD.
 
 1. not `payload`
   **字段 = > table.put in=None at="saved" value=True**
@@ -224,19 +245,57 @@ Empty / missing payload is a no-op success (SPA may POST `{}`).
 **llm_key = > json.get value=`payload` key="llm_api_key"**
 **tts_base = > json.get value=`payload` key="tts_base_url"**
 **asr_base = > json.get value=`payload` key="asr_base_url"**
+**tts_model = > json.get value=`payload` key="tts_model"**
+**asr_model = > json.get value=`payload` key="asr_model"**
+**tts_key = > json.get value=`payload` key="tts_api_key"**
+**asr_key = > json.get value=`payload` key="asr_api_key"**
 **lang = > json.get value=`payload` key="dictation_lang"**
 **u = > time.now_unix**
 
+**_fwd = False**
 1. `llm_base`
-  **row = > table.put in=`row` at="llm_base_url" value=`llm_base`**
-1. `llm_model`
-  **row = > table.put in=`row` at="llm_model" value=`llm_model`**
+  **_fwd = True**
 1. `llm_key`
-  **row = > table.put in=`row` at="llm_api_key" value=`llm_key`**
+  **_fwd = True**
+1. `llm_model`
+  **_fwd = True**
+1. `_fwd`
+  **cred_action = "keep"**
+  1. `llm_key`
+    **cred_action = "replace"**
+  **prov_payload = > table.empty_map**
+  **prov_payload = > table.put in=`prov_payload` at="id" value="prov-legacy-default"**
+  1. `llm_base`
+    **prov_payload = > table.put in=`prov_payload` at="base_url" value=`llm_base`**
+  **prov_payload = > table.put in=`prov_payload` at="display_name" value="Legacy settings"**
+  **prov_payload = > table.put in=`prov_payload` at="adapter" value="openai-compatible"**
+  **prov_payload = > table.put in=`prov_payload` at="auth_mode" value="api_key"**
+  **prov_payload = > table.put in=`prov_payload` at="enabled" value=1**
+  **prov_payload = > table.put in=`prov_payload` at="credential_action" value=`cred_action`**
+  1. `llm_key`
+    **prov_payload = > table.put in=`prov_payload` at="credential" value=`llm_key`**
+  > registry.save_provider payload=`prov_payload`
+  1. `llm_model`
+    **mod_payload = > table.empty_map**
+    **mod_payload = > table.put in=`mod_payload` at="id" value="mdl-legacy-default"**
+    **mod_payload = > table.put in=`mod_payload` at="provider_id" value="prov-legacy-default"**
+    **mod_payload = > table.put in=`mod_payload` at="upstream_model_id" value=`llm_model`**
+    **mod_payload = > table.put in=`mod_payload` at="display_name" value=`llm_model`**
+    **mod_payload = > table.put in=`mod_payload` at="enabled" value=1**
+    > registry.save_model payload=`mod_payload`
+
 1. `tts_base`
   **row = > table.put in=`row` at="tts_base_url" value=`tts_base`**
 1. `asr_base`
   **row = > table.put in=`row` at="asr_base_url" value=`asr_base`**
+1. `tts_model`
+  **row = > table.put in=`row` at="tts_model" value=`tts_model`**
+1. `asr_model`
+  **row = > table.put in=`row` at="asr_model" value=`asr_model`**
+1. `tts_key`
+  **row = > table.put in=`row` at="tts_api_key" value=`tts_key`**
+1. `asr_key`
+  **row = > table.put in=`row` at="asr_api_key" value=`asr_key`**
 1. `lang`
   **row = > table.put in=`row` at="dictation_lang" value=`lang`**
 **row = > table.put in=`row` at="updated_at" value=`u`**
@@ -1296,14 +1355,30 @@ Accepts full `messages` history and optional `selection.model_id` / `model_id` (
 1. not `task`
   *> 失败 error="empty messages: latest user content required"*
 **chat = > eng_openai.chat message=`task` mode="" authorization=`authorization` api_key=`api_key` payload=`payload` model_id=`selection_model_id` messages=`history` stream=`stream`**
-**content = [content](access(chat, "content"))**
-**run_id = [run_id](access(chat, "run_id"))**
-**cok = [ok](access(chat, "ok"))**
-**turn_id = [turn_id](access(chat, "turn_id"))**
-**model_pub = [model](access(chat, "model"))**
+**content = > json.get value=`chat` key="content"**
+**run_id = > json.get value=`chat` key="run_id"**
+**cok = > json.get value=`chat` key="ok"**
+**turn_id = > json.get value=`chat` key="turn_id"**
+**model_pub = > json.get value=`chat` key="model"**
 1. not `cok`
   1. not `content`
-    **content = [error](access(chat, "error"))**
+    **content = > json.get value=`chat` key="error"**
+    1. not `content`
+      **content = > json.get value=`chat` key="result"**
+    2. *
+      **_ = 1**
+  2. *
+    **_ = 1**
+2. *
+  **_ = 1**
+1. not `content`
+  **content = > json.get value=`chat` key="result"**
+2. *
+  **_ = 1**
+1. not `turn_id`
+  **turn_id = ""**
+2. *
+  **_ = 1**
 **u = > time.now_unix**
 **cid = "chatcmpl-" + `run_id`**
 1. not `run_id`
@@ -1323,8 +1398,6 @@ Accepts full `messages` history and optional `selection.model_id` / `model_id` (
 **choices = > table.empty_list**
 **choices = > table.append list=`choices` item=`choice`**
 1. `stream`
-  Live token path: Marqdo web auto-upgrades to sse-live when body.stream=true;
-  deltas already flushed via EventBus. Return a thin envelope (not a fake batch SSE body).
   `sse_live` =
 
   | ok | run_id | turn_id | streaming_contract | model | content |

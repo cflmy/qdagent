@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# L1/L2 workbench acceptance (T01–T17 slices). Requires Marqdo ≥2.1.3.
+# L1/L2 workbench acceptance (T01–T18 slices). Requires Marqdo ≥2.1.3.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=marqdo-env.sh

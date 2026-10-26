@@ -78,19 +78,28 @@ uses — one source of truth.
 
 **root = > resolve_root root=`root`**
 > sys.env_set name="QDAGENT_LABELS_ROOT" value=`root`
+**mq = > sys.env_get name="MARQDO_BIN"**
+1. not `mq`
+  **mq = "marqdo"**
+**cmd = "\"" + `mq` + "\" labels \"$QDAGENT_LABELS_ROOT\" --json"**
 `args` =
 
 | a |
 |---|
 | "-c" |
-| marqdo labels "$QDAGENT_LABELS_ROOT" --json |
+| `cmd` |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
 **code = [code](access(proc, "code"))**
 **stdout = [stdout](access(proc, "stdout"))**
-**rows = > json.parse text=`stdout`**
-1. `code` != 0
-  **rows = > table.empty_list**
+**rows = > table.empty_list**
+1. `code` == 0
+  1. `stdout`
+    **rows = > json.parse text=`stdout`**
+  2. *
+    **_ = 1**
+2. *
+  **_ = 1**
 **n = > len value=`rows`**
 `out` =
 

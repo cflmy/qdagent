@@ -162,11 +162,9 @@ not a columnar GFM table (agent.run iterates tool names).
     + `model_id`=""
     + `selection`=None
 
-Resolve LLM credentials via registry ModelSnapshot only.
-**Never** writes `OPENAI_*` / `MARQDO_LLM_*` process env (A02 / T02).
-Model identity comes only from the snapshot — never from process env.
-If snapshot resolves with an api_key, return it. Otherwise optional read-only `.env`
-peek for bootstrap credentials only (not model id). `QDAGENT_DRY=1` skips credentials.
+Resolve LLM credentials via registry ModelSnapshot **only**.
+**Never** reads or writes `OPENAI_*` / `MARQDO_LLM_*` / `.env` (single settings→registry path).
+Model identity and secrets come only from providers/credentials. `QDAGENT_DRY=1` skips credentials.
 
 **dry = > sys.env_get name="QDAGENT_DRY"**
 1. `dry` == "1"
@@ -180,13 +178,7 @@ peek for bootstrap credentials only (not model id). `QDAGENT_DRY=1` skips creden
   **key = > json.get value=`snap` key="api_key"**
   1. `key`
     *key*
-
-Bootstrap key only — never used as model selection.
-> llm.load_env path=".env"
-**key = > sys.env_get name="OPENAI_API_KEY"**
-1. not `key`
-  **key = > sys.env_get name="MARQDO_LLM_API_KEY"**
-*key*
+*""*
 
 ## ensure_agent_plugin
 
@@ -208,7 +200,13 @@ Load Marqdo agent ABI plugin once (no LLM required).
     + `snap`=None
 
 Construct Marqdo agent with an explicit `llm.create` handle from a frozen ModelSnapshot.
-Never uses `llm.llm` (process-env default) and never mutates process env for model identity (A02).
+Never uses `llm.llm` (process-env default). Selection always comes from the registry
+snapshot (A02) — never from ambient `OPENAI_*`.
+
+After the handle is frozen, mirror identity + secret into process env so Marqdo
+workbook children (`render_workbook_skeleton` → `llm.load_env` + `OPENAI_*`) and
+`subtask` inheritance (`api_key` via process env) can call the same upstream.
+This is transport bridging for child runs, not request-level selection.
 
 1. not `tools`
   **tools = > eng_tools**
@@ -232,6 +230,15 @@ Never uses `llm.llm` (process-env default) and never mutates process env for mod
   > print text=qdagent.make_agent: upstream_model_id missing from snapshot
   > sys.exit code=1
 **model = > llm.create model=`uname` base_url=`base` api_key=`key` backend="openai-compatible"**
+1. `uname`
+  > sys.env_set name="OPENAI_MODEL" value=`uname`
+  > sys.env_set name="MARQDO_LLM_MODEL" value=`uname`
+1. `base`
+  > sys.env_set name="OPENAI_BASE_URL" value=`base`
+  > sys.env_set name="MARQDO_LLM_BASE_URL" value=`base`
+1. `key`
+  > sys.env_set name="OPENAI_API_KEY" value=`key`
+  > sys.env_set name="MARQDO_LLM_API_KEY" value=`key`
 *> agent.agent model=`model` tools=`tools` standing=`standing`*
 
 ## latch_efi
@@ -315,7 +322,17 @@ Write Preflight fields into workbook (metrics via eng_record in latch_efi).
     + `agent_out`
 
 Prefer human-readable `error` / `result` from Marqdo 1.4.4 soft failures; else stringify.
+Tolerates non-map outcomes (bare text / None) without `json get needs map`.
 
+1. not `agent_out`
+  *""*
+**ao_s = > json.stringify value=`agent_out`**
+**is_obj = > text.starts_with text=`ao_s` prefix="{"**
+1. not `is_obj`
+  1. `ao_s`
+    *ao_s*
+  2. *
+    *""*
 **status = > json.get value=`agent_out` key="status"**
 **err = > json.get value=`agent_out` key="error"**
 **result = > json.get value=`agent_out` key="result"**
@@ -323,13 +340,13 @@ Prefer human-readable `error` / `result` from Marqdo 1.4.4 soft failures; else s
   1. `result`
     *result*
   2. *
-    *> json.stringify value=`agent_out`*
+    *ao_s*
 2. `err`
   *err*
 3. `result`
   *result*
 4. *
-  *> json.stringify value=`agent_out`*
+  *ao_s*
 
 ## attach_agent_evidence
     + `slug`
@@ -339,24 +356,45 @@ Prefer human-readable `error` / `result` from Marqdo 1.4.4 soft failures; else s
 
 Write efi / usage / token_cost / route into workbook Evidence + Metrics.
 `gate_out` (from `门禁沉淀`) adds the doc-gate verdict to the same Evidence row.
+Tolerates non-map `agent_out` / `gate_out` (bare text / None).
 
-**usage = > json.get value=`agent_out` key="usage"**
-**token_cost = > json.get value=`agent_out` key="token_cost"**
-**route = > json.get value=`agent_out` key="route"**
-**err = > json.get value=`agent_out` key="error"**
-**st = > json.get value=`agent_out` key="status"**
+**usage = None**
+**token_cost = None**
+**route = None**
+**err = None**
+**st = None**
+**ao_s = > json.stringify value=`agent_out`**
+**ao_map = > text.starts_with text=`ao_s` prefix="{"**
+1. `ao_map`
+  **usage = > json.get value=`agent_out` key="usage"**
+  **token_cost = > json.get value=`agent_out` key="token_cost"**
+  **route = > json.get value=`agent_out` key="route"**
+  **err = > json.get value=`agent_out` key="error"**
+  **st = > json.get value=`agent_out` key="status"**
+2. *
+  1. `ao_s`
+    **err = `ao_s`**
+  2. *
+    **_ = 1**
 **efi_body = `efi`**
 1. not `efi_body`
-  **efi_body = > json.get value=`agent_out` key="efi"**
+  1. `ao_map`
+    **efi_body = > json.get value=`agent_out` key="efi"**
+  2. *
+    **_ = 1**
 **gate_ok = "n/a"**
 **gate_stage = ""**
 **gate_path = ""**
 **gate_rep = False**
-1. `gate_out`
+**go_s = > json.stringify value=`gate_out`**
+**go_map = > text.starts_with text=`go_s` prefix="{"**
+1. `go_map`
   **gate_ok = > json.get value=`gate_out` key="ok"**
   **gate_stage = > json.get value=`gate_out` key="stage"**
   **gate_path = > json.get value=`gate_out` key="answer_path"**
   **gate_rep = > json.get value=`gate_out` key="repaired"**
+2. *
+  **_ = 1**
 
 `ev` =
 
@@ -481,10 +519,21 @@ of regenerating from scratch.
     + `turn_id`=""
     + `workspace_id`=""
     + `stream`=False
+    + `history`=""
 
 ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No host mutation.
 The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo doc.
 Model selection is frozen for this call via `model_id` / `selection` (no env clobber).
+`task` is the **latest user turn** (KB reuse / route). Optional `history` is prior
+conversation injected into standing only — never into the reuse key (avoids
+matching `user-你好` when the user later asks 「你叫什么名字」).
+`stream=True` forwards token deltas via EventBus → web sse-live.
+
+**wb_task = `task`**
+1. `history`
+  **wb_task = `history`**
+2. *
+  **_ = 1**
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
 **ok = > json.get value=`pack` key="ok"**
@@ -504,7 +553,7 @@ Model selection is frozen for this call via `model_id` / `selection` (no env clo
 |----|----------|----------------|--------------|-----------|
 | True | `decision` | `allowed` | `path` | `pf_body` |
 
-**wb = > run.create task=`task` intent="ask" surface="ask"**
+**wb = > run.create task=`wb_task` intent="ask" surface="ask"**
 **slug = > json.get value=`wb` key="slug"**
 > attach_pack slug=`slug` pack=`merged` root=`root` out=`out`
 
@@ -519,6 +568,10 @@ Model selection is frozen for this call via `model_id` / `selection` (no env clo
 1. `key`
   **standing0 = > 契约提示 mode="ask"**
   **standing = > standing_with_profile base=`standing0` workspace_id=`workspace_id` session_id=`session_id`**
+  1. `history`
+    **standing = `standing` + "\n\n--- conversation ---\n" + `history` + "\n\nAnswer the latest user turn only. Do not reuse an earlier greeting when the latest turn asks something else."**
+  2. *
+    **_ = 1**
   **助手 = > make_agent standing=`standing` model_id=`model_id` selection=`selection` snap=`snap`**
   1. `stream`
     1. `turn_id`
@@ -528,17 +581,26 @@ Model selection is frozen for this call via `model_id` / `selection` (no env clo
     1. `pub`
       **mev = > table.put in=`pub` at="type" value="model.resolved"**
       > sys.stream_publish event=`mev`
-  **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="marqdo" max_rounds=3 sandbox=False stream=`stream`**
-  **ao_s = > json.stringify value=`agent_out`**
-  **is_map = > text.contains text=`ao_s` sub="\"status\""**
-  1. not `is_map`
-    **status = "ok"**
-    **raw = > text.str_trim s=`agent_out`**
-    **err = ""**
-  2. *
-    **status = > json.get value=`agent_out` key="status"**
+  **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=False reuse=True router="marqdo" max_rounds=3 sandbox=False stream=`stream`**
+  **status = ""**
+  **raw = ""**
+  **err = ""**
+  1. `agent_out`
+    **ao_s = > json.stringify value=`agent_out`**
+    **is_obj = > text.starts_with text=`ao_s` prefix="{"**
+    1. `is_obj`
+      **status = > json.get value=`agent_out` key="status"**
+      **err = > json.get value=`agent_out` key="error"**
+    2. *
+      **status = "ok"**
+      **err = ""**
     **raw = > format_agent_outcome agent_out=`agent_out`**
-    **err = > json.get value=`agent_out` key="error"**
+    1. not `status`
+      **status = "ok"**
+  2. *
+    **status = "error"**
+    **err = "agent_out_empty"**
+    **raw = "agent returned empty outcome"**
   1. `status` == "ok"
     **mode = "live"**
     **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
@@ -563,16 +625,19 @@ Model selection is frozen for this call via `model_id` / `selection` (no env clo
         **_ = 1**
     **apath = > json.get value=`gated_out` key="answer_path"**
     1. `gok`
-      **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
-      1. `repaired`
-        **result = "答案文档经一轮修复后通过文档门禁并沉淀：" + `apath`**
-      2. *
-        **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
+      **result = `raw`**
+      1. not `result`
+        1. `apath`
+          **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
+        2. *
+          **result = ""**
     2. *
       **mode = "gated_error"**
       **stage = > json.get value=`gated_out` key="stage"**
       **err = "docgate_" + `stage`**
-      **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "），未沉淀：" + `raw`**
+      **result = `raw`**
+      1. not `result`
+        **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "）"**
   2. *
     **mode = "error"**
     **result = `raw`**
@@ -582,7 +647,7 @@ Model selection is frozen for this call via `model_id` / `selection` (no env clo
   **mid = [model_id](access(snap, "model_id"))**
   > usage.record_from_agent agent_out=`agent_out` run_id=`slug` session_id=`session_id` turn_id=`turn_id` workspace_id=`workspace_id` purpose="answer" model_id=`mid` model_snapshot=`ms`
 2. *
-  **result = "（无 API Key）Preflight decision=" + `decision` + " context=" + `path`**
+  **result = "（未在设置中配置提供商凭证）Preflight decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
   **status = "dry"**
 
@@ -814,7 +879,7 @@ REUSE path: actual bind_execute before LLM CREATE (discovery_only is never succe
         > agent_kb_quarantine kb_dir=".marqdo/agent-kb" slug=`qslug` reason="build_create_failed"
     > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated` gate_out=`gated_out`
   2. *
-    **result = "（无 API Key）BUILD dry-run decision=" + `decision` + " context=" + `path`**
+    **result = "（未在设置中配置提供商凭证）BUILD dry-run decision=" + `decision` + " context=" + `path`**
     **mode = "dry"**
     **status = "dry"**
 
@@ -938,19 +1003,67 @@ does not drop the latest user message.
 **joined = ""**
 **n = 0**
 - [m](遍历 messages 为 m)
-  **role = > json.get value=`m` key="role"**
-  **content = > json.get value=`m` key="content"**
-  1. `content`
-    1. not `role`
-      **role = "user"**
-    1. `joined`
-      **joined = `joined` + "\n\n[" + `role` + "]\n" + `content`**
+  **m_s = > json.stringify value=`m`**
+  **m_map = > text.starts_with text=`m_s` prefix="{"**
+  1. `m_map`
+    **role = > json.get value=`m` key="role"**
+    **content = > json.get value=`m` key="content"**
+    **ct = > trim value=`content`**
+    1. `role` == "assistant"
+      **is_err = > text.starts_with text=`ct` prefix="[错误:"**
+      **is_stop = > text.starts_with text=`ct` prefix="[已停止]"**
+      1. `is_err`
+        **content = ""**
+      2. `is_stop`
+        **content = ""**
+      3. *
+        **_ = 1**
     2. *
-      **joined = "[" + `role` + "]\n" + `content`**
-    **n = `n` + 1**
+      **_ = 1**
+    1. `content`
+      1. not `role`
+        **role = "user"**
+      1. `joined`
+        **joined = `joined` + "\n\n[" + `role` + "]\n" + `content`**
+      2. *
+        **joined = "[" + `role` + "]\n" + `content`**
+      **n = `n` + 1**
+  2. *
+    **_ = 1**
 1. `n` == 0
   *fallback*
 *joined*
+
+## latest_user_message
+    + `messages`
+    + `fallback`=""
+
+Last non-empty `role=user` content. Used as the ASK/route/reuse key so prior
+turns (e.g. 「你好」) cannot exact-match a stale KB skill for a new question.
+
+1. not `messages`
+  *fallback*
+**last = ""**
+- [m](遍历 messages 为 m)
+  **m_s = > json.stringify value=`m`**
+  **m_map = > text.starts_with text=`m_s` prefix="{"**
+  1. `m_map`
+    **role = > json.get value=`m` key="role"**
+    **content = > json.get value=`m` key="content"**
+    **ct = > trim value=`content`**
+    1. `role` == "user"
+      1. `ct`
+        **last = `ct`**
+      2. *
+        **_ = 1**
+    2. *
+      **_ = 1**
+  2. *
+    **_ = 1**
+1. `last`
+  *last*
+2. *
+  *fallback*
 
 ## run
     + `task`
@@ -967,14 +1080,18 @@ does not drop the latest user message.
 
 Dispatch ASK / BUILD / LEARN. Optional `session_id` links server Session (D10).
 `model_id` / `selection` freeze the ModelSelection for this turn (Q02).
-When `messages` is provided, compose full history into `task` (no last-user-only ping).
+When `messages` is provided: **latest user turn** → `task` (route/reuse/preflight);
+full transcript → `history` (standing context only). Never feed the whole
+transcript into KB exact-match.
 `stream=True` enables Marqdo agent SSE publish (token deltas via EventBus → web sse-live).
 
+**history = ""**
 1. `messages`
-  **task = > compose_messages messages=`messages` fallback=`task`**
+  **history = > compose_messages messages=`messages` fallback=`task`**
+  **task = > latest_user_message messages=`messages` fallback=`task`**
 
 1. `mode` == "ask"
-  *> ask task=`task` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` stream=`stream`*
+  *> ask task=`task` history=`history` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` stream=`stream`*
 2. `mode` == "learn"
   *> learn task=`task` root=`root` out=`out`*
 3. *

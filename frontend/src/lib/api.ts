@@ -19,21 +19,77 @@ function unwrapEnvelope<T>(json: any, path: string): T {
   return json as T
 }
 
+/** Short API calls must not hang forever while a chat holds the invoke lock. */
+const SHORT_FETCH_MS = 8_000
+
+function busyMessage(path: string, status: number, detail: string): string {
+  if (status === 503 || /interpreter busy/i.test(detail)) {
+    return detail || `服务正忙（对话进行中），请稍后重试：${path}`
+  }
+  return detail || `请求失败 ${status}: ${path}`
+}
+
+async function fetchWithTimeout(
+  path: string,
+  init: RequestInit,
+  timeoutMs = SHORT_FETCH_MS,
+): Promise<Response> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  const parent = init.signal
+  const onParentAbort = () => ctrl.abort()
+  if (parent) {
+    if (parent.aborted) ctrl.abort()
+    else parent.addEventListener('abort', onParentAbort, { once: true })
+  }
+  try {
+    return await fetch(path, { ...init, signal: ctrl.signal })
+  } catch (e) {
+    if (ctrl.signal.aborted && !(parent && parent.aborted)) {
+      throw new Error(`请求超时（${timeoutMs}ms）：${path}`)
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+    if (parent) parent.removeEventListener('abort', onParentAbort)
+  }
+}
+
 async function GET<T = unknown>(path: string, headers?: Record<string, string>): Promise<T> {
-  const res = await fetch(path, { credentials: 'same-origin', headers })
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
+  const res = await fetchWithTimeout(path, { credentials: 'same-origin', headers })
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const j = await res.json() as { error?: string; message?: string }
+      detail = j.error || j.message || ''
+    } catch { /* ignore */ }
+    throw new Error(busyMessage(path, res.status, detail))
+  }
   return unwrapEnvelope<T>(await res.json(), path)
 }
 
 async function POST<T = unknown>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`)
-  return res.json() as Promise<T>
+  let json: unknown = null
+  try {
+    json = await res.json()
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const detail = json && typeof json === 'object'
+      ? String((json as { error?: string; message?: string }).error
+        || (json as { message?: string }).message
+        || '')
+      : ''
+    throw new Error(busyMessage(path, res.status, detail))
+  }
+  return unwrapEnvelope<T>(json, path)
 }
 
 async function POST_FORM<T = unknown>(path: string, body: FormData): Promise<T> {
@@ -46,7 +102,7 @@ async function POST_FORM<T = unknown>(path: string, body: FormData): Promise<T> 
   return res.json() as Promise<T>
 }
 
-/** SSE streaming POST — yields parsed JSON chunks. */
+/** SSE streaming POST — yields parsed JSON chunks. Falls back to a single JSON body. */
 async function* POST_STREAM(
   path: string,
   body: unknown,
@@ -60,12 +116,28 @@ async function* POST_STREAM(
     body: JSON.stringify(body),
     signal,
   })
-  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`)
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const j = await res.json() as { error?: string; message?: string }
+      detail = j.error || j.message || ''
+    } catch { /* ignore */ }
+    throw new Error(busyMessage(path, res.status, detail))
+  }
   if (!res.body) throw new Error(`POST ${path}: no response body`)
+
+  const ctype = (res.headers.get('content-type') || '').toLowerCase()
+  // Older web plugins may ignore stream:true and return a JSON completion.
+  if (ctype.includes('application/json') && !ctype.includes('event-stream')) {
+    const json = await res.json()
+    yield json
+    return
+  }
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let sawEvent = false
 
   while (true) {
     const { done, value } = await reader.read()
@@ -81,11 +153,20 @@ async function* POST_STREAM(
       const data = trimmed.slice(6)
       if (data === '[DONE]') return
       try {
+        sawEvent = true
         yield JSON.parse(data)
       } catch {
         // skip malformed chunks
       }
     }
+  }
+
+  // Leftover non-SSE JSON body (some gateways buffer the whole completion).
+  const leftover = buffer.trim()
+  if (!sawEvent && leftover.startsWith('{')) {
+    try {
+      yield JSON.parse(leftover)
+    } catch { /* ignore */ }
   }
 }
 

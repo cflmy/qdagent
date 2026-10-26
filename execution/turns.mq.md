@@ -7,6 +7,7 @@ import:
   table: lib/table.mq.md
   json: lib/json.mq.md
   time: lib/time.mq.md
+  text: lib/text.mq.md
 ---
 
 ## create
@@ -29,9 +30,15 @@ import:
     **workspace_id = `pw`**
   **sel = > json.get value=`payload` key="selection"**
   1. `sel`
-    **sm = > json.get value=`sel` key="model_id"**
-    1. `sm`
-      **model_id = `sm`**
+    Soft-get: selection may be a non-map under some clients — never `json get needs map`.
+    **sel_s = > json.stringify value=`sel`**
+    **sel_map = > text.starts_with text=`sel_s` prefix="{"**
+    1. `sel_map`
+      **sm = > json.get value=`sel` key="model_id"**
+      1. `sm`
+        **model_id = `sm`**
+    2. *
+      **_ = 1**
 
 **store = > db.open**
 **u = > time.now_unix**

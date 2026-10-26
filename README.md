@@ -1,6 +1,6 @@
 # qdagent
 
-基于 [Marqdo](https://github.com/cflmy/marqdo) **CLI ≥ 2.1.2 · Ext pack ≥ 2.1.2** 的 **Executable Engineering Knowledge Agent**（**求道**）。
+基于 [Marqdo](https://github.com/cflmy/marqdo) **CLI ≥ 2.1.3 · Ext pack ≥ 2.1.3** 的 **Executable Engineering Knowledge Agent**（**求道**）。
 
 > **求道，把工程经验编译成可执行的工程知识。**
 
@@ -20,8 +20,8 @@ Preflight → REUSE/ADAPT/CREATE → Marqdo Agent (eng_preflight=True)
 # 解析顺序：$MARQDO_BIN → $HOME/work/marqdo → $QDAGENT_MARQDO_SRC（缺省 /workspace/marqdo）→ PATH
 export MARQDO_BIN="${MARQDO_BIN:-/workspace/marqdo/target/release/marqdo}"
 export MARQDO_EXT="${MARQDO_EXT:-/workspace/marqdo/ext}"
-"$MARQDO_BIN" --version          # 期望 CLI ≥2.1.2
-cat "$MARQDO_EXT/VERSION"        # 期望 Ext ≥2.1.2
+"$MARQDO_BIN" --version          # 期望 CLI ≥2.1.3
+cat "$MARQDO_EXT/VERSION"        # 期望 Ext ≥2.1.3
 chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 
 # 编译本仓工程知识（GENERATED → .marqdo/）
@@ -76,7 +76,8 @@ chmod +x scripts/mq.sh scripts/qdagent scripts/marqdo-env.sh
 - Personal Memory（用户画像）保留但非工程主轴
 - OKF `organize` 为 legacy（非 EFI 默认链）；知识主路径是 EKC + Knowledge Candidate
 - `/v1` Python 网关仅做 HTTP 传输；`QDAGENT_V1_EFI=0` 厚路径已移除（HTTP 410）
-- 依赖 Marqdo **CLI ≥2.1.2 · Ext ≥2.1.2**；已对齐 Marqdo **2.1.2**（EK 生产链 · verify/adjudicate · reuse_execute）：
+- 大模型密钥只在 **设置 → 模型**（providers/credentials）配置，不读 `OPENAI_*` / `.env`
+- 依赖 Marqdo **CLI ≥2.1.3 · Ext ≥2.1.3**；已对齐 Marqdo **2.1.3**（workbench · view.document · ModelSelection）：
   自有语料已 `marqdo migrate labels` 迁移 occlusion（`markup: occlusion` per-file 声明）；
   CI 有 `marqdo check` 全量契约 + `labels --baseline` 债务棘轮（只许降不许升）；
   Preflight Context Pack 附带 `pending_labels`（显式 `[待开发]()` 桩即债，Agent 可见）；

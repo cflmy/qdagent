@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { createPortal } from 'react-dom'
 import {
-  Brain, Mic, Plug, Globe, Database,
+  Mic, Plug, Database,
   Save, RotateCcw, Loader2, X,
-  User, Cpu, Palette, Keyboard,
+  User, Cpu, Palette,
 } from 'lucide-react'
+import { ProviderModelPanes } from './ProviderModelPanes'
 
 type Tab = 'general' | 'models' | 'plugins' | 'voice' | 'memory' | 'account'
 
-const tabs: { id: Tab; label: string; icon: typeof Brain }[] = [
+const tabs: { id: Tab; label: string; icon: typeof Palette }[] = [
   { id: 'general', label: '通用', icon: Palette },
   { id: 'models', label: '模型', icon: Cpu },
   { id: 'plugins', label: '插件', icon: Plug },
@@ -19,79 +20,29 @@ const tabs: { id: Tab; label: string; icon: typeof Brain }[] = [
   { id: 'account', label: '账户', icon: User },
 ]
 
-type ProviderRow = {
-  id: string
-  display_name: string
-  adapter: string
-  base_url?: string
-  credential_configured?: boolean
-  models?: Array<{ id: string; display_name: string; upstream_model_id: string; enabled?: number }>
-}
-
-type ProfileItem = {
-  id: string
-  text: string
-  scope: string
-  status: string
-  category?: string
-}
-
 export function SettingsPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<Tab>('general')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
-    llm_base_url: '',
-    api_key: '',
-    model: '',
     tts_base_url: '',
     asr_base_url: '',
     dictation_lang: 'zh-CN',
   })
-  // Whether a key is already stored server-side (the value itself is never sent back).
-  const [keySet, setKeySet] = useState(false)
   const [loadError, setLoadError] = useState('')
-  const [providers, setProviders] = useState<ProviderRow[]>([])
-  const [newModelName, setNewModelName] = useState('')
-  const [profileItems, setProfileItems] = useState<ProfileItem[]>([])
-  const [proposeText, setProposeText] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
-
-  const refreshProviders = () => {
-    api.appProviders().then((res) => {
-      const list = (res as { providers?: ProviderRow[] }).providers
-        ?? (res as { data?: ProviderRow[] }).data
-        ?? []
-      setProviders(Array.isArray(list) ? list : [])
-    }).catch(() => setProviders([]))
-  }
-
-  const refreshProfile = () => {
-    api.appProfileItems({}).then((res) => {
-      const data = (res as { data?: ProfileItem[]; items?: ProfileItem[] }).items
-        ?? (res as { data?: ProfileItem[] }).data
-        ?? []
-      setProfileItems(Array.isArray(data) ? data : [])
-    }).catch(() => setProfileItems([]))
-  }
 
   useEffect(() => {
     api.getSettings().then((s) => {
       setForm({
-        llm_base_url: s.llm_base_url || '',
-        api_key: '',
-        model: s.llm_model || '',
         tts_base_url: s.tts_base_url || '',
         asr_base_url: s.asr_base_url || '',
         dictation_lang: s.dictation_lang || 'zh-CN',
       })
-      setKeySet(Boolean(s.llm_api_key_set))
     }).catch((err) => {
       setLoadError(err instanceof Error ? err.message : String(err))
     }).finally(() => setLoading(false))
-    refreshProviders()
-    refreshProfile()
   }, [])
 
   // Close on Escape
@@ -107,22 +58,14 @@ export function SettingsPage() {
     navigate('/')
   }, [navigate])
 
-  const handleSave = async () => {
+  const handleSaveVoice = async () => {
     setSaving(true)
     try {
-      const patch: Record<string, string> = {
-        llm_base_url: form.llm_base_url,
-        llm_model: form.model,
+      await api.updateSettings({
         tts_base_url: form.tts_base_url,
         asr_base_url: form.asr_base_url,
         dictation_lang: form.dictation_lang,
-      }
-      // Only send the key when the user actually typed a new one.
-      if (form.api_key) patch.llm_api_key = form.api_key
-      await api.updateSettings(patch)
-      const s = await api.getSettings()
-      setKeySet(Boolean(s.llm_api_key_set))
-      setForm((f) => ({ ...f, api_key: '' }))
+      })
     } catch (err) {
       console.error('Save failed:', err)
       setLoadError(err instanceof Error ? err.message : String(err))
@@ -131,13 +74,10 @@ export function SettingsPage() {
     }
   }
 
-  const handleReset = async () => {
+  const handleResetVoice = async () => {
     try {
       const s = await api.getSettings()
       setForm({
-        llm_base_url: s.llm_base_url || '',
-        api_key: '',
-        model: s.llm_model || '',
         tts_base_url: s.tts_base_url || '',
         asr_base_url: s.asr_base_url || '',
         dictation_lang: s.dictation_lang || 'zh-CN',
@@ -343,24 +283,7 @@ export function SettingsPage() {
                   </>
                 )}
 
-                {activeTab === 'models' && (
-                  <ModelsRegistryTab
-                    llmBase={form.llm_base_url}
-                    apiKey={form.api_key}
-                    model={form.model}
-                    setLlmBase={(v) => setForm({ ...form, llm_base_url: v })}
-                    setApiKey={(v) => setForm({ ...form, api_key: v })}
-                    setModel={(v) => setForm({ ...form, model: v })}
-                    keySet={keySet}
-                    loadError={loadError}
-                    inputStyle={inputStyle}
-                    handleFocus={handleFocus}
-                    handleBlur={handleBlur}
-                    handleSave={handleSave}
-                    handleReset={handleReset}
-                    saving={saving}
-                  />
-                )}
+                {activeTab === 'models' && <ProviderModelPanes />}
 
                 {activeTab === 'plugins' && (
                   <>
@@ -381,6 +304,9 @@ export function SettingsPage() {
                 {activeTab === 'voice' && (
                   <>
                     <SectionTitle>语音配置</SectionTitle>
+                    <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)', margin: 0 }}>
+                      语音（ASR/TTS）可选，可不启用；留空不影响聊天与工程预检。
+                    </p>
                     <SettingRow label="TTS Base URL">
                       <input
                         type="text"
@@ -389,6 +315,7 @@ export function SettingsPage() {
                         style={inputStyle}
                         onFocus={handleFocus}
                         onBlur={handleBlur}
+                        placeholder="留空 = 不启用语音合成"
                       />
                     </SettingRow>
                     <SettingRow label="ASR Base URL">
@@ -399,6 +326,7 @@ export function SettingsPage() {
                         style={inputStyle}
                         onFocus={handleFocus}
                         onBlur={handleBlur}
+                        placeholder="留空 = 不启用语音识别"
                       />
                     </SettingRow>
                     <SettingRow label="语音识别语言">
@@ -414,15 +342,16 @@ export function SettingsPage() {
                       </select>
                     </SettingRow>
                     <div style={{ display: 'flex', gap: '12px', paddingTop: '8px' }}>
-                      <PrimaryButton onClick={handleSave} disabled={saving}>
+                      <PrimaryButton onClick={handleSaveVoice} disabled={saving}>
                         {saving ? <Loader2 size={14} /> : <Save size={14} />}
-                        保存
+                        保存语音设置
                       </PrimaryButton>
-                      <SecondaryButton onClick={handleReset}>
+                      <SecondaryButton onClick={handleResetVoice}>
                         <RotateCcw size={14} />
                         重置
                       </SecondaryButton>
                     </div>
+                    {loadError && <p style={{ fontSize: 12, color: '#f87171' }}>{loadError}</p>}
                   </>
                 )}
 
@@ -530,122 +459,6 @@ function SecondaryButton({ onClick, children }: { onClick: () => void; children:
     >
       {children}
     </button>
-  )
-}
-
-/** Q01 provider/model registry — also keeps legacy single-row settings editable. */
-function ModelsRegistryTab(props: {
-  llmBase: string
-  apiKey: string
-  model: string
-  setLlmBase: (v: string) => void
-  setApiKey: (v: string) => void
-  setModel: (v: string) => void
-  keySet: boolean
-  loadError: string
-  inputStyle: React.CSSProperties
-  handleFocus: (e: React.FocusEvent<HTMLInputElement>) => void
-  handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void
-  handleSave: () => void
-  handleReset: () => void
-  saving: boolean
-}) {
-  const [providers, setProviders] = useState<Array<Record<string, unknown>>>([])
-  const [name, setName] = useState('本地兼容端点')
-  const [base, setBase] = useState('http://127.0.0.1:11434/v1')
-  const [cred, setCred] = useState('')
-  const [upstream, setUpstream] = useState('llama3.2')
-  const [msg, setMsg] = useState('')
-
-  const refresh = () => {
-    api.appProviders().then((res) => {
-      const list = (res as { providers?: unknown[]; data?: unknown[] }).providers
-        ?? (res as { data?: unknown[] }).data
-        ?? []
-      setProviders(list as Array<Record<string, unknown>>)
-    }).catch((e) => setMsg(String(e)))
-  }
-  useEffect(() => { refresh() }, [])
-
-  const addProvider = async () => {
-    setMsg('')
-    try {
-      const saved = await api.appProvidersSave({
-        display_name: name,
-        adapter: 'openai-compatible',
-        base_url: base,
-        auth_mode: cred ? 'api_key' : 'none',
-        credential_action: cred ? 'replace' : 'keep',
-        credential: cred || undefined,
-        enabled: 1,
-      }) as { id?: string; ok?: boolean }
-      const pid = (saved as { id?: string }).id
-      if (pid) {
-        await api.appModelsSave({
-          provider_id: pid,
-          upstream_model_id: upstream,
-          display_name: upstream,
-          enabled: 1,
-        })
-      }
-      setMsg('已保存提供商与模型')
-      refresh()
-    } catch (e) {
-      setMsg(String(e))
-    }
-  }
-
-  return (
-    <>
-      <SectionTitle>提供商与模型</SectionTitle>
-      <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)', marginTop: 0 }}>
-        一个提供商可有多个模型；密钥不会回显。旧版单行设置仍可在下方兼容编辑。
-      </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-        {providers.map((p) => (
-          <div key={String(p.id)} style={{ border: '0.5px solid var(--dsw-alias-border-l3)', borderRadius: 8, padding: 12 }}>
-            <div style={{ fontWeight: 500 }}>{String(p.display_name)} · {String(p.adapter)}</div>
-            <div style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>{String(p.base_url)}</div>
-            <div style={{ fontSize: 12 }}>
-              凭证：{p.credential_configured ? '已配置' : '未配置'} · 模型 {(p.models as unknown[] | undefined)?.length ?? 0} 个
-            </div>
-          </div>
-        ))}
-        {!providers.length && <div style={{ fontSize: 13, color: 'var(--dsw-alias-label-tertiary)' }}>尚无提供商（将从旧 settings 迁移，或在下方新建）</div>}
-      </div>
-      <SettingRow label="新建提供商名称">
-        <input value={name} onChange={(e) => setName(e.target.value)} style={props.inputStyle} />
-      </SettingRow>
-      <SettingRow label="Base URL">
-        <input value={base} onChange={(e) => setBase(e.target.value)} style={props.inputStyle} />
-      </SettingRow>
-      <SettingRow label="API Key（可选）">
-        <input type="password" value={cred} onChange={(e) => setCred(e.target.value)} style={props.inputStyle} placeholder="无密钥本地端点可留空" />
-      </SettingRow>
-      <SettingRow label="首个上游模型 id">
-        <input value={upstream} onChange={(e) => setUpstream(e.target.value)} style={props.inputStyle} />
-      </SettingRow>
-      <div style={{ display: 'flex', gap: 12, paddingTop: 8 }}>
-        <PrimaryButton onClick={addProvider}><Save size={14} /> 添加提供商</PrimaryButton>
-      </div>
-      {msg && <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>{msg}</p>}
-
-      <SectionTitle>兼容：旧版单行设置</SectionTitle>
-      <SettingRow label="API Base URL">
-        <input type="text" value={props.llmBase} onChange={(e) => props.setLlmBase(e.target.value)} placeholder="https://api.openai.com/v1" style={props.inputStyle} onFocus={props.handleFocus} onBlur={props.handleBlur} />
-      </SettingRow>
-      <SettingRow label="API Key">
-        <input type="password" value={props.apiKey} onChange={(e) => props.setApiKey(e.target.value)} placeholder={props.keySet ? '已配置（留空则保持不变）' : '尚未配置，请填写'} style={props.inputStyle} onFocus={props.handleFocus} onBlur={props.handleBlur} />
-      </SettingRow>
-      <SettingRow label="模型名称">
-        <input type="text" value={props.model} onChange={(e) => props.setModel(e.target.value)} placeholder="gpt-4o" style={props.inputStyle} onFocus={props.handleFocus} onBlur={props.handleBlur} />
-      </SettingRow>
-      <div style={{ display: 'flex', gap: 12, paddingTop: 8 }}>
-        <PrimaryButton onClick={props.handleSave} disabled={props.saving}>{props.saving ? <Loader2 size={14} /> : <Save size={14} />} 保存旧设置</PrimaryButton>
-        <SecondaryButton onClick={props.handleReset}><RotateCcw size={14} /> 重置</SecondaryButton>
-      </div>
-      {props.loadError && <p style={{ fontSize: 12, color: '#f87171' }}>{props.loadError}</p>}
-    </>
   )
 }
 

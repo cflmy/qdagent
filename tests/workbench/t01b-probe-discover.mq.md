@@ -33,16 +33,29 @@ import:
   > print text=legacy-marked-unavailable
   > print text=`pr2`
   > sys.exit code=1
-1. `st2` == "reachable_config"
-  > print text=legacy-reachable-ok
-2. *
+1. `st2` == "ok"
+  > print text=legacy-probe-ok
+2. `st2` == "reachable_config"
+  > print text=legacy-reachable-config-compat
+3. `st2` == "auth_failed"
+  > print text=legacy-auth-failed-ok
+4. `st2` == "unreachable"
+  > print text=legacy-unreachable-ok
+5. *
   > print text=legacy-unexpected
   > print text=`pr2`
   > sys.exit code=1
 
 **disc = > registry.discover provider_id="prov-legacy-default"**
 **dok = > json.get value=`disc` key="ok"**
-1. not `dok`
+**dst = > json.get value=`disc` key="status"**
+1. `dok`
+  > print text=discover-ok
+2. `dst` == "auth_failed"
+  > print text=discover-auth-failed-ok
+3. `dst` == "unreachable"
+  > print text=discover-unreachable-ok
+4. *
   > print text=discover-fail
   > print text=`disc`
   > sys.exit code=1

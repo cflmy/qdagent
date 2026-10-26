@@ -7,6 +7,7 @@ import:
   db: ../db/index.mq.md
   table: lib/table.mq.md
   json: lib/json.mq.md
+  text: lib/text.mq.md
   time: lib/time.mq.md
 ---
 
@@ -116,7 +117,9 @@ Best-effort extract usage from Marqdo agent outcome. Missing fields → usage_st
 **measurement_source = "provider_omitted"**
 **status = "completed"**
 
-1. `agent_out`
+**ao_s = > json.stringify value=`agent_out`**
+**ao_map = > text.starts_with text=`ao_s` prefix="{"**
+1. `ao_map`
   **usage = > json.get value=`agent_out` key="usage"**
   1. not `usage`
     **usage = > json.get value=`agent_out` key="token_usage"**
@@ -144,6 +147,8 @@ Best-effort extract usage from Marqdo agent outcome. Missing fields → usage_st
     1. `total_tokens` == None
       1. `usage_state` == "unknown"
         **measurement_source = "token_cost_as_tokens_not_currency"**
+2. *
+  **_ = 1**
 
 *> record call_id=`call_id` attempt_id="1" run_id=`run_id` turn_id=`turn_id` session_id=`session_id` workspace_id=`workspace_id` purpose=`purpose` model_id=`model_id` model_snapshot=`model_snapshot` status=`status` input_tokens=`input_tokens` output_tokens=`output_tokens` total_tokens=`total_tokens` usage_state=`usage_state` measurement_source=`measurement_source`*
 

@@ -236,6 +236,41 @@ export function ChatPage() {
                   wordBreak: 'break-word',
                 }
               }>
+                {msg.role === 'assistant' && msg.process && msg.process.length > 0 ? (
+                  <div style={{
+                    marginBottom: msg.content ? 12 : 0,
+                    padding: '8px 12px',
+                    borderRadius: 'var(--dsw-radius-panel, 8px)',
+                    background: 'color-mix(in srgb, var(--dsw-alias-bg-base) 88%, var(--dsw-alias-label-secondary))',
+                    border: '0.5px solid var(--dsw-alias-border-l2, rgba(0,0,0,0.06))',
+                    fontSize: '12px',
+                    lineHeight: '18px',
+                    color: 'var(--dsw-alias-label-secondary)',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}>
+                    <div style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      marginBottom: 6,
+                      color: 'var(--dsw-alias-label-tertiary)',
+                      fontFamily: 'inherit',
+                    }}>
+                      执行
+                    </div>
+                    {msg.process.map((step) => (
+                      <div key={step.id} style={{ marginBottom: 4 }}>
+                        <span style={{ color: 'var(--dsw-alias-label-primary)' }}>{step.label}</span>
+                        {step.detail ? (
+                          <span style={{ opacity: 0.85 }}> — {step.detail}</span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {msg.role === 'assistant' ? renderWithCitations(msg.content) : msg.content}
                 {msg.role === 'assistant' && msg.usage ? (
                   <UsageFooter usage={msg.usage} />
@@ -243,14 +278,21 @@ export function ChatPage() {
               </div>
             </div>
           ))}
-          {streaming && (
+          {streaming && (() => {
+            const last = currentSession?.messages?.[currentSession.messages.length - 1]
+            const waiting = last?.role === 'assistant' && !last.content
+            if (!waiting) return null
+            return (
             <div style={{ padding: '12px 24px' }}>
               <div style={{
                 maxWidth: 'min(calc(100% - 32px), 920px)',
                 margin: '0 auto',
-                color: 'var(--dsw-alias-label-primary)',
-                fontSize: '14px',
+                color: 'var(--dsw-alias-label-secondary)',
+                fontSize: '13px',
                 lineHeight: '22px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
               }}>
                 <span style={{
                   display: 'inline-block',
@@ -260,11 +302,12 @@ export function ChatPage() {
                   borderRadius: '1px',
                   animation: 'blink 1s step-end infinite',
                   verticalAlign: 'text-bottom',
-                  marginLeft: '2px',
                 }} />
+                {last?.process?.length ? '执行中…' : '正在生成…'}
               </div>
             </div>
-          )}
+            )
+          })()}
           <div ref={messagesEndRef} />
         </div>
 
