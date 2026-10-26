@@ -266,6 +266,37 @@ export const useSessionStore = create<SessionState & SessionActions>()(
           get().updateLastAssistant(sessionId, '\n\n[已停止]')
         }
       } finally {
+        // Hydrate usage from server ledger when stream omitted it (never invent 0).
+        const sess = get().sessions.find((s) => s.id === sessionId)
+        const last = sess?.messages[sess.messages.length - 1]
+        if (last?.role === 'assistant' && (!last.usage || last.usage.usage_state === 'unknown')) {
+          try {
+            const q = await api.appUsageQuery({ session_id: sessionId, limit: 5 }) as {
+              data?: { rows?: Array<Record<string, unknown>>; calls?: Array<Record<string, unknown>> }
+              calls?: Array<Record<string, unknown>>
+              summary?: { coverage?: string }
+            }
+            const rows = q.data?.rows || q.data?.calls || q.calls || []
+            const row = rows[0]
+            if (row) {
+              get().setLastUsage(sessionId, {
+                usage_state: String(row.usage_state || 'unknown'),
+                total_tokens: (row.total_tokens as number | null | undefined) ?? null,
+                input_tokens: (row.input_tokens as number | null | undefined) ?? null,
+                output_tokens: (row.output_tokens as number | null | undefined) ?? null,
+                model: String(row.model_id || last.usage?.model || ''),
+                provider: last.usage?.provider,
+                status: String(row.status || '完成'),
+              })
+            } else if (!last.usage) {
+              get().setLastUsage(sessionId, { usage_state: 'unknown', status: '完成' })
+            }
+          } catch {
+            if (!last.usage) {
+              get().setLastUsage(sessionId, { usage_state: 'unknown', status: '完成' })
+            }
+          }
+        }
         get().finalizeAssistant(sessionId)
       }
     },

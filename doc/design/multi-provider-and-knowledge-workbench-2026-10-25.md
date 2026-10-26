@@ -1,8 +1,8 @@
 # 多提供商与知识工作台：qdagent 应用实施设计
 
-日期：2026-10-25。状态：Proposed / 开发规格，本文未实现任何产品功能。
+日期：2026-10-25。状态：**in_progress**（Wave0–4 交付闭合：registry/`llm.create`/usage/Workspace 阅读/引用/SSE evented-batch/cancel/上传隔离/画像注入/a11y Playwright；`scripts/run-workbench-tests.sh` 绿。完整闸读者任务 §11.3 与真逐字流式仍待人工/Marqdo M02；未宣称全部 verified）。
 
-审阅基线：qdagent `643dd31`，Marqdo `dc853fb`（2.1.2）；两个仓库均已从远端 fast-forward 同步。本次目标是把模型选择、可追溯的知识阅读和持续沉淀组织成一个可读、可信、可持续开发的产品。
+实施基线：Marqdo **≥2.1.3**（工作台 M00–M06：`view.document` / ModelSelection / usage null≠0 / cancel）；qdagent workbench 提交自 `13f8744` 起。审阅起点曾为 qdagent `643dd31`、Marqdo `dc853fb`（2.1.2）。本次目标是把模型选择、可追溯的知识阅读和持续沉淀组织成一个可读、可信、可持续开发的产品。
 
 上位约束：[qdagent 2.0](qdagent-2.0.md)、只读的 [002](../next/002.md)。历史背景：[知识沉淀缺口审计](../gaps/03-knowledge-ingestion-and-sedimentation-2026-10-24.md)。框架配套规格：[Marqdo 多模型运行与嵌入式知识阅读支持](../../../marqdo/doc/design/qdagent-workbench-runtime-and-view-2026-10-25.md)。跨仓链接以当前兄弟工作区布局为准；单独 checkout 时可按仓库名和文件名查找。
 

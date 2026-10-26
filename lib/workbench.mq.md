@@ -14,6 +14,7 @@ import:
   text: lib/text.mq.md
   eng_imp: ../knowledge/import.mq.md
   run: lib/run.mq.md
+  workspace: ../lib/workspace.mq.md
 ---
 
 ## app_ok
@@ -77,6 +78,11 @@ import:
 2. *
   > `store`.insert table=workspaces rows=`row`
 *> app_ok data=`row`*
+
+## workspaces_tree
+    + `payload`=None
+
+*> workspace.list_tree payload=`payload`*
 
 ## documents_read
     + `payload`=None
@@ -316,6 +322,39 @@ Stores under workspace data dir; does not execute uploaded `.mq.md`.
 1. not `job`
   *> app_err code="resource.not_found" message="import job not found"*
 *> app_ok data=`job`*
+
+## imports_publish
+    + `payload`=None
+
+Explicit publish — generation/draft ≠ published (T13). Requires draft_ready.
+
+**store = > db.open**
+**id = > json.get value=`payload` key="id"**
+1. not `id`
+  **id = > json.get value=`payload` key="upload_id"**
+1. not `id`
+  *> app_err code="resource.not_found" message="upload id required"*
+**job = > `store`.get table="import_jobs" id=`id`**
+1. not `job`
+  *> app_err code="resource.not_found" message="import job not found"*
+**st = > json.get value=`job` key="status"**
+1. `st` == "failed"
+  *> app_err code="document.unsupported_format" message="cannot publish failed import — draft retained"*
+1. not `st` == "draft_ready"
+  1. not `st` == "published"
+    *> app_err code="resource.not_found" message="import not draft_ready"*
+1. `st` == "published"
+  *> app_ok data=`job`*
+**u = > time.now_unix**
+`patch` =
+
+| status | updated_at |
+|--------|------------|
+| published | `u` |
+
+> `store`.update table="import_jobs" id=`id` row=`patch`
+**job2 = > `store`.get table="import_jobs" id=`id`**
+*> app_ok data=`job2`*
 
 ## profile_items_get
     + `payload`=None

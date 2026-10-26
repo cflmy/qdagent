@@ -47,6 +47,33 @@ describe('Q00 workbench contracts', () => {
     const codes = new Set(data.matrix.map((r: { code: string }) => r.code))
     expect(codes.has('auth.required')).toBe(true)
     expect(codes.has('revision.conflict')).toBe(true)
+    expect(codes.has('request_id.conflict')).toBe(true)
+    expect(codes.has('provider.unavailable')).toBe(true)
     expect(data.envelope_error.ok).toBe(false)
+  })
+
+  it('model snapshot omits secrets and freezes turn identity', () => {
+    const data = load('model-snapshot.json')
+    expect(data.example.model_id).toBeTruthy()
+    expect(data.example.upstream_model_id).toBeTruthy()
+    expect(data.example.adapter).toBe('openai-compatible')
+    for (const k of data.public_forbidden_keys) {
+      expect(data.example).not.toHaveProperty(k)
+    }
+  })
+
+  it('capabilities probe requires Marqdo 2.1.3 floor and honest native adapters', () => {
+    const data = load('capabilities-probe.json')
+    expect(data.required_min_version).toBe('2.1.3')
+    expect(data.features['view.document']).toBe(true)
+    expect(data.features['llm.explicit_selection']).toBe(true)
+    const native = data.adapters.find((a: { id: string }) => a.id === 'anthropic-native')
+    expect(native?.available).toBe(false)
+  })
+
+  it('citation relation enum forbids minting executed from prose alone', () => {
+    const data = load('citation.json')
+    expect(data.relation_enum).toContain('executed')
+    expect(data.invariants.some((s: string) => s.includes('LLM markdown'))).toBe(true)
   })
 })

@@ -13,8 +13,11 @@ interface ContextPanelState {
   loading: boolean
   error: string
   activeTarget: ReaderTarget | null
+  /** Monotonic generation — late responses must not overwrite newer targets. */
+  requestGen: number
   backStack: ReaderTarget[]
   forwardStack: ReaderTarget[]
+  scrollByTarget: Record<string, number>
   fragmentHtml: string
   outline: unknown[]
   diagnostics: unknown[]
@@ -22,16 +25,27 @@ interface ContextPanelState {
 }
 
 interface ContextPanelActions {
-  openTarget: (t: ReaderTarget) => void
+  openTarget: (t: ReaderTarget) => number
   close: () => void
   back: () => void
+  forward: () => void
   setWidth: (w: number) => void
   setLoading: (v: boolean) => void
-  setError: (e: string) => void
-  setView: (v: { fragmentHtml?: string; outline?: unknown[]; diagnostics?: unknown[]; completeness?: string }) => void
+  setError: (e: string, gen?: number) => void
+  setView: (v: { fragmentHtml?: string; outline?: unknown[]; diagnostics?: unknown[]; completeness?: string }, gen?: number) => void
+  rememberScroll: (key: string, y: number) => void
+  targetKey: (t: ReaderTarget | null) => string
 }
 
 const WIDTH_DEFAULT = 440
+
+function keyOf(t: ReaderTarget | null): string {
+  if (!t) return ''
+  if (t.kind === 'document') return `doc:${t.workspaceId}:${t.documentId}:${t.revision || ''}:${t.nodeId || ''}`
+  if (t.kind === 'citation') return `cite:${t.workspaceId}:${t.citationId}`
+  if (t.kind === 'file') return `file:${t.workspaceId}:${t.path}`
+  return `profile:${t.id}`
+}
 
 export const useContextPanelStore = create<ContextPanelState & ContextPanelActions>()(
   immer((set, get) => ({
@@ -40,16 +54,23 @@ export const useContextPanelStore = create<ContextPanelState & ContextPanelActio
     loading: false,
     error: '',
     activeTarget: null,
+    requestGen: 0,
     backStack: [],
     forwardStack: [],
+    scrollByTarget: {},
     fragmentHtml: '',
     outline: [],
     diagnostics: [],
     completeness: '',
 
+    targetKey: (t) => keyOf(t),
+
     openTarget: (t) => {
+      let gen = 0
       set((s) => {
-        if (s.activeTarget) s.backStack.push(s.activeTarget)
+        if (s.activeTarget) {
+          s.backStack.push(s.activeTarget)
+        }
         s.forwardStack = []
         s.activeTarget = t
         s.open = true
@@ -58,7 +79,10 @@ export const useContextPanelStore = create<ContextPanelState & ContextPanelActio
         s.outline = []
         s.diagnostics = []
         s.completeness = ''
+        s.requestGen += 1
+        gen = s.requestGen
       })
+      return gen
     },
 
     close: () => set((s) => { s.open = false }),
@@ -72,18 +96,40 @@ export const useContextPanelStore = create<ContextPanelState & ContextPanelActio
         s.activeTarget = prev
         s.fragmentHtml = ''
         s.error = ''
+        s.requestGen += 1
+      })
+    },
+
+    forward: () => {
+      const { forwardStack, activeTarget } = get()
+      if (!forwardStack.length) return
+      set((s) => {
+        const next = s.forwardStack.pop()!
+        if (activeTarget) s.backStack.push(activeTarget)
+        s.activeTarget = next
+        s.fragmentHtml = ''
+        s.error = ''
+        s.requestGen += 1
       })
     },
 
     setWidth: (w) => set((s) => { s.width = Math.min(720, Math.max(360, w)) }),
     setLoading: (v) => set((s) => { s.loading = v }),
-    setError: (e) => set((s) => { s.error = e; s.loading = false }),
-    setView: (v) => set((s) => {
+    setError: (e, gen) => set((s) => {
+      if (gen !== undefined && gen !== s.requestGen) return
+      s.error = e
+      s.loading = false
+    }),
+    setView: (v, gen) => set((s) => {
+      if (gen !== undefined && gen !== s.requestGen) return
       if (v.fragmentHtml !== undefined) s.fragmentHtml = v.fragmentHtml
       if (v.outline) s.outline = v.outline
       if (v.diagnostics) s.diagnostics = v.diagnostics
       if (v.completeness) s.completeness = v.completeness
       s.loading = false
+    }),
+    rememberScroll: (key, y) => set((s) => {
+      if (key) s.scrollByTarget[key] = y
     }),
   })),
 )

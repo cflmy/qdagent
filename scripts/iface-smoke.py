@@ -27,6 +27,7 @@ CRITICAL_MUST_OK = {
     ("GET", "/api/app/providers"),
     ("GET", "/api/app/models"),
     ("GET", "/api/app/workspaces"),
+    ("POST", "/api/app/workspaces/tree"),
     ("POST", "/api/app/usage/query"),
     ("POST", "/api/store/run"),
     ("GET", "/api/store/runs"),
@@ -210,11 +211,19 @@ def main() -> int:
     must_ok(wss, "workspaces")
     _, _, usage = request("POST", "/api/app/usage/query", data={"limit": 5})
     must_ok(usage, "usage")
+    _, _, tree = request(
+        "POST",
+        "/api/app/workspaces/tree",
+        data={"workspace_id": "ws-default", "path": ""},
+        critical=True,
+    )
+    must_ok(tree, "workspaces.tree")
 
     # Q04/Q05/Q08 soft-capable reads
     request("POST", "/api/app/documents/read", data={"workspace_id": "ws-default", "document": "kb/用户画像.mq.md"}, critical=False)
     request("POST", "/api/app/citations/resolve", data={"citation_id": "cite-smoke", "document_id": "missing"}, critical=False)
     request("POST", "/api/app/profile/items", data={}, critical=False)
+    request("POST", "/api/app/turns/cancel", data={"turn_id": "turn-smoke-missing"}, critical=False)
 
     # Q07 upload chain (txt)
     note_body = "求道浏览器上传冒烟资料。\n"

@@ -253,16 +253,21 @@ export const api = {
   // Workbench app APIs (Q01–Q08)
   appProviders: () => GET('/api/app/providers'),
   appProvidersSave: (data: unknown) => POST('/api/app/providers/save', data),
+  appProvidersProbe: (data: { provider_id: string }) => POST('/api/app/providers/probe', data),
+  appProvidersDiscover: (data: { provider_id: string }) => POST('/api/app/providers/discover', data),
   appModels: () => GET('/api/app/models'),
   appModelsSave: (data: unknown) => POST('/api/app/models/save', data),
   appUsageQuery: (data?: unknown) => POST('/api/app/usage/query', data || {}),
   appWorkspaces: () => GET('/api/app/workspaces'),
   appWorkspacesSave: (data: unknown) => POST('/api/app/workspaces/save', data),
+  appWorkspacesTree: (data?: { workspace_id?: string; path?: string }) =>
+    POST('/api/app/workspaces/tree', data || {}),
   appDocumentsRead: (data: unknown) => POST('/api/app/documents/read', data),
   appCitationsResolve: (data: unknown) => POST('/api/app/citations/resolve', data),
   appUploadsCreate: (data: unknown) => POST('/api/app/uploads/create', data),
   appImportsStart: (data: unknown) => POST('/api/app/imports/start', data),
   appImportsGet: (data: unknown) => POST('/api/app/imports/get', data),
+  appImportsPublish: (data: unknown) => POST('/api/app/imports/publish', data),
   appProfileItems: (data?: unknown) => POST('/api/app/profile/items', data || {}),
   appProfilePropose: (data: unknown) => POST('/api/app/profile/propose', data),
   appProfileSetStatus: (data: { id: string; status: string }) =>

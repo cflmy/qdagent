@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "description": "Q00 Marqdo capability probe — honest bits for workbench UI gating",
+  "required_min_version": "2.1.3",
+  "features": {
+    "llm.explicit_selection": true,
+    "view.document": true,
+    "usage.null_distinct_from_zero": true,
+    "runtime.cancel_token": true
+  },
+  "adapters": [
+    { "id": "openai-compatible", "available": true },
+    { "id": "ollama-compatible", "available": true },
+    { "id": "anthropic-native", "available": false },
+    { "id": "gemini-native", "available": false }
+  ],
+  "invariants": [
+    "UI must not claim streaming/native adapters without matching capability bits",
+    "CLI version alone is insufficient — probe loaded plugins/ext",
+    "unavailable adapters show honest unavailable, not silent hide"
+  ]
+}

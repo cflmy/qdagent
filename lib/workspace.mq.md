@@ -376,6 +376,98 @@ Attempt `marqdo mlsp` view.document. Soft-fail to capability unavailable.
 
 *ok*
 
+## list_tree
+    + `workspace_id`=""
+    + `path`=""
+    + `payload`=None
+
+Authorized shallow file listing under workspace root. Rejects `..`. Read-only.
+
+1. `payload`
+  **pw = > json.get value=`payload` key="workspace_id"**
+  1. `pw`
+    **workspace_id = `pw`**
+  **pp = > json.get value=`payload` key="path"**
+  1. `pp`
+    **path = `pp`**
+1. not `workspace_id`
+  **workspace_id = "ws-default"**
+**store = > db.open**
+**ws = > `store`.get table="workspaces" id=`workspace_id`**
+1. not `ws`
+  **rows = > `store`.select table="workspaces" limit=1**
+  **ws = [1](access(rows, "1"))**
+  1. `ws`
+    **workspace_id = [id](access(ws, "id"))**
+1. not `ws`
+  `nf` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | workspace not found | workspace.forbidden |
+
+  *nf*
+**root = [project_root_ref](access(ws, "project_root_ref"))**
+1. not `root`
+  **root = "."**
+**data_root = > run.确保目录**
+1. `root` == "."
+  **root = `data_root`**
+**rel = `path`**
+1. not `rel`
+  **rel = ""**
+**bad = > text.contains text=`rel` sub=".."**
+1. `bad`
+  `trav` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | path traversal denied | workspace.forbidden |
+
+  *trav*
+**full = `root`**
+1. `rel`
+  **full = `root` + "/" + `rel`**
+**exists = > fs.exists path=`full`**
+1. not `exists`
+  `miss` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | path not found | resource.not_found |
+
+  *miss*
+**entries = > fs.list_dir path=`full`**
+**out = > table.empty_list**
+1. `entries`
+  - [name](遍历 entries 为 name)
+    **child = `full` + "/" + `name`**
+    **rel_child = `name`**
+    1. `rel`
+      **rel_child = `rel` + "/" + `name`**
+    **is_dir = False**
+    **st = > fs.stat path=`child`**
+    1. `st`
+      **kind = [kind](access(st, "kind"))**
+      1. `kind` == "dir"
+        **is_dir = True**
+      2. `kind` == "directory"
+        **is_dir = True**
+    `item` =
+
+    | name | path | is_dir | workspace_id |
+    |------|------|--------|--------------|
+    | `name` | `rel_child` | `is_dir` | `workspace_id` |
+
+    **out = > table.append list=`out` item=`item`**
+`ret` =
+
+| ok | workspace_id | root | path | entries |
+|----|--------------|------|------|---------|
+| True | `workspace_id` | `root` | `rel` | `out` |
+
+*ret*
+
 ## resolve_citation
     + `citation_id`=""
     + `message_id`=""

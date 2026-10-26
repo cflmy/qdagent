@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 import { useContextPanelStore } from '@/stores/context-panel-store'
 import { ArrowLeft, X, Loader2 } from 'lucide-react'
@@ -7,12 +7,14 @@ import { ArrowLeft, X, Loader2 } from 'lucide-react'
 export function DocumentReader() {
   const {
     open, width, loading, error, activeTarget, fragmentHtml, completeness, diagnostics,
-    close, back, backStack, setLoading, setError, setView,
+    close, back, backStack, setLoading, setError, setView, requestGen, rememberScroll, targetKey,
   } = useContextPanelStore()
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open || !activeTarget) return
-    if (activeTarget.kind !== 'document' && activeTarget.kind !== 'citation') return
+    if (activeTarget.kind !== 'document' && activeTarget.kind !== 'citation' && activeTarget.kind !== 'file') return
+    const gen = requestGen
     let cancelled = false
     ;(async () => {
       setLoading(true)
@@ -24,40 +26,56 @@ export function DocumentReader() {
             locator: activeTarget.locator,
           })
           if (cancelled) return
-          const data = (res as { data?: { resolution?: string; target?: { document_id?: string }; label?: string } }).data
+          const data = (res as { data?: { resolution?: string; target?: { document_id?: string }; document_id?: string; label?: string } }).data
             ?? res
           const resolution = (data as { resolution?: string }).resolution
           if (resolution && resolution !== 'resolved') {
-            setError(`引用${resolution === 'stale' ? '已过期' : resolution === 'version_unavailable' ? '版本不可用' : resolution === 'ambiguous' ? '存在歧义' : '未解析'}`)
+            setError(`引用${resolution === 'stale' ? '已过期' : resolution === 'version_unavailable' ? '版本不可用' : resolution === 'ambiguous' ? '存在歧义' : '未解析'}`, gen)
             return
           }
-          const docId = (data as { target?: { document_id?: string } }).target?.document_id
+          const docId = (data as { target?: { document_id?: string }; document_id?: string }).target?.document_id
+            ?? (data as { document_id?: string }).document_id
           if (docId) {
             const view = await api.appDocumentsRead({
               workspace_id: activeTarget.workspaceId,
               document: docId,
             })
             if (cancelled) return
-            applyView(view, setView, setError)
+            applyView(view, (v) => setView(v, gen), (e) => setError(e, gen))
             return
           }
-          setError('引用未能定位到文档')
+          setError('引用未能定位到文档', gen)
           return
         }
+        const documentId = activeTarget.kind === 'file' ? activeTarget.path : activeTarget.documentId
+        const workspaceId = activeTarget.workspaceId
+        const revision = activeTarget.kind === 'document' ? activeTarget.revision : undefined
+        const nodeId = activeTarget.kind === 'document' ? activeTarget.nodeId : undefined
         const view = await api.appDocumentsRead({
-          workspace_id: activeTarget.workspaceId,
-          document: activeTarget.documentId,
-          revision: activeTarget.revision,
-          node_id: activeTarget.nodeId,
+          workspace_id: workspaceId,
+          document: documentId,
+          revision,
+          node_id: nodeId,
         })
         if (cancelled) return
-        applyView(view, setView, setError)
+        applyView(view, (v) => setView(v, gen), (e) => setError(e, gen))
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e), gen)
       }
     })()
     return () => { cancelled = true }
-  }, [open, activeTarget, setLoading, setError, setView])
+  }, [open, activeTarget, requestGen, setLoading, setError, setView])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !activeTarget) return
+    const key = targetKey(activeTarget)
+    const y = useContextPanelStore.getState().scrollByTarget[key]
+    if (typeof y === 'number') el.scrollTop = y
+    return () => {
+      if (el && key) rememberScroll(key, el.scrollTop)
+    }
+  }, [activeTarget, targetKey, rememberScroll])
 
   if (!open) return null
 
@@ -66,7 +84,9 @@ export function DocumentReader() {
       ? activeTarget.title
       : activeTarget?.kind === 'document'
         ? activeTarget.documentId
-        : '阅读器'
+        : activeTarget?.kind === 'file'
+          ? activeTarget.path
+          : '阅读器'
 
   return (
     <aside
@@ -92,7 +112,7 @@ export function DocumentReader() {
           <X size={16} />
         </button>
       </header>
-      <div className="min-h-0 flex-1 overflow-auto p-3">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto p-3">
         {loading && (
           <div className="flex items-center gap-2 text-sm text-[var(--qd-muted)]">
             <Loader2 className="animate-spin" size={16} /> 加载中…
@@ -106,7 +126,6 @@ export function DocumentReader() {
         {!loading && !error && fragmentHtml && (
           <div
             className="mq-document prose prose-sm max-w-none"
-            // Server-sanitized Marqdo fragment only.
             dangerouslySetInnerHTML={{ __html: fragmentHtml }}
           />
         )}
@@ -155,9 +174,11 @@ function applyView(
     setError('Marqdo view.document 不可用：请升级匹配的 CLI/ext/native 插件')
     return
   }
-  const html = String(data.html_fragment || render?.fragment || '')
+  const html = String(data.html_fragment || render?.fragment || data.text || '')
   setView({
-    fragmentHtml: html,
+    fragmentHtml: html
+      ? (html.includes('<') ? html : `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(html)}</pre>`)
+      : '',
     outline: (data.outline as unknown[]) || [],
     diagnostics: (data.diagnostics as unknown[]) || [],
     completeness: String(data.completeness || ''),

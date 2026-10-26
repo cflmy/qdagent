@@ -18,16 +18,23 @@ import {
   Plug,
   Maximize,
   Columns2,
+  FileText,
 } from 'lucide-react'
 import { useEffect, useState, useCallback, useRef, createContext, useContext } from 'react'
+import { api } from '@/lib/api'
 
-const navItems = [
+const navItems: Array<{
+  path: string
+  icon: typeof MessageSquare
+  label: string
+  dev?: boolean
+}> = [
   { path: '/', icon: MessageSquare, label: '对话' },
   { path: '/notes', icon: BookOpen, label: '笔记' },
   { path: '/knowledge', icon: BookMarked, label: '知识' },
   { path: '/eng', icon: Wrench, label: '工程' },
   { path: '/plugins', icon: Plug, label: '插件' },
-  { path: '/workspace', icon: FolderOpen, label: '工作区', dev: true },
+  { path: '/workspace', icon: FolderOpen, label: '工作区' },
 ]
 
 const SIDEBAR_DEFAULT = 260
@@ -747,8 +754,42 @@ function RightNotesPanel() {
   )
 }
 
-/** Right sidebar — Files panel */
+/** Right sidebar — Files panel (authorized tree → DocumentReader) */
 function RightFilesPanel() {
+  const openTarget = useContextPanelStore((s) => s.openTarget)
+  const [entries, setEntries] = useState<Array<{ name: string; path: string; is_dir?: boolean; workspace_id?: string }>>([])
+  const [wsId, setWsId] = useState('')
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const ws = await api.appWorkspaces() as { data?: Array<{ id?: string }>; workspaces?: Array<{ id?: string }> }
+        const list = (ws.data as Array<{ id?: string }> | undefined)
+          ?? ws.workspaces
+          ?? []
+        const id = list[0]?.id || 'ws-default'
+        if (cancelled) return
+        setWsId(id)
+        const tree = await api.appWorkspacesTree({ workspace_id: id }) as {
+          ok?: boolean
+          entries?: Array<{ name: string; path: string; is_dir?: boolean }>
+          error?: { message?: string }
+        }
+        if (cancelled) return
+        if (tree.ok === false) {
+          setErr(tree.error?.message || '无法列出文件')
+          return
+        }
+        setEntries((tree.entries || []).filter((e) => !e.is_dir).slice(0, 40))
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e))
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <div style={{
@@ -759,20 +800,65 @@ function RightFilesPanel() {
       }}>
         知识库文件
       </div>
-      <div style={{
-        padding: '16px', textAlign: 'center',
-        color: 'var(--dsw-alias-label-tertiary)',
-        fontSize: '13px',
-      }}>
-        <FolderOpen size={24} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
-        <div>文件浏览 [开发中]</div>
-      </div>
+      {err ? (
+        <div style={{ padding: '12px', fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)' }}>{err}</div>
+      ) : entries.length === 0 ? (
+        <div style={{
+          padding: '16px', textAlign: 'center',
+          color: 'var(--dsw-alias-label-tertiary)',
+          fontSize: '13px',
+        }}>
+          <FolderOpen size={24} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
+          <div>暂无文件</div>
+        </div>
+      ) : (
+        entries.map((e) => (
+          <button
+            key={e.path}
+            type="button"
+            onClick={() => openTarget({
+              kind: 'document',
+              workspaceId: wsId || e.workspace_id || 'ws-default',
+              documentId: e.path,
+              title: e.name,
+            })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '6px 8px', border: 'none', borderRadius: '6px',
+              background: 'transparent', cursor: 'pointer',
+              color: 'var(--dsw-alias-label-primary)', fontSize: '13px', textAlign: 'left',
+            }}
+          >
+            <FileText size={14} style={{ flex: 'none', opacity: 0.7 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</span>
+          </button>
+        ))
+      )}
     </div>
   )
 }
 
 /** Right sidebar — Workspace panel */
 function RightWorkspacePanel() {
+  const [workspaces, setWorkspaces] = useState<Array<{ id?: string; name?: string; project_root_ref?: string }>>([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await api.appWorkspaces() as {
+          data?: Array<{ id?: string; name?: string; project_root_ref?: string }>
+          workspaces?: Array<{ id?: string; name?: string; project_root_ref?: string }>
+        }
+        if (cancelled) return
+        setWorkspaces(res.data ?? res.workspaces ?? [])
+      } catch {
+        if (!cancelled) setWorkspaces([])
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <div style={{
@@ -783,14 +869,33 @@ function RightWorkspacePanel() {
       }}>
         工作区
       </div>
-      <div style={{
-        padding: '16px', textAlign: 'center',
-        color: 'var(--dsw-alias-label-tertiary)',
-        fontSize: '13px',
-      }}>
-        <Wrench size={24} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
-        <div>工作区管理 [开发中]</div>
-      </div>
+      {workspaces.length === 0 ? (
+        <div style={{
+          padding: '16px', textAlign: 'center',
+          color: 'var(--dsw-alias-label-tertiary)',
+          fontSize: '13px',
+        }}>
+          <Wrench size={24} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
+          <div>尚无已登记工作区</div>
+        </div>
+      ) : (
+        workspaces.map((w) => (
+          <div
+            key={w.id}
+            style={{
+              padding: '8px 10px',
+              borderRadius: '8px',
+              border: '1px solid var(--dsw-alias-border-l2)',
+              fontSize: '13px',
+            }}
+          >
+            <div style={{ fontWeight: 500, color: 'var(--dsw-alias-label-primary)' }}>{w.name || w.id}</div>
+            <div style={{ fontSize: '11px', color: 'var(--dsw-alias-label-tertiary)', marginTop: '2px' }}>
+              {w.project_root_ref || '.'}
+            </div>
+          </div>
+        ))
+      )}
     </div>
   )
 }

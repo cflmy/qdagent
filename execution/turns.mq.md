@@ -38,13 +38,13 @@ import:
 1. not `request_id`
   **request_id = "req-" + `u`**
 1. `request_id`
-  **dup = > `store`.select table="turn_state" limit=5**
+  **dup = > `store`.select table="turn_state" limit=500 order="-created_at"**
   1. `dup`
     - [t](遍历 dup 为 t)
-      **rid = [request_id](access(t, "request_id"))**
+      **rid = > json.get value=`t` key="request_id"**
       1. `rid` == `request_id`
-        **tid = [id](access(t, "id"))**
-        **st = [state](access(t, "state"))**
+        **tid = > json.get value=`t` key="id"**
+        **st = > json.get value=`t` key="state"**
         `same` =
 
         | ok | turn_id | request_id | state | reused |
@@ -53,7 +53,7 @@ import:
 
         *same*
 
-**tid = "turn-" + `u`**
+**tid = "turn-" + `u` + "-" + `request_id`**
 1. not `model_snapshot`
   1. `model_id`
     **model_snapshot = "{\"mode\":\"manual\",\"model_id\":\"" + `model_id` + "\"}"**
@@ -237,12 +237,18 @@ Events: turn.started, model.resolved, message.delta, usage.updated, turn.complet
 **wid = "ws-default"**
 1. `turn_id`
   **got = > get turn_id=`turn_id`**
-  1. [ok](access(got, "ok"))
-    **turn = [turn](access(got, "turn"))**
-    **sid = [session_id](access(turn, "session_id"))**
-    **wid = [workspace_id](access(turn, "workspace_id"))**
-    1. not `model_snapshot`
-      **model_snapshot = [model_snapshot](access(turn, "model_snapshot"))**
+  **gok = > json.get value=`got` key="ok"**
+  1. `gok`
+    **turn = > json.get value=`got` key="turn"**
+    1. `turn`
+      **sid = > json.get value=`turn` key="session_id"**
+      **wid = > json.get value=`turn` key="workspace_id"**
+      1. not `sid`
+        **sid = "sess"**
+      1. not `wid`
+        **wid = "ws-default"**
+      1. not `model_snapshot`
+        **model_snapshot = > json.get value=`turn` key="model_snapshot"**
 
 **seq = 1**
 **e1 = "{\"schema_version\":1,\"event_id\":\"evt-" + `turn_id` + "-1\",\"seq\":1,\"type\":\"turn.started\",\"session_id\":\"" + `sid` + "\",\"turn_id\":\"" + `turn_id` + "\",\"workspace_id\":\"" + `wid` + "\",\"created_at\":" + `u` + ",\"payload\":{}}"**
@@ -253,6 +259,8 @@ Events: turn.started, model.resolved, message.delta, usage.updated, turn.complet
   1. not `ms`
     **ms = "{}"**
 **e2 = "{\"schema_version\":1,\"event_id\":\"evt-" + `turn_id` + "-2\",\"seq\":2,\"type\":\"model.resolved\",\"session_id\":\"" + `sid` + "\",\"turn_id\":\"" + `turn_id` + "\",\"workspace_id\":\"" + `wid` + "\",\"created_at\":" + `u` + ",\"payload\":" + `ms` + "}"**
+Emit message.delta before terminal so UI paints prior to turn.completed
+(evented-batch; not claimed as true token streaming).
 **content_s = > json.stringify value=`content`**
 **e3 = "{\"schema_version\":1,\"event_id\":\"evt-" + `turn_id` + "-3\",\"seq\":3,\"type\":\"message.delta\",\"session_id\":\"" + `sid` + "\",\"turn_id\":\"" + `turn_id` + "\",\"workspace_id\":\"" + `wid` + "\",\"created_at\":" + `u` + ",\"payload\":{\"delta\":" + `content_s` + "}}"**
 **usage_s = "{\"usage_state\":\"unknown\"}"**
@@ -269,6 +277,6 @@ Events: turn.started, model.resolved, message.delta, usage.updated, turn.complet
 
 | ok | sse | turn_id | streaming_contract |
 |----|-----|---------|--------------------|
-| True | `sse` | `turn_id` | "evented-batch; true token streaming depends on Marqdo M02" |
+| True | `sse` | `turn_id` | "evented-batch; delta before terminal; true token streaming depends on Marqdo M02" |
 
 *ret*

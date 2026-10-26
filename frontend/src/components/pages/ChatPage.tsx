@@ -239,8 +239,6 @@ export function ChatPage() {
                 {msg.role === 'assistant' ? renderWithCitations(msg.content) : msg.content}
                 {msg.role === 'assistant' && msg.usage ? (
                   <UsageFooter usage={msg.usage} />
-                ) : msg.role === 'assistant' && i === messages.length - 1 && !streaming ? (
-                  <UsageFooter usage={{ usage_state: 'unknown', status: '完成' }} />
                 ) : null}
               </div>
             </div>

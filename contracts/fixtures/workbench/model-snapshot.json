@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "description": "Q00 frozen ModelSnapshot resolved at turn start (public fields only)",
+  "example": {
+    "selection_id": "sel-turn-1",
+    "mode": "manual",
+    "model_id": "mdl-2",
+    "provider_id": "prov-a",
+    "upstream_model_id": "qwen3.8-chat",
+    "adapter": "openai-compatible",
+    "display_name": "团队网关 / 推理模型",
+    "revision": 3,
+    "credential_ref": "cred-1",
+    "credential_version": 2,
+    "price_version_id": null,
+    "params": {}
+  },
+  "public_forbidden_keys": ["api_key", "secret", "bearer", "OPENAI_API_KEY"],
+  "invariants": [
+    "snapshot is immutable for the running turn",
+    "chat clients never send base_url or secrets",
+    "public JSON must omit api_key and credential material",
+    "concurrent sessions must not share process-env model selection"
+  ]
+}

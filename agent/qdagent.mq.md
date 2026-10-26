@@ -28,12 +28,34 @@ import:
   db: ../db/index.mq.md
   registry: ../lib/registry.mq.md
   usage: ../execution/usage.mq.md
+  profile_items: ../lib/profile_items.mq.md
+  turns: ../execution/turns.mq.md
   sys: lib/sys.mq.md
   json: lib/json.mq.md
   table: lib/table.mq.md
   text: lib/text.mq.md
   fs: lib/fs.mq.md
 ---
+
+## standing_with_profile
+    + `base`=""
+    + `workspace_id`=""
+    + `session_id`=""
+
+Append only confirmed+scoped profile items (Q08 / T14). Proposed never injects.
+
+**standing = `base`**
+**inj = > profile_items.injectable workspace_id=`workspace_id` session_id=`session_id`**
+**items = [items](access(inj, "items"))**
+1. `items`
+  **block = "\n\n## Confirmed profile (injectable)\n"**
+  - [it](遍历 items 为 it)
+    **t = [text](access(it, "text"))**
+    **cat = [category](access(it, "category"))**
+    1. `t`
+      **block = `block` + "- [" + `cat` + "] " + `t` + "\n"**
+  **standing = `standing` + `block`**
+*standing*
 
 ## tool_find
     + `query`=""
@@ -140,10 +162,11 @@ not a columnar GFM table (agent.run iterates tool names).
     + `model_id`=""
     + `selection`=None
 
-Resolve LLM credentials for this call via registry snapshot.
-When `model_id` / `selection` is set, do **not** write process env (concurrent sessions).
-Legacy path (no selection): env → `.env` → settings, may seed env for single-tenant CLI.
-Set `QDAGENT_DRY=1` to skip credentials (force dry-run / no upstream LLM).
+Resolve LLM credentials via registry ModelSnapshot only.
+**Never** writes `OPENAI_*` / `MARQDO_LLM_*` process env (A02 / T02).
+Model identity comes only from the snapshot — never from process env.
+If snapshot resolves with an api_key, return it. Otherwise optional read-only `.env`
+peek for bootstrap credentials only (not model id). `QDAGENT_DRY=1` skips credentials.
 
 **dry = > sys.env_get name="QDAGENT_DRY"**
 1. `dry` == "1"
@@ -151,38 +174,18 @@ Set `QDAGENT_DRY=1` to skip credentials (force dry-run / no upstream LLM).
 1. `dry` == "true"
   *""*
 
-1. `model_id`
-  **snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
-  **sok = [ok](access(snap, "ok"))**
-  1. `sok`
-    **key = [api_key](access(snap, "api_key"))**
+**snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
+**sok = > json.get value=`snap` key="ok"**
+1. `sok`
+  **key = > json.get value=`snap` key="api_key"**
+  1. `key`
     *key*
-1. `selection`
-  **snap2 = > registry.resolve_selection model_id=`model_id` selection=`selection`**
-  **sok2 = [ok](access(snap2, "ok"))**
-  1. `sok2`
-    **key2 = [api_key](access(snap2, "api_key"))**
-    *key2*
 
+Bootstrap key only — never used as model selection.
 > llm.load_env path=".env"
 **key = > sys.env_get name="OPENAI_API_KEY"**
 1. not `key`
   **key = > sys.env_get name="MARQDO_LLM_API_KEY"**
-1. not `key`
-  **snap3 = > registry.resolve_selection model_id="" selection=None**
-  **sok3 = [ok](access(snap3, "ok"))**
-  1. `sok3`
-    **key = [api_key](access(snap3, "api_key"))**
-    **base = [base_url](access(snap3, "base_url"))**
-    **model = [upstream_model_id](access(snap3, "upstream_model_id"))**
-    1. `key`
-      > sys.env_set name="OPENAI_API_KEY" value=`key`
-    1. `base`
-      > sys.env_set name="OPENAI_BASE_URL" value=`base`
-      > sys.env_set name="MARQDO_LLM_BASE_URL" value=`base`
-    1. `model`
-      > sys.env_set name="OPENAI_MODEL" value=`model`
-      > sys.env_set name="MARQDO_LLM_MODEL" value=`model`
 *key*
 
 ## ensure_agent_plugin
@@ -204,25 +207,31 @@ Load Marqdo agent ABI plugin once (no LLM required).
     + `selection`=None
     + `snap`=None
 
-Construct Marqdo agent with an explicit LLM handle when selection/snap is provided.
-Never relies on mutating process env for the selected model.
+Construct Marqdo agent with an explicit `llm.create` handle from a frozen ModelSnapshot.
+Never uses `llm.llm` (process-env default) and never mutates process env for model identity (A02).
 
 1. not `tools`
   **tools = > eng_tools**
 1. not `snap`
-  1. `model_id`
-    **snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
-  2. `selection`
-    **snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
-1. `snap`
-  **sok = [ok](access(snap, "ok"))**
-  1. `sok`
-    **base = [base_url](access(snap, "base_url"))**
-    **key = [api_key](access(snap, "api_key"))**
-    **uname = [upstream_model_id](access(snap, "upstream_model_id"))**
-    **model = > llm.create model=`uname` base_url=`base` api_key=`key` backend="openai-compatible"**
-    *> agent.agent model=`model` tools=`tools` standing=`standing`*
-**model = > llm.llm**
+  **snap = > registry.resolve_selection model_id=`model_id` selection=`selection`**
+1. not `snap`
+  > print text=qdagent.make_agent: model selection required (no llm.llm fallback)
+  > sys.exit code=1
+**sok = [ok](access(snap, "ok"))**
+1. not `sok`
+  **err = [error](access(snap, "error"))**
+  1. not `err`
+    **err = "model unavailable"**
+  > print text=qdagent.make_agent: 
+  > print text=`err`
+  > sys.exit code=1
+**base = [base_url](access(snap, "base_url"))**
+**key = [api_key](access(snap, "api_key"))**
+**uname = [upstream_model_id](access(snap, "upstream_model_id"))**
+1. not `uname`
+  > print text=qdagent.make_agent: upstream_model_id missing from snapshot
+  > sys.exit code=1
+**model = > llm.create model=`uname` base_url=`base` api_key=`key` backend="openai-compatible"**
 *> agent.agent model=`model` tools=`tools` standing=`standing`*
 
 ## latch_efi
@@ -507,7 +516,8 @@ Model selection is frozen for this call via `model_id` / `selection` (no env clo
 **agent_out = ""**
 **gated_out = ""**
 1. `key`
-  **standing = > 契约提示 mode="ask"**
+  **standing0 = > 契约提示 mode="ask"**
+  **standing = > standing_with_profile base=`standing0` workspace_id=`workspace_id` session_id=`session_id`**
   **助手 = > make_agent standing=`standing` model_id=`model_id` selection=`selection` snap=`snap`**
   **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="marqdo" max_rounds=3 sandbox=False**
   **ao_s = > json.stringify value=`agent_out`**
@@ -690,8 +700,10 @@ Caller (Web) must spawn `build_finish` / `cli/求道-构建-继续` as orphan jo
     + `out`=".marqdo"
     + `sandbox`=True
     + `session_id`=""
+    + `turn_id`=""
 
 Continue BUILD after `build_start` / sync `build` mid-point (agent → verify → record → completed).
+Interrupted turns must not auto-retry BUILD (T08).
 
 1. not `task`
   **meta = > run.load_state slug=`slug`**
@@ -704,8 +716,8 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent → verify �
   **allowed = [create_allowed](access(gated, "create_allowed"))**
   **path = [context_path](access(gated, "context_path"))**
 
-**key = > ensure_llm**
 **snap = > registry.resolve_selection model_id="" selection=None**
+**key = > ensure_llm model_id="" selection=None**
 **result = ""**
 **mode = "dry"**
 **status = "dry"**
@@ -715,6 +727,21 @@ Continue BUILD after `build_start` / sync `build` mid-point (agent → verify �
 **actual_reuse = False**
 **artifact_id = ""**
 **artifact_digest = ""**
+**interrupted = False**
+1. `turn_id`
+  **interrupted = > turns.is_cancelled turn_id=`turn_id`**
+1. `interrupted`
+  **mode = "interrupted"**
+  **status = "cancelled"**
+  **result = "turn cancelled — BUILD not auto-retried"**
+  > usage.record call_id="call-" + `slug` attempt_id="1" run_id=`slug` session_id=`session_id` purpose="answer" status="cancelled" usage_state="unknown" measurement_source="cancel_before_llm"
+  `cancelled_out` =
+
+  | ok | mode | slug | status | error | result | session_id |
+  |----|------|------|--------|-------|--------|------------|
+  | False | interrupted | `slug` | cancelled | cancelled | `result` | `session_id` |
+
+  *cancelled_out*
 
 REUSE path: actual bind_execute before LLM CREATE (discovery_only is never success).
 

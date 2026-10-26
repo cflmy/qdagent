@@ -62,7 +62,7 @@ Call `marqdo mlsp` document.extract. Returns parsed result map (or ok=False).
 | a |
 |---|
 | "-c" |
-| MQ="${MARQDO_BIN:-marqdo}"; f="${TMPDIR:-/tmp}/qd-mlsp-ext.json"; printf '%s\n' "$QDAGENT_EXTRACT_REQ" > "$f"; "$MQ" mlsp < "$f" |
+| MQ="${MARQDO_BIN:-marqdo}"; f="${TMPDIR:-/tmp}/qd-mlsp-ext-$$-$RANDOM.json"; printf '%s\n' "$QDAGENT_EXTRACT_REQ" > "$f"; "$MQ" mlsp < "$f"; rc=$?; rm -f "$f"; exit $rc |
 
 **proc = > sys.exec cmd="sh" args=args capture=True**
 **code = access(proc, "code")**

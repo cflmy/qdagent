@@ -67,7 +67,7 @@ import:
 **git = > kbgit.确保**
 **ver = > sys.env_get name="QDAGENT_MARQDO_VERSION"**
 1. not `ver`
-  **ver = "2.1.2"**
+  **ver = "2.1.3"**
 `字段` =
 
 | role | marqdo | data_root | git |
@@ -1179,6 +1179,14 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
     + `payload`=None
 *> registry.save_model payload=`payload`*
 
+## app_providers_probe
+    + `payload`=None
+*> registry.probe payload=`payload`*
+
+## app_providers_discover
+    + `payload`=None
+*> registry.discover payload=`payload`*
+
 ## app_usage_query
     + `payload`=None
 *> workbench.usage_query payload=`payload`*
@@ -1189,6 +1197,10 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
 ## app_workspaces_save
     + `payload`=None
 *> workbench.workspaces_save payload=`payload`*
+
+## app_workspaces_tree
+    + `payload`=None
+*> workbench.workspaces_tree payload=`payload`*
 
 ## app_documents_read
     + `payload`=None
@@ -1209,6 +1221,10 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
 ## app_imports_get
     + `payload`=None
 *> workbench.imports_get payload=`payload`*
+
+## app_imports_publish
+    + `payload`=None
+*> workbench.imports_publish payload=`payload`*
 
 ## app_profile_items
     + `payload`=None

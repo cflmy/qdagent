@@ -1,9 +1,25 @@
-import { FolderOpen, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { FolderOpen, FileText, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
+import { api } from '@/lib/api'
+import { useContextPanelStore } from '@/stores/context-panel-store'
+
+type WsRow = {
+  id?: string
+  name?: string
+  project_root_ref?: string
+}
+
+type TreeEntry = {
+  name: string
+  path: string
+  is_dir?: boolean
+  workspace_id?: string
+}
 
 export function DevBadge({ feature = '此功能' }: { feature?: string }) {
   return (
     <span
-      title={`${feature}正在开发中，后续版本将提供完整功能`}
+      title={`${feature}尚未交付完整能力`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -23,15 +39,90 @@ export function DevBadge({ feature = '此功能' }: { feature?: string }) {
         borderRadius: '50%',
         backgroundColor: 'var(--dsw-alias-state-warn-primary)',
       }} />
-      开发中
+      部分能力
     </span>
   )
 }
 
+/** Authorized workspace file tree + read-only DocumentView (Q04). */
 export function WorkspacePage() {
+  const openTarget = useContextPanelStore((s) => s.openTarget)
+  const [workspaces, setWorkspaces] = useState<WsRow[]>([])
+  const [wsId, setWsId] = useState('')
+  const [path, setPath] = useState('')
+  const [entries, setEntries] = useState<TreeEntry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const loadWorkspaces = useCallback(async () => {
+    try {
+      const res = await api.appWorkspaces() as {
+        ok?: boolean
+        data?: WsRow[] | { workspaces?: WsRow[] }
+        workspaces?: WsRow[]
+      }
+      const data = res.data
+      const list = Array.isArray(data)
+        ? data
+        : (data as { workspaces?: WsRow[] })?.workspaces
+          ?? res.workspaces
+          ?? []
+      setWorkspaces(list)
+      if (!wsId && list[0]?.id) setWsId(String(list[0].id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [wsId])
+
+  const loadTree = useCallback(async (workspaceId: string, rel: string) => {
+    if (!workspaceId) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.appWorkspacesTree({ workspace_id: workspaceId, path: rel || undefined }) as {
+        ok?: boolean
+        entries?: TreeEntry[]
+        error?: { message?: string; code?: string }
+        code?: string
+        message?: string
+      }
+      if (res.ok === false || res.error) {
+        setError(res.error?.message || res.message || res.code || '无法列出目录')
+        setEntries([])
+        return
+      }
+      setEntries(res.entries || [])
+      setPath(rel)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setEntries([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void loadWorkspaces() }, [loadWorkspaces])
+  useEffect(() => {
+    if (wsId) void loadTree(wsId, '')
+  }, [wsId, loadTree])
+
+  const crumbs = path ? path.split('/').filter(Boolean) : []
+
+  const openFile = (entry: TreeEntry) => {
+    if (entry.is_dir) {
+      void loadTree(wsId, entry.path)
+      return
+    }
+    openTarget({
+      kind: 'document',
+      workspaceId: wsId || entry.workspace_id || 'ws-default',
+      documentId: entry.path,
+      title: entry.name,
+    })
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }} role="main" aria-label="工作区">
       <div style={{
         height: '56px',
         display: 'flex',
@@ -39,96 +130,143 @@ export function WorkspacePage() {
         padding: '0 24px',
         borderBottom: '1px solid var(--dsw-alias-border-l2)',
         flexShrink: 0,
+        gap: '12px',
       }}>
-        <h1 style={{ fontSize: '18px', fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-          工作区
-          <DevBadge feature="工作区" />
-        </h1>
-      </div>
-
-      {/* Content */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-        <div style={{
-          maxWidth: '768px',
-          margin: '0 auto',
-          borderRadius: '16px',
-          border: '1px solid var(--dsw-alias-border-l2)',
-          padding: '48px 24px',
-          textAlign: 'center',
-        }}>
-          <FolderOpen style={{
-            width: '48px',
-            height: '48px',
-            margin: '0 auto 16px',
-            color: 'var(--dsw-alias-label-tertiary)',
-            opacity: 0.4,
-          }} />
-          <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--dsw-alias-label-primary)', margin: '0 0 8px' }}>
-            工作区
-          </h2>
-          <p style={{ fontSize: '14px', color: 'var(--dsw-alias-label-secondary)', margin: '0 0 24px' }}>
-            文件浏览器、终端和 Git 状态管理
-          </p>
-          <div style={{
+        <h1 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>工作区</h1>
+        <select
+          aria-label="选择工作区"
+          value={wsId}
+          onChange={(e) => setWsId(e.target.value)}
+          style={{
+            fontSize: '13px',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            border: '1px solid var(--dsw-alias-border-l2)',
+            background: 'var(--dsw-alias-bg-layer-1)',
+            color: 'var(--dsw-alias-label-primary)',
+            maxWidth: '240px',
+          }}
+        >
+          {workspaces.length === 0 && <option value="">无工作区</option>}
+          {workspaces.map((w) => (
+            <option key={w.id} value={w.id}>{w.name || w.id}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          aria-label="刷新文件树"
+          onClick={() => void loadTree(wsId, path)}
+          style={{
+            marginLeft: 'auto',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
+            gap: '6px',
+            fontSize: '13px',
+            padding: '6px 10px',
+            borderRadius: '6px',
+            border: '1px solid var(--dsw-alias-border-l2)',
+            background: 'transparent',
+            color: 'var(--dsw-alias-label-secondary)',
+            cursor: 'pointer',
+          }}
+        >
+          <RefreshCw size={14} /> 刷新
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
+        <nav aria-label="路径" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '12px', fontSize: '13px' }}>
+          <button
+            type="button"
+            onClick={() => void loadTree(wsId, '')}
+            style={{ background: 'none', border: 'none', color: 'var(--dsw-alias-state-business-primary)', cursor: 'pointer', padding: 0 }}
+          >
+            根目录
+          </button>
+          {crumbs.map((c, i) => {
+            const upto = crumbs.slice(0, i + 1).join('/')
+            return (
+              <span key={upto} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--dsw-alias-label-tertiary)' }}>
+                <ChevronRight size={12} />
+                <button
+                  type="button"
+                  onClick={() => void loadTree(wsId, upto)}
+                  style={{ background: 'none', border: 'none', color: 'var(--dsw-alias-state-business-primary)', cursor: 'pointer', padding: 0 }}
+                >
+                  {c}
+                </button>
+              </span>
+            )
+          })}
+        </nav>
+
+        {error && (
+          <div role="alert" style={{
+            marginBottom: '12px',
+            padding: '10px 12px',
             borderRadius: '8px',
-            backgroundColor: 'var(--dsw-alias-state-warn-tertiary)',
+            background: 'var(--dsw-alias-state-warn-tertiary)',
             color: 'var(--dsw-alias-state-warn-label)',
             fontSize: '13px',
-            fontWeight: 500,
           }}>
-            <Loader2 style={{ width: '14px', height: '14px' }} />
-            此功能正在开发中，将在后续版本提供
+            {error}
           </div>
-        </div>
+        )}
 
-        {/* Planned features list */}
-        <div style={{ maxWidth: '768px', margin: '24px auto 0' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--dsw-alias-label-secondary)', marginBottom: '12px' }}>
-            计划中的功能
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {[
-              { name: '文件浏览器', desc: '浏览和管理项目文件' },
-              { name: '集成终端', desc: '在界面内运行命令' },
-              { name: 'Git 状态', desc: '查看和管理版本控制' },
-              { name: '文件搜索', desc: '全局搜索项目文件' },
-            ].map((item) => (
-              <div
-                key={item.name}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--dsw-alias-border-l2)',
-                  backgroundColor: 'var(--dsw-alias-bg-layer-2)',
-                }}
-              >
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--dsw-alias-state-warn-primary)',
-                  flexShrink: 0,
-                }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--dsw-alias-label-primary)', margin: 0 }}>
-                    {item.name}
-                  </p>
-                  <p style={{ fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)', margin: '2px 0 0' }}>
-                    {item.desc}
-                  </p>
-                </div>
-                <DevBadge />
-              </div>
-            ))}
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--dsw-alias-label-tertiary)', fontSize: '13px' }}>
+            <Loader2 size={16} className="animate-spin" /> 加载中…
           </div>
-        </div>
+        ) : entries.length === 0 ? (
+          <div style={{
+            padding: '32px',
+            textAlign: 'center',
+            color: 'var(--dsw-alias-label-tertiary)',
+            fontSize: '13px',
+            border: '1px dashed var(--dsw-alias-border-l2)',
+            borderRadius: '12px',
+          }}>
+            <FolderOpen size={32} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
+            此目录为空，或工作区根尚未就绪
+          </div>
+        ) : (
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {entries.map((e) => (
+              <li key={e.path}>
+                <button
+                  type="button"
+                  onClick={() => openFile(e)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--dsw-alias-label-primary)',
+                    fontSize: '14px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(ev) => { ev.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)' }}
+                  onMouseLeave={(ev) => { ev.currentTarget.style.background = 'transparent' }}
+                >
+                  {e.is_dir
+                    ? <FolderOpen size={16} style={{ color: 'var(--dsw-alias-label-secondary)', flexShrink: 0 }} />
+                    : <FileText size={16} style={{ color: 'var(--dsw-alias-label-secondary)', flexShrink: 0 }} />}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</span>
+                  {e.is_dir && <ChevronRight size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p style={{ marginTop: '24px', fontSize: '12px', color: 'var(--dsw-alias-label-tertiary)' }}>
+          阅读路径只打开 DocumentView，不会执行或写回文档。点击文件在右侧面板阅读。
+        </p>
       </div>
     </div>
   )

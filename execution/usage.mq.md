@@ -231,10 +231,12 @@ Best-effort extract usage from Marqdo agent outcome. Missing fields → usage_st
 
 Human display for one call. Unknown must not become "0 tokens".
 
-**us = [usage_state](access(row, "usage_state"))**
-**tt = [total_tokens](access(row, "total_tokens"))**
-**it = [input_tokens](access(row, "input_tokens"))**
-**ot = [output_tokens](access(row, "output_tokens"))**
+**us = > json.get value=`row` key="usage_state"**
+**tt = > json.get value=`row` key="total_tokens"**
+**it = > json.get value=`row` key="input_tokens"**
+**ot = > json.get value=`row` key="output_tokens"**
+1. not `us`
+  **us = "unknown"**
 **summary = "用量未知"**
 **forbid_zero = True**
 1. `us` == "zero_calls"
