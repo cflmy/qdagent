@@ -480,6 +480,7 @@ of regenerating from scratch.
     + `selection`=None
     + `turn_id`=""
     + `workspace_id`=""
+    + `stream`=False
 
 ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No host mutation.
 The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo doc.
@@ -519,7 +520,15 @@ Model selection is frozen for this call via `model_id` / `selection` (no env clo
   **standing0 = > 契约提示 mode="ask"**
   **standing = > standing_with_profile base=`standing0` workspace_id=`workspace_id` session_id=`session_id`**
   **助手 = > make_agent standing=`standing` model_id=`model_id` selection=`selection` snap=`snap`**
-  **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="marqdo" max_rounds=3 sandbox=False**
+  1. `stream`
+    1. `turn_id`
+      **tev = > json.parse text="{\"schema_version\":1,\"type\":\"turn.started\",\"turn_id\":\"" + `turn_id` + "\",\"session_id\":\"" + `session_id` + "\",\"payload\":{}}"**
+      > sys.stream_publish event=`tev`
+    **pub = > registry.public_snapshot snap=`snap`**
+    1. `pub`
+      **mev = > table.put in=`pub` at="type" value="model.resolved"**
+      > sys.stream_publish event=`mev`
+  **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=True reuse=True router="marqdo" max_rounds=3 sandbox=False stream=`stream`**
   **ao_s = > json.stringify value=`agent_out`**
   **is_map = > text.contains text=`ao_s` sub="\"status\""**
   1. not `is_map`
@@ -954,16 +963,18 @@ does not drop the latest user message.
     + `messages`=None
     + `turn_id`=""
     + `workspace_id`=""
+    + `stream`=False
 
 Dispatch ASK / BUILD / LEARN. Optional `session_id` links server Session (D10).
 `model_id` / `selection` freeze the ModelSelection for this turn (Q02).
 When `messages` is provided, compose full history into `task` (no last-user-only ping).
+`stream=True` enables Marqdo agent SSE publish (token deltas via EventBus → web sse-live).
 
 1. `messages`
   **task = > compose_messages messages=`messages` fallback=`task`**
 
 1. `mode` == "ask"
-  *> ask task=`task` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id`*
+  *> ask task=`task` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` stream=`stream`*
 2. `mode` == "learn"
   *> learn task=`task` root=`root` out=`out`*
 3. *

@@ -37,9 +37,9 @@ import:
   > print text=no-terminal
   > sys.exit code=1
 
-**claims_true = > text.contains text=`contract` sub="true token streaming depends"**
-1. not `claims_true`
-  > print text=contract-not-honest
+**claims_batch = > text.contains text=`contract` sub="evented-batch"**
+1. not `claims_batch`
+  > print text=contract-missing-evented-batch
   > print text=`contract`
   > sys.exit code=1
 

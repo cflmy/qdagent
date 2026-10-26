@@ -213,15 +213,24 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             }
           }
 
-          if (c?.type === 'turn.started' && c.turn_id) {
+          const turnId = c?.turn_id || (c?.payload as { turn_id?: string } | undefined)?.turn_id
+          if ((c?.type === 'turn.started' || c?.type === 'run.started') && turnId) {
             set((s) => {
               const sess = s.sessions.find((x) => x.id === sessionId)
-              if (sess) sess.lastTurnId = c.turn_id
+              if (sess) sess.lastTurnId = turnId
             })
           }
 
-          if (c?.type === 'message.delta' && c.payload?.delta) {
-            get().updateLastAssistant(sessionId, c.payload.delta)
+          if (c?.type === 'message.delta') {
+            const p = c.payload as {
+              delta?: string
+              text?: string
+              kind?: string
+            } | undefined
+            const delta = p?.delta || p?.text
+            if (delta && p?.kind !== 'reasoning') {
+              get().updateLastAssistant(sessionId, delta)
+            }
             continue
           }
 
@@ -237,12 +246,41 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             continue
           }
 
-          if (c?.type === 'model.resolved' && c.payload) {
+          if (c?.type === 'model.resolved') {
+            const p = (c.payload || c) as {
+              display_name?: string
+              model_id?: string
+              provider_id?: string
+            }
             get().setLastUsage(sessionId, {
-              model: c.payload.display_name || c.payload.model_id,
-              provider: c.payload.provider_id,
+              model: p.display_name || p.model_id,
+              provider: p.provider_id,
               usage_state: 'unknown',
             })
+            continue
+          }
+
+          if (c?.type === 'run.completed') {
+            const result = (c.payload as { result?: { content?: string; result?: string } })?.result
+            const text = typeof result === 'string'
+              ? result
+              : (result?.content || result?.result || '')
+            if (text) {
+              // Prefer live deltas; only fill if assistant still empty.
+              const sess = get().sessions.find((s) => s.id === sessionId)
+              const last = sess?.messages[sess.messages.length - 1]
+              if (last?.role === 'assistant' && !last.content) {
+                get().updateLastAssistant(sessionId, text)
+              }
+            }
+            continue
+          }
+
+          if (c?.type === 'run.failed' || c?.type === 'run.interrupted') {
+            const err = (c.payload as { error?: string; reason?: string } | undefined)?.error
+              || (c.payload as { reason?: string } | undefined)?.reason
+              || '流式中断'
+            get().updateLastAssistant(sessionId, `\n\n[错误: ${err}]`)
             continue
           }
 

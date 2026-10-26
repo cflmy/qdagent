@@ -120,9 +120,11 @@ optional product Preflight so EFI chat always has a Context Pack handle.
     + `authorization`=""
     + `api_key`=""
     + `payload`=None
+    + `stream`=False
 
 Map conversation to qdagent.run. Auth gate first, then precheck; deny never reaches Agent.
 Full `messages` preferred over last-user-only. Explicit selection freezes the model for this turn.
+`stream=True` (or payload.stream) enables live token SSE via Marqdo M02 EventBus.
 
 **authres = > auth.check authorization=`authorization` api_key=`api_key` payload=`payload`**
 **aok = > json.get value=`authres` key="ok"**
@@ -156,6 +158,11 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
   **pws = > json.get value=`payload` key="workspace_id"**
   1. `pws`
     **workspace_id = `pws`**
+  **ps = > json.get value=`payload` key="stream"**
+  1. `ps` == True
+    **stream = True**
+  2. `ps` == "true"
+    **stream = True**
 
 1. `messages`
   **message = > qd.compose_messages messages=`messages` fallback=`message`**
@@ -191,7 +198,7 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
   **created = > turns.create session_id=`session_id` workspace_id=`workspace_id` model_id=`model_id` payload=`payload`**
   **turn_id = [turn_id](access(created, "turn_id"))**
 
-**agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` messages=`messages`**
+**agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` messages=`messages` stream=`stream`**
 **ok = [ok](access(agent_out, "ok"))**
 1. not `ok`
   > turns.complete turn_id=`turn_id` state="failed" usage_state="unknown" error="agent_failed"

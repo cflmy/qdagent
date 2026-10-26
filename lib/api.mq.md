@@ -1295,7 +1295,7 @@ Accepts full `messages` history and optional `selection.model_id` / `model_id` (
           **task = `content`**
 1. not `task`
   *> 失败 error="empty messages: latest user content required"*
-**chat = > eng_openai.chat message=`task` mode="" authorization=`authorization` api_key=`api_key` payload=`payload` model_id=`selection_model_id` messages=`history`**
+**chat = > eng_openai.chat message=`task` mode="" authorization=`authorization` api_key=`api_key` payload=`payload` model_id=`selection_model_id` messages=`history` stream=`stream`**
 **content = [content](access(chat, "content"))**
 **run_id = [run_id](access(chat, "run_id"))**
 **cok = [ok](access(chat, "ok"))**
@@ -1323,19 +1323,15 @@ Accepts full `messages` history and optional `selection.model_id` / `model_id` (
 **choices = > table.empty_list**
 **choices = > table.append list=`choices` item=`choice`**
 1. `stream`
-  **ms = "{}"**
-  1. `model_pub`
-    **ms = > json.stringify value=`model_pub`**
-  **events = > turns.sse_events turn_id=`turn_id` content=`content` model_snapshot=`ms` ok=`cok`**
-  **sse = [sse](access(events, "sse"))**
-  **contract = [streaming_contract](access(events, "streaming_contract"))**
-  `sse_out` =
+  Live token path: Marqdo web auto-upgrades to sse-live when body.stream=true;
+  deltas already flushed via EventBus. Return a thin envelope (not a fake batch SSE body).
+  `sse_live` =
 
-  | sse | run_id | ok | turn_id | streaming_contract | model |
-  |-----|--------|----|---------|--------------------|-------|
-  | `sse` | `run_id` | `cok` | `turn_id` | `contract` | `model_pub` |
+  | ok | run_id | turn_id | streaming_contract | model | content |
+  |----|--------|---------|--------------------|-------|---------|
+  | `cok` | `run_id` | `turn_id` | "token-stream; marqdo-sse-live+EventBus" | `model_pub` | `content` |
 
-  *sse_out*
+  *sse_live*
 `out` =
 
 | id | object | created | model | choices | qdagent_run_id | ok | turn_id | model_snapshot |

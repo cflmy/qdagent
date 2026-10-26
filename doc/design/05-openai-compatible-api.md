@@ -47,7 +47,7 @@ MODEL=qdagent
 1. Bearer / `X-Api-Key` 鉴权（`QDAGENT_API_KEY`，默认 `qdagent-local`）— header 注入 invoke payload
 2. 解析 OpenAI JSON → 最后一条 user 为 task
 3. 同进程：`gateway/openai.precheck` + `agent/qdagent`（EFI）
-4. `stream:true` → `text/event-stream`（完整答复后的单帧 + `[DONE]`）
+4. `stream:true` → Marqdo web `sse-live`（EventBus 逐字 `message.delta`，完成前到达；`[DONE]` 收尾）
 5. **不做**：Python 画像注入、corpus、厚 Agent loop
 6. Legacy `QDAGENT_V1_EFI=0` 仍 410（仅 Python 进程路径）
 

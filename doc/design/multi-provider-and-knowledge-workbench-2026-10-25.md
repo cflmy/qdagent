@@ -1,6 +1,6 @@
 # 多提供商与知识工作台：qdagent 应用实施设计
 
-日期：2026-10-25。状态：**in_progress**（Wave0–4 交付闭合：registry/`llm.create`/usage/Workspace 阅读/引用/SSE evented-batch/cancel/上传隔离/画像注入/a11y Playwright；`scripts/run-workbench-tests.sh` 绿。完整闸读者任务 §11.3 与真逐字流式仍待人工/Marqdo M02；未宣称全部 verified）。
+日期：2026-10-25。状态：**in_progress**（Wave0–4 + Q06 真逐字：`stream:true` → Marqdo web `sse-live` + EventBus token deltas；§11.3 五名读者任务仍为人验收，未宣称全部 verified）。
 
 实施基线：Marqdo **≥2.1.3**（工作台 M00–M06：`view.document` / ModelSelection / usage null≠0 / cancel）；qdagent workbench 提交自 `13f8744` 起。审阅起点曾为 qdagent `643dd31`、Marqdo `dc853fb`（2.1.2）。本次目标是把模型选择、可追溯的知识阅读和持续沉淀组织成一个可读、可信、可持续开发的产品。
 

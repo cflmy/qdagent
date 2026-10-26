@@ -36,8 +36,9 @@
 
 ## 流式与取消
 
-- 合同：`evented-batch`（完成前有 `message.delta`；真逐字流式依赖 Marqdo M02）
-- `AbortController` ≠ 业务 cancel；须 `POST /api/app/turns/cancel` 置 `cancel_requested`
+- 真逐字：`POST /v1/chat/completions` 且 `stream:true` → Marqdo web 自动 `sse-live`，LLM `delta` 经 EventBus 即时 flush；合同 `token-stream; marqdo-sse-live+EventBus`
+- 回退：无 live 桥时仍可用 `evented-batch`（完成前单帧 delta）
+- 客户端断开置 `MARQDO_CANCEL`；另须 `POST /api/app/turns/cancel` 置 `cancel_requested`
 - 中断的 BUILD **不**自动重做
 
 ## 画像

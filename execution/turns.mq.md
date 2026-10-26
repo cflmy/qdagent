@@ -277,6 +277,6 @@ Emit message.delta before terminal so UI paints prior to turn.completed
 
 | ok | sse | turn_id | streaming_contract |
 |----|-----|---------|--------------------|
-| True | `sse` | `turn_id` | "evented-batch; delta before terminal; true token streaming depends on Marqdo M02" |
+| True | `sse` | `turn_id` | "evented-batch; fallback when sse-live unavailable — prefer token-stream via stream:true" |
 
 *ret*
