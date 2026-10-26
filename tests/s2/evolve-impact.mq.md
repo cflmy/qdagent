@@ -31,10 +31,16 @@ import:
   > sys.exit code=1
 > print text=generation-ok
 
-**root = > sys.env_get name="MARQDO_SRC"**
-1. not `root`
-  **root = "/home/cflmy/work/marqdo"**
-**proj = `root` + "/tests/executable_knowledge/baseline/02-extract"**
+Vendored Marqdo baseline fixture.
+fs.exists is sandbox-relative to this file; evolve.impact resolves project from process cwd (repo root).
+
+**proj = "tests/fixtures/executable_knowledge/baseline/02-extract"**
+**check = "../fixtures/executable_knowledge/baseline/02-extract/main.mq.md"**
+**has_proj = > fs.exists path=`check`**
+1. not `has_proj`
+  > print text=no-baseline-fixture-skip-impact
+  > print text=s2-evolve-impact-partial-ok
+  *"s2-evolve-impact-partial-ok"*
 **imp = > evo.impact project=`proj` artifact_id="商品小计"**
 **s = > json.stringify value=`imp`**
 > print text=`s`

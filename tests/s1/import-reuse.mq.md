@@ -50,12 +50,16 @@ import:
   *"s1-import-reuse-partial-ok"*
 > plugin.load path=`p`
 
-Second ask: bind against Marqdo fixture knowledge (deterministic actual_reuse).
+Vendored Marqdo baseline fixture.
+fs.exists is sandbox-relative to this file; eng_bind_execute resolves project from process cwd (repo root).
 
-**root = > sys.env_get name="MARQDO_SRC"**
-1. not `root`
-  **root = "/home/cflmy/work/marqdo"**
-**proj = `root` + "/tests/executable_knowledge/baseline/02-extract"**
+**proj = "tests/fixtures/executable_knowledge/baseline/02-extract"**
+**check = "../fixtures/executable_knowledge/baseline/02-extract/main.mq.md"**
+**has_proj = > fs.exists path=`check`**
+1. not `has_proj`
+  > print text=no-baseline-fixture-skip-bind
+  > print text=s1-import-reuse-partial-ok
+  *"s1-import-reuse-partial-ok"*
 `inputs` = > json.parse text={"数量":2,"单价":30}
 **exec = > agent_eng_bind_execute project=`proj` query="商品小计" policy="pure" inputs=`inputs` candidate_only=True**
 **reuse = > json.get value=`exec` key="actual_reuse"**
