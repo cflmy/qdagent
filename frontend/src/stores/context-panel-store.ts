@@ -2,8 +2,8 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 
 export type ReaderTarget =
-  | { kind: 'document'; workspaceId: string; documentId: string; revision?: string; nodeId?: string; title?: string }
-  | { kind: 'citation'; workspaceId: string; citationId: string; messageId?: string; locator?: Record<string, unknown> }
+  | { kind: 'document'; workspaceId: string; documentId: string; revision?: string; generation?: string; nodeId?: string; title?: string }
+  | { kind: 'citation'; workspaceId: string; citationId: string; messageId?: string; locator?: Record<string, unknown>; revision?: string; generation?: string; documentId?: string; nodeId?: string }
   | { kind: 'profile_item'; id: string; title?: string }
   | { kind: 'file'; workspaceId: string; path: string; title?: string }
 
@@ -41,8 +41,8 @@ const WIDTH_DEFAULT = 440
 
 function keyOf(t: ReaderTarget | null): string {
   if (!t) return ''
-  if (t.kind === 'document') return `doc:${t.workspaceId}:${t.documentId}:${t.revision || ''}:${t.nodeId || ''}`
-  if (t.kind === 'citation') return `cite:${t.workspaceId}:${t.citationId}`
+  if (t.kind === 'document') return `doc:${t.workspaceId}:${t.documentId}:${t.revision || ''}:${t.generation || ''}:${t.nodeId || ''}`
+  if (t.kind === 'citation') return `cite:${t.workspaceId}:${t.citationId}:${t.revision || ''}:${t.generation || ''}`
   if (t.kind === 'file') return `file:${t.workspaceId}:${t.path}`
   return `profile:${t.id}`
 }

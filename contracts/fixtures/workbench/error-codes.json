@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Q00 HTTP / business error code matrix",
+  "description": "Q-R0 HTTP / business error code matrix (v1 + v2)",
   "matrix": [
     { "http": 401, "code": "auth.required", "retryable": false },
     { "http": 403, "code": "workspace.forbidden", "retryable": false },
@@ -8,15 +8,20 @@
     { "http": 409, "code": "revision.conflict", "retryable": true },
     { "http": 409, "code": "request_id.conflict", "retryable": false },
     { "http": 409, "code": "reference.stale", "retryable": true },
+    { "http": 413, "code": "upload.too_large", "retryable": false },
+    { "http": 415, "code": "document.unsupported_media", "retryable": false },
     { "http": 422, "code": "model.unsupported_input", "retryable": false },
     { "http": 422, "code": "model.unavailable", "retryable": false },
     { "http": 422, "code": "document.unsupported_format", "retryable": false },
+    { "http": 422, "code": "publication.gate_failed", "retryable": false },
     { "http": 429, "code": "rate_limited", "retryable": true },
     { "http": 503, "code": "runtime.unavailable", "retryable": true },
-    { "http": 503, "code": "provider.unavailable", "retryable": true }
+    { "http": 503, "code": "provider.unavailable", "retryable": true },
+    { "http": 504, "code": "deadline.exceeded", "retryable": true }
   ],
   "envelope_error": {
     "ok": false,
+    "schema_version": 2,
     "error": {
       "code": "revision.conflict",
       "message": "expected_revision does not match current row",
@@ -28,6 +33,7 @@
   "invariants": [
     "HTTP status matches code family",
     "SSE terminal failures still emit structured error events",
-    "business gate failures include phase/diagnosis when available"
+    "business gate failures include phase/diagnosis when available",
+    "unknown turn cancel returns resource.not_found — never creates a placeholder"
   ]
 }

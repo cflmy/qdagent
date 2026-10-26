@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Consume Q00 workbench JSON fixtures and fail hard on contract drift.
+"""Consume workbench JSON fixtures and fail hard on contract drift.
 
 No server required. Exit 0 only when all fixtures validate.
 """
@@ -18,6 +18,9 @@ REQUIRED = {
     "citation.json": ("example", "resolution_enum", "relation_enum"),
     "document-view.json": ("success", "capability_unavailable", "invariants"),
     "error-codes.json": ("matrix", "envelope_error"),
+    "v2-envelope.json": ("envelope_ok", "envelope_error", "http_codes", "invariants"),
+    "route-inventory.json": ("routes", "duplicate_modules", "invariants"),
+    "capabilities-probe.json": ("required_min_version", "features", "invariants"),
 }
 
 
@@ -28,8 +31,9 @@ def load(name: str) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise AssertionError(f"{name}: root must be object")
-    if data.get("schema_version") != 1:
-        raise AssertionError(f"{name}: schema_version must be 1, got {data.get('schema_version')!r}")
+    sv = data.get("schema_version")
+    if sv not in (1, 2):
+        raise AssertionError(f"{name}: schema_version must be 1 or 2, got {sv!r}")
     return data
 
 
@@ -100,6 +104,7 @@ def check_errors(data: dict) -> None:
         "rate_limited",
         "runtime.unavailable",
         "provider.unavailable",
+        "publication.gate_failed",
     }
     missing = required - codes
     if missing:
@@ -107,6 +112,39 @@ def check_errors(data: dict) -> None:
     env = data["envelope_error"]
     if env.get("ok") is not False or not isinstance(env.get("error"), dict):
         raise AssertionError("envelope_error shape invalid")
+
+
+def check_v2_envelope(data: dict) -> None:
+    ok = data["envelope_ok"]
+    err = data["envelope_error"]
+    if ok.get("schema_version") != 2 or err.get("schema_version") != 2:
+        raise AssertionError("v2 envelopes must declare schema_version=2")
+    if ok.get("ok") is not True or "data" not in ok:
+        raise AssertionError("envelope_ok invalid")
+    if err.get("ok") is not False or not isinstance(err.get("error"), dict):
+        raise AssertionError("envelope_error invalid")
+    if "409" not in data["http_codes"]:
+        raise AssertionError("http_codes must include 409")
+
+
+def check_routes(data: dict) -> None:
+    paths = [r["path"] for r in data["routes"]]
+    if len(paths) != len(set(paths)):
+        raise AssertionError("duplicate route paths in inventory")
+    cancel = next(r for r in data["routes"] if r["path"] == "/api/app/turns/cancel")
+    if "turns.cancel" not in cancel["impl"]:
+        raise AssertionError("turns/cancel must point at execution/turns.cancel")
+    publish = next(r for r in data["routes"] if r["path"] == "/api/app/imports/publish")
+    if "publication" not in publish["impl"]:
+        raise AssertionError("imports/publish must route through publication")
+
+
+def check_capabilities(data: dict) -> None:
+    if data["required_min_version"] != "2.1.4":
+        raise AssertionError("required_min_version must be 2.1.4")
+    feats = data["features"]
+    if not feats.get("runtime.isolated_execution"):
+        raise AssertionError("capabilities must expect runtime.isolated_execution")
 
 
 def main() -> int:
@@ -117,6 +155,9 @@ def main() -> int:
         "citation.json": check_citation,
         "document-view.json": check_document_view,
         "error-codes.json": check_errors,
+        "v2-envelope.json": check_v2_envelope,
+        "route-inventory.json": check_routes,
+        "capabilities-probe.json": check_capabilities,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

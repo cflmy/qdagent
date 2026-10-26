@@ -141,6 +141,7 @@ import:
 | /api/app/profile/propose | POST | api.app_profile_propose | json | json |
 | /api/app/profile/set_status | POST | api.app_profile_set_status | json | json |
 | /api/app/turns/cancel | POST | api.app_turns_cancel | json | json |
+| /api/app/feature_flags | GET | api.app_feature_flags | query | json |
 
 **接口 = > ui.接口**
 

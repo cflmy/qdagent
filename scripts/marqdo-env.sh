@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared Marqdo env for qdagent — prefer workspace CLI ≥2.1.3 + Ext pack ≥2.1.3.
+# Shared Marqdo env for qdagent — prefer workspace CLI ≥2.1.4 + Ext pack ≥2.1.4.
 # Sourced by scripts/qdagent and scripts/mq.sh (not executed alone).
 # shellcheck shell=bash
 
@@ -22,10 +22,10 @@ _qdagent_semver_ge() {
 }
 
 qdagent_resolve_marqdo() {
-  # Floor raised to Marqdo 2.1.3 (workbench M00–M06 · view.document ·
-  # ModelSelection / usage null≠0 · cancel · DocumentView embed).
-  local min_cli="${QDAGENT_MARQDO_MIN:-2.1.3}"
-  local min_ext="${QDAGENT_EXT_MIN:-2.1.3}"
+  # Floor raised to Marqdo 2.1.4 (ADR 0009 isolated execute ·
+  # workbench M00–M06 · view.document · ModelSelection / usage null≠0).
+  local min_cli="${QDAGENT_MARQDO_MIN:-2.1.4}"
+  local min_ext="${QDAGENT_EXT_MIN:-2.1.4}"
   if [[ -z "${MARQDO_EXT:-}" ]]; then
     if [[ -d "$HOME/work/marqdo/ext" ]]; then
       export MARQDO_EXT="$HOME/work/marqdo/ext"

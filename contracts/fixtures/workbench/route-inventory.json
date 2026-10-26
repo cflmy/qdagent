@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "description": "Q-R0 actual HTTP route → unique business function inventory",
+  "http_entry": "serve.mq.md",
+  "facade": "lib/api.mq.md",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/app/documents/read",
+      "api": "api.app_documents_read",
+      "impl": "workbench.documents_read",
+      "authority": "KEEP",
+      "notes": "Must pass revision/generation/node_id; reject unknown workspace"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/citations/resolve",
+      "api": "api.app_citations_resolve",
+      "impl": "workbench.citations_resolve",
+      "authority": "KEEP",
+      "notes": "Inject authorized project into locator; never trust client project_id alone"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/uploads/create",
+      "api": "api.app_uploads_create",
+      "impl": "workbench.uploads_create",
+      "authority": "MERGE",
+      "notes": "Server-generated path; request_id is index only; prefer uploads.create_upload semantics"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/imports/start",
+      "api": "api.app_imports_start",
+      "impl": "workbench.imports_start",
+      "authority": "MERGE",
+      "notes": "Use eng_imp draft path; stage ImportJob"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/imports/get",
+      "api": "api.app_imports_get",
+      "impl": "workbench.imports_get",
+      "authority": "KEEP"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/imports/publish",
+      "api": "api.app_imports_publish",
+      "impl": "workbench.imports_publish → knowledge/publication.publish",
+      "authority": "REFACTOR",
+      "notes": "Must create manifest/CURRENT; DB status is projection only"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/turns/cancel",
+      "api": "api.app_turns_cancel",
+      "impl": "turns.cancel (execution/turns.mq.md)",
+      "authority": "MERGE",
+      "notes": "workbench.turns_cancel is facade; unknown turn → 404; no placeholder insert"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/workspaces",
+      "api": "api.app_workspaces",
+      "impl": "workbench.workspaces_list",
+      "authority": "KEEP"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/models",
+      "api": "api.app_models",
+      "impl": "registry / workbench",
+      "authority": "KEEP"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/usage/query",
+      "api": "api.app_usage_query",
+      "impl": "workbench.usage_query",
+      "authority": "KEEP"
+    }
+  ],
+  "duplicate_modules": [
+    {
+      "name": "uploads",
+      "paths": ["lib/workbench.uploads_create", "lib/uploads.create_upload"],
+      "decision": "HTTP uses workbench; align workbench to uploads server-path semantics"
+    },
+    {
+      "name": "turns_cancel",
+      "paths": ["lib/workbench.turns_cancel", "execution/turns.cancel"],
+      "decision": "execution/turns is authority; workbench facade only"
+    },
+    {
+      "name": "documents_read",
+      "paths": ["lib/workbench.documents_read", "lib/workspace"],
+      "decision": "HTTP uses workbench; workspace helpers must not be tested as HTTP evidence"
+    }
+  ],
+  "invariants": [
+    "Each user operation maps to exactly one business function",
+    "Negative tests must hit the HTTP authority path, not a sibling module",
+    "Facade may adapt protocol but must not own a second state machine"
+  ]
+}

@@ -70,3 +70,7 @@ data/tmp-*
 evidence/
 frontend/test-results/
 frontend/playwright-report/
+
+# Local publish/test artifacts under knowledge/
+knowledge/published-gen-*.mq.md
+data/*.err

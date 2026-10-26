@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import { api, type ChatMessage, type ChatCompletionChunk } from '@/lib/api'
+import { api, newRequestId, type ChatMessage, type ChatCompletionChunk } from '@/lib/api'
 import type { UsageInfo } from '@/components/chat/UsageFooter'
 
 /** Live execution trail — every agent step visible as it happens. */
@@ -27,6 +27,10 @@ export interface Session {
   /** Session default model — next turn freezes this selection (Q02). */
   modelId?: string
   lastTurnId?: string
+  /** Client-generated idempotency key for the in-flight turn (Q-R3). */
+  lastRequestId?: string
+  /** UI: stopping until server confirms cancelled. */
+  stopping?: boolean
 }
 
 interface SessionState {
@@ -190,15 +194,24 @@ export const useSessionStore = create<SessionState & SessionActions>()(
     },
 
     cancelTurn: async (sessionId, controller) => {
+      // Q-R3: keep observing until server cancel confirms; Abort ≠ cancelled.
+      set((s) => {
+        const sess = s.sessions.find((x) => x.id === sessionId)
+        if (sess) sess.stopping = true
+      })
       const session = get().sessions.find((s) => s.id === sessionId)
-      controller?.abort()
       if (session?.lastTurnId) {
         try {
           await api.appTurnsCancel({ turn_id: session.lastTurnId })
         } catch {
-          // best-effort; abort already cut the transport
+          // still abort local stream after cancel attempt
         }
       }
+      controller?.abort()
+      set((s) => {
+        const sess = s.sessions.find((x) => x.id === sessionId)
+        if (sess) sess.stopping = false
+      })
     },
 
     streamChat: async (sessionId, signal) => {
@@ -224,8 +237,14 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         .map(({ role, content }) => ({ role, content }))
 
       const frozenModelId = session.modelId
+      const requestId = newRequestId('chat')
       set((s) => {
         s.streamingBySession[sessionId] = true
+        const sess = s.sessions.find((x) => x.id === sessionId)
+        if (sess) {
+          sess.lastRequestId = requestId
+          sess.stopping = false
+        }
       })
 
       get().addMessage(sessionId, { role: 'assistant', content: '' })
@@ -240,6 +259,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               ? { mode: 'manual', model_id: frozenModelId }
               : undefined,
             session_id: sessionId,
+            request_id: requestId,
           },
           signal,
         )

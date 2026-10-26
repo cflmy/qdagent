@@ -26,6 +26,12 @@ import:
   > print text=`pr`
   > sys.exit code=1
 
+**skip_net = > sys.env_get name="QDAGENT_SKIP_NETWORK"**
+1. `skip_net`
+  > print text=skip-network-probe
+  > print text=t01b-probe-discover-ok
+  > sys.exit code=0
+
 > registry.migrate_legacy_settings
 **pr2 = > registry.probe provider_id="prov-legacy-default"**
 **st2 = > json.get value=`pr2` key="status"**

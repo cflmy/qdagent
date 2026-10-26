@@ -2,8 +2,9 @@
 markup: occlusion
 title: lib/workbench
 description: >-
-  Workspaces, DocumentView bridge, citations, uploads/imports, usage ledger,
-  profile items, turn cancel (Q03–Q08). Read paths never execute documents.
+  HTTP facade for workspaces, DocumentView, citations, uploads/imports, usage,
+  profile items, turn cancel. Business authority: execution/turns +
+  knowledge/publication. Read paths never execute documents (Q-R0–R7).
 import:
   db: ../db/index.mq.md
   table: lib/table.mq.md
@@ -13,36 +14,47 @@ import:
   sys: lib/sys.mq.md
   text: lib/text.mq.md
   eng_imp: ../knowledge/import.mq.md
+  publication: ../knowledge/publication.mq.md
+  turns: ../execution/turns.mq.md
+  flags: ../lib/feature_flags.mq.md
   run: lib/run.mq.md
   workspace: ../lib/workspace.mq.md
 ---
 
+## feature_flags_snapshot
+
+**snap = > flags.snapshot**
+*> app_ok data=`snap`*
+
 ## app_ok
     + `data`=None
+    + `schema_version`=2
 
 `out` =
 
 | ok | schema_version | data |
 |----|----------------|------|
-| True | 1 | `data` |
+| True | `schema_version` | `data` |
 
 *out*
 
 ## app_err
     + `code`="error"
     + `message`="error"
+    + `retryable`=False
+    + `details`=None
 
 `error` =
 
-| code | message | retryable |
-|------|---------|-----------|
-| `code` | `message` | False |
+| code | message | retryable | details |
+|------|---------|-----------|---------|
+| `code` | `message` | `retryable` | `details` |
 
 `out` =
 
-| ok | error |
-|----|-------|
-| False | `error` |
+| ok | schema_version | error |
+|----|----------------|-------|
+| False | 2 | `error` |
 
 *out*
 
@@ -87,34 +99,56 @@ import:
 ## documents_read
     + `payload`=None
 
-Read-only DocumentView. Prefers Marqdo MLSP `view.document`; falls back to
-honest capability_unavailable (never live execute).
+Read-only DocumentView (Q-R4). Passes revision/generation/node_id end-to-end.
+Unique per-request temp files — never fixed /tmp names (R06).
 
 **workspace_id = > json.get value=`payload` key="workspace_id"**
 **document = > json.get value=`payload` key="document"**
 **revision = > json.get value=`payload` key="revision"**
+**generation = > json.get value=`payload` key="generation"**
 **node_id = > json.get value=`payload` key="node_id"**
 1. not `document`
   *> app_err code="resource.not_found" message="document required"*
 **store = > db.open**
-**project = "."**
 1. `workspace_id`
   **ws = > `store`.get table="workspaces" id=`workspace_id`**
-  1. `ws`
-    **project = [project_root_ref](access(ws, "project_root_ref"))**
+  1. not `ws`
+    *> app_err code="workspace.forbidden" message="unknown workspace"*
+  **project = [project_root_ref](access(ws, "project_root_ref"))**
+2. *
+  **project = "."**
 1. not `project`
   **project = "."**
 
-**mlsp_req = "{\"id\":1,\"method\":\"view.document\",\"params\":{\"project\":\"" + `project` + "\",\"document\":\"" + `document` + "\",\"mode\":\"read\"}}"**
-**tmp = > sys.env_get name="TMPDIR"**
-1. not `tmp`
-  **tmp = "/tmp"**
-**req_path = `tmp` + "/qd-view-doc-req.json"**
-**out_path = `tmp` + "/qd-view-doc-out.json"**
+`params` =
+
+| project | document | mode | revision | generation | node_id |
+|---------|----------|------|----------|------------|---------|
+| `project` | `document` | read | `revision` | `generation` | `node_id` |
+
+**params_s = > json.stringify value=`params`**
+**mlsp_req = "{\"id\":1,\"method\":\"view.document\",\"params\":" + `params_s` + "}"**
+**root = > run.确保目录**
+**u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**req_path = `root` + "/tmp/qd-view-" + `u` + "-" + `nonce` + "-req.json"**
+**out_path = `root` + "/tmp/qd-view-" + `u` + "-" + `nonce` + "-out.json"**
 > fs.write_text path=`req_path` text=`mlsp_req`
-**cmd = "marqdo mlsp < " + `req_path` + " > " + `out_path` + " 2>/dev/null; echo $?"**
-**rc = > sys.exec cmd=`cmd`**
+> sys.env_set name="QDAGENT_VIEW_REQ" value=`req_path`
+> sys.env_set name="QDAGENT_VIEW_OUT" value=`out_path`
+`args` =
+
+| a |
+|---|
+| "-c" |
+| marqdo mlsp < "$QDAGENT_VIEW_REQ" > "$QDAGENT_VIEW_OUT" 2>/dev/null; echo $? |
+
+**proc = > sys.exec cmd="sh" args=args capture=True**
 **raw = > fs.read_text path=`out_path`**
+> fs.remove path=`req_path`
+> fs.remove path=`out_path`
 1. `raw`
   **resp = > json.parse text=`raw`**
   **ok = > json.get value=`resp` key="ok"**
@@ -126,46 +160,72 @@ honest capability_unavailable (never live execute).
     **msg = > json.get value=`err` key="message"**
     1. not `msg`
       **msg = "view.document failed"**
-    *> app_err code="runtime.unavailable" message=`msg`*
+    **ecode = > json.get value=`err` key="code"**
+    1. `ecode` == "version_unavailable"
+      *> app_err code="reference.stale" message=`msg` retryable=True*
+    *> app_err code="runtime.unavailable" message=`msg` retryable=True*
 `unavailable` =
 
-| schema | schema_version | completeness | capabilities | diagnostics | render |
-|--------|----------------|--------------|--------------|-------------|--------|
-| DocumentViewV1 | 1 | partial | {"read_only":true,"view.document":false} | ["Marqdo view.document unavailable — install matching CLI/ext/native"] | {"format":"plain","fragment":"","renderer_version":"0"} |
+| schema | schema_version | completeness | capabilities | diagnostics | render | no_exec |
+|--------|----------------|--------------|--------------|-------------|--------|---------|
+| DocumentViewV1 | 1 | partial | {"read_only":true,"view.document":false} | ["Marqdo view.document unavailable — install matching CLI/ext/native"] | {"format":"plain_text","fragment":"","renderer_version":"0"} | True |
 
 *> app_ok data=`unavailable`*
 
 ## citations_resolve
     + `payload`=None
 
+Resolve citation with authorized project injected (Q-R4). Unique temp files.
+
 **locator = > json.get value=`payload` key="locator"**
 **workspace_id = > json.get value=`payload` key="workspace_id"**
 **store = > db.open**
-**project = "."**
 1. `workspace_id`
   **ws = > `store`.get table="workspaces" id=`workspace_id`**
-  1. `ws`
-    **project = [project_root_ref](access(ws, "project_root_ref"))**
+  1. not `ws`
+    *> app_err code="workspace.forbidden" message="unknown workspace"*
+  **project = [project_root_ref](access(ws, "project_root_ref"))**
+2. *
+  **project = "."**
 1. not `locator`
   **artifact_id = > json.get value=`payload` key="artifact_id"**
   **document_id = > json.get value=`payload` key="document_id"**
+  **revision = > json.get value=`payload` key="revision"**
+  **generation = > json.get value=`payload` key="generation"**
+  **node_id = > json.get value=`payload` key="node_id"**
   `locator` =
 
-  | project_id | document_id | artifact_id | relation |
-  |------------|-------------|-------------|----------|
-  | `project` | `document_id` | `artifact_id` | cites |
+  | project_id | document_id | artifact_id | revision | generation | node_id | relation |
+  |------------|-------------|-------------|----------|------------|---------|----------|
+  | `project` | `document_id` | `artifact_id` | `revision` | `generation` | `node_id` | cites |
+
+2. *
+  **locator = > table.put in=`locator` at="project_id" value=`project`**
+  **locator = > table.put in=`locator` at="project" value=`project`**
 
 **loc_s = > json.stringify value=`locator`**
 **mlsp_req = "{\"id\":1,\"method\":\"view.reference_resolve\",\"params\":" + `loc_s` + "}"**
-**tmp = > sys.env_get name="TMPDIR"**
-1. not `tmp`
-  **tmp = "/tmp"**
-**req_path = `tmp` + "/qd-cite-req.json"**
-**out_path = `tmp` + "/qd-cite-out.json"**
+**root = > run.确保目录**
+**u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**req_path = `root` + "/tmp/qd-cite-" + `u` + "-" + `nonce` + "-req.json"**
+**out_path = `root` + "/tmp/qd-cite-" + `u` + "-" + `nonce` + "-out.json"**
 > fs.write_text path=`req_path` text=`mlsp_req`
-**cmd = "marqdo mlsp < " + `req_path` + " > " + `out_path` + " 2>/dev/null"**
-> sys.exec cmd=`cmd`
+> sys.env_set name="QDAGENT_CITE_REQ" value=`req_path`
+> sys.env_set name="QDAGENT_CITE_OUT" value=`out_path`
+`cargs` =
+
+| a |
+|---|
+| "-c" |
+| marqdo mlsp < "$QDAGENT_CITE_REQ" > "$QDAGENT_CITE_OUT" 2>/dev/null |
+
+> sys.exec cmd="sh" args=cargs capture=True
 **raw = > fs.read_text path=`out_path`**
+> fs.remove path=`req_path`
+> fs.remove path=`out_path`
 1. `raw`
   **resp = > json.parse text=`raw`**
   **ok = > json.get value=`resp` key="ok"**
@@ -209,6 +269,8 @@ honest capability_unavailable (never live execute).
 ## record_usage
     + `payload`=None
 
+Q-R8: (call_id, attempt_id) unique; higher revision replaces; unknown ≠ 0.
+
 **store = > db.open**
 **u = > time.now_unix**
 **call_id = > json.get value=`payload` key="call_id"**
@@ -221,13 +283,21 @@ honest capability_unavailable (never live execute).
 **usage_state = > json.get value=`payload` key="usage_state"**
 1. not `usage_state`
   **usage_state = "unknown"**
+**total_tokens = > json.get value=`payload` key="total_tokens"**
+1. `usage_state` == "unknown"
+  **total_tokens = None**
+**rev = 1**
+**exist = > `store`.get table="model_calls" id=`id`**
+1. `exist`
+  **prev = [revision](access(exist, "revision"))**
+  1. `prev`
+    **rev = `prev` + 1**
 `row` =
 
 | id | call_id | attempt_id | run_id | turn_id | session_id | workspace_id | purpose | model_id | model_snapshot | status | input_tokens | output_tokens | total_tokens | cached_input_tokens | reasoning_output_tokens | usage_state | measurement_source | revision | started_at | created_at | updated_at |
 |----|---------|------------|--------|---------|------------|--------------|---------|----------|----------------|--------|--------------|---------------|--------------|---------------------|-------------------------|-------------|--------------------|----------|------------|------------|------------|
-| `id` | `call_id` | `attempt_id` | [run_id](access(payload, "run_id")) | [turn_id](access(payload, "turn_id")) | [session_id](access(payload, "session_id")) | [workspace_id](access(payload, "workspace_id")) | [purpose](access(payload, "purpose")) | [model_id](access(payload, "model_id")) | [model_snapshot](access(payload, "model_snapshot")) | [status](access(payload, "status")) | [input_tokens](access(payload, "input_tokens")) | [output_tokens](access(payload, "output_tokens")) | [total_tokens](access(payload, "total_tokens")) | [cached_input_tokens](access(payload, "cached_input_tokens")) | [reasoning_output_tokens](access(payload, "reasoning_output_tokens")) | `usage_state` | [measurement_source](access(payload, "measurement_source")) | 1 | `u` | `u` | `u` |
+| `id` | `call_id` | `attempt_id` | [run_id](access(payload, "run_id")) | [turn_id](access(payload, "turn_id")) | [session_id](access(payload, "session_id")) | [workspace_id](access(payload, "workspace_id")) | [purpose](access(payload, "purpose")) | [model_id](access(payload, "model_id")) | [model_snapshot](access(payload, "model_snapshot")) | [status](access(payload, "status")) | [input_tokens](access(payload, "input_tokens")) | [output_tokens](access(payload, "output_tokens")) | `total_tokens` | [cached_input_tokens](access(payload, "cached_input_tokens")) | [reasoning_output_tokens](access(payload, "reasoning_output_tokens")) | `usage_state` | [measurement_source](access(payload, "measurement_source")) | `rev` | `u` | `u` | `u` |
 
-**exist = > `store`.get table="model_calls" id=`id`**
 1. `exist`
   > `store`.update table="model_calls" id=`id` row=`row`
 2. *
@@ -237,50 +307,82 @@ honest capability_unavailable (never live execute).
 ## uploads_create
     + `payload`=None
 
-Browser upload bridge: accepts `{filename,content_text,workspace_id,request_id}`.
-Stores under workspace data dir; does not execute uploaded `.mq.md`.
+Q-R5: server-generated upload path; request_id is index only; filename display-only.
+Does not execute uploaded `.mq.md`. Hard suffix check (not contains).
 
 **filename = > json.get value=`payload` key="filename"**
 **content = > json.get value=`payload` key="content_text"**
+1. not `content`
+  **content = > json.get value=`payload` key="content"**
 **workspace_id = > json.get value=`payload` key="workspace_id"**
 **request_id = > json.get value=`payload` key="request_id"**
 1. not `filename`
   *> app_err code="document.unsupported_format" message="filename required"*
 1. not `content`
   *> app_err code="document.unsupported_format" message="content_text required"*
+**trav = > text.contains text=`filename` sub=".."**
+**abs_hint = > text.starts_with text=`filename` prefix="/"**
+1. `trav`
+  *> app_err code="workspace.forbidden" message="bad filename"*
+1. `abs_hint`
+  *> app_err code="workspace.forbidden" message="absolute filename rejected"*
 **ok_fmt = False**
-**is_md = > text.contains text=`filename` sub=".md"**
-**is_txt = > text.contains text=`filename` sub=".txt"**
+**is_md = > text.ends_with text=`filename` suffix=".md"**
+**is_txt = > text.ends_with text=`filename` suffix=".txt"**
+**is_mq = > text.ends_with text=`filename` suffix=".mq.md"**
 1. `is_md`
   **ok_fmt = True**
 1. `is_txt`
   **ok_fmt = True**
+1. `is_mq`
+  **ok_fmt = True**
 1. not `ok_fmt`
-  *> app_err code="document.unsupported_format" message="only .md/.txt in first slice"*
+  *> app_err code="document.unsupported_format" message="only .md/.txt/.mq.md in first slice"*
+**is_pdf = > text.ends_with text=`filename` suffix=".pdf"**
+1. `is_pdf`
+  *> app_err code="document.unsupported_format" message="PDF/OCR needs plugin — not available"*
+
 **root = > run.确保目录**
 **u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
 1. not `request_id`
-  **request_id = "up-" + `u`**
-**dir = `root` + "/uploads/" + `request_id`**
-> fs.make_dir path=`dir`
-**path = `dir` + "/" + `filename`**
-> fs.write_text path=`path` text=`content`
+  **request_id = "up-" + `u` + "-" + `nonce`**
+1. not `workspace_id`
+  **workspace_id = "ws-default"**
+
 **store = > db.open**
-`job` =
-
-| id | upload_id | workspace_id | owner_id | request_id | status | original_name | stored_path | draft_path | evidence_path | title | error | revision | created_at | updated_at |
-|----|-----------|--------------|----------|------------|--------|---------------|-------------|------------|---------------|-------|-------|----------|------------|------------|
-| `request_id` | `request_id` | `workspace_id` | local | `request_id` | uploaded | `filename` | `path` |  |  | `filename` |  | 1 | `u` | `u` |
-
 **exist = > `store`.get table="import_jobs" id=`request_id`**
 1. `exist`
-  > `store`.update table="import_jobs" id=`request_id` row=`job`
-2. *
-  > `store`.insert table=import_jobs rows=`job`
+  **prev_hash = > json.get value=`exist` key="payload_hash"**
+  **ph = > len value=`content`**
+  **ph_s = "len:" + `ph` + ":" + `filename`**
+  1. `prev_hash`
+    1. not `prev_hash` == `ph_s`
+      *> app_err code="request_id.conflict" message="same request_id different payload" retryable=False*
+  *> app_ok data=`exist`*
+
+**upload_id = "upload-" + `u` + "-" + `nonce`**
+**dir = `root` + "/uploads/" + `workspace_id` + "/" + `upload_id`**
+> fs.make_dir path=`dir`
+**path = `dir` + "/blob"**
+> fs.write_text path=`path` text=`content`
+**content_len = > len value=`content`**
+**payload_hash = "len:" + `content_len` + ":" + `filename`**
+`job` =
+
+| id | upload_id | workspace_id | owner_id | request_id | status | original_name | stored_path | draft_path | evidence_path | title | error | original_digest | payload_hash | stage_revision | revision | created_at | updated_at |
+|----|-----------|--------------|----------|------------|--------|---------------|-------------|------------|---------------|-------|-------|-----------------|--------------|----------------|----------|------------|------------|
+| `request_id` | `upload_id` | `workspace_id` | local | `request_id` | uploaded | `filename` | `path` |  |  | `filename` |  |  | `payload_hash` | 1 | 1 | `u` | `u` |
+
+> `store`.insert table=import_jobs rows=`job`
 *> app_ok data=`job`*
 
 ## imports_start
     + `payload`=None
+
+Q-R5/R6: extract → real draft; store draft_path from eng_imp (not raw upload).
 
 **store = > db.open**
 **upload_id = > json.get value=`payload` key="upload_id"**
@@ -290,22 +392,56 @@ Stores under workspace data dir; does not execute uploaded `.mq.md`.
 1. not `job`
   *> app_err code="resource.not_found" message="upload not found"*
 **path = [stored_path](access(job, "stored_path"))**
-**imp = > eng_imp.import_txt path=`path`**
+**ws = [workspace_id](access(job, "workspace_id"))**
+**title = [original_name](access(job, "original_name"))**
 **u = > time.now_unix**
+`stage` =
+
+| status | updated_at |
+|--------|------------|
+| extracting | `u` |
+
+> `store`.update table="import_jobs" id=`upload_id` row=`stage`
+
+**kb = > eng_imp.resolve_kb_root**
+**imp = > eng_imp.import_txt path=`path` kb_root=`kb` title=`title`**
 **status = "draft_ready"**
 **err = ""**
-**draft = `path`**
+**draft = ""**
+**evidence = ""**
+**cand = ""**
+**orig_d = ""**
+**ext_d = ""**
+**ext_v = ""**
 **iok = > json.get value=`imp` key="ok"**
 1. not `iok`
   **status = "failed"**
   **err = > json.get value=`imp` key="error"**
   1. not `err`
     **err = "import failed"**
+2. *
+  **draft = > json.get value=`imp` key="draft"**
+  1. not `draft`
+    **draft = [draft](access(imp, "draft"))**
+  **evidence = > json.get value=`imp` key="evidence"**
+  **chk = > json.get value=`imp` key="check"**
+  **cok = > json.get value=`chk` key="ok"**
+  1. not `cok`
+    **status = "needs_input"**
+    **err = "check_failed"**
+  **orig_d = > json.get value=`imp` key="original_digest"**
+  **ext_d = > json.get value=`imp` key="extracted_text_digest"**
+  **ext_v = > json.get value=`imp` key="extractor_version"**
+  **cand = > json.get value=`imp` key="candidate_digest"**
+1. not `draft`
+  1. `status` == "draft_ready"
+    **status = "failed"**
+    **err = "missing_draft_path"**
 `patch` =
 
-| status | draft_path | error | updated_at |
-|--------|------------|-------|------------|
-| `status` | `draft` | `err` | `u` |
+| status | draft_path | evidence_path | error | original_digest | extracted_text_digest | extractor_version | candidate_digest | stage_revision | updated_at |
+|--------|------------|---------------|-------|-----------------|----------------------|-------------------|------------------|----------------|------------|
+| `status` | `draft` | `evidence` | `err` | `orig_d` | `ext_d` | `ext_v` | `cand` | 2 | `u` |
 
 > `store`.update table="import_jobs" id=`upload_id` row=`patch`
 **job2 = > `store`.get table="import_jobs" id=`upload_id`**
@@ -326,7 +462,8 @@ Stores under workspace data dir; does not execute uploaded `.mq.md`.
 ## imports_publish
     + `payload`=None
 
-Explicit publish — generation/draft ≠ published (T13). Requires draft_ready.
+Q-R7: real publication via knowledge/publication — manifest/CURRENT required.
+DB status is projection only after manifest exists (R07).
 
 **store = > db.open**
 **id = > json.get value=`payload` key="id"**
@@ -339,29 +476,80 @@ Explicit publish — generation/draft ≠ published (T13). Requires draft_ready.
   *> app_err code="resource.not_found" message="import job not found"*
 **st = > json.get value=`job` key="status"**
 1. `st` == "failed"
-  *> app_err code="document.unsupported_format" message="cannot publish failed import — draft retained"*
-1. not `st` == "draft_ready"
-  1. not `st` == "published"
-    *> app_err code="resource.not_found" message="import not draft_ready"*
+  *> app_err code="publication.gate_failed" message="cannot publish failed import — draft retained"*
+1. `st` == "needs_input"
+  *> app_err code="publication.gate_failed" message="import needs_input — fix draft before publish"*
+1. `st` == "legacy_unverified"
+  *> app_err code="publication.gate_failed" message="legacy_unverified — re-import required"*
 1. `st` == "published"
-  *> app_ok data=`job`*
+  **man = > json.get value=`job` key="publication_manifest"**
+  1. `man`
+    *> app_ok data=`job`*
+  *> app_err code="publication.gate_failed" message="published without manifest — re-publish required"*
+1. not `st` == "draft_ready"
+  1. not `st` == "ready_to_publish"
+    *> app_err code="resource.not_found" message="import not draft_ready"*
+
+**draft = > json.get value=`job` key="draft_path"**
+1. not `draft`
+  *> app_err code="publication.gate_failed" message="missing draft_path"*
+**cand = > json.get value=`job` key="candidate_digest"**
+**expected = > json.get value=`payload` key="expected_generation"**
 **u = > time.now_unix**
-`patch` =
+`publishing` =
 
 | status | updated_at |
 |--------|------------|
-| published | `u` |
+| publishing | `u` |
 
-> `store`.update table="import_jobs" id=`id` row=`patch`
+> `store`.update table="import_jobs" id=`id` row=`publishing`
+
+**pub = > publication.publish draft=`draft` candidate_digest=`cand` expected_generation=`expected` import_job_id=`id`**
+**pok = > json.get value=`pub` key="ok"**
+1. not `pok`
+  **perr = > json.get value=`pub` key="error"**
+  1. not `perr`
+    **perr = "publish failed"**
+  `failp` =
+
+  | status | error | updated_at |
+  |--------|-------|------------|
+  | draft_ready | `perr` | `u` |
+
+  > `store`.update table="import_jobs" id=`id` row=`failp`
+  *> app_err code="publication.gate_failed" message=`perr`*
+**manifest = > json.get value=`pub` key="manifest"**
+**generation = > json.get value=`pub` key="generation"**
+**published_path = > json.get value=`pub` key="published"**
+`okp` =
+
+| status | publication_manifest | publication_generation | draft_path | error | updated_at |
+|--------|----------------------|------------------------|------------|-------|------------|
+| published | `manifest` | `generation` | `published_path` |  | `u` |
+
+> `store`.update table="import_jobs" id=`id` row=`okp`
 **job2 = > `store`.get table="import_jobs" id=`id`**
 *> app_ok data=`job2`*
 
 ## profile_items_get
     + `payload`=None
 
+Q-R8: default returns confirmed items only for injection; status=all for admin list.
+
 **store = > db.open**
+**status_f = > json.get value=`payload` key="status"**
 **rows = > `store`.select table="profile_items" limit=200 order="-updated_at"**
-*> app_ok data=`rows`*
+1. `status_f` == "all"
+  *> app_ok data=`rows`*
+1. not `status_f`
+  **status_f = "confirmed"**
+**out_rows = > table.empty_list**
+1. `rows`
+  - [r](遍历 rows 为 r)
+    **st = [status](access(r, "status"))**
+    1. `st` == `status_f`
+      **out_rows = > table.append list=`out_rows` item=`r`**
+*> app_ok data=`out_rows`*
 
 ## profile_items_propose
     + `payload`=None
@@ -419,28 +607,16 @@ Explicit publish — generation/draft ≠ published (T13). Requires draft_ready.
 ## turns_cancel
     + `payload`=None
 
-**store = > db.open**
-**id = > json.get value=`payload` key="id"**
-1. not `id`
-  **id = > json.get value=`payload` key="turn_id"**
-1. not `id`
-  *> app_err code="resource.not_found" message="turn id required"*
-**u = > time.now_unix**
-`patch` =
+Q-R2 facade → execution/turns.cancel. Unknown turn → 404; never create placeholder (R03).
 
-| cancel_requested | state | updated_at |
-|------------------|-------|------------|
-| 1 | cancelling | `u` |
-
-> `store`.update table="turn_state" id=`id` row=`patch`
-**row = > `store`.get table="turn_state" id=`id`**
-1. not `row`
-  `created` =
-
-  | id | session_id | workspace_id | request_id | state | model_id | model_snapshot | cancel_requested | usage_state | error | revision | created_at | updated_at |
-  |----|------------|--------------|------------|-------|----------|----------------|------------------|-------------|-------|----------|------------|------------|
-  | `id` |  |  | `id` | cancelling |  |  | 1 | unknown |  | 1 | `u` | `u` |
-
-  > `store`.insert table=turn_state rows=`created`
-  *> app_ok data=`created`*
-*> app_ok data=`row`*
+**ret = > turns.cancel payload=`payload`**
+**ok = > json.get value=`ret` key="ok"**
+1. not `ok`
+  **code = > json.get value=`ret` key="code"**
+  **msg = > json.get value=`ret` key="error"**
+  1. not `msg`
+    **msg = "turn cancel failed"**
+  1. not `code`
+    **code = "resource.not_found"**
+  *> app_err code=`code` message=`msg`*
+*> app_ok data=`ret`*

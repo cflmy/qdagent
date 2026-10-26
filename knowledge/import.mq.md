@@ -103,11 +103,17 @@ Call `marqdo mlsp` document.extract. Returns parsed result map (or ok=False).
     + `title`=""
     + `format`=""
 
-Extract → write drafts/<stem>.mq.md knowledge candidate source. Uploaded .mq.md
-is static-checked only (never auto-executed here).
+Q-R6: Extract → write drafts/<stem>.mq.md with substantive knowledge body (R08).
+Stores original_digest / extracted_text_digest / extractor_version separately.
+Uploaded .mq.md is static-checked only (never auto-executed here).
 
 **lay = > ensure_layout kb_root=`kb_root`**
 **kb = access(lay, "kb_root")**
+**orig = > fs.read_text path=`path`**
+1. not `orig`
+  **orig = ""**
+**orig_len = > len value=`orig`**
+**original_digest = "sha-len:" + `orig_len`**
 **ext = > mlsp_extract path=`path` format=`format`**
 **eok = access(ext, "ok")**
 1. not `eok`
@@ -118,36 +124,52 @@ is static-checked only (never auto-executed here).
 1. `status` == "failed"
   `failed` =
 
-  | ok | error | format | result |
-  |----|-------|--------|--------|
-  | False | extract_failed | `fmt` | `result` |
+  | ok | error | format | result | original_digest |
+  |----|-------|--------|--------|-----------------|
+  | False | extract_failed | `fmt` | `result` | `original_digest` |
 
   *failed*
+**extractor_version = > json.get value=`result` key="extractor_version"**
+1. not `extractor_version`
+  **extractor_version = "unknown"**
 **segs = > json.get value=`result` key="segments"**
 **body_text = ""**
 1. `segs`
-  **body_text = > json.stringify value=`segs`**
+  **body_text = > json.get value=`result` key="text"**
+  1. not `body_text`
+    **body_text = > json.stringify value=`segs`**
 2. *
   **body_text = > json.get value=`result` key="text"**
   1. not `body_text`
-    **body_text = ""**
+    **body_text = `orig`**
+1. not `body_text`
+  **body_text = `orig`**
+**ext_len = > len value=`body_text`**
+**extracted_text_digest = "sha-len:" + `ext_len`**
 1. not `title`
   **title = `path`**
 **u = > time.now_unix**
 **s = > time.format unix=`u` pattern="%Y%m%d-%H%M%S"**
-**stem = "import-" + `s`**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**stem = "import-" + `s` + "-" + `nonce`**
 **draft = `kb` + "/drafts/" + `stem` + ".mq.md"**
-**src_digest = > json.get value=`result` key="extractor_version"**
-**doc = "---\nmarkup: occlusion\ntitle: " + `title` + "\ndescription: imported from " + `path` + "\nsource_path: " + `path` + "\nsource_digest: " + `src_digest` + "\nstatus: draft\n---\n\n# 任务\n\n从资料导入并沉淀为可执行知识草稿。\n\n# 结论\n\n待审阅。来源格式 " + `fmt` + "。\n\n# main\n\n> print text=import-draft-" + `stem` + "\n\n# 验证\n\n待验证\n\n# 元数据\n\n| 字段 | 值 |\n|------|----|\n| source | " + `path` + " |\n| extract | " + `src_digest` + " |\n"**
+**candidate_digest = "cand-" + `stem` + "-" + `extracted_text_digest`**
+**snippet = `body_text`**
+**snip_n = > len value=`snippet`**
+1. `snip_n` > 4000
+  **snippet = `snippet` + "…"**
+**doc = "---\nmarkup: occlusion\ntitle: " + `title` + "\ndescription: imported from " + `path` + "\nsource_path: " + `path` + "\noriginal_digest: " + `original_digest` + "\nextracted_text_digest: " + `extracted_text_digest` + "\nextractor_version: " + `extractor_version` + "\ncandidate_digest: " + `candidate_digest` + "\nstatus: draft\n---\n\n# 任务\n\n从资料导入并沉淀为可执行知识草稿。\n\n# 结论\n\n来源格式 " + `fmt` + "。以下正文来自提取结果，供复用与验证。\n\n# 知识正文\n\n" + `snippet` + "\n\n# main\n\n> print text=" + `candidate_digest` + "\n\n# 验证\n\n| 断言 | 期望 |\n|------|------|\n| candidate_digest | " + `candidate_digest` + " |\n| original_digest | " + `original_digest` + " |\n\n# 元数据\n\n| 字段 | 值 |\n|------|----|\n| source | " + `path` + " |\n| original_digest | " + `original_digest` + " |\n| extracted_text_digest | " + `extracted_text_digest` + " |\n| extractor_version | " + `extractor_version` + " |\n"**
 > fs.write_text path=`draft` text=`doc`
 **ev = `kb` + "/evidence/" + `stem` + ".extract.json"**
 **raw = > json.stringify value=`result`**
 > fs.write_text path=`ev` text=`raw`
 `out` =
 
-| ok | draft | evidence | kb_root | format | stem |
-|----|-------|----------|---------|--------|------|
-| True | `draft` | `ev` | `kb` | `fmt` | `stem` |
+| ok | draft | evidence | kb_root | format | stem | original_digest | extracted_text_digest | extractor_version | candidate_digest |
+|----|-------|----------|---------|--------|------|-----------------|----------------------|-------------------|------------------|
+| True | `draft` | `ev` | `kb` | `fmt` | `stem` | `original_digest` | `extracted_text_digest` | `extractor_version` | `candidate_digest` |
 
 *out*
 
@@ -201,8 +223,10 @@ product_gate_ok is false. Does not execute the draft as a program.
 **lay = > ensure_layout kb_root=`kb_root`**
 **kb = access(lay, "kb_root")**
 **body = > fs.read_text path=`draft`**
-**name = > text.replace text=`draft` old="/" new="_"**
-**dest = `kb` + "/knowledge/" + `name` + ".mq.md"**
+**u2 = > time.now_unix**
+**s2 = > time.format unix=`u2` pattern="%Y%m%d-%H%M%S"**
+**base = "published-" + `s2` + ".mq.md"**
+**dest = `kb` + "/knowledge/" + `base`**
 1. `body`
   **body = > text.replace text=`body` old="status: draft" new="status: published"**
 > fs.write_text path=`dest` text=`body`
@@ -245,6 +269,7 @@ product_gate_ok is false. Does not execute the draft as a program.
     + `product_gate_ok`=True
 
 End-to-end TXT/Markdown import. Set publish=True after human review.
+Top-level ok reflects check when not publishing (Q-R6 — no fake ok).
 
 **d = > draft_from_extract path=`path` kb_root=`kb_root` title=`title` format="text"**
 **ok = access(d, "ok")**
@@ -254,14 +279,36 @@ End-to-end TXT/Markdown import. Set publish=True after human review.
   1. not `ok`
     *d*
 **draft = access(d, "draft")**
+**evidence = access(d, "evidence")**
+**original_digest = access(d, "original_digest")**
+**extracted_text_digest = access(d, "extracted_text_digest")**
+**extractor_version = access(d, "extractor_version")**
+**candidate_digest = access(d, "candidate_digest")**
 **chk = > check_draft draft=`draft`**
+**cok = access(chk, "ok")**
 1. `publish`
+  1. not `cok`
+    `blocked` =
+
+    | ok | error | draft | check |
+    |----|-------|-------|-------|
+    | False | check_failed_before_publish | `draft` | `chk` |
+
+    *blocked*
   **pub = > publish_draft draft=`draft` kb_root=`kb_root` product_gate_ok=`product_gate_ok`**
   *pub*
+1. not `cok`
+  `needs` =
+
+  | ok | draft | check | evidence | original_digest | extracted_text_digest | extractor_version | candidate_digest | published | status |
+  |----|-------|-------|----------|-----------------|----------------------|-------------------|------------------|-----------|--------|
+  | True | `draft` | `chk` | `evidence` | `original_digest` | `extracted_text_digest` | `extractor_version` | `candidate_digest` | False | needs_input |
+
+  *needs*
 `out` =
 
-| ok | draft | check | published |
-|----|-------|-------|-----------|
-| True | `draft` | `chk` | False |
+| ok | draft | check | evidence | original_digest | extracted_text_digest | extractor_version | candidate_digest | published | status |
+|----|-------|-------|----------|-----------------|----------------------|-------------------|------------------|-----------|--------|
+| True | `draft` | `chk` | `evidence` | `original_digest` | `extracted_text_digest` | `extractor_version` | `candidate_digest` | False | draft_ready |
 
 *out*

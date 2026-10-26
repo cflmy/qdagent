@@ -6,16 +6,20 @@ interface Props {
   workspaceId?: string
   documentId?: string
   nodeId?: string
+  revision?: string
+  generation?: string
   label?: string
 }
 
-/** Clickable [n] citation — opens the context reader at the locator. */
+/** Clickable [n] citation — opens the context reader at the historical locator (Q-R4). */
 export function CitationLink({
   index,
   citationId,
   workspaceId = 'ws-default',
   documentId,
   nodeId,
+  revision,
+  generation,
   label,
 }: Props) {
   const openTarget = useContextPanelStore((s) => s.openTarget)
@@ -31,6 +35,8 @@ export function CitationLink({
             workspaceId,
             documentId,
             nodeId,
+            revision,
+            generation,
             title: label || documentId,
           })
         } else {
@@ -38,7 +44,16 @@ export function CitationLink({
             kind: 'citation',
             workspaceId,
             citationId,
-            locator: nodeId ? { kind: 'node', value: nodeId } : undefined,
+            documentId,
+            nodeId,
+            revision,
+            generation,
+            locator: {
+              kind: 'node',
+              value: nodeId,
+              revision,
+              generation,
+            },
           })
         }
       }}

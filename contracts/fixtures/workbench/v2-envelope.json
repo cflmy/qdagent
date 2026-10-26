@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "description": "Q-R0 /api/app/v2 envelope and error contract",
+  "envelope_ok": {
+    "ok": true,
+    "schema_version": 2,
+    "request_id": "req_01",
+    "data": { "turn_id": "turn_01", "state": "accepted" }
+  },
+  "envelope_error": {
+    "ok": false,
+    "schema_version": 2,
+    "request_id": "req_01",
+    "error": {
+      "code": "revision.conflict",
+      "message": "知识库已有新版本，请更新预览后发布",
+      "retryable": false,
+      "details": { "current_revision": 8, "expected_revision": 7 }
+    }
+  },
+  "http_codes": {
+    "400": "format",
+    "401": "auth",
+    "403": "workspace.forbidden",
+    "404": "resource.not_found",
+    "409": "idempotency_or_revision",
+    "413": "too_large",
+    "415": "unsupported_media",
+    "422": "validation",
+    "429": "rate_or_queue",
+    "503": "runtime_or_provider",
+    "504": "deadline"
+  },
+  "invariants": [
+    "HTTP status matches business error family",
+    "error.code is stable machine id; message is user-facing",
+    "retryable false must not auto-retry writes",
+    "same request_id + different payload_hash → 409 request_id.conflict"
+  ]
+}

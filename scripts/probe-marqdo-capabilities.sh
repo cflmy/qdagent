@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wave0: require Marqdo CLI/ext ≥2.1.3 and probe workbench capability bits.
+# Q-R0: require Marqdo CLI/ext ≥2.1.4 and probe workbench capability bits.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=marqdo-env.sh

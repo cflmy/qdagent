@@ -8,7 +8,7 @@
 | 产品 | **求道 / qdagent** — Executable Engineering Knowledge Agent（Marqdo 唯一 Runtime / EKC） |
 | 对标 | [OpenClaw](https://github.com/openclaw/openclaw) · [Hermes Agent](https://github.com/NousResearch/hermes-agent) |
 | 日期 | 2026-10-16（索引横幅）· 档案正文多起于 2026-09 |
-| 语言运行时 | Marqdo **CLI≥1.4.4 · Ext≥1.4.4** |
+| 语言运行时 | Marqdo **CLI≥2.1.4 · Ext≥2.1.4**（ADR 0009 隔离执行） |
 
 ## 阅读顺序（建议）
 

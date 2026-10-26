@@ -1,13 +1,16 @@
 ---
 markup: occlusion
 title: execution/turns
-description: Turn lifecycle + cancel flags (Q06). Abort alone is not enough — cancel marks the turn.
+description: >-
+  Q-R2 Turn lifecycle — accepted→queued→running→finalizing→completed,
+  cancel_requested→cancelled. Abort alone is not enough; unknown turn → 404.
 import:
   db: ../db/index.mq.md
   table: lib/table.mq.md
   json: lib/json.mq.md
   time: lib/time.mq.md
   text: lib/text.mq.md
+  sys: lib/sys.mq.md
 ---
 
 ## create
@@ -42,21 +45,41 @@ import:
 
 **store = > db.open**
 **u = > time.now_unix**
+**payload_hash = ""**
+1. `payload`
+  **payload_s = > json.stringify value=`payload`**
+  **pn = > len value=`payload_s`**
+  **payload_hash = "len:" + `pn`**
 1. not `request_id`
-  **request_id = "req-" + `u`**
+  **nonce = > sys.env_get name="RANDOM"**
+  1. not `nonce`
+    **nonce = `u`**
+  **request_id = "req-" + `u` + "-" + `nonce`**
 1. `request_id`
   **dup = > `store`.select table="turn_state" limit=500 order="-created_at"**
   1. `dup`
     - [t](遍历 dup 为 t)
       **rid = > json.get value=`t` key="request_id"**
       1. `rid` == `request_id`
+        **prev_hash = > json.get value=`t` key="payload_hash"**
+        1. `prev_hash`
+          1. `payload_hash`
+            1. not `prev_hash` == `payload_hash`
+              `conflict` =
+
+              | ok | error | code |
+              |----|-------|------|
+              | False | same request_id different payload | request_id.conflict |
+
+              *conflict*
         **tid = > json.get value=`t` key="id"**
         **st = > json.get value=`t` key="state"**
+        **prev_rev = > json.get value=`t` key="revision"**
         `same` =
 
-        | ok | turn_id | request_id | state | reused |
-        |----|---------|------------|-------|--------|
-        | True | `tid` | `request_id` | `st` | True |
+        | ok | turn_id | request_id | state | reused | revision |
+        |----|---------|------------|-------|--------|----------|
+        | True | `tid` | `request_id` | `st` | True | `prev_rev` |
 
         *same*
 
@@ -66,16 +89,16 @@ import:
     **model_snapshot = "{\"mode\":\"manual\",\"model_id\":\"" + `model_id` + "\"}"**
 `ins` =
 
-| id | session_id | workspace_id | request_id | state | model_id | model_snapshot | cancel_requested | usage_state | error | revision | created_at | updated_at |
-|----|------------|--------------|------------|-------|----------|----------------|------------------|-------------|-------|----------|------------|------------|
-| `tid` | `session_id` | `workspace_id` | `request_id` | running | `model_id` | `model_snapshot` | 0 | unknown |  | 1 | `u` | `u` |
+| id | session_id | workspace_id | owner_id | request_id | payload_hash | state | model_id | model_snapshot | cancel_requested | usage_state | error | last_event_seq | revision | created_at | updated_at |
+|----|------------|--------------|----------|------------|--------------|-------|----------|----------------|------------------|-------------|-------|----------------|----------|------------|------------|
+| `tid` | `session_id` | `workspace_id` | local | `request_id` | `payload_hash` | accepted | `model_id` | `model_snapshot` | 0 | unknown |  | 0 | 1 | `u` | `u` |
 
 > `store`.insert table=turn_state rows=`ins`
 `ret` =
 
-| ok | turn_id | request_id | state | model_id | reused |
-|----|---------|------------|-------|----------|--------|
-| True | `tid` | `request_id` | running | `model_id` | False |
+| ok | turn_id | request_id | state | model_id | reused | events_url |
+|----|---------|------------|-------|----------|--------|------------|
+| True | `tid` | `request_id` | accepted | `model_id` | False | "/api/app/turns/" + `tid` + "/events" |
 
 *ret*
 
@@ -216,14 +239,34 @@ Idempotent cancel request. Runtime cooperates by checking cancel_requested.
     + `state`="completed"
     + `usage_state`="unknown"
     + `error`=""
+    + `expected_revision`=0
+
+Terminal write with optional expected_revision CAS. Never regress completed/cancelled.
 
 **store = > db.open**
+**cur = > `store`.get table="turn_state" id=`turn_id`**
+1. not `cur`
+  *False*
+**st = [state](access(cur, "state"))**
+1. `st` == "completed"
+  *True*
+1. `st` == "cancelled"
+  *True*
+1. `expected_revision`
+  **crev = [revision](access(cur, "revision"))**
+  1. not `crev` == `expected_revision`
+    *False*
 **u = > time.now_unix**
+**crev2 = [revision](access(cur, "revision"))**
+**nrev = `crev2` + 1**
+**cancel_flag = 0**
+1. `state` == "cancelled"
+  **cancel_flag = 1**
 `patch` =
 
-| state | usage_state | error | cancel_requested | updated_at |
-|-------|-------------|-------|------------------|------------|
-| `state` | `usage_state` | `error` | 0 | `u` |
+| state | usage_state | error | cancel_requested | revision | updated_at |
+|-------|-------------|-------|------------------|----------|------------|
+| `state` | `usage_state` | `error` | `cancel_flag` | `nrev` | `u` |
 
 > `store`.update table="turn_state" id=`turn_id` row=`patch`
 *True*

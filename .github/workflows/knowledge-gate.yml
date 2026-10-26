@@ -18,36 +18,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Marqdo CLI + Ext (GitHub Release 2.1.3)
+      - name: Install Marqdo CLI + Ext (GitHub Release 2.1.4)
         env:
-          MARQDO_MIN: "2.1.3"
+          MARQDO_MIN: "2.1.4"
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.local/bin" "$HOME/.marqdo"
+          mkdir -p "$HOME/.local/bin" "$HOME/.marqdo/ext" "$HOME/.marqdo/lib"
           TAG="v${MARQDO_MIN}"
-          # Official Linux bundle: CLI + lib/ + ext/ (+ native .so under ext/native).
-          # Asset name must match marqdo release.yml: marqdo-${VER}-x86_64-unknown-linux-gnu.zip
+          BASE="https://github.com/cflmy/marqdo/releases/download/${TAG}"
+          # Prefer official Linux CLI bundle (CLI + lib/ + ext/ + native .so).
+          # Fallback: native zip + cargo-installed CLI when bundle asset is absent.
           ZIP="marqdo-${MARQDO_MIN}-x86_64-unknown-linux-gnu.zip"
-          URL="https://github.com/cflmy/marqdo/releases/download/${TAG}/${ZIP}"
-          echo "Downloading ${URL}"
-          curl -fsSL "$URL" -o /tmp/marqdo-linux.zip
+          NATIVE_ZIP="marqdo-${MARQDO_MIN}-native-x86_64-unknown-linux-gnu.zip"
+          EXT_ZIP="marqdo-${MARQDO_MIN}-ext.zip"
           rm -rf /tmp/marqdo-stage
           mkdir -p /tmp/marqdo-stage
-          unzip -q /tmp/marqdo-linux.zip -d /tmp/marqdo-stage
-          BIN="$(find /tmp/marqdo-stage -type f -name marqdo | head -1)"
-          test -n "$BIN" && test -x "$BIN"
-          install -m 755 "$BIN" "$HOME/.local/bin/marqdo"
-          # Prefer pack layout next to binary (stage root often has ext/ + lib/).
-          STAGE_ROOT="$(dirname "$BIN")"
-          if [[ -d "$STAGE_ROOT/ext" ]]; then
+          if curl -fsSL "${BASE}/${ZIP}" -o /tmp/marqdo-linux.zip; then
+            echo "Downloaded ${ZIP}"
+            unzip -q /tmp/marqdo-linux.zip -d /tmp/marqdo-stage
+            BIN="$(find /tmp/marqdo-stage -type f -name marqdo | head -1)"
+            test -n "$BIN" && test -x "$BIN"
+            install -m 755 "$BIN" "$HOME/.local/bin/marqdo"
+            STAGE_ROOT="$(dirname "$BIN")"
+            [[ -d "$STAGE_ROOT/ext" ]] || { echo "ext/ missing from release zip" >&2; exit 1; }
             cp -a "$STAGE_ROOT/ext/." "$HOME/.marqdo/ext/"
+            if [[ -d "$STAGE_ROOT/lib" ]]; then
+              cp -a "$STAGE_ROOT/lib/." "$HOME/.marqdo/lib/"
+            fi
           else
-            echo "ext/ missing from release zip" >&2
-            exit 1
-          fi
-          if [[ -d "$STAGE_ROOT/lib" ]]; then
-            mkdir -p "$HOME/.marqdo/lib"
-            cp -a "$STAGE_ROOT/lib/." "$HOME/.marqdo/lib/"
+            echo "Bundle ${ZIP} unavailable — assembling from native/ext + cargo CLI" >&2
+            curl -fsSL "${BASE}/${NATIVE_ZIP}" -o /tmp/marqdo-native.zip
+            curl -fsSL "${BASE}/${EXT_ZIP}" -o /tmp/marqdo-ext.zip
+            unzip -q /tmp/marqdo-ext.zip -d /tmp/marqdo-ext
+            if [[ -d /tmp/marqdo-ext/ext ]]; then
+              cp -a /tmp/marqdo-ext/ext/. "$HOME/.marqdo/ext/"
+            else
+              cp -a /tmp/marqdo-ext/. "$HOME/.marqdo/ext/"
+            fi
+            mkdir -p "$HOME/.marqdo/ext/native"
+            unzip -q /tmp/marqdo-native.zip -d /tmp/marqdo-native
+            find /tmp/marqdo-native -name '*.so' -exec cp -a {} "$HOME/.marqdo/ext/native/" \;
+            cargo install --locked --git https://github.com/cflmy/marqdo.git --tag "$TAG" marqdo
+            install -m 755 "$(command -v marqdo)" "$HOME/.local/bin/marqdo" || true
+            # Prefer cargo bin on PATH after install
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           fi
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           echo "MARQDO_EXT=$HOME/.marqdo/ext" >> "$GITHUB_ENV"
@@ -55,9 +69,11 @@ jobs:
           if [[ -f "$HOME/.marqdo/ext/native/libagent.so" ]]; then
             echo "MARQDO_AGENT_PLUGIN=$HOME/.marqdo/ext/native/libagent.so" >> "$GITHUB_ENV"
           fi
+          export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
           command -v marqdo
           marqdo --version
           echo "REQUIRE_MARQDO=1" >> "$GITHUB_ENV"
+          test -f "$HOME/.marqdo/ext/VERSION"
           cat "$HOME/.marqdo/ext/VERSION"
       - name: Knowledge compile + verify
         env:

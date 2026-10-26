@@ -1,7 +1,9 @@
 ---
 markup: occlusion
 title: db/index
-description: Open sqlite via ext/data; init runs + settings + workbench tables; seed; migrate; sync run bodies to disk.
+description: >-
+  Q-R1: split initialize/migrate vs daily connect. Ordinary reads must not
+  rewrite run bodies (R10). Full sync is an explicit background task.
 import:
   data: ext/data/db.mq.md
   runs: runs.mq.md
@@ -18,13 +20,24 @@ import:
   time: lib/time.mq.md
   table: lib/table.mq.md
   json: lib/json.mq.md
+  sys: lib/sys.mq.md
 ---
 
-## open
+## connect
+
+Daily open — no migrate, no full run sync. Safe for short GETs.
 
 **root = > run.确保目录**
 **db_url = "sqlite:" + `root` + "/qdagent.db"**
 **store = > data.db url=`db_url`**
+*store*
+
+## initialize
+
+One-shot schema init + migrate + seed. Call from startup / explicit migrate CLI.
+Does not sync run bodies to disk (use `sync_runs`).
+
+**store = > connect**
 
 **run_fields = > runs.schema**
 > `store`.init name=runs fields=`run_fields`
@@ -57,6 +70,22 @@ import:
 | 4 | CREATE UNIQUE INDEX IF NOT EXISTS idx_turn_state_request ON turn_state(request_id) |
 | 5 | CREATE INDEX IF NOT EXISTS idx_profile_items_status ON profile_items(status, scope) |
 | 6 | CREATE UNIQUE INDEX IF NOT EXISTS idx_import_jobs_request ON import_jobs(request_id) |
+| 7 | CREATE INDEX IF NOT EXISTS idx_turn_state_workspace_state ON turn_state(workspace_id, state, updated_at) |
+| 8 | CREATE INDEX IF NOT EXISTS idx_import_jobs_workspace_status ON import_jobs(workspace_id, status, updated_at) |
+| 9 | CREATE INDEX IF NOT EXISTS idx_model_calls_revision ON model_calls(call_id, attempt_id, revision) |
+| 10 | ALTER TABLE turn_state ADD COLUMN owner_id TEXT |
+| 11 | ALTER TABLE turn_state ADD COLUMN payload_hash TEXT |
+| 12 | ALTER TABLE turn_state ADD COLUMN last_event_seq INTEGER |
+| 13 | ALTER TABLE turn_state ADD COLUMN result_ref TEXT |
+| 14 | ALTER TABLE turn_state ADD COLUMN recovery_action TEXT |
+| 15 | ALTER TABLE import_jobs ADD COLUMN original_digest TEXT |
+| 16 | ALTER TABLE import_jobs ADD COLUMN extracted_text_digest TEXT |
+| 17 | ALTER TABLE import_jobs ADD COLUMN extractor_version TEXT |
+| 18 | ALTER TABLE import_jobs ADD COLUMN candidate_digest TEXT |
+| 19 | ALTER TABLE import_jobs ADD COLUMN publication_manifest TEXT |
+| 20 | ALTER TABLE import_jobs ADD COLUMN publication_generation TEXT |
+| 21 | ALTER TABLE import_jobs ADD COLUMN payload_hash TEXT |
+| 22 | ALTER TABLE import_jobs ADD COLUMN stage_revision INTEGER |
 
 > `store`.migrate steps=`migrate_steps`
 
@@ -72,9 +101,57 @@ import:
 
 > migrate_legacy_settings store=`store`
 > repair_legacy_credentials store=`store`
+> mark_legacy_unverified_imports store=`store`
+*store*
 
+## open
+
+Compatible entry: initialize once per process via env latch, then connect.
+Never calls run.同步库 on the hot path (Q-R1 / R10).
+
+**done = > sys.env_get name="QDAGENT_DB_INITIALIZED"**
+1. not `done`
+  **store = > initialize**
+  > sys.env_set name="QDAGENT_DB_INITIALIZED" value="1"
+  *store*
+**store = > connect**
+*store*
+
+## sync_runs
+    + `store`=None
+
+Explicit background recovery — rewrite run bodies from DB. Not for ordinary GET.
+
+1. not `store`
+  **store = > connect**
 > run.同步库 store=`store`
 *store*
+
+## mark_legacy_unverified_imports
+    + `store`
+
+Q-R9: published rows without publication_manifest → legacy_unverified.
+Preserves original status in error field; does not delete user data.
+
+**rows = > `store`.select table="import_jobs" limit=500 order="-updated_at"**
+1. not `rows`
+  *True*
+**u = > time.now_unix**
+- [j](遍历 rows 为 j)
+  **st = > json.get value=`j` key="status"**
+  **man = > json.get value=`j` key="publication_manifest"**
+  **jid = > json.get value=`j` key="id"**
+  1. `st` == "published"
+    1. not `man`
+      1. `jid`
+        `patch` =
+
+        | status | error | updated_at |
+        |--------|-------|------------|
+        | legacy_unverified | migrated:published_without_manifest | `u` |
+
+        > `store`.update table="import_jobs" id=`jid` row=`patch`
+*True*
 
 ## repair_legacy_credentials
     + `store`

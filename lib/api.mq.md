@@ -1301,6 +1301,9 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
     + `payload`=None
 *> workbench.profile_items_set_status payload=`payload`*
 
+## app_feature_flags
+*> workbench.feature_flags_snapshot*
+
 ## v1_chat_completions
     + `messages`=""
     + `model`="qdagent"

@@ -24,21 +24,30 @@ export function DocumentReader() {
             workspace_id: activeTarget.workspaceId,
             citation_id: activeTarget.citationId,
             locator: activeTarget.locator,
+            revision: activeTarget.revision,
+            generation: activeTarget.generation,
+            document_id: activeTarget.documentId,
+            node_id: activeTarget.nodeId,
           })
           if (cancelled) return
-          const data = (res as { data?: { resolution?: string; target?: { document_id?: string }; document_id?: string; label?: string } }).data
+          const data = (res as { data?: { resolution?: string; target?: { document_id?: string; revision?: string; generation?: string; node_id?: string }; document_id?: string; label?: string } }).data
             ?? res
           const resolution = (data as { resolution?: string }).resolution
           if (resolution && resolution !== 'resolved') {
-            setError(`引用${resolution === 'stale' ? '已过期' : resolution === 'version_unavailable' ? '版本不可用' : resolution === 'ambiguous' ? '存在歧义' : '未解析'}`, gen)
+            setError(`引用${resolution === 'stale' ? '已过期' : resolution === 'version_unavailable' ? '版本不可用（历史版本未记录或已回收）' : resolution === 'ambiguous' ? '存在歧义' : '未解析'}`, gen)
             return
           }
-          const docId = (data as { target?: { document_id?: string }; document_id?: string }).target?.document_id
+          const target = (data as { target?: { document_id?: string; revision?: string; generation?: string; node_id?: string } }).target
+          const docId = target?.document_id
             ?? (data as { document_id?: string }).document_id
+            ?? activeTarget.documentId
           if (docId) {
             const view = await api.appDocumentsRead({
               workspace_id: activeTarget.workspaceId,
               document: docId,
+              revision: target?.revision ?? activeTarget.revision,
+              generation: target?.generation ?? activeTarget.generation,
+              node_id: target?.node_id ?? activeTarget.nodeId,
             })
             if (cancelled) return
             applyView(view, (v) => setView(v, gen), (e) => setError(e, gen))
@@ -50,11 +59,13 @@ export function DocumentReader() {
         const documentId = activeTarget.kind === 'file' ? activeTarget.path : activeTarget.documentId
         const workspaceId = activeTarget.workspaceId
         const revision = activeTarget.kind === 'document' ? activeTarget.revision : undefined
+        const generation = activeTarget.kind === 'document' ? activeTarget.generation : undefined
         const nodeId = activeTarget.kind === 'document' ? activeTarget.nodeId : undefined
         const view = await api.appDocumentsRead({
           workspace_id: workspaceId,
           document: documentId,
           revision,
+          generation,
           node_id: nodeId,
         })
         if (cancelled) return
@@ -168,21 +179,42 @@ function applyView(
     })
     return
   }
-  const render = data.render as { fragment?: string } | undefined
+  const render = data.render as { fragment?: string; format?: string } | undefined
   const caps = data.capabilities as { 'view.document'?: boolean } | undefined
   if (caps && caps['view.document'] === false) {
     setError('Marqdo view.document 不可用：请升级匹配的 CLI/ext/native 插件')
     return
   }
-  const html = String(data.html_fragment || render?.fragment || data.text || '')
+  // Q-R4 / R13: trust render.format — never guess HTML from '<' in plain text.
+  const format = String(render?.format || data.format || '').toLowerCase()
+  const raw = String(data.html_fragment || render?.fragment || data.text || '')
+  let fragmentHtml = ''
+  if (raw) {
+    if (format === 'plain' || format === 'plain_text' || format === 'text') {
+      fragmentHtml = `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(raw)}</pre>`
+    } else if (format === 'html' || format === 'sanitized_html' || format.includes('html')) {
+      fragmentHtml = sanitizeHtmlFragment(raw)
+    } else if (data.html_fragment || (render?.fragment && format)) {
+      fragmentHtml = sanitizeHtmlFragment(raw)
+    } else {
+      fragmentHtml = `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(raw)}</pre>`
+    }
+  }
   setView({
-    fragmentHtml: html
-      ? (html.includes('<') ? html : `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(html)}</pre>`)
-      : '',
+    fragmentHtml,
     outline: (data.outline as unknown[]) || [],
     diagnostics: (data.diagnostics as unknown[]) || [],
     completeness: String(data.completeness || ''),
   })
+}
+
+/** Minimal HTML allowlist — strip script/event handlers/dangerous URLs (R13). */
+function sanitizeHtmlFragment(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src)\s*=\s*("\s*javascript:[^"]*"|'\s*javascript:[^']*'|javascript:[^\s>]+)/gi, '$1="#"')
+    .replace(/<(iframe|object|embed|svg)\b[\s\S]*?>[\s\S]*?<\/\1>/gi, '')
 }
 
 function escapeHtml(s: string) {

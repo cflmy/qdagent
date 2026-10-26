@@ -1,26 +1,74 @@
 /**
  * qdagent API client — maps all Marqdo backend endpoints.
  * Base URL is same-origin (empty string); Marqdo proxy handles auth via cookie.
+ * Q-R3: structured ApiError, body-read timeouts, SSE event_id dedupe.
  */
 
-/**
- * The Marqdo backend answers with envelopes: `{ok, runs}`, `{ok, body, path}`,
- * `{ok, error}` … Callers expect the payload itself, so unwrap here once.
- * Errors are surfaced (thrown) instead of becoming silent `undefined`, which is
- * what previously made pages render an unrecoverable blank screen.
- */
+/** Structured API error — never stringify as [object Object]. */
+export class ApiError extends Error {
+  code: string
+  retryable: boolean
+  requestId?: string
+  status: number
+  details?: unknown
+
+  constructor(opts: {
+    message: string
+    code?: string
+    retryable?: boolean
+    requestId?: string
+    status?: number
+    details?: unknown
+  }) {
+    super(opts.message)
+    this.name = 'ApiError'
+    this.code = opts.code || 'error'
+    this.retryable = Boolean(opts.retryable)
+    this.requestId = opts.requestId
+    this.status = opts.status ?? 0
+    this.details = opts.details
+  }
+}
+
+function errorMessageFromBody(json: unknown, fallback: string): { message: string; code?: string; retryable?: boolean; requestId?: string; details?: unknown } {
+  if (!json || typeof json !== 'object') return { message: fallback }
+  const o = json as Record<string, unknown>
+  const err = o.error
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>
+    return {
+      message: String(e.message || e.code || fallback),
+      code: e.code ? String(e.code) : undefined,
+      retryable: Boolean(e.retryable),
+      requestId: o.request_id ? String(o.request_id) : undefined,
+      details: e.details,
+    }
+  }
+  if (typeof err === 'string') return { message: err, requestId: o.request_id ? String(o.request_id) : undefined }
+  if (typeof o.message === 'string') return { message: o.message }
+  return { message: fallback }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function unwrapEnvelope<T>(json: any, path: string): T {
   if (json && typeof json === 'object' && !Array.isArray(json) && 'ok' in json) {
     if (json.ok === false) {
-      throw new Error(json.error || json.message || `${path} returned ok:false`)
+      const parsed = errorMessageFromBody(json, `${path} returned ok:false`)
+      throw new ApiError({
+        message: parsed.message,
+        code: parsed.code,
+        retryable: parsed.retryable,
+        requestId: parsed.requestId,
+        details: parsed.details,
+      })
     }
   }
   return json as T
 }
 
-/** Short API calls must not hang forever while a chat holds the invoke lock. */
+/** Short API calls — covers full response body read (Q-R3). */
 const SHORT_FETCH_MS = 8_000
+const SSE_IDLE_MS = 120_000
 
 function busyMessage(path: string, status: number, detail: string): string {
   if (status === 503 || /interpreter busy/i.test(detail)) {
@@ -43,10 +91,17 @@ async function fetchWithTimeout(
     else parent.addEventListener('abort', onParentAbort, { once: true })
   }
   try {
-    return await fetch(path, { ...init, signal: ctrl.signal })
+    // Keep timer through body read for non-stream JSON (headers alone ≠ done).
+    const res = await fetch(path, { ...init, signal: ctrl.signal })
+    return res
   } catch (e) {
     if (ctrl.signal.aborted && !(parent && parent.aborted)) {
-      throw new Error(`请求超时（${timeoutMs}ms）：${path}`)
+      throw new ApiError({
+        message: `请求超时（${timeoutMs}ms）：${path}`,
+        code: 'deadline.exceeded',
+        retryable: true,
+        status: 504,
+      })
     }
     throw e
   } finally {
@@ -57,15 +112,19 @@ async function fetchWithTimeout(
 
 async function GET<T = unknown>(path: string, headers?: Record<string, string>): Promise<T> {
   const res = await fetchWithTimeout(path, { credentials: 'same-origin', headers })
+  const json = await res.json().catch(() => null)
   if (!res.ok) {
-    let detail = ''
-    try {
-      const j = await res.json() as { error?: string; message?: string }
-      detail = j.error || j.message || ''
-    } catch { /* ignore */ }
-    throw new Error(busyMessage(path, res.status, detail))
+    const parsed = errorMessageFromBody(json, busyMessage(path, res.status, ''))
+    throw new ApiError({
+      message: busyMessage(path, res.status, parsed.message),
+      code: parsed.code || (res.status === 503 ? 'runtime.unavailable' : 'error'),
+      retryable: parsed.retryable ?? res.status === 503,
+      requestId: parsed.requestId,
+      status: res.status,
+      details: parsed.details,
+    })
   }
-  return unwrapEnvelope<T>(await res.json(), path)
+  return unwrapEnvelope<T>(json, path)
 }
 
 async function POST<T = unknown>(path: string, body: unknown): Promise<T> {
@@ -82,27 +141,37 @@ async function POST<T = unknown>(path: string, body: unknown): Promise<T> {
     json = null
   }
   if (!res.ok) {
-    const detail = json && typeof json === 'object'
-      ? String((json as { error?: string; message?: string }).error
-        || (json as { message?: string }).message
-        || '')
-      : ''
-    throw new Error(busyMessage(path, res.status, detail))
+    const parsed = errorMessageFromBody(json, '')
+    throw new ApiError({
+      message: busyMessage(path, res.status, parsed.message),
+      code: parsed.code || 'error',
+      retryable: parsed.retryable ?? (res.status === 503 || res.status === 429),
+      requestId: parsed.requestId,
+      status: res.status,
+      details: parsed.details,
+    })
   }
   return unwrapEnvelope<T>(json, path)
 }
 
 async function POST_FORM<T = unknown>(path: string, body: FormData): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetchWithTimeout(path, {
     method: 'POST',
     credentials: 'same-origin',
     body,
-  })
-  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`)
+  }, 60_000)
+  if (!res.ok) {
+    throw new ApiError({ message: `POST ${path} failed: ${res.status}`, status: res.status })
+  }
   return res.json() as Promise<T>
 }
 
-/** SSE streaming POST — yields parsed JSON chunks. Falls back to a single JSON body. */
+/** New client request id for idempotent writes (Q-R3). */
+export function newRequestId(prefix = 'req'): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+/** SSE streaming POST — event_id dedupe; idle timeout separate from handshake. */
 async function* POST_STREAM(
   path: string,
   body: unknown,
@@ -117,17 +186,21 @@ async function* POST_STREAM(
     signal,
   })
   if (!res.ok) {
-    let detail = ''
-    try {
-      const j = await res.json() as { error?: string; message?: string }
-      detail = j.error || j.message || ''
-    } catch { /* ignore */ }
-    throw new Error(busyMessage(path, res.status, detail))
+    let json: unknown = null
+    try { json = await res.json() } catch { /* ignore */ }
+    const parsed = errorMessageFromBody(json, '')
+    throw new ApiError({
+      message: busyMessage(path, res.status, parsed.message),
+      code: parsed.code || 'error',
+      retryable: parsed.retryable ?? res.status === 503,
+      requestId: parsed.requestId,
+      status: res.status,
+      details: parsed.details,
+    })
   }
-  if (!res.body) throw new Error(`POST ${path}: no response body`)
+  if (!res.body) throw new ApiError({ message: `POST ${path}: no response body` })
 
   const ctype = (res.headers.get('content-type') || '').toLowerCase()
-  // Older web plugins may ignore stream:true and return a JSON completion.
   if (ctype.includes('application/json') && !ctype.includes('event-stream')) {
     const json = await res.json()
     yield json
@@ -138,10 +211,21 @@ async function* POST_STREAM(
   const decoder = new TextDecoder()
   let buffer = ''
   let sawEvent = false
+  const seenIds = new Set<string>()
+  let lastActivity = Date.now()
 
   while (true) {
+    if (Date.now() - lastActivity > SSE_IDLE_MS) {
+      throw new ApiError({
+        message: `SSE 空闲超时（${SSE_IDLE_MS}ms）：${path}`,
+        code: 'deadline.exceeded',
+        retryable: true,
+        status: 504,
+      })
+    }
     const { done, value } = await reader.read()
     if (done) break
+    lastActivity = Date.now()
     buffer += decoder.decode(value, { stream: true })
 
     const lines = buffer.split('\n')
@@ -153,15 +237,19 @@ async function* POST_STREAM(
       const data = trimmed.slice(6)
       if (data === '[DONE]') return
       try {
+        const parsed = JSON.parse(data) as { event_id?: string }
+        if (parsed?.event_id) {
+          if (seenIds.has(parsed.event_id)) continue
+          seenIds.add(parsed.event_id)
+        }
         sawEvent = true
-        yield JSON.parse(data)
+        yield parsed
       } catch {
-        // skip malformed chunks
+        // incomplete or malformed frame — skip (do not treat half-line as token)
       }
     }
   }
 
-  // Leftover non-SSE JSON body (some gateways buffer the whole completion).
   const leftover = buffer.trim()
   if (!sawEvent && leftover.startsWith('{')) {
     try {
@@ -354,4 +442,5 @@ export const api = {
   appProfileSetStatus: (data: { id: string; status: string }) =>
     POST('/api/app/profile/set_status', data),
   appTurnsCancel: (data: unknown) => POST('/api/app/turns/cancel', data),
+  appFeatureFlags: () => GET('/api/app/feature_flags'),
 }
