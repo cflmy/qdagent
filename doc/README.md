@@ -12,6 +12,8 @@
 
 ## 阅读顺序（建议）
 
+本轮增量开发入口：[**可靠工作台详细开发设计（2026-10-26，Proposed）**](design/reliable-workbench-development-2026-10-26.md) → [**最新缺陷复核与测试记录**](gaps/04-workbench-runtime-and-product-audit-2026-10-26.md) → [**Marqdo 隔离运行时配套设计**](../../marqdo/doc/design/isolated-web-runtime-development-2026-10-26.md)（需同级仓库）。以 `64b97e5` / `1b11fe0` 为复核基线，涵盖任务/取消/流式恢复、真实知识发布、版本引用、数据迁移、使用体验和性能验收；目标设计不等于已实现。
+
 0. [**qdagent 2.0 设计（Accepted）**](design/qdagent-2.0.md) · [下一阶段开发计划](design/qdagent-dev-plan-2026-10.md) · [再下一阶段（审阅稿）](design/qdagent-dev-plan-2026-10-next.md)  
    本轮产品扩展：[**多提供商与知识工作台（2026-10-25，Proposed）**](design/multi-provider-and-knowledge-workbench-2026-10-25.md) — 基于 `643dd31` / Marqdo 2.1.2 的增量审阅；含模型切换、用量账本、View 侧栏与引用、工作区、笔记/画像、统一可读性规范、API 合同、迁移及逐项验收。
 1. [总览与产品愿景](00-overview.md)（档案）  
