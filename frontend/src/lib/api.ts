@@ -501,6 +501,12 @@ export const api = {
   appWorkspacesTree: (data?: { workspace_id?: string; path?: string }) =>
     POST('/api/app/workspaces/tree', data || {}),
   appDocumentsRead: (data: unknown) => POST('/api/app/documents/read', data),
+  appResourcesBlob: (data: {
+    workspace_id?: string
+    path: string
+    digest?: string
+    max_bytes?: number
+  }) => POST('/api/app/resources/blob', data),
   appCitationsResolve: (data: unknown) => POST('/api/app/citations/resolve', data),
   appUploadsCreate: (data: unknown) => POST('/api/app/uploads/create', data),
   appImportsStart: (data: unknown) => POST('/api/app/imports/start', data),

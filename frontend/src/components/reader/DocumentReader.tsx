@@ -1,8 +1,22 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { useContextPanelStore } from '@/stores/context-panel-store'
 import { ArrowLeft, X, Loader2 } from 'lucide-react'
-import { applyResourceOrDocumentView } from './resourcePreview'
+import {
+  applyResourceOrDocumentView,
+  decodeBase64ToBytes,
+  type BlobRefPayload,
+  type PreviewView,
+} from './resourcePreview'
+import { PdfPreview } from './PdfPreview'
+import { ImagePreview } from './ImagePreview'
+
+type BlobState = {
+  kind: 'pdf' | 'image'
+  bytes: Uint8Array
+  mediaType: string
+  title?: string
+}
 
 /** Read-only DocumentView / ResourceView embed. Never triggers execution. */
 export function DocumentReader() {
@@ -11,6 +25,7 @@ export function DocumentReader() {
     close, back, backStack, setLoading, setError, setView, requestGen, rememberScroll, targetKey,
   } = useContextPanelStore()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [blob, setBlob] = useState<BlobState | null>(null)
   const kindBadge = (() => {
     const path =
       activeTarget?.kind === 'file'
@@ -22,6 +37,9 @@ export function DocumentReader() {
     const lower = path.toLowerCase()
     if (lower.endsWith('.json')) return 'json'
     if (lower.endsWith('.csv')) return 'csv'
+    if (lower.endsWith('.pdf')) return 'pdf'
+    if (/\.(png|jpe?g|webp|gif)$/.test(lower)) return 'image'
+    if (/\.(docx|xlsx|pptx)$/.test(lower)) return 'office'
     if (lower.endsWith('.mq.md')) return 'mq'
     if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'md'
     return ''
@@ -37,11 +55,11 @@ export function DocumentReader() {
     ) return
     const gen = requestGen
     let cancelled = false
+    setBlob(null)
     ;(async () => {
       setLoading(true)
       try {
         if (activeTarget.kind === 'note') {
-          // Q-A2: static note body preview — never execute the workbook.
           const run = await api.getRun({ slug: activeTarget.slug })
           if (cancelled) return
           const raw = typeof run.content === 'string' ? run.content : ''
@@ -70,7 +88,7 @@ export function DocumentReader() {
             node_id: activeTarget.nodeId,
           })
           if (cancelled) return
-          const data = (res as { data?: { resolution?: string; target?: { document_id?: string; revision?: string; generation?: string; node_id?: string }; document_id?: string; label?: string } }).data
+          const data = (res as { data?: { resolution?: string; target?: { document_id?: string; revision?: string; generation?: string; node_id?: string }; document_id?: string } }).data
             ?? res
           const resolution = (data as { resolution?: string }).resolution
           if (resolution && resolution !== 'resolved') {
@@ -90,14 +108,23 @@ export function DocumentReader() {
               node_id: target?.node_id ?? activeTarget.nodeId,
             })
             if (cancelled) return
-            applyPreview(view, (v) => setView(v, gen), (e) => setError(e, gen))
+            await settlePreview({
+              view,
+              workspaceId: activeTarget.workspaceId,
+              gen,
+              cancelled: () => cancelled,
+              setView,
+              setError,
+              setBlob,
+              setLoading,
+            })
             return
           }
           setError('引用未能定位到文档', gen)
           return
         }
-        // Q-A5: documents_read routes .mq.md → view.document, else → resource.view
-        // (json/csv/md/code). Same client API for both.
+        // Q-A5: .mq.md → view.document; json/csv/md/code → ResourceView HTML;
+        // pdf/image → blob_ref → PdfPreview / ImagePreview (extract/OCR independent).
         const documentId = activeTarget.kind === 'file' ? activeTarget.path : activeTarget.documentId
         const workspaceId = activeTarget.workspaceId
         const revision = activeTarget.kind === 'document' ? activeTarget.revision : undefined
@@ -111,7 +138,16 @@ export function DocumentReader() {
           node_id: nodeId,
         })
         if (cancelled) return
-        applyPreview(view, (v) => setView(v, gen), (e) => setError(e, gen))
+        await settlePreview({
+          view,
+          workspaceId,
+          gen,
+          cancelled: () => cancelled,
+          setView,
+          setError,
+          setBlob,
+          setLoading,
+        })
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e), gen)
       }
@@ -183,13 +219,23 @@ export function DocumentReader() {
             {error}
           </div>
         )}
-        {!loading && !error && fragmentHtml && (
+        {!loading && !error && blob?.kind === 'pdf' && (
+          <PdfPreview bytes={blob.bytes} title={blob.title || title} />
+        )}
+        {!loading && !error && blob?.kind === 'image' && (
+          <ImagePreview
+            bytes={blob.bytes}
+            mediaType={blob.mediaType}
+            title={blob.title || title}
+          />
+        )}
+        {!loading && !error && !blob && fragmentHtml && (
           <div
             className="mq-document mq-resource-preview prose prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: fragmentHtml }}
           />
         )}
-        {!loading && !error && !fragmentHtml && (
+        {!loading && !error && !blob && !fragmentHtml && (
           <p className="text-sm text-[var(--qd-muted)]">选择一条引用或文档以阅读（只读，不执行）。</p>
         )}
         {!!diagnostics?.length && (
@@ -203,15 +249,93 @@ export function DocumentReader() {
   )
 }
 
-function applyPreview(
-  view: unknown,
-  setView: (v: { fragmentHtml?: string; outline?: unknown[]; diagnostics?: unknown[]; completeness?: string }) => void,
-  setError: (e: string) => void,
-) {
-  const result = applyResourceOrDocumentView(view)
+async function settlePreview(opts: {
+  view: unknown
+  workspaceId: string
+  gen: number
+  cancelled: () => boolean
+  setView: (v: { fragmentHtml?: string; outline?: unknown[]; diagnostics?: unknown[]; completeness?: string }, gen?: number) => void
+  setError: (e: string, gen?: number) => void
+  setBlob: (b: BlobState | null) => void
+  setLoading: (v: boolean) => void
+}) {
+  const result = applyResourceOrDocumentView(opts.view)
   if (!result.ok) {
-    setError(result.error)
+    opts.setError(result.error, opts.gen)
     return
   }
-  setView(result.view)
+  const preview = result.view
+  opts.setView({
+    fragmentHtml: preview.fragmentHtml || '',
+    outline: preview.outline,
+    diagnostics: preview.diagnostics,
+    completeness: preview.completeness,
+  }, opts.gen)
+
+  if (preview.blobRef && preview.visualPreview === 'client') {
+    await loadBlobPreview(preview.blobRef, preview.kind, opts)
+    return
+  }
+  opts.setBlob(null)
+  opts.setLoading(false)
 }
+
+async function loadBlobPreview(
+  blobRef: BlobRefPayload,
+  kind: string | undefined,
+  opts: {
+    workspaceId: string
+    gen: number
+    cancelled: () => boolean
+    setError: (e: string, gen?: number) => void
+    setBlob: (b: BlobState | null) => void
+    setLoading: (v: boolean) => void
+  },
+) {
+  try {
+    const res = await api.appResourcesBlob({
+      workspace_id: opts.workspaceId,
+      path: blobRef.path,
+      digest: blobRef.digest,
+    })
+    if (opts.cancelled()) return
+    const envelope = res as { ok?: boolean; data?: Record<string, unknown>; error?: { message?: string } }
+    if (envelope.ok === false) {
+      opts.setError(envelope.error?.message || 'blob 读取失败', opts.gen)
+      return
+    }
+    const data = (envelope.data ?? res) as Record<string, unknown>
+    const b64 = String(data.content_base64 || '')
+    if (!b64) {
+      opts.setError('blob 响应缺少 content_base64', opts.gen)
+      return
+    }
+    const bytes = decodeBase64ToBytes(b64)
+    const mediaType = String(data.media_type || blobRef.media_type || 'application/octet-stream')
+    const resolvedKind = (kind === 'pdf' || kind === 'image')
+      ? kind
+      : mediaType === 'application/pdf'
+        ? 'pdf'
+        : mediaType.startsWith('image/')
+          ? 'image'
+          : null
+    if (!resolvedKind) {
+      opts.setError(`不支持的 blob 类型: ${mediaType}`, opts.gen)
+      return
+    }
+    opts.setBlob({
+      kind: resolvedKind,
+      bytes,
+      mediaType,
+      title: blobRef.title,
+    })
+    opts.setLoading(false)
+  } catch (e) {
+    if (!opts.cancelled()) {
+      opts.setError(e instanceof Error ? e.message : String(e), opts.gen)
+    }
+  }
+}
+
+// Keep PreviewView export reachable for tests / future panel store fields.
+export type { PreviewView }

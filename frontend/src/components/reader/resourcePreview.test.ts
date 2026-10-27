@@ -73,4 +73,27 @@ describe('applyResourceOrDocumentView', () => {
   it('strips script tags in sanitize', () => {
     expect(sanitizeHtmlFragment('<p>x</p><script>alert(1)</script>')).toBe('<p>x</p>')
   })
+
+  it('maps PDF blob_ref for client visual preview without claiming extract', () => {
+    const r = applyResourceOrDocumentView({
+      data: {
+        schema: 'ResourceViewV1',
+        completeness: 'partial',
+        resource: { kind: 'pdf', title: 'a.pdf' },
+        capabilities: { visual_preview: 'client', extract: false, ocr: false, kind: 'pdf' },
+        render: {
+          format: 'blob_ref',
+          blob_ref: { path: 'a.pdf', digest: 'sha256:x', media_type: 'application/pdf', title: 'a.pdf' },
+        },
+        diagnostics: [{ code: 'ocr.unavailable' }, { code: 'extract.unavailable' }],
+      },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.view.kind).toBe('pdf')
+    expect(r.view.visualPreview).toBe('client')
+    expect(r.view.blobRef?.path).toBe('a.pdf')
+    expect(r.view.fragmentHtml).toBe('')
+    expect(JSON.stringify(r.view.diagnostics)).toContain('ocr.unavailable')
+  })
 })

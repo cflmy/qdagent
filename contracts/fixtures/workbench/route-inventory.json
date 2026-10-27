@@ -15,6 +15,15 @@
     },
     {
       "method": "POST",
+      "path": "/api/app/resources/blob",
+      "api": "api.app_resources_blob",
+      "impl": "workbench.resources_blob",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "Authorized workspace blob for PDF.js / ImagePreview; extract/OCR independent"
+    },
+    {
+      "method": "POST",
       "path": "/api/app/citations/resolve",
       "api": "api.app_citations_resolve",
       "impl": "workbench.citations_resolve",

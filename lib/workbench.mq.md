@@ -224,6 +224,83 @@ Shared temp-file mlsp invoke. Soft-fail to capability-unavailable envelope.
 
 *> app_ok data=`unavailable`*
 
+## resources_blob
+    + `payload`=None
+
+Authorized workspace blob for client visual preview (PDF.js / ImagePreview).
+Never executes. Path must stay under project_root; optional digest check.
+Returns base64 payload (Marqdo has no binary HTTP body yet) — FE decodes.
+
+**workspace_id = > json.get value=`payload` key="workspace_id"**
+**path = > json.get value=`payload` key="path"**
+1. not `path`
+  **path = > json.get value=`payload` key="document"**
+1. not `path`
+  *> app_err code="resource.not_found" message="path required"*
+**trav = > text.contains text=`path` sub=".."**
+**abs_hint = > text.starts_with text=`path` prefix="/"**
+1. `trav`
+  *> app_err code="workspace.forbidden" message="path escape rejected"*
+1. `abs_hint`
+  *> app_err code="workspace.forbidden" message="absolute path rejected"*
+**store = > db.open**
+1. `workspace_id`
+  **ws = > `store`.get table="workspaces" id=`workspace_id`**
+  1. not `ws`
+    *> app_err code="workspace.forbidden" message="unknown workspace"*
+  **project = [project_root_ref](access(ws, "project_root_ref"))**
+2. *
+  **project = "."**
+1. not `project`
+  **project = "."**
+**abs = `project` + "/" + `path`**
+**expected = > json.get value=`payload` key="digest"**
+**max_bytes = > json.get value=`payload` key="max_bytes"**
+1. not `max_bytes`
+  **max_bytes = 20971520**
+**root = > run.确保目录**
+**u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**out_path = `root` + "/tmp/qd-blob-" + `u` + "-" + `nonce` + ".json"**
+**repo = > sys.env_get name="QDAGENT_ROOT"**
+1. not `repo`
+  **repo = > sys.cwd**
+**script = `repo` + "/scripts/blob_encode.py"**
+> sys.env_set name="QDAGENT_BLOB_ABS" value=`abs`
+> sys.env_set name="QDAGENT_BLOB_OUT" value=`out_path`
+> sys.env_set name="QDAGENT_BLOB_REL" value=`path`
+> sys.env_set name="QDAGENT_BLOB_MAX" value=`max_bytes`
+1. `expected`
+  > sys.env_set name="QDAGENT_BLOB_DIGEST" value=`expected`
+2. *
+  > sys.env_set name="QDAGENT_BLOB_DIGEST" value=""
+`args` =
+
+| a |
+|---|
+| `script` |
+
+**proc = > sys.exec cmd="python3" args=args capture=True**
+**raw = > fs.read_text path=`out_path`**
+> fs.remove path=`out_path`
+1. not `raw`
+  *> app_err code="runtime.unavailable" message="blob encode failed" retryable=True*
+**resp = > json.parse text=`raw`**
+**ok = > json.get value=`resp` key="ok"**
+1. `ok`
+  **data = > json.get value=`resp` key="result"**
+  *> app_ok data=`data`*
+**err = > json.get value=`resp` key="error"**
+**msg = > json.get value=`err` key="message"**
+**ecode = > json.get value=`err` key="code"**
+1. not `msg`
+  **msg = "blob read failed"**
+1. not `ecode`
+  **ecode = "runtime.unavailable"**
+*> app_err code=`ecode` message=`msg` retryable=False*
+
 ## citations_resolve
     + `payload`=None
 

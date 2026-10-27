@@ -1,5 +1,13 @@
 /** Shared ResourceView / DocumentView → panel fragment (Q-R4 / Q-A5). Never executes. */
 
+export type BlobRefPayload = {
+  path: string
+  digest?: string
+  media_type?: string
+  byte_length?: number
+  title?: string
+}
+
 export type PreviewView = {
   fragmentHtml?: string
   outline?: unknown[]
@@ -7,6 +15,9 @@ export type PreviewView = {
   completeness?: string
   kind?: string
   schema?: string
+  /** Client visual preview (PDF.js / ImagePreview); extract/OCR stay independent. */
+  blobRef?: BlobRefPayload
+  visualPreview?: 'client' | false | string
 }
 
 export type PreviewResult =
@@ -46,9 +57,43 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
     return { ok: false, error: 'Marqdo resource.view 不可用：请升级匹配的 CLI/ext/native 插件' }
   }
 
-  const render = data.render as { fragment?: string | null; format?: string; text?: string } | undefined
+  const render = data.render as {
+    fragment?: string | null
+    format?: string
+    text?: string | null
+    blob_ref?: BlobRefPayload
+  } | undefined
   const resource = data.resource as { kind?: string; title?: string } | undefined
   const format = String(render?.format || data.format || '').toLowerCase()
+  const kind = String(resource?.kind || caps.kind || '')
+  const schema = String(data.schema || '')
+
+  if (format === 'blob_ref') {
+    const blob = render?.blob_ref
+    if (!blob?.path) {
+      return { ok: false, error: 'ResourceView blob_ref 缺少 path' }
+    }
+    return {
+      ok: true,
+      view: {
+        fragmentHtml: '',
+        outline: (data.outline as unknown[]) || [],
+        diagnostics: (data.diagnostics as unknown[]) || [],
+        completeness: String(data.completeness || 'partial'),
+        kind: kind || undefined,
+        schema: schema || undefined,
+        blobRef: {
+          path: blob.path,
+          digest: blob.digest,
+          media_type: blob.media_type,
+          byte_length: blob.byte_length,
+          title: blob.title || resource?.title,
+        },
+        visualPreview: (caps.visual_preview as string | false | undefined) ?? 'client',
+      },
+    }
+  }
+
   const raw = String(
     data.html_fragment
     || render?.fragment
@@ -61,17 +106,20 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
   if (raw) {
     if (format === 'plain' || format === 'plain_text' || format === 'text') {
       fragmentHtml = `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(raw)}</pre>`
-    } else if (format === 'html' || format === 'sanitized_html' || format.includes('html')) {
+    } else if (format === 'html' || format === 'sanitized_html') {
       fragmentHtml = sanitizeHtmlFragment(raw)
     } else if (data.html_fragment || (render?.fragment && format)) {
-      fragmentHtml = sanitizeHtmlFragment(raw)
+      // Strict enum only — unknown format must not guess HTML from '<' (R13 / design §7.1).
+      if (format.includes('html')) {
+        fragmentHtml = sanitizeHtmlFragment(raw)
+      } else {
+        fragmentHtml = `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(raw)}</pre>`
+      }
     } else {
       fragmentHtml = `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(raw)}</pre>`
     }
   }
 
-  const kind = String(resource?.kind || caps.kind || '')
-  const schema = String(data.schema || '')
   return {
     ok: true,
     view: {
@@ -96,4 +144,11 @@ export function sanitizeHtmlFragment(html: string): string {
 
 export function escapeHtml(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+export function decodeBase64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
 }
