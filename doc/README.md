@@ -12,7 +12,7 @@
 
 ## 阅读顺序（建议）
 
-最新增量设计入口：[**求道智能体能力与侧栏预览（2026-10-27，Proposed）**](design/agent-capabilities-and-preview-2026-10-27.md) → [**官方调研与最新源码复核**](../../marqdo/doc/research/agent-capabilities-2026-10-27.md) → [**Marqdo 恢复、工具与资源协议**](../../marqdo/doc/design/agent-reliability-tools-resources-2026-10-27.md)（跨库链接需同级 checkout）。以 qdagent `68b757e` / Marqdo `16f26d7` 为基线，覆盖错误恢复、回答长度、统一侧栏预览、业务工具、文件渲染、上下文及验收；新协议与行为均为待实现设计，不覆盖 2.0 的架构边界。
+最新增量设计入口：[**求道智能体能力与侧栏预览（2026-10-27，Proposed）**](design/agent-capabilities-and-preview-2026-10-27.md) → [**跨仓开发计划（产品侧镜像）**](roadmap/agent-capabilities-development-2026-10-27.md) → [**Marqdo 跨仓排期真源**](../../marqdo/doc/roadmap/agent-reliability-crossrepo-2026-10-27.md) → [**官方调研与最新源码复核**](../../marqdo/doc/research/agent-capabilities-2026-10-27.md) → [**Marqdo 恢复、工具与资源协议**](../../marqdo/doc/design/agent-reliability-tools-resources-2026-10-27.md)（跨库链接需同级 checkout）。排期基线 qdagent `c4c976c` / Marqdo `6ffe5ce`；设计证据基线曾为 `68b757e` / `16f26d7`。覆盖错误恢复、回答长度、统一侧栏预览、业务工具、文件渲染、上下文及验收；新协议与行为均为待实现设计，不覆盖 2.0 的架构边界。
 
 上一轮可靠性设计：[**可靠工作台详细开发设计（2026-10-26）**](design/reliable-workbench-development-2026-10-26.md) → [**当轮缺陷复核与测试记录**](gaps/04-workbench-runtime-and-product-audit-2026-10-26.md) → [**Marqdo 隔离运行时配套设计**](../../marqdo/doc/design/isolated-web-runtime-development-2026-10-26.md)。当轮以 `64b97e5` / `1b11fe0` 为复核基线；后续落地见 [Q-R0–R9 实施说明](releases/reliable-workbench-q-r0-r9-2026-10-26.md)，实际能力以测试证据为准。
 
@@ -27,7 +27,7 @@
 7. [网络界面与语音交互](design/06-web-ui-and-voice.md)  
 8. [笔记式界面与 MCP 接入](design/07-notes-ui-and-mcp.md)  
 9. [Docker 部署](design/08-docker-deploy.md)  
-10. [分阶段任务路线图](roadmap/07-task-roadmap.md) ← 以 2.0 为准  
+10. [分阶段任务路线图](roadmap/07-task-roadmap.md) ← 以 2.0 为准；**当前 Agent 可靠性排期**见 [roadmap/agent-capabilities-development-2026-10-27.md](roadmap/agent-capabilities-development-2026-10-27.md)  
 11. [**Marqdo 能力缺口**](gaps/01-marqdo-hard-limits.md) ← GAP-13 CLOSED（C2a）  
 12. [Marqdo 解析 / 运行时缺陷](gaps/02-marqdo-parser-and-runtime.md)  
 13. [**知识沉淀、文档导入与原生能力接入缺口（2026-10-24）**](gaps/03-knowledge-ingestion-and-sedimentation-2026-10-24.md) — 当前源码审计、提示词契约、跨库分工与验收；含 Marqdo 2.1.1 复现结果，非已交付声明。
