@@ -40,6 +40,7 @@ REQUIRED = {
     "files-patch.json": ("result_fields", "error_codes", "invariants"),
     "response-preferences.json": ("route", "fields", "detail_enum", "invariants"),
     "resource-content.json": ("route", "result_fields", "error_codes", "invariants"),
+    "notes-search.json": ("tool_id", "hit_fields", "follow_up", "invariants"),
 }
 
 
@@ -248,6 +249,7 @@ def check_tool_schema(data: dict) -> None:
         "notes_create",
         "notes_update",
         "files_patch",
+        "notes_search",
     ):
         if name not in product:
             raise AssertionError(f"product_aliases missing {name}")
@@ -386,6 +388,22 @@ def check_resource_content(data: dict) -> None:
         raise AssertionError("invariants must require Range/content_range")
     if "no_exec" not in inv and "marqdo" not in inv:
         raise AssertionError("invariants must forbid Marqdo execution")
+
+
+def check_notes_search(data: dict) -> None:
+    if data.get("tool_id") != "notes_search":
+        raise AssertionError("notes-search tool_id must be notes_search")
+    if data.get("follow_up") != "note_read":
+        raise AssertionError("notes-search follow_up must be note_read")
+    hits = set(data["hit_fields"])
+    for f in ("path", "line", "locator"):
+        if f not in hits:
+            raise AssertionError(f"notes-search hit_fields missing {f}")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "data" not in inv and "root" not in inv:
+        raise AssertionError("invariants must mention data/ root")
+    if "note_read" not in inv and "locator" not in inv:
+        raise AssertionError("invariants must require locators for note_read")
 
 
 def check_workspace_tools(data: dict) -> None:
@@ -563,6 +581,7 @@ def main() -> int:
         "files-patch.json": check_files_patch,
         "response-preferences.json": check_response_preferences,
         "resource-content.json": check_resource_content,
+        "notes-search.json": check_notes_search,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

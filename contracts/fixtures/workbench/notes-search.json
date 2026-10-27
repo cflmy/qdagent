@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "description": "notes.search tool contract (design §9.1)",
+  "tool_id": "notes_search",
+  "default_root": "data",
+  "hit_fields": ["path", "line", "locator", "excerpt"],
+  "follow_up": "note_read",
+  "invariants": [
+    "default root is data/ (notes/runs), not workspace .",
+    "hits carry path+line locators usable by note_read",
+    "never executes Marqdo",
+    "path escape and absolute paths rejected"
+  ]
+}

@@ -51,7 +51,8 @@
     "memory_forget",
     "notes_create",
     "notes_update",
-    "files_patch"
+    "files_patch",
+    "notes_search"
   ],
   "invariants": [
     "CALL and native prepare share one ToolSpec registry",
@@ -62,6 +63,7 @@
     "plan_update/task_status are planning evidence only — not execution completion",
     "memory_forget is auditable forgotten status — not silent delete",
     "notes_update/files_patch require expected_digest CAS; mismatch → revision.conflict",
-    "notes/files writes never execute Marqdo"
+    "notes/files writes never execute Marqdo",
+    "notes_search hits carry locators for note_read; never executes"
   ]
 }

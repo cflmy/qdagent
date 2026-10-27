@@ -21,6 +21,7 @@ import:
   memory_forget: memory_forget.mq.md
   notes_create: notes_create.mq.md
   notes_update: notes_update.mq.md
+  notes_search: notes_search.mq.md
   files_patch: files_patch.mq.md
 ---
 
@@ -152,6 +153,13 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 |----|---------|-------------|--------------|--------|--------|--------------|
 | files_patch | 1 | CAS content replace under workspace root; revision.conflict on mismatch | `files_patch_schema` | write | `file_write_scopes` | ready |
 
+**notes_search_schema = > json.parse text={"type":"object","properties":{"query":{"type":"string","minLength":1},"path":{"type":"string"},"root":{"type":"string"},"cursor":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":50}},"required":["query"],"additionalProperties":false}**
+`notes_search_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| notes_search | 1 | Search notes under data/ (or root); hits include line locators for note_read | `notes_search_schema` | read | `note_scopes` | ready |
+
 **prod_note = > agent.tools_register spec=`note_spec`**
 **prod_file = > agent.tools_register spec=`file_spec`**
 **prod_ws = > agent.tools_register spec=`web_search_spec`**
@@ -167,6 +175,7 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_nc = > agent.tools_register spec=`notes_create_spec`**
 **prod_nu = > agent.tools_register spec=`notes_update_spec`**
 **prod_fp = > agent.tools_register spec=`files_patch_spec`**
+**prod_ns = > agent.tools_register spec=`notes_search_spec`**
 `out` =
 
 | ok | eng |
@@ -234,6 +243,7 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="notes_create"**
 **t = > table.append list=`t` item="notes_update"**
 **t = > table.append list=`t` item="files_patch"**
+**t = > table.append list=`t` item="notes_search"**
 *t*
 
 ## note_read
@@ -345,3 +355,12 @@ Catalog search — authorize only; does not execute tools.
     + `expected_digest`=""
 
 *> files_patch.run path=`path` root=`root` content=`content` expected_digest=`expected_digest`*
+
+## notes_search
+    + `query`=""
+    + `path`=""
+    + `root`="data"
+    + `cursor`=0
+    + `limit`=20
+
+*> notes_search.run query=`query` path=`path` root=`root` cursor=`cursor` limit=`limit`*

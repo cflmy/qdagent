@@ -294,6 +294,17 @@ Files patch (CALL:files_patch) — CAS content replace under workspace root.
 
 *> catalog.files_patch path=`path` root=`root` content=`content` expected_digest=`expected_digest`*
 
+## notes_search
+    + `query`=""
+    + `path`=""
+    + `root`="data"
+    + `cursor`=0
+    + `limit`=20
+
+Notes search (CALL:notes_search) — hits with locators for note_read.
+
+*> catalog.notes_search query=`query` path=`path` root=`root` cursor=`cursor` limit=`limit`*
+
 ## ensure_llm
     + `model_id`=""
     + `selection`=None
