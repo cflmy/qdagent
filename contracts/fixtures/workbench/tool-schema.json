@@ -48,7 +48,10 @@
     "tools_describe",
     "plan_update",
     "task_status",
-    "memory_forget"
+    "memory_forget",
+    "notes_create",
+    "notes_update",
+    "files_patch"
   ],
   "invariants": [
     "CALL and native prepare share one ToolSpec registry",
@@ -57,6 +60,8 @@
     "web_search hits and web_fetch text are trust=unverified evidence",
     "workspace_search hits carry locators; workspace_read is the range authority",
     "plan_update/task_status are planning evidence only — not execution completion",
-    "memory_forget is auditable forgotten status — not silent delete"
+    "memory_forget is auditable forgotten status — not silent delete",
+    "notes_update/files_patch require expected_digest CAS; mismatch → revision.conflict",
+    "notes/files writes never execute Marqdo"
   ]
 }

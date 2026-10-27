@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "description": "notes.create / notes.update CAS write contract (design §9.1)",
+  "ops": ["create", "update"],
+  "result_fields": ["schema", "op", "path", "digest", "revision", "no_exec"],
+  "error_codes": ["revision.conflict", "resource.not_found", "workspace.forbidden", "invalid_arguments"],
+  "invariants": [
+    "create fails if path already exists (revision.conflict)",
+    "update requires expected_digest matching current file digest",
+    "mismatch returns revision.conflict with current digest in message",
+    "absolute paths and .. rejected as workspace.forbidden",
+    "writes never execute Marqdo (no_exec=true)",
+    "digest format is sha256:<hex>"
+  ]
+}

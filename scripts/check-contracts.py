@@ -36,6 +36,8 @@ REQUIRED = {
     "turn-recover.json": ("routes", "actions", "get_fields", "invariants"),
     "workspace-tools.json": ("tools", "invariants"),
     "tools-catalog.json": ("route", "fields", "invariants"),
+    "notes-write.json": ("ops", "result_fields", "error_codes", "invariants"),
+    "files-patch.json": ("result_fields", "error_codes", "invariants"),
 }
 
 
@@ -241,6 +243,9 @@ def check_tool_schema(data: dict) -> None:
         "plan_update",
         "task_status",
         "memory_forget",
+        "notes_create",
+        "notes_update",
+        "files_patch",
     ):
         if name not in product:
             raise AssertionError(f"product_aliases missing {name}")
@@ -306,6 +311,39 @@ def check_tools_catalog(data: dict) -> None:
     inv = "\n".join(data.get("invariants") or []).lower()
     if "secret" not in inv and "credential" not in inv:
         raise AssertionError("invariants must forbid leaking secrets")
+
+
+def check_notes_write(data: dict) -> None:
+    ops = set(data["ops"])
+    if "create" not in ops or "update" not in ops:
+        raise AssertionError("notes-write ops must include create and update")
+    fields = set(data["result_fields"])
+    for f in ("schema", "path", "digest", "revision", "no_exec"):
+        if f not in fields:
+            raise AssertionError(f"notes-write result_fields missing {f}")
+    codes = set(data["error_codes"])
+    if "revision.conflict" not in codes:
+        raise AssertionError("notes-write must declare revision.conflict")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "expected_digest" not in inv and "cas" not in inv:
+        raise AssertionError("notes-write invariants must require digest CAS")
+    if "no_exec" not in inv and "never execute" not in inv and "marqdo" not in inv:
+        raise AssertionError("notes-write must forbid Marqdo execution")
+
+
+def check_files_patch(data: dict) -> None:
+    fields = set(data["result_fields"])
+    for f in ("schema", "path", "previous_digest", "digest", "revision", "no_exec"):
+        if f not in fields:
+            raise AssertionError(f"files-patch result_fields missing {f}")
+    codes = set(data["error_codes"])
+    if "revision.conflict" not in codes:
+        raise AssertionError("files-patch must declare revision.conflict")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "expected_digest" not in inv and "cas" not in inv:
+        raise AssertionError("files-patch invariants must require digest CAS")
+    if "marqdo" not in inv and "no_exec" not in inv:
+        raise AssertionError("files-patch must forbid Marqdo execution")
 
 
 def check_workspace_tools(data: dict) -> None:
@@ -479,6 +517,8 @@ def main() -> int:
         "turn-recover.json": check_turn_recover,
         "workspace-tools.json": check_workspace_tools,
         "tools-catalog.json": check_tools_catalog,
+        "notes-write.json": check_notes_write,
+        "files-patch.json": check_files_patch,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

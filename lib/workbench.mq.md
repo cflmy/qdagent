@@ -48,6 +48,9 @@ No credentials, API keys, or connector secrets. Capability/state/version only.
 | 15 | tool_verify | 1 | read | ready | Engineering verify |
 | 16 | tool_summarize | 1 | read | ready | Engineering summarize |
 | 17 | memory_forget | 1 | write | ready | Forget a profile memory item (auditable) |
+| 18 | notes_create | 1 | write | ready | Create a note under allowed root |
+| 19 | notes_update | 1 | write | ready | CAS update note with expected_digest |
+| 20 | files_patch | 1 | write | ready | CAS content replace under workspace root |
 
 `data` =
 

@@ -14,6 +14,7 @@
     "Catalog never includes provider credentials or connector secrets",
     "availability reflects product readiness, not a search hit grant",
     "tools_search hit does not authorize execution by itself",
-    "memory_forget leaves auditable forgotten status (not silent delete)"
+    "memory_forget leaves auditable forgotten status (not silent delete)",
+    "notes_create/update and files_patch are write tools under CAS"
   ]
 }

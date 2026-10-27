@@ -264,6 +264,35 @@ Memory forget (CALL:memory_forget) — auditable; not injectable.
 
 *> catalog.memory_forget id=`id`*
 
+## notes_create
+    + `path`=""
+    + `root`="data"
+    + `content`=""
+
+Notes create (CALL:notes_create) — fail if exists; never executes Marqdo.
+
+*> catalog.notes_create path=`path` root=`root` content=`content`*
+
+## notes_update
+    + `path`=""
+    + `root`="data"
+    + `content`=""
+    + `expected_digest`=""
+
+Notes update (CALL:notes_update) — CAS via expected_digest.
+
+*> catalog.notes_update path=`path` root=`root` content=`content` expected_digest=`expected_digest`*
+
+## files_patch
+    + `path`=""
+    + `root`="."
+    + `content`=""
+    + `expected_digest`=""
+
+Files patch (CALL:files_patch) — CAS content replace under workspace root.
+
+*> catalog.files_patch path=`path` root=`root` content=`content` expected_digest=`expected_digest`*
+
 ## ensure_llm
     + `model_id`=""
     + `selection`=None

@@ -19,6 +19,9 @@ import:
   plan_update: plan_update.mq.md
   task_status: task_status.mq.md
   memory_forget: memory_forget.mq.md
+  notes_create: notes_create.mq.md
+  notes_update: notes_update.mq.md
+  files_patch: files_patch.mq.md
 ---
 
 ## ensure_plugin
@@ -126,6 +129,29 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 |----|---------|-------------|--------------|--------|--------|--------------|
 | memory_forget | 1 | Forget a profile memory item (auditable; not injectable) | `memory_forget_schema` | write | `memory_scopes` | ready |
 
+**note_write_scopes = > json.parse text=["notes:write"]**
+**file_write_scopes = > json.parse text=["workspace:write"]**
+**notes_create_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string","minLength":1},"root":{"type":"string"},"content":{"type":"string"}},"required":["path","content"],"additionalProperties":false}**
+**notes_update_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string","minLength":1},"root":{"type":"string"},"content":{"type":"string"},"expected_digest":{"type":"string","minLength":1}},"required":["path","content","expected_digest"],"additionalProperties":false}**
+**files_patch_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string","minLength":1},"root":{"type":"string"},"content":{"type":"string"},"expected_digest":{"type":"string","minLength":1}},"required":["path","content","expected_digest"],"additionalProperties":false}**
+`notes_create_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| notes_create | 1 | Create a note under allowed root; fails if path exists | `notes_create_schema` | write | `note_write_scopes` | ready |
+
+`notes_update_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| notes_update | 1 | CAS update note with expected_digest; revision.conflict on mismatch | `notes_update_schema` | write | `note_write_scopes` | ready |
+
+`files_patch_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| files_patch | 1 | CAS content replace under workspace root; revision.conflict on mismatch | `files_patch_schema` | write | `file_write_scopes` | ready |
+
 **prod_note = > agent.tools_register spec=`note_spec`**
 **prod_file = > agent.tools_register spec=`file_spec`**
 **prod_ws = > agent.tools_register spec=`web_search_spec`**
@@ -138,6 +164,9 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_pu = > agent.tools_register spec=`plan_update_spec`**
 **prod_tst = > agent.tools_register spec=`task_status_spec`**
 **prod_mf = > agent.tools_register spec=`memory_forget_spec`**
+**prod_nc = > agent.tools_register spec=`notes_create_spec`**
+**prod_nu = > agent.tools_register spec=`notes_update_spec`**
+**prod_fp = > agent.tools_register spec=`files_patch_spec`**
 `out` =
 
 | ok | eng |
@@ -202,6 +231,9 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="plan_update"**
 **t = > table.append list=`t` item="task_status"**
 **t = > table.append list=`t` item="memory_forget"**
+**t = > table.append list=`t` item="notes_create"**
+**t = > table.append list=`t` item="notes_update"**
+**t = > table.append list=`t` item="files_patch"**
 *t*
 
 ## note_read
@@ -290,3 +322,26 @@ Catalog search — authorize only; does not execute tools.
     + `id`=""
 
 *> memory_forget.run id=`id`*
+
+## notes_create
+    + `path`=""
+    + `root`="data"
+    + `content`=""
+
+*> notes_create.run path=`path` root=`root` content=`content`*
+
+## notes_update
+    + `path`=""
+    + `root`="data"
+    + `content`=""
+    + `expected_digest`=""
+
+*> notes_update.run path=`path` root=`root` content=`content` expected_digest=`expected_digest`*
+
+## files_patch
+    + `path`=""
+    + `root`="."
+    + `content`=""
+    + `expected_digest`=""
+
+*> files_patch.run path=`path` root=`root` content=`content` expected_digest=`expected_digest`*

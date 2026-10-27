@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "description": "files.patch CAS content replace contract (design §9.1)",
+  "result_fields": ["schema", "path", "previous_digest", "digest", "revision", "diff_summary", "no_exec"],
+  "error_codes": ["revision.conflict", "resource.not_found", "workspace.forbidden", "invalid_arguments"],
+  "invariants": [
+    "expected_digest required; mismatch → revision.conflict",
+    "absolute paths and .. rejected",
+    "never executes Marqdo",
+    "returns previous_digest and new digest/revision",
+    "diff_summary is descriptive; content replace under CAS is allowed"
+  ]
+}
