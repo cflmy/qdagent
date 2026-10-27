@@ -188,13 +188,24 @@ Rebuild answer projection from durable message.delta events (read-only; no tool 
             **delta = > json.get value=`pl` key="text"**
           **kind = > json.get value=`pl` key="kind"**
           **ptype = > json.get value=`pl` key="type"**
+          **ch = > json.get value=`pl` key="channel"**
           1. `ptype` == "preflight"
             **_ = 1**
           2. `kind` == "plan"
             **_ = 1**
           3. `kind` == "reasoning"
             **_ = 1**
-          4. `delta`
+          4. `ch`
+            1. `ch` == "answer"
+              1. `delta`
+                **text = `text` + `delta`**
+                1. `rseq`
+                  **answer_revision = `rseq`**
+            2. *
+              Non-answer channels never enter chat projection.
+              **_ = 1**
+          5. `delta`
+            Missing channel → answer (compat).
             **text = `text` + `delta`**
             1. `rseq`
               **answer_revision = `rseq`**

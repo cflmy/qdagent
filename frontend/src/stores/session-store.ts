@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer'
 import { api, newRequestId, type ChatMessage, type ChatCompletionChunk } from '@/lib/api'
 import type { UsageInfo } from '@/components/chat/UsageFooter'
 import { formatAttachmentFreeze } from '@/stores/context-attachment-store'
+import { routeChannelDelta } from '@/lib/streamChannels'
 
 /** Live execution trail — every agent step visible as it happens. */
 export interface ProcessStep {
@@ -428,7 +429,15 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             })
           }
           if (c?.type === 'message.delta') {
-            const p = c.payload as { delta?: string; text?: string; kind?: string; type?: string } | undefined
+            const p = c.payload as {
+              delta?: string
+              text?: string
+              kind?: string
+              type?: string
+              channel?: string
+              append_to_chat?: boolean
+              resource_id?: string
+            } | undefined
             if (p?.type === 'preflight' || p?.kind === 'plan' || p?.kind === 'reasoning') {
               get().appendProcess(sessionId, {
                 kind: String(p.type || p.kind),
@@ -438,8 +447,23 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               })
               continue
             }
-            const token = p?.delta || ''
-            if (token) get().updateLastAssistant(sessionId, token)
+            const routed = routeChannelDelta(p)
+            if (routed.kind === 'answer' && routed.text) {
+              get().updateLastAssistant(sessionId, routed.text)
+            } else if (routed.kind === 'progress' || routed.kind === 'diagnostic') {
+              get().appendProcess(sessionId, {
+                kind: routed.kind,
+                label: routed.kind === 'progress' ? '进度' : '诊断',
+                detail: routed.text.slice(0, 240) || undefined,
+                appendDetail: true,
+              })
+            } else if (routed.kind === 'artifact') {
+              get().appendProcess(sessionId, {
+                kind: 'artifact',
+                label: '产物草稿',
+                detail: (routed.resourceId || routed.text || '').slice(0, 240) || undefined,
+              })
+            }
             continue
           }
           if (c?.type === 'turn.cancelled' || c?.type === 'turn.interrupted') {
@@ -655,6 +679,9 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               text?: string
               kind?: string
               type?: string
+              channel?: string
+              append_to_chat?: boolean
+              resource_id?: string
               result?: string
               decision?: string
               summary?: string
@@ -696,38 +723,47 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               })
               continue
             }
-            if (p?.kind === 'plan') {
-              const token = p?.delta || p?.text || ''
-              if (token) {
+            // Design §5.3: only answer channel appends to chat; others → process / preview.
+            const routed = routeChannelDelta(p)
+            if (routed.kind === 'answer') {
+              const token = routed.text
+              const sess = get().sessions.find((s) => s.id === sessionId)
+              const last = sess?.messages[sess.messages.length - 1]
+              const cur = last?.content || ''
+              if (cur && (token === cur || (cur.endsWith(token) && token.length > 24))) continue
+              get().updateLastAssistant(sessionId, token)
+              continue
+            }
+            if (routed.kind === 'progress') {
+              if (routed.text) {
                 get().appendProcess(sessionId, {
-                  kind: 'plan',
-                  label: '计划',
-                  detail: token,
+                  kind: 'progress',
+                  label: routed.label,
+                  detail: routed.text.slice(0, 240),
                   appendDetail: true,
                 })
               }
               continue
             }
-            if (p?.kind === 'reasoning') {
-              const token = p?.delta || p?.text || ''
-              if (token) {
+            if (routed.kind === 'diagnostic') {
+              if (routed.text) {
                 get().appendProcess(sessionId, {
-                  kind: 'reasoning',
-                  label: '推理',
-                  detail: token,
+                  kind: 'diagnostic',
+                  label: '诊断',
+                  detail: routed.text.slice(0, 240),
                   appendDetail: true,
                 })
               }
               continue
             }
-            // Answer bubble: only real token deltas (OpenAI-style concat).
-            const token = p?.delta || (p?.kind === 'delta' ? p?.text : '') || ''
-            if (!token) continue
-            const sess = get().sessions.find((s) => s.id === sessionId)
-            const last = sess?.messages[sess.messages.length - 1]
-            const cur = last?.content || ''
-            if (cur && (token === cur || (cur.endsWith(token) && token.length > 24))) continue
-            get().updateLastAssistant(sessionId, token)
+            if (routed.kind === 'artifact') {
+              get().appendProcess(sessionId, {
+                kind: 'artifact',
+                label: '产物草稿',
+                detail: (routed.resourceId || routed.text || '').slice(0, 240) || undefined,
+              })
+              continue
+            }
             continue
           }
 

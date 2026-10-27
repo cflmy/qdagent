@@ -7,6 +7,7 @@ import { ModelPicker } from '@/components/chat/ModelPicker'
 import { UsageFooter } from '@/components/chat/UsageFooter'
 import { CitationLink } from '@/components/chat/CitationLink'
 import { Send, Square, PanelRightOpen, X, RefreshCw } from 'lucide-react'
+import { shouldCollapseAnswer } from '@/lib/streamChannels'
 
 function renderWithCitations(text: string, workspaceId = 'ws-default') {
   const parts: Array<string | { n: number; id: string }> = []
@@ -41,6 +42,8 @@ export function ChatPage() {
   const takeFrozen = useContextAttachmentStore((s) => s.takeFrozen)
   const rightbar = useRightbar()
   const [refreshingId, setRefreshingId] = useState('')
+  const [processExpanded, setProcessExpanded] = useState<Record<number, boolean>>({})
+  const [answerExpanded, setAnswerExpanded] = useState<Record<number, boolean>>({})
 
   const [input, setInput] = useState('')
   const [composing, setComposing] = useState(false)
@@ -406,7 +409,10 @@ export function ChatPage() {
                     }}>
                       执行
                     </div>
-                    {msg.process.map((step) => (
+                    {(processExpanded[i] || msg.process.length <= 3
+                      ? msg.process
+                      : msg.process.slice(-3)
+                    ).map((step) => (
                       <div key={step.id} style={{ marginBottom: 4 }}>
                         <span style={{ color: 'var(--dsw-alias-label-primary)' }}>{step.label}</span>
                         {step.detail ? (
@@ -414,9 +420,53 @@ export function ChatPage() {
                         ) : null}
                       </div>
                     ))}
+                    {msg.process.length > 3 && (
+                      <button
+                        type="button"
+                        onClick={() => setProcessExpanded((s) => ({ ...s, [i]: !s[i] }))}
+                        style={{
+                          marginTop: 4,
+                          border: 'none',
+                          background: 'transparent',
+                          padding: 0,
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          color: 'var(--dsw-alias-label-primary)',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        {processExpanded[i] ? '收起完整时间线' : `展开完整时间线（${msg.process.length}）`}
+                      </button>
+                    )}
                   </div>
                 ) : null}
-                {msg.role === 'assistant' ? renderWithCitations(msg.content) : msg.content}
+                {msg.role === 'assistant' ? (
+                  <>
+                    {renderWithCitations(
+                      shouldCollapseAnswer(msg.content) && !answerExpanded[i]
+                        ? msg.content.slice(0, 1200) + '…'
+                        : msg.content,
+                    )}
+                    {shouldCollapseAnswer(msg.content) && (
+                      <button
+                        type="button"
+                        onClick={() => setAnswerExpanded((s) => ({ ...s, [i]: !s[i] }))}
+                        style={{
+                          display: 'block',
+                          marginTop: 8,
+                          border: 'none',
+                          background: 'transparent',
+                          padding: 0,
+                          cursor: 'pointer',
+                          fontSize: 12,
+                          color: 'var(--dsw-alias-label-secondary)',
+                        }}
+                      >
+                        {answerExpanded[i] ? '收起' : '展开全文'}
+                      </button>
+                    )}
+                  </>
+                ) : msg.content}
                 {msg.role === 'assistant' && msg.usage ? (
                   <UsageFooter usage={msg.usage} />
                 ) : null}
