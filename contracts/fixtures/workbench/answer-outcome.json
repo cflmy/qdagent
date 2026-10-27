@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "description": "Q-A0/Q-A1 answer outcome contract — accepted candidate vs transport ok (F02/F03)",
+  "examples": [
+    {
+      "id": "repair_binds_accepted",
+      "defect": "F02",
+      "transport_status": "ok",
+      "mode": "live",
+      "outcome": "succeeded",
+      "ok": true,
+      "raw": "原文 A（未通过门禁）",
+      "accepted": "修复稿 B（通过门禁）",
+      "result": "修复稿 B（通过门禁）",
+      "invariants": [
+        "result must equal accepted, never raw after successful repair gate",
+        "chat/preview/verification bind the same accepted digest"
+      ]
+    },
+    {
+      "id": "gated_error_not_transport_ok",
+      "defect": "F03",
+      "transport_status": "error",
+      "mode": "gated_error",
+      "outcome": "failed",
+      "ok": false,
+      "raw": "未通过门禁的草稿",
+      "accepted": "未通过门禁的草稿",
+      "result": "未通过门禁的草稿",
+      "invariants": [
+        "mode=gated_error must not keep status=ok",
+        "sync call ok=false; outcome=failed is the product truth",
+        "HTTP/gateway live_ok must be false for gated_error"
+      ]
+    }
+  ],
+  "outcome_enum": ["succeeded", "partial", "failed", "needs_input", "cancelled"],
+  "invariants": [
+    "outcome is independent of HTTP/transport success",
+    "accepted candidate is the only text attached as success result",
+    "gateway treats mode=gated_error or outcome!=succeeded as not live_ok"
+  ]
+}

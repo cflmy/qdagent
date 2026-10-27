@@ -21,6 +21,13 @@ REQUIRED = {
     "v2-envelope.json": ("envelope_ok", "envelope_error", "http_codes", "invariants"),
     "route-inventory.json": ("routes", "duplicate_modules", "invariants"),
     "capabilities-probe.json": ("required_min_version", "features", "invariants"),
+    "answer-outcome.json": ("examples", "outcome_enum", "invariants"),
+    "agent-reliability-bits.json": (
+        "features_expected_zero",
+        "features_expected_one",
+        "extract_formats_unavailable",
+        "invariants",
+    ),
 }
 
 
@@ -175,6 +182,54 @@ def check_capabilities(data: dict) -> None:
         raise AssertionError("capabilities must expect runtime.read_lane")
 
 
+def check_answer_outcome(data: dict) -> None:
+    outcomes = set(data["outcome_enum"])
+    required = {"succeeded", "partial", "failed", "needs_input", "cancelled"}
+    if required - outcomes:
+        raise AssertionError(f"outcome_enum missing {sorted(required - outcomes)}")
+    by_id = {ex["id"]: ex for ex in data["examples"]}
+    repair = by_id.get("repair_binds_accepted")
+    if not repair:
+        raise AssertionError("missing repair_binds_accepted example (F02)")
+    if repair.get("result") != repair.get("accepted"):
+        raise AssertionError("F02: result must equal accepted after repair")
+    if repair.get("result") == repair.get("raw"):
+        raise AssertionError("F02: result must not remain raw after successful repair")
+    if repair.get("outcome") != "succeeded" or repair.get("ok") is not True:
+        raise AssertionError("F02: successful repair must be ok + outcome=succeeded")
+    fail = by_id.get("gated_error_not_transport_ok")
+    if not fail:
+        raise AssertionError("missing gated_error_not_transport_ok example (F03)")
+    if fail.get("mode") != "gated_error":
+        raise AssertionError("F03: mode must be gated_error")
+    if fail.get("transport_status") == "ok":
+        raise AssertionError("F03: gated_error must not keep transport_status=ok")
+    if fail.get("outcome") != "failed" or fail.get("ok") is not False:
+        raise AssertionError("F03: gated_error must be ok=false outcome=failed")
+
+
+def check_agent_reliability_bits(data: dict) -> None:
+    if data["required_min_version"] != "2.1.4":
+        raise AssertionError("required_min_version must be 2.1.4")
+    zeros = data["features_expected_zero"]
+    for bit in (
+        "agent.error_v1",
+        "agent.checkpoint_v2",
+        "agent.tool_schema_v1",
+        "agent.output_channels_v1",
+        "agent.context_pack_v2",
+    ):
+        if bit not in zeros:
+            raise AssertionError(f"M-A0 freeze missing expected-zero bit {bit}")
+    ones = data["features_expected_one"]
+    if "resource.view_v1" not in ones:
+        raise AssertionError("M-A3 expects resource.view_v1=1")
+    unavailable = set(data["extract_formats_unavailable"])
+    for fmt in ("pdf", "docx", "ocr", "json", "csv", "image"):
+        if fmt not in unavailable:
+            raise AssertionError(f"extract format {fmt} must stay unavailable in freeze")
+
+
 def main() -> int:
     print(f"FIX={FIX}")
     checkers = {
@@ -186,6 +241,8 @@ def main() -> int:
         "v2-envelope.json": check_v2_envelope,
         "route-inventory.json": check_routes,
         "capabilities-probe.json": check_capabilities,
+        "answer-outcome.json": check_answer_outcome,
+        "agent-reliability-bits.json": check_agent_reliability_bits,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

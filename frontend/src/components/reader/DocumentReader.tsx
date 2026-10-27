@@ -13,12 +13,36 @@ export function DocumentReader() {
 
   useEffect(() => {
     if (!open || !activeTarget) return
-    if (activeTarget.kind !== 'document' && activeTarget.kind !== 'citation' && activeTarget.kind !== 'file') return
+    if (
+      activeTarget.kind !== 'document' &&
+      activeTarget.kind !== 'citation' &&
+      activeTarget.kind !== 'file' &&
+      activeTarget.kind !== 'note'
+    ) return
     const gen = requestGen
     let cancelled = false
     ;(async () => {
       setLoading(true)
       try {
+        if (activeTarget.kind === 'note') {
+          // Q-A2: static note body preview — never execute the workbook.
+          const run = await api.getRun({ slug: activeTarget.slug })
+          if (cancelled) return
+          const raw = typeof run.content === 'string' ? run.content : ''
+          const body = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
+          const escaped = body
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+          setView({
+            fragmentHtml: `<article class="mq-resource"><pre class="mq-resource-body">${escaped}</pre></article>`,
+            outline: [],
+            diagnostics: [],
+            completeness: 'complete',
+          }, gen)
+          setLoading(false)
+          return
+        }
         if (activeTarget.kind === 'citation') {
           const res = await api.appCitationsResolve({
             workspace_id: activeTarget.workspaceId,
@@ -97,7 +121,9 @@ export function DocumentReader() {
         ? activeTarget.documentId
         : activeTarget?.kind === 'file'
           ? activeTarget.path
-          : '阅读器'
+          : activeTarget?.kind === 'note'
+            ? activeTarget.slug
+            : '阅读器'
 
   return (
     <aside

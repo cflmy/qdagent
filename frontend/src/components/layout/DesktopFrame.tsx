@@ -719,9 +719,26 @@ export function DesktopFrame() {
   )
 }
 
-/** Right sidebar — Notes panel */
+/** Right sidebar — Notes panel (Q-A2: in-panel preview, no navigate away) */
 function RightNotesPanel() {
-  const navigate = useNavigate()
+  const openTarget = useContextPanelStore((s) => s.openTarget)
+  const [notes, setNotes] = useState<Array<{ slug?: string; id?: string; title?: string }>>([])
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const list = await api.listRuns()
+        if (cancelled) return
+        setNotes(Array.isArray(list) ? list.slice(0, 40) : [])
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e))
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <div style={{
@@ -732,24 +749,42 @@ function RightNotesPanel() {
       }}>
         最近笔记
       </div>
-      <button
-        onClick={() => navigate('/notes')}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          padding: '8px 10px', border: 'none',
-          borderRadius: 'var(--dsw-radius-md, 8px)',
-          background: 'transparent', cursor: 'pointer',
-          color: 'var(--dsw-alias-label-primary)',
-          fontSize: '13px', lineHeight: '20px',
-          textAlign: 'left', width: '100%',
-          transition: 'background 100ms ease',
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'}
-        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-      >
-        <BookOpen size={14} style={{ flex: 'none', color: 'var(--dsw-alias-label-secondary)' }} />
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>查看全部笔记</span>
-      </button>
+      {err && (
+        <div style={{ fontSize: '12px', color: 'var(--dsw-alias-label-secondary)', padding: '4px 0' }}>
+          {err}
+        </div>
+      )}
+      {!err && notes.length === 0 && (
+        <div style={{ fontSize: '12px', color: 'var(--dsw-alias-label-secondary)', padding: '4px 0' }}>
+          暂无笔记
+        </div>
+      )}
+      {notes.map((n) => {
+        const slug = n.slug || n.id || ''
+        if (!slug) return null
+        const title = n.title || slug
+        return (
+          <button
+            key={slug}
+            onClick={() => openTarget({ kind: 'note', slug, title })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 10px', border: 'none',
+              borderRadius: 'var(--dsw-radius-md, 8px)',
+              background: 'transparent', cursor: 'pointer',
+              color: 'var(--dsw-alias-label-primary)',
+              fontSize: '13px', lineHeight: '20px',
+              textAlign: 'left', width: '100%',
+              transition: 'background 100ms ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <BookOpen size={14} style={{ flex: 'none', color: 'var(--dsw-alias-label-secondary)' }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

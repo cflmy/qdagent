@@ -260,12 +260,79 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         return
       }
       if (['completed', 'cancelled', 'failed', 'interrupted'].includes(state)) {
+        // Q-A3: terminal snapshot fill — replay persisted events once; never re-exec tools.
         if (state === 'interrupted') {
           set((s) => {
             const sess = s.sessions.find((x) => x.id === sessionId)
             if (sess) sess.interrupted = true
           })
         }
+        const last = session.messages[session.messages.length - 1]
+        const needsFill =
+          !last ||
+          last.role !== 'assistant' ||
+          !(last.content || '').trim()
+        if (needsFill) {
+          if (!last || last.role !== 'assistant') {
+            get().addMessage(sessionId, { role: 'assistant', content: '' })
+          }
+          try {
+            const stream = api.appTurnsEvents(session.lastTurnId, {
+              afterSeq: 0,
+              signal,
+            })
+            for await (const chunk of stream) {
+              const c = chunk as {
+                event_id?: string
+                type?: string
+                payload?: Record<string, unknown>
+              }
+              if (c?.event_id) {
+                set((s) => {
+                  const sess = s.sessions.find((x) => x.id === sessionId)
+                  if (sess) sess.lastEventId = c.event_id
+                })
+              }
+              if (c?.type === 'message.delta') {
+                const p = c.payload as
+                  | { delta?: string; text?: string; kind?: string; type?: string }
+                  | undefined
+                if (p?.type === 'preflight' || p?.kind === 'plan' || p?.kind === 'reasoning') {
+                  continue
+                }
+                const token = p?.delta || p?.text || ''
+                if (token) get().updateLastAssistant(sessionId, token)
+              }
+              if (c?.type === 'turn.cancelled' || c?.type === 'turn.interrupted') {
+                set((s) => {
+                  const sess = s.sessions.find((x) => x.id === sessionId)
+                  if (!sess) return
+                  const m = sess.messages[sess.messages.length - 1]
+                  if (m?.role === 'assistant' && !(m.content || '').trim()) {
+                    m.content =
+                      c.type === 'turn.interrupted'
+                        ? '[已中断，可继续恢复]'
+                        : '[已停止]'
+                  }
+                })
+              }
+              if (c?.type === 'turn.failed') {
+                set((s) => {
+                  const sess = s.sessions.find((x) => x.id === sessionId)
+                  if (!sess) return
+                  const m = sess.messages[sess.messages.length - 1]
+                  if (m?.role === 'assistant' && !(m.content || '').trim()) {
+                    m.content = '[回合失败]'
+                  }
+                })
+              }
+            }
+          } catch (e) {
+            if (signal?.aborted) return
+            if (e instanceof Error && /abort/i.test(e.message)) return
+          }
+        }
+        get().finalizeAssistant(sessionId)
         return
       }
       set((s) => {

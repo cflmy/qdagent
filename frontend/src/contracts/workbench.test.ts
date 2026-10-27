@@ -64,7 +64,7 @@ describe('Q00 workbench contracts', () => {
 
   it('capabilities probe requires Marqdo 2.1.3 floor and honest native adapters', () => {
     const data = load('capabilities-probe.json')
-    expect(data.required_min_version).toBe('2.1.3')
+    expect(data.required_min_version).toBe('2.1.4')
     expect(data.features['view.document']).toBe(true)
     expect(data.features['llm.explicit_selection']).toBe(true)
     const native = data.adapters.find((a: { id: string }) => a.id === 'anthropic-native')

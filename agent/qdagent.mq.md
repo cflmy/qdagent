@@ -623,11 +623,14 @@ the full knowledge-preflight wall time.
     **status = "error"**
     **err = "agent_out_empty"**
     **raw = "agent returned empty outcome"**
+  **accepted = ""**
+  **outcome = "failed"**
+  **fn_ok = False**
   1. `status` == "ok"
     **mode = "live"**
     **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
     **gok = [ok](access(gated_out, "ok"))**
-    **repaired = False**
+    **accepted = `raw`**
     1. not `gok`
       1. `raw`
         **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
@@ -638,7 +641,10 @@ the full knowledge-preflight wall time.
           1. `r2`
             **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
             **gok = [ok](access(gated_out, "ok"))**
-            **repaired = `gok`**
+            1. `gok`
+              **accepted = `r2`**
+            2. *
+              **_ = 1**
           2. *
             **_ = 1**
         2. *
@@ -647,7 +653,9 @@ the full knowledge-preflight wall time.
         **_ = 1**
     **apath = > json.get value=`gated_out` key="answer_path"**
     1. `gok`
-      **result = `raw`**
+      **result = `accepted`**
+      **outcome = "succeeded"**
+      **fn_ok = True**
       1. not `result`
         1. `apath`
           **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
@@ -655,13 +663,18 @@ the full knowledge-preflight wall time.
           **result = ""**
     2. *
       **mode = "gated_error"**
+      **outcome = "failed"**
+      **fn_ok = False**
+      **status = "error"**
       **stage = > json.get value=`gated_out` key="stage"**
       **err = "docgate_" + `stage`**
-      **result = `raw`**
+      **result = `accepted`**
       1. not `result`
         **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "）"**
   2. *
     **mode = "error"**
+    **outcome = "failed"**
+    **fn_ok = False**
     **result = `raw`**
   > attach_agent_evidence slug=`slug` agent_out=`agent_out` efi=`gated` gate_out=`gated_out`
   **pub = > registry.public_snapshot snap=`snap`**
@@ -672,6 +685,9 @@ the full knowledge-preflight wall time.
   **result = "（未在设置中配置提供商凭证）Preflight decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
   **status = "dry"**
+  **outcome = "failed"**
+  **fn_ok = False**
+  **accepted = ""**
 
 > run.attach_result slug=`slug` result=`result`
 **kpi = > metrics.read out=`out` root=`root`**
@@ -682,9 +698,9 @@ the full knowledge-preflight wall time.
 **model_pub = > registry.public_snapshot snap=`snap`**
 `ret` =
 
-| ok | mode | slug | decision | context_path | status | error | result | session_id | model |
-|----|------|------|----------|--------------|--------|-------|--------|------------|-------|
-| True | `mode` | `slug` | `decision` | `path` | `status` | `err` | `result` | `sid` | `model_pub` |
+| ok | mode | slug | decision | context_path | status | outcome | error | result | session_id | model |
+|----|------|------|----------|--------------|--------|---------|-------|--------|------------|-------|
+| `fn_ok` | `mode` | `slug` | `decision` | `path` | `status` | `outcome` | `err` | `result` | `sid` | `model_pub` |
 
 *ret*
 
@@ -817,6 +833,9 @@ Interrupted turns must not auto-retry BUILD (T08).
 **result = ""**
 **mode = "dry"**
 **status = "dry"**
+**outcome = "failed"**
+**fn_ok = False**
+**accepted = ""**
 **agent_out = None**
 **gated_out = ""**
 **reuse_trace = None**
@@ -829,13 +848,15 @@ Interrupted turns must not auto-retry BUILD (T08).
 1. `interrupted`
   **mode = "interrupted"**
   **status = "cancelled"**
+  **outcome = "cancelled"**
+  **fn_ok = False**
   **result = "turn cancelled — BUILD not auto-retried"**
   > usage.record call_id="call-" + `slug` attempt_id="1" run_id=`slug` session_id=`session_id` purpose="answer" status="cancelled" usage_state="unknown" measurement_source="cancel_before_llm"
   `cancelled_out` =
 
-  | ok | mode | slug | status | error | result | session_id |
-  |----|------|------|--------|-------|--------|------------|
-  | False | interrupted | `slug` | cancelled | cancelled | `result` | `session_id` |
+  | ok | mode | slug | status | outcome | error | result | session_id |
+  |----|------|------|--------|---------|-------|--------|------------|
+  | False | interrupted | `slug` | cancelled | cancelled | cancelled | `result` | `session_id` |
 
   *cancelled_out*
 
@@ -849,7 +870,10 @@ REUSE path: actual bind_execute before LLM CREATE (discovery_only is never succe
   1. `actual_reuse`
     **mode = "live"**
     **status = "ok"**
+    **outcome = "succeeded"**
+    **fn_ok = True**
     **result = > json.stringify value=`reuse_trace`**
+    **accepted = `result`**
     > run.put_section slug=`slug` section="ActualReuse" content=`result`
     > usage.record call_id="call-" + `slug` attempt_id="1" run_id=`slug` session_id=`session_id` purpose="answer" status="completed" input_tokens=0 output_tokens=0 total_tokens=0 usage_state="zero_calls" measurement_source="runtime_confirmed_no_llm"
 
@@ -863,10 +887,14 @@ REUSE path: actual bind_execute before LLM CREATE (discovery_only is never succe
     **agent_out = > `助手`.run task=`task` efi=False learn=True verify=True writeback=True reuse=True router="auto" max_rounds=4 sandbox=`use_sandbox` sandbox_profile="default" promote=False**
     **status = > json.get value=`agent_out` key="status"**
     **raw = > format_agent_outcome agent_out=`agent_out`**
+    **accepted = ""**
+    **outcome = "failed"**
+    **fn_ok = False**
     1. `status` == "ok"
       **mode = "live"**
       **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
       **gok = access(gated_out, "ok")**
+      **accepted = `raw`**
       1. not `gok`
         1. `raw`
           **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
@@ -877,6 +905,10 @@ REUSE path: actual bind_execute before LLM CREATE (discovery_only is never succe
             1. `r2`
               **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
               **gok = access(gated_out, "ok")**
+              1. `gok`
+                **accepted = `r2`**
+              2. *
+                **_ = 1**
             2. *
               **_ = 1**
           2. *
@@ -885,16 +917,25 @@ REUSE path: actual bind_execute before LLM CREATE (discovery_only is never succe
           **_ = 1**
       **apath = > json.get value=`gated_out` key="answer_path"**
       1. `gok`
+        **outcome = "succeeded"**
+        **fn_ok = True**
         **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
       2. *
         **stage = > json.get value=`gated_out` key="stage"**
         **mode = "gated_error"**
-        **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "），未沉淀：" + `raw`**
+        **outcome = "failed"**
+        **fn_ok = False**
+        **status = "error"**
+        **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "），未沉淀：" + `accepted`**
     2. `status` == "blocked"
       **mode = "blocked"**
+      **outcome = "failed"**
+      **fn_ok = False**
       **result = `raw`**
     3. *
       **mode = "error"**
+      **outcome = "failed"**
+      **fn_ok = False**
       **result = `raw`**
       1. `decision` == "CREATE"
         **qslug = > agent_goal_slug goal=`task`**
@@ -904,6 +945,9 @@ REUSE path: actual bind_execute before LLM CREATE (discovery_only is never succe
     **result = "（未在设置中配置提供商凭证）BUILD dry-run decision=" + `decision` + " context=" + `path`**
     **mode = "dry"**
     **status = "dry"**
+    **outcome = "failed"**
+    **fn_ok = False**
+    **accepted = ""**
 
 > run.attach_result slug=`slug` result=`result`
 > run.put_section slug=`slug` section="Execution" content=`result`
@@ -941,9 +985,9 @@ L1 success only for live mode that is not gated_error / error / dry / blocked.
 **sid = [session_id](access(sess, "session_id"))**
 `ret` =
 
-| ok | mode | slug | decision | create_allowed | context_path | promote_allowed | status | error | result | session_id | async |
-|----|------|------|----------|----------------|--------------|-----------------|--------|-------|--------|------------|-------|
-| True | `mode` | `slug` | `decision` | `allowed` | `path` | `promote` | `status` | `err` | `result` | `sid` | False |
+| ok | mode | slug | decision | create_allowed | context_path | promote_allowed | status | outcome | error | result | session_id | async |
+|----|------|------|----------|----------------|--------------|-----------------|--------|---------|-------|--------|------------|-------|
+| `fn_ok` | `mode` | `slug` | `decision` | `allowed` | `path` | `promote` | `status` | `outcome` | `err` | `result` | `sid` | False |
 
 *ret*
 

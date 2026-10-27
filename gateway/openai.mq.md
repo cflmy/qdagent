@@ -287,6 +287,12 @@ silent lag before the first SSE event (Context Pack from this call was unused).
 **err = > json.get value=`agent_out` key="error"**
 **run_mode = > json.get value=`agent_out` key="mode"**
 **st = > json.get value=`agent_out` key="status"**
+**outcome = > json.get value=`agent_out` key="outcome"**
+1. not `outcome`
+  1. `run_mode` == "live"
+    **outcome = "succeeded"**
+  2. *
+    **outcome = "failed"**
 1. not `result`
   1. `err`
     **result = `err`**
@@ -306,9 +312,13 @@ silent lag before the first SSE event (Context Pack from this call was unused).
 **live_ok = True**
 1. `run_mode` == "error"
   **live_ok = False**
-2. `st` == "error"
+2. `run_mode` == "gated_error"
   **live_ok = False**
-3. *
+3. `st` == "error"
+  **live_ok = False**
+4. `outcome` != "succeeded"
+  **live_ok = False**
+5. *
   **_ = 1**
 
 1. `live_ok`
@@ -324,8 +334,8 @@ silent lag before the first SSE event (Context Pack from this call was unused).
 
 `ret` =
 
-| ok | content | run_id | decision | mode | status | error | context_path | session_id | turn_id | model | raw |
-|----|---------|--------|----------|------|--------|-------|--------------|------------|---------|-------|-----|
-| `live_ok` | `result` | `slug` | `decision` | `mode` | `st` | `err` | `ctx` | `sid` | `turn_id` | `model_pub` | `agent_out` |
+| ok | content | run_id | decision | mode | status | outcome | error | context_path | session_id | turn_id | model | raw |
+|----|---------|--------|----------|------|--------|---------|-------|--------------|------------|---------|-------|-----|
+| `live_ok` | `result` | `slug` | `decision` | `mode` | `st` | `outcome` | `err` | `ctx` | `sid` | `turn_id` | `model_pub` | `agent_out` |
 
 *ret*

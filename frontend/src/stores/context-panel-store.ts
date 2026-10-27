@@ -6,6 +6,7 @@ export type ReaderTarget =
   | { kind: 'citation'; workspaceId: string; citationId: string; messageId?: string; locator?: Record<string, unknown>; revision?: string; generation?: string; documentId?: string; nodeId?: string }
   | { kind: 'profile_item'; id: string; title?: string }
   | { kind: 'file'; workspaceId: string; path: string; title?: string }
+  | { kind: 'note'; slug: string; title?: string }
 
 interface ContextPanelState {
   open: boolean
@@ -44,6 +45,7 @@ function keyOf(t: ReaderTarget | null): string {
   if (t.kind === 'document') return `doc:${t.workspaceId}:${t.documentId}:${t.revision || ''}:${t.generation || ''}:${t.nodeId || ''}`
   if (t.kind === 'citation') return `cite:${t.workspaceId}:${t.citationId}:${t.revision || ''}:${t.generation || ''}`
   if (t.kind === 'file') return `file:${t.workspaceId}:${t.path}`
+  if (t.kind === 'note') return `note:${t.slug}`
   return `profile:${t.id}`
 }
 
