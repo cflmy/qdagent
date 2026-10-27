@@ -41,6 +41,7 @@ REQUIRED = {
     "response-preferences.json": ("route", "fields", "detail_enum", "invariants"),
     "resource-content.json": ("route", "result_fields", "error_codes", "invariants"),
     "notes-search.json": ("tool_id", "hit_fields", "follow_up", "invariants"),
+    "artifacts-write.json": ("ops", "result_fields", "error_codes", "invariants"),
 }
 
 
@@ -252,6 +253,8 @@ def check_tool_schema(data: dict) -> None:
         "notes_update",
         "files_patch",
         "notes_search",
+        "artifacts_create",
+        "artifacts_update",
     ):
         if name not in product:
             raise AssertionError(f"product_aliases missing {name}")
@@ -406,6 +409,24 @@ def check_notes_search(data: dict) -> None:
         raise AssertionError("invariants must mention data/ root")
     if "note_read" not in inv and "locator" not in inv:
         raise AssertionError("invariants must require locators for note_read")
+
+
+def check_artifacts_write(data: dict) -> None:
+    ops = set(data["ops"])
+    if "create" not in ops or "update" not in ops:
+        raise AssertionError("artifacts-write ops must include create and update")
+    fields = set(data["result_fields"])
+    for f in ("schema", "path", "digest", "revision", "no_exec"):
+        if f not in fields:
+            raise AssertionError(f"artifacts-write result_fields missing {f}")
+    codes = set(data["error_codes"])
+    if "revision.conflict" not in codes:
+        raise AssertionError("artifacts-write must declare revision.conflict")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "expected_digest" not in inv and "cas" not in inv:
+        raise AssertionError("artifacts-write invariants must require digest CAS")
+    if "artifacts" not in inv:
+        raise AssertionError("artifacts-write must mention artifacts root")
 
 
 def check_workspace_tools(data: dict) -> None:
@@ -584,6 +605,7 @@ def main() -> int:
         "response-preferences.json": check_response_preferences,
         "resource-content.json": check_resource_content,
         "notes-search.json": check_notes_search,
+        "artifacts-write.json": check_artifacts_write,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

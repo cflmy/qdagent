@@ -55,6 +55,8 @@ No credentials, API keys, or connector secrets. Capability/state/version only.
 | 19 | notes_update | 1 | write | ready | CAS update note with expected_digest |
 | 20 | files_patch | 1 | write | ready | CAS content replace under workspace root |
 | 21 | notes_search | 1 | read | ready | Search notes under data/ with line locators |
+| 24 | artifacts_create | 1 | write | ready | Create versioned artifact under data/artifacts |
+| 25 | artifacts_update | 1 | write | ready | CAS update artifact with expected_digest |
 
 `data` =
 

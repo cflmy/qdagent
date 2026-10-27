@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "description": "artifacts.create / update CAS contract (design §9.1)",
+  "ops": ["create", "update"],
+  "default_root": "data/artifacts",
+  "result_fields": ["schema", "op", "path", "media_type", "digest", "revision", "no_exec"],
+  "error_codes": ["revision.conflict", "resource.not_found", "workspace.forbidden", "invalid_arguments"],
+  "invariants": [
+    "default root is data/artifacts (result area)",
+    "create fails if path exists",
+    "update requires expected_digest; mismatch → revision.conflict",
+    "never executes Marqdo",
+    "absolute paths and .. rejected"
+  ]
+}

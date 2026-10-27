@@ -54,7 +54,9 @@
     "notes_create",
     "notes_update",
     "files_patch",
-    "notes_search"
+    "notes_search",
+    "artifacts_create",
+    "artifacts_update"
   ],
   "invariants": [
     "CALL and native prepare share one ToolSpec registry",
@@ -67,6 +69,7 @@
     "memory_propose never auto-confirms; memory_list exposes source/status",
     "notes_update/files_patch require expected_digest CAS; mismatch → revision.conflict",
     "notes/files writes never execute Marqdo",
-    "notes_search hits carry locators for note_read; never executes"
+    "notes_search hits carry locators for note_read; never executes",
+    "artifacts_update requires expected_digest CAS under data/artifacts"
   ]
 }

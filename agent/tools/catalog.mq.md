@@ -25,6 +25,8 @@ import:
   notes_update: notes_update.mq.md
   notes_search: notes_search.mq.md
   files_patch: files_patch.mq.md
+  artifacts_create: artifacts_create.mq.md
+  artifacts_update: artifacts_update.mq.md
 ---
 
 ## ensure_plugin
@@ -176,6 +178,21 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 |----|---------|-------------|--------------|--------|--------|--------------|
 | notes_search | 1 | Search notes under data/ (or root); hits include line locators for note_read | `notes_search_schema` | read | `note_scopes` | ready |
 
+**artifact_scopes = > json.parse text=["artifacts:write"]**
+**artifacts_create_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string","minLength":1},"root":{"type":"string"},"content":{"type":"string"},"media_type":{"type":"string"}},"required":["path","content"],"additionalProperties":false}**
+**artifacts_update_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string","minLength":1},"root":{"type":"string"},"content":{"type":"string"},"media_type":{"type":"string"},"expected_digest":{"type":"string","minLength":1}},"required":["path","content","expected_digest"],"additionalProperties":false}**
+`artifacts_create_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| artifacts_create | 1 | Create versioned artifact under data/artifacts; fail if exists | `artifacts_create_schema` | write | `artifact_scopes` | ready |
+
+`artifacts_update_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| artifacts_update | 1 | CAS update artifact with expected_digest | `artifacts_update_schema` | write | `artifact_scopes` | ready |
+
 **prod_note = > agent.tools_register spec=`note_spec`**
 **prod_file = > agent.tools_register spec=`file_spec`**
 **prod_ws = > agent.tools_register spec=`web_search_spec`**
@@ -194,6 +211,8 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_nu = > agent.tools_register spec=`notes_update_spec`**
 **prod_fp = > agent.tools_register spec=`files_patch_spec`**
 **prod_ns = > agent.tools_register spec=`notes_search_spec`**
+**prod_ac = > agent.tools_register spec=`artifacts_create_spec`**
+**prod_au = > agent.tools_register spec=`artifacts_update_spec`**
 `out` =
 
 | ok | eng |
@@ -264,6 +283,8 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="notes_update"**
 **t = > table.append list=`t` item="files_patch"**
 **t = > table.append list=`t` item="notes_search"**
+**t = > table.append list=`t` item="artifacts_create"**
+**t = > table.append list=`t` item="artifacts_update"**
 *t*
 
 ## note_read
@@ -401,3 +422,20 @@ Catalog search — authorize only; does not execute tools.
     + `limit`=20
 
 *> notes_search.run query=`query` path=`path` root=`root` cursor=`cursor` limit=`limit`*
+
+## artifacts_create
+    + `path`=""
+    + `root`="data/artifacts"
+    + `content`=""
+    + `media_type`="text/plain"
+
+*> artifacts_create.run path=`path` root=`root` content=`content` media_type=`media_type`*
+
+## artifacts_update
+    + `path`=""
+    + `root`="data/artifacts"
+    + `content`=""
+    + `media_type`="text/plain"
+    + `expected_digest`=""
+
+*> artifacts_update.run path=`path` root=`root` content=`content` media_type=`media_type` expected_digest=`expected_digest`*

@@ -326,6 +326,27 @@ Notes search (CALL:notes_search) — hits with locators for note_read.
 
 *> catalog.notes_search query=`query` path=`path` root=`root` cursor=`cursor` limit=`limit`*
 
+## artifacts_create
+    + `path`=""
+    + `root`="data/artifacts"
+    + `content`=""
+    + `media_type`="text/plain"
+
+Artifacts create (CALL:artifacts_create) — versioned result area; never executes.
+
+*> catalog.artifacts_create path=`path` root=`root` content=`content` media_type=`media_type`*
+
+## artifacts_update
+    + `path`=""
+    + `root`="data/artifacts"
+    + `content`=""
+    + `media_type`="text/plain"
+    + `expected_digest`=""
+
+Artifacts update (CALL:artifacts_update) — CAS via expected_digest.
+
+*> catalog.artifacts_update path=`path` root=`root` content=`content` media_type=`media_type` expected_digest=`expected_digest`*
+
 ## ensure_llm
     + `model_id`=""
     + `selection`=None
