@@ -16,6 +16,8 @@ import:
   workspace_list: workspace_list.mq.md
   workspace_search: workspace_search.mq.md
   workspace_read: workspace_read.mq.md
+  plan_update: plan_update.mq.md
+  task_status: task_status.mq.md
 ---
 
 ## ensure_plugin
@@ -42,10 +44,13 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **ws_read_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string"},"root":{"type":"string"},"digest":{"type":"string"},"line_start":{"type":"integer","minimum":0},"line_end":{"type":"integer","minimum":0},"max_bytes":{"type":"integer","minimum":1024,"maximum":524288},"cursor":{"type":"string"}},"required":["path"],"additionalProperties":false}**
 **tools_search_schema = > json.parse text={"type":"object","properties":{"query":{"type":"string"}},"additionalProperties":false}**
 **tools_describe_schema = > json.parse text={"type":"object","properties":{"id":{"type":"string","minLength":1}},"required":["id"],"additionalProperties":false}**
+**plan_schema = > json.parse text={"type":"object","properties":{"turn_id":{"type":"string","minLength":1},"text":{"type":"string"},"milestones":{"type":"array"}},"required":["turn_id"],"additionalProperties":false}**
+**task_status_schema = > json.parse text={"type":"object","properties":{"turn_id":{"type":"string","minLength":1},"task_id":{"type":"string","minLength":1},"status":{"type":"string","enum":["pending","running","done","blocked"]},"detail":{"type":"string"}},"required":["turn_id","task_id","status"],"additionalProperties":false}**
 **note_scopes = > json.parse text=["notes:read"]**
 **file_scopes = > json.parse text=["workspace:read"]**
 **web_scopes = > json.parse text=["network:read"]**
 **meta_scopes = > json.parse text=["tools:describe"]**
+**plan_scopes = > json.parse text=["turn:plan"]**
 `note_spec` =
 
 | id | version | description | input_schema | effect | scopes | availability |
@@ -100,6 +105,18 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 |----|---------|-------------|--------------|--------|--------|--------------|
 | tools_describe | 1 | Describe one authorized ToolSpec by id | `tools_describe_schema` | read | `meta_scopes` | ready |
 
+`plan_update_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| plan_update | 1 | Publish plan milestones as progress events (not execution proof) | `plan_schema` | write | `plan_scopes` | ready |
+
+`task_status_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| task_status | 1 | Publish task status pending|running|done|blocked from real turn | `task_status_schema` | write | `plan_scopes` | ready |
+
 **prod_note = > agent.tools_register spec=`note_spec`**
 **prod_file = > agent.tools_register spec=`file_spec`**
 **prod_ws = > agent.tools_register spec=`web_search_spec`**
@@ -109,11 +126,13 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_wsr = > agent.tools_register spec=`ws_read_spec`**
 **prod_ts = > agent.tools_register spec=`tools_search_spec`**
 **prod_td = > agent.tools_register spec=`tools_describe_spec`**
+**prod_pu = > agent.tools_register spec=`plan_update_spec`**
+**prod_tst = > agent.tools_register spec=`task_status_spec`**
 `out` =
 
-| ok | eng | note | file | web_search | web_fetch | workspace_list | workspace_search | workspace_read | tools_search | tools_describe |
-|----|-----|------|------|------------|-----------|----------------|------------------|----------------|--------------|----------------|
-| True | `eng` | `prod_note` | `prod_file` | `prod_ws` | `prod_wf` | `prod_wsl` | `prod_wss` | `prod_wsr` | `prod_ts` | `prod_td` |
+| ok | eng |
+|----|-----|
+| True | `eng` |
 
 *out*
 
@@ -170,6 +189,8 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="workspace_read"**
 **t = > table.append list=`t` item="tools_search"**
 **t = > table.append list=`t` item="tools_describe"**
+**t = > table.append list=`t` item="plan_update"**
+**t = > table.append list=`t` item="task_status"**
 *t*
 
 ## note_read
@@ -238,3 +259,18 @@ Catalog search — authorize only; does not execute tools.
     + `id`=""
 
 *> describe id=`id`*
+
+## plan_update
+    + `turn_id`=""
+    + `milestones`=None
+    + `text`=""
+
+*> plan_update.run turn_id=`turn_id` milestones=`milestones` text=`text`*
+
+## task_status
+    + `turn_id`=""
+    + `task_id`=""
+    + `status`="running"
+    + `detail`=""
+
+*> task_status.run turn_id=`turn_id` task_id=`task_id` status=`status` detail=`detail`*

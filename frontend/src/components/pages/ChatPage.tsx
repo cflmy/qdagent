@@ -8,6 +8,7 @@ import { UsageFooter } from '@/components/chat/UsageFooter'
 import { CitationLink } from '@/components/chat/CitationLink'
 import { Send, Square, PanelRightOpen, X, RefreshCw } from 'lucide-react'
 import { shouldCollapseAnswer } from '@/lib/streamChannels'
+import { PlanPanel } from '@/components/chat/PlanPanel'
 
 function renderWithCitations(text: string, workspaceId = 'ws-default') {
   const parts: Array<string | { n: number; id: string }> = []
@@ -384,6 +385,13 @@ export function ChatPage() {
                   wordBreak: 'break-word',
                 }
               }>
+                {msg.role === 'assistant' ? (
+                  <PlanPanel
+                    process={msg.process}
+                    usage={msg.usage}
+                    streaming={streaming && i === messages.length - 1}
+                  />
+                ) : null}
                 {msg.role === 'assistant' && msg.process && msg.process.length > 0 ? (
                   <div style={{
                     marginBottom: msg.content ? 12 : 0,

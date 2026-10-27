@@ -238,6 +238,25 @@ Tool catalog describe (CALL:tools_describe).
 
 *> catalog.tools_describe id=`id`*
 
+## plan_update
+    + `turn_id`=""
+    + `milestones`=None
+    + `text`=""
+
+Plan update (CALL:plan_update) — progress event only, not execution proof.
+
+*> catalog.plan_update turn_id=`turn_id` milestones=`milestones` text=`text`*
+
+## task_status
+    + `turn_id`=""
+    + `task_id`=""
+    + `status`="running"
+    + `detail`=""
+
+Task status (CALL:task_status) — pending|running|done|blocked.
+
+*> catalog.task_status turn_id=`turn_id` task_id=`task_id` status=`status` detail=`detail`*
+
 ## ensure_llm
     + `model_id`=""
     + `selection`=None

@@ -237,6 +237,8 @@ def check_tool_schema(data: dict) -> None:
         "workspace_read",
         "tools_search",
         "tools_describe",
+        "plan_update",
+        "task_status",
     ):
         if name not in product:
             raise AssertionError(f"product_aliases missing {name}")
