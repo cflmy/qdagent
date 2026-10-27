@@ -519,6 +519,22 @@ export const api = {
     digest?: string
     max_bytes?: number
   }) => POST('/api/app/resources/blob', data),
+  /** Designed range read (§11.1): line/cell + max_bytes + next_cursor. */
+  appResourcesRead: (data: {
+    workspace_id?: string
+    path?: string
+    document?: string
+    resource_id?: string
+    digest?: string
+    revision?: string
+    line_start?: number
+    line_end?: number
+    cell_col?: number
+    max_bytes?: number
+    cursor?: string
+    next_cursor?: string
+    locator?: { line?: number; page?: number; col?: number; [k: string]: unknown }
+  }) => POST('/api/app/resources/read', data),
   appCitationsResolve: (data: unknown) => POST('/api/app/citations/resolve', data),
   appUploadsCreate: (data: unknown) => POST('/api/app/uploads/create', data),
   appImportsStart: (data: unknown) => POST('/api/app/imports/start', data),

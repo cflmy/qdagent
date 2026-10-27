@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "description": "Q-A5 ResourceReadV1 range read contract (POST /api/app/resources/read)",
+  "route": {
+    "method": "POST",
+    "path": "/api/app/resources/read",
+    "api": "api.app_resources_read",
+    "impl": "workbench.resources_read"
+  },
+  "envelope": {
+    "ok": true,
+    "schema_version": 2,
+    "data": {
+      "schema": "ResourceReadV1",
+      "path": "sample.txt",
+      "digest": "sha256:…",
+      "text": "line body",
+      "truncated": true,
+      "next_cursor": "line:21",
+      "no_exec": true,
+      "range": { "line_start": 1, "line_end": 20, "cell_col": null },
+      "capabilities": { "extract": true, "ocr": false, "line_range": true },
+      "diagnostics": []
+    }
+  },
+  "invariants": [
+    "PDF/image/office return extract.unavailable and text=null; visual preview stays on resources/preview",
+    "next_cursor is opaque line:N when more content remains under max_bytes",
+    "path escape (..) and absolute paths are workspace.forbidden",
+    "revision/digest mismatch is resource.revision_mismatch",
+    "no_exec is always true"
+  ]
+}

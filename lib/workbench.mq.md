@@ -332,6 +332,113 @@ Returns base64 payload (Marqdo has no binary HTTP body yet) — FE decodes.
   **ecode = "runtime.unavailable"**
 *> app_err code=`ecode` message=`msg` retryable=False*
 
+## resources_read
+    + `payload`=None
+
+Designed range read (design §11.1): line/page/cell + max_bytes + next_cursor.
+Never executes. PDF/image/office return extract.unavailable (F16) — use
+resources/preview for visual pages; do not invent OCR text.
+
+**workspace_id = > json.get value=`payload` key="workspace_id"**
+**path = > json.get value=`payload` key="path"**
+1. not `path`
+  **path = > json.get value=`payload` key="document"**
+1. not `path`
+  **path = > json.get value=`payload` key="resource_id"**
+1. not `path`
+  *> app_err code="resource.not_found" message="path, document, or resource_id required"*
+**trav = > text.contains text=`path` sub=".."**
+**abs_hint = > text.starts_with text=`path` prefix="/"**
+1. `trav`
+  *> app_err code="workspace.forbidden" message="path escape rejected"*
+1. `abs_hint`
+  *> app_err code="workspace.forbidden" message="absolute path rejected"*
+**store = > db.open**
+1. `workspace_id`
+  **ws = > `store`.get table="workspaces" id=`workspace_id`**
+  1. not `ws`
+    *> app_err code="workspace.forbidden" message="unknown workspace"*
+  **project = [project_root_ref](access(ws, "project_root_ref"))**
+2. *
+  **project = "."**
+1. not `project`
+  **project = "."**
+**abs = `project` + "/" + `path`**
+**digest = > json.get value=`payload` key="digest"**
+1. not `digest`
+  **digest = > json.get value=`payload` key="revision"**
+**max_bytes = > json.get value=`payload` key="max_bytes"**
+1. not `max_bytes`
+  **max_bytes = 65536**
+**line_start = > json.get value=`payload` key="line_start"**
+1. not `line_start`
+  **locator = > json.get value=`payload` key="locator"**
+  1. `locator`
+    **line_start = > json.get value=`locator` key="line"**
+1. not `line_start`
+  **line_start = 0**
+**line_end = > json.get value=`payload` key="line_end"**
+1. not `line_end`
+  **line_end = 0**
+**cursor = > json.get value=`payload` key="next_cursor"**
+1. not `cursor`
+  **cursor = > json.get value=`payload` key="cursor"**
+1. not `cursor`
+  **cursor = ""**
+**cell_col = > json.get value=`payload` key="cell_col"**
+1. not `cell_col`
+  **locator2 = > json.get value=`payload` key="locator"**
+  1. `locator2`
+    **cell_col = > json.get value=`locator2` key="col"**
+1. not `cell_col`
+  **cell_col = 0**
+**root = > run.确保目录**
+**u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**out_path = `root` + "/tmp/qd-read-" + `u` + "-" + `nonce` + ".json"**
+**repo = > sys.env_get name="QDAGENT_ROOT"**
+1. not `repo`
+  **repo = > sys.cwd**
+**script = `repo` + "/scripts/resource_read.py"**
+> sys.env_set name="QDAGENT_READ_ABS" value=`abs`
+> sys.env_set name="QDAGENT_READ_OUT" value=`out_path`
+> sys.env_set name="QDAGENT_READ_REL" value=`path`
+> sys.env_set name="QDAGENT_READ_MAX_BYTES" value=`max_bytes`
+> sys.env_set name="QDAGENT_READ_LINE_START" value=`line_start`
+> sys.env_set name="QDAGENT_READ_LINE_END" value=`line_end`
+> sys.env_set name="QDAGENT_READ_CURSOR" value=`cursor`
+> sys.env_set name="QDAGENT_READ_CELL_COL" value=`cell_col`
+1. `digest`
+  > sys.env_set name="QDAGENT_READ_DIGEST" value=`digest`
+2. *
+  > sys.env_set name="QDAGENT_READ_DIGEST" value=""
+`args` =
+
+| a |
+|---|
+| `script` |
+
+**proc = > sys.exec cmd="python3" args=args capture=True**
+**raw = > fs.read_text path=`out_path`**
+> fs.remove path=`out_path`
+1. not `raw`
+  *> app_err code="runtime.unavailable" message="resource read failed" retryable=True*
+**resp = > json.parse text=`raw`**
+**ok = > json.get value=`resp` key="ok"**
+1. `ok`
+  **data = > json.get value=`resp` key="result"**
+  *> app_ok data=`data`*
+**err = > json.get value=`resp` key="error"**
+**msg = > json.get value=`err` key="message"**
+**ecode = > json.get value=`err` key="code"**
+1. not `msg`
+  **msg = "resource read failed"**
+1. not `ecode`
+  **ecode = "runtime.unavailable"**
+*> app_err code=`ecode` message=`msg` retryable=False*
+
 ## citations_resolve
     + `payload`=None
 

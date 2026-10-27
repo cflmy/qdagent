@@ -33,6 +33,15 @@
     },
     {
       "method": "POST",
+      "path": "/api/app/resources/read",
+      "api": "api.app_resources_read",
+      "impl": "workbench.resources_read",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "Line/cell range + max_bytes + next_cursor; PDF/image extract unavailable (F16)"
+    },
+    {
+      "method": "POST",
       "path": "/api/app/citations/resolve",
       "api": "api.app_citations_resolve",
       "impl": "workbench.citations_resolve",

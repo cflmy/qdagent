@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 type Props = {
   sourceText: string
@@ -6,18 +6,50 @@ type Props = {
   /** 1-based line from resources/preview locator */
   focusLine?: number
   truncated?: boolean
+  /** Load next window via resources/read (design §11.1) — not a cut-down substitute. */
+  onLoadMore?: () => Promise<{ text: string; nextCursor?: string | null; truncated?: boolean } | null>
 }
 
-/** Design CodePreview: line numbers + line focus (Q-A5). Never executes. */
-export function CodePreview({ sourceText, title, focusLine, truncated }: Props) {
-  const lines = useMemo(() => sourceText.replace(/\n$/, '').split('\n'), [sourceText])
+/** Design CodePreview: line numbers + line focus + range continue (Q-A5). Never executes. */
+export function CodePreview({ sourceText, title, focusLine, truncated, onLoadMore }: Props) {
+  const [extra, setExtra] = useState('')
+  const [moreTruncated, setMoreTruncated] = useState(!!truncated)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const combined = sourceText + (extra ? (sourceText.endsWith('\n') ? '' : '\n') + extra : '')
+  const lines = useMemo(() => combined.replace(/\n$/, '').split('\n'), [combined])
   const focusRef = useRef<HTMLSpanElement | null>(null)
+
+  useEffect(() => {
+    setExtra('')
+    setMoreTruncated(!!truncated)
+    setLoadError('')
+  }, [sourceText, truncated])
 
   useEffect(() => {
     if (focusLine && focusRef.current) {
       focusRef.current.scrollIntoView({ block: 'center' })
     }
   }, [focusLine, lines.length])
+
+  const loadMore = async () => {
+    if (!onLoadMore || loadingMore) return
+    setLoadingMore(true)
+    setLoadError('')
+    try {
+      const chunk = await onLoadMore()
+      if (!chunk) {
+        setMoreTruncated(false)
+        return
+      }
+      setExtra((prev) => prev + chunk.text)
+      setMoreTruncated(!!chunk.truncated && !!chunk.nextCursor)
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   return (
     <div className="mq-code-preview flex flex-col gap-2">
@@ -26,10 +58,25 @@ export function CodePreview({ sourceText, title, focusLine, truncated }: Props) 
         <span>{lines.length} 行</span>
         {focusLine ? <span>定位 L{focusLine}</span> : null}
       </div>
-      {truncated && (
-        <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
-          预览已截断；完整文件请下载或提高读取范围（resources/read）。
-        </p>
+      {moreTruncated && (
+        <div className="flex flex-wrap items-center gap-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+          <span>预览窗口未覆盖全文；继续用 resources/read 按行扩展（非降级替代）。</span>
+          {onLoadMore && (
+            <button
+              type="button"
+              className="rounded border border-amber-300 bg-white px-2 py-0.5 disabled:opacity-50"
+              disabled={loadingMore}
+              onClick={() => void loadMore()}
+            >
+              {loadingMore ? '加载中…' : '继续读取'}
+            </button>
+          )}
+        </div>
+      )}
+      {loadError && (
+        <div className="rounded border border-red-200 bg-red-50 p-2 text-xs text-red-800" role="alert">
+          {loadError}
+        </div>
       )}
       <pre className="overflow-auto rounded border border-[var(--qd-border)] bg-[var(--qd-surface)] p-0 text-xs leading-5">
         <code className="block min-w-full">

@@ -15,6 +15,9 @@ export type PreviewView = {
   completeness?: string
   kind?: string
   schema?: string
+  /** Workspace-relative path / resource_id for resources/read continuation. */
+  resourceId?: string
+  digest?: string
   /** Plain source for JsonPreview / CodePreview (alongside sanitized fragment). */
   sourceText?: string
   /** Client visual preview (PDF.js / ImagePreview); extract/OCR stay independent. */
@@ -66,10 +69,17 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
     text?: string | null
     blob_ref?: BlobRefPayload
   } | undefined
-  const resource = data.resource as { kind?: string; title?: string } | undefined
+  const resource = data.resource as {
+    kind?: string
+    title?: string
+    resource_id?: string
+    digest?: string
+  } | undefined
   const format = String(render?.format || data.format || '').toLowerCase()
   const kind = String(resource?.kind || caps.kind || '')
   const schema = String(data.schema || '')
+  const resourceId = resource?.resource_id
+  const digest = resource?.digest
   const sourceText = typeof render?.text === 'string' ? render.text : undefined
   const focusFromData = data.focus_locator && typeof data.focus_locator === 'object'
     ? data.focus_locator as { page?: number; line?: number; [k: string]: unknown }
@@ -142,6 +152,8 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
       completeness: String(data.completeness || ''),
       kind: kind || undefined,
       schema: schema || undefined,
+      resourceId,
+      digest,
       sourceText,
       focusLocator: focusLine != null
         ? { ...(focusFromData || {}), line: focusLine }

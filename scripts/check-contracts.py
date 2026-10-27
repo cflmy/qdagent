@@ -29,6 +29,7 @@ REQUIRED = {
         "invariants",
     ),
     "tool-schema.json": ("examples", "eng_aliases", "invariants"),
+    "resource-read.json": ("route", "envelope", "invariants"),
 }
 
 
@@ -272,6 +273,28 @@ def check_agent_reliability_bits(data: dict) -> None:
             raise AssertionError(f"extract_formats_available missing live format {fmt}")
 
 
+def check_resource_read(data: dict) -> None:
+    route = data["route"]
+    if route.get("path") != "/api/app/resources/read":
+        raise AssertionError("resource-read route path must be /api/app/resources/read")
+    if "resources_read" not in str(route.get("impl") or ""):
+        raise AssertionError("resource-read must implement workbench.resources_read")
+    env = data["envelope"]
+    if env.get("ok") is not True:
+        raise AssertionError("resource-read example envelope must be ok")
+    body = env.get("data") or {}
+    if body.get("schema") != "ResourceReadV1":
+        raise AssertionError("ResourceReadV1 schema required")
+    if body.get("no_exec") is not True:
+        raise AssertionError("ResourceReadV1 must set no_exec")
+    if "next_cursor" not in body:
+        raise AssertionError("ResourceReadV1 must include next_cursor field")
+    inv = "\n".join(data.get("invariants") or [])
+    if "extract.unavailable" not in inv and "extract.unavailable" not in json.dumps(data):
+        if "extract.unavailable" not in inv:
+            raise AssertionError("invariants must mention PDF/image extract.unavailable honesty")
+
+
 def main() -> int:
     print(f"FIX={FIX}")
     checkers = {
@@ -286,6 +309,7 @@ def main() -> int:
         "answer-outcome.json": check_answer_outcome,
         "agent-reliability-bits.json": check_agent_reliability_bits,
         "tool-schema.json": check_tool_schema,
+        "resource-read.json": check_resource_read,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

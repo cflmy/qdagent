@@ -23,7 +23,16 @@ type BlobState = {
 
 type StructuredState =
   | { kind: 'json'; sourceText: string; outline: unknown[]; diagnostics?: unknown[] }
-  | { kind: 'code'; sourceText: string; focusLine?: number; truncated?: boolean }
+  | {
+      kind: 'code'
+      sourceText: string
+      focusLine?: number
+      truncated?: boolean
+      path?: string
+      workspaceId?: string
+      digest?: string
+      nextCursor?: string | null
+    }
 
 /** Read-only DocumentView / ResourceView embed. Never triggers execution. */
 export function DocumentReader() {
@@ -276,6 +285,33 @@ export function DocumentReader() {
             title={title}
             focusLine={structured.focusLine}
             truncated={structured.truncated}
+            onLoadMore={
+              structured.path && structured.workspaceId
+                ? async () => {
+                    const res = await api.appResourcesRead({
+                      workspace_id: structured.workspaceId,
+                      path: structured.path,
+                      digest: structured.digest,
+                      cursor: structured.nextCursor || undefined,
+                      line_start: structured.nextCursor ? undefined : (structured.sourceText.split('\n').length + 1),
+                      max_bytes: 65536,
+                    })
+                    const envelope = res as { ok?: boolean; data?: Record<string, unknown>; error?: { message?: string } }
+                    if (envelope.ok === false) {
+                      throw new Error(envelope.error?.message || 'resources/read failed')
+                    }
+                    const data = (envelope.data ?? res) as Record<string, unknown>
+                    const text = String(data.text || '')
+                    const next = (data.next_cursor as string | null | undefined) ?? null
+                    setStructured({
+                      ...structured,
+                      nextCursor: next,
+                      truncated: !!next,
+                    })
+                    return { text, nextCursor: next, truncated: !!next }
+                  }
+                : undefined
+            }
           />
         )}
         {!loading && !error && !blob && !structured && fragmentHtml && (
@@ -344,11 +380,16 @@ async function settlePreview(opts: {
     return
   }
   if ((preview.kind === 'code' || preview.kind === 'text') && typeof preview.sourceText === 'string') {
+    const lineCount = preview.sourceText.replace(/\n$/, '').split('\n').length
     opts.setStructured({
       kind: 'code',
       sourceText: preview.sourceText,
       focusLine: typeof line === 'number' ? line : undefined,
       truncated: preview.completeness === 'partial',
+      path: preview.resourceId,
+      workspaceId: opts.workspaceId,
+      digest: preview.digest,
+      nextCursor: preview.completeness === 'partial' ? `line:${lineCount + 1}` : null,
     })
     opts.setLoading(false)
     return
