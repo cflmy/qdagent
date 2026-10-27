@@ -108,6 +108,7 @@ export function ProviderModelPanes() {
         return next
       })
     } catch (e) {
+      // 503 / busy: keep existing provider list (do not clear settings UI).
       setMsg(e instanceof Error ? e.message : String(e))
     }
   }, [])

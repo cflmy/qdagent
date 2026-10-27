@@ -608,6 +608,7 @@ Q-R8: default returns confirmed items only for injection; status=all for admin l
     + `payload`=None
 
 Q-R2 facade → execution/turns.cancel. Unknown turn → 404; never create placeholder (R03).
+Bridges `/_runtime` cancel (control lane; no parent INVOKE_LOCK).
 
 **ret = > turns.cancel payload=`payload`**
 **ok = > json.get value=`ret` key="ok"**
@@ -620,3 +621,69 @@ Q-R2 facade → execution/turns.cancel. Unknown turn → 404; never create place
     **code = "resource.not_found"**
   *> app_err code=`code` message=`msg`*
 *> app_ok data=`ret`*
+
+## turns_get
+    + `turn_id`=""
+    + `id`=""
+    + `payload`=None
+
+1. not `turn_id`
+  1. `id`
+    **turn_id = `id`**
+1. `payload`
+  **pt = > json.get value=`payload` key="turn_id"**
+  1. `pt`
+    **turn_id = `pt`**
+  **pid = > json.get value=`payload` key="id"**
+  1. `pid`
+    1. not `turn_id`
+      **turn_id = `pid`**
+**ret = > turns.get turn_id=`turn_id`**
+**ok = > json.get value=`ret` key="ok"**
+1. not `ok`
+  **code = > json.get value=`ret` key="code"**
+  **msg = > json.get value=`ret` key="error"**
+  1. not `msg`
+    **msg = "turn not found"**
+  1. not `code`
+    **code = "resource.not_found"**
+  *> app_err code=`code` message=`msg`*
+*> app_ok data=`ret`*
+
+## turns_events
+    + `turn_id`=""
+    + `id`=""
+    + `after_seq`=0
+    + `last_event_id`=""
+    + `payload`=None
+
+Replay turn_events (Last-Event-ID). Control class; does not re-run the model.
+
+1. not `turn_id`
+  1. `id`
+    **turn_id = `id`**
+1. `payload`
+  **pt = > json.get value=`payload` key="turn_id"**
+  1. `pt`
+    **turn_id = `pt`**
+  **pid = > json.get value=`payload` key="id"**
+  1. `pid`
+    1. not `turn_id`
+      **turn_id = `pid`**
+  **pa = > json.get value=`payload` key="after_seq"**
+  1. `pa`
+    **after_seq = `pa`**
+  **pl = > json.get value=`payload` key="last_event_id"**
+  1. `pl`
+    **last_event_id = `pl`**
+**ret = > turns.events turn_id=`turn_id` after_seq=`after_seq` last_event_id=`last_event_id` payload=`payload`**
+**ok = > json.get value=`ret` key="ok"**
+1. not `ok`
+  **code = > json.get value=`ret` key="code"**
+  **msg = > json.get value=`ret` key="error"**
+  1. not `msg`
+    **msg = "turn events failed"**
+  1. not `code`
+    **code = "resource.not_found"**
+  *> app_err code=`code` message=`msg`*
+*ret*

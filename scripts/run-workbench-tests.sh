@@ -8,6 +8,7 @@ export PLAYWRIGHT_REQUIRE_SERVER="${PLAYWRIGHT_REQUIRE_SERVER:-1}"
 source "$ROOT/scripts/marqdo-env.sh"
 "$ROOT/scripts/probe-marqdo-capabilities.sh"
 python3 "$ROOT/scripts/check-contracts.py"
+python3 "$ROOT/scripts/gate-concurrency-recovery.py"
 
 # Auto-skip external network probes when upstream is unreachable (offline CI).
 if [[ -z "${QDAGENT_SKIP_NETWORK:-}" ]]; then

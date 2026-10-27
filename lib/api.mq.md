@@ -1297,6 +1297,20 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
     + `payload`=None
 *> workbench.turns_cancel payload=`payload`*
 
+## app_turns_get
+    + `turn_id`=""
+    + `id`=""
+    + `payload`=None
+*> workbench.turns_get turn_id=`turn_id` id=`id` payload=`payload`*
+
+## app_turns_events
+    + `turn_id`=""
+    + `id`=""
+    + `after_seq`=0
+    + `last_event_id`=""
+    + `payload`=None
+*> workbench.turns_events turn_id=`turn_id` id=`id` after_seq=`after_seq` last_event_id=`last_event_id` payload=`payload`*
+
 ## app_profile_set_status
     + `payload`=None
 *> workbench.profile_items_set_status payload=`payload`*

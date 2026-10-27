@@ -71,10 +71,79 @@ const SHORT_FETCH_MS = 8_000
 const SSE_IDLE_MS = 120_000
 
 function busyMessage(path: string, status: number, detail: string): string {
+  if (status === 429 || /slot|queue_full|no_slot|execute/i.test(detail)) {
+    return detail || `执行槽已满，请稍后重试：${path}`
+  }
   if (status === 503 || /interpreter busy/i.test(detail)) {
     return detail || `服务正忙（对话进行中），请稍后重试：${path}`
   }
   return detail || `请求失败 ${status}: ${path}`
+}
+
+/** GET SSE with Last-Event-ID resume (turn events replay). */
+async function* GET_STREAM(
+  path: string,
+  signal?: AbortSignal,
+  headers?: Record<string, string>,
+): AsyncGenerator<unknown> {
+  const res = await fetch(path, {
+    method: 'GET',
+    credentials: 'same-origin',
+    headers: { Accept: 'text/event-stream', ...headers },
+    signal,
+  })
+  if (!res.ok) {
+    let json: unknown = null
+    try { json = await res.json() } catch { /* ignore */ }
+    const parsed = errorMessageFromBody(json, '')
+    const retryAfter = res.headers.get('Retry-After')
+    throw new ApiError({
+      message: busyMessage(path, res.status, parsed.message),
+      code: parsed.code || 'error',
+      retryable: parsed.retryable ?? (res.status === 503 || res.status === 429),
+      requestId: parsed.requestId,
+      status: res.status,
+      details: { ...(parsed.details as object || {}), retryAfter },
+    })
+  }
+  if (!res.body) throw new ApiError({ message: `GET ${path}: no response body` })
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  const seenIds = new Set<string>()
+  let lastActivity = Date.now()
+
+  while (true) {
+    if (Date.now() - lastActivity > SSE_IDLE_MS) {
+      throw new ApiError({
+        message: `SSE 空闲超时（${SSE_IDLE_MS}ms）：${path}`,
+        code: 'deadline.exceeded',
+        retryable: true,
+        status: 504,
+      })
+    }
+    const { done, value } = await reader.read()
+    if (done) break
+    lastActivity = Date.now()
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || !trimmed.startsWith('data: ')) continue
+      const data = trimmed.slice(6)
+      if (data === '[DONE]') return
+      try {
+        const parsed = JSON.parse(data) as { event_id?: string }
+        if (parsed?.event_id) {
+          if (seenIds.has(parsed.event_id)) continue
+          seenIds.add(parsed.event_id)
+        }
+        yield parsed
+      } catch { /* skip */ }
+    }
+  }
 }
 
 async function fetchWithTimeout(
@@ -442,5 +511,20 @@ export const api = {
   appProfileSetStatus: (data: { id: string; status: string }) =>
     POST('/api/app/profile/set_status', data),
   appTurnsCancel: (data: unknown) => POST('/api/app/turns/cancel', data),
+  appTurnsGet: (turnId: string) =>
+    GET(`/api/app/turns/${encodeURIComponent(turnId)}`),
+  appTurnsEvents: (
+    turnId: string,
+    opts?: { lastEventId?: string; afterSeq?: number; signal?: AbortSignal },
+  ) => {
+    const q = opts?.afterSeq != null ? `?after_seq=${opts.afterSeq}` : ''
+    const headers: Record<string, string> = {}
+    if (opts?.lastEventId) headers['Last-Event-ID'] = opts.lastEventId
+    return GET_STREAM(
+      `/api/app/turns/${encodeURIComponent(turnId)}/events${q}`,
+      opts?.signal,
+      headers,
+    )
+  },
   appFeatureFlags: () => GET('/api/app/feature_flags'),
 }

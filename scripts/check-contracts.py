@@ -131,12 +131,38 @@ def check_routes(data: dict) -> None:
     paths = [r["path"] for r in data["routes"]]
     if len(paths) != len(set(paths)):
         raise AssertionError("duplicate route paths in inventory")
+    allowed = {"execute", "short", "read", "control"}
+    for r in data["routes"]:
+        c = r.get("class")
+        if c not in allowed:
+            raise AssertionError(f"route {r.get('path')} missing/invalid class={c!r}")
     cancel = next(r for r in data["routes"] if r["path"] == "/api/app/turns/cancel")
     if "turns.cancel" not in cancel["impl"]:
         raise AssertionError("turns/cancel must point at execution/turns.cancel")
+    if cancel.get("class") != "control":
+        raise AssertionError("turns/cancel must be class=control")
+    events = next((r for r in data["routes"] if r["path"].endswith("/events")), None)
+    if not events or events.get("class") != "control":
+        raise AssertionError("turns events route must exist with class=control")
     publish = next(r for r in data["routes"] if r["path"] == "/api/app/imports/publish")
     if "publication" not in publish["impl"]:
         raise AssertionError("imports/publish must route through publication")
+    # Serve invoke table must declare 类别/class for inventoried paths.
+    serve = (FIX / ".." / ".." / "serve.mq.md").resolve()
+    if serve.is_file():
+        body = serve.read_text(encoding="utf-8")
+        if "| 类别 |" not in body and "| class |" not in body:
+            raise AssertionError("serve.mq.md 调用表 must include 类别/class column")
+        for r in data["routes"]:
+            path = r["path"]
+            # Path templates may appear literally in the table.
+            if path not in body and path.replace("{id}", "{id}") not in body:
+                # soft: inventory may list subset; require cancel + events present
+                pass
+        if "/api/app/turns/cancel" not in body:
+            raise AssertionError("serve.mq.md missing turns/cancel")
+        if "/api/app/turns/{id}/events" not in body:
+            raise AssertionError("serve.mq.md missing turns/{id}/events")
 
 
 def check_capabilities(data: dict) -> None:
@@ -145,6 +171,8 @@ def check_capabilities(data: dict) -> None:
     feats = data["features"]
     if not feats.get("runtime.isolated_execution"):
         raise AssertionError("capabilities must expect runtime.isolated_execution")
+    if not feats.get("runtime.read_lane"):
+        raise AssertionError("capabilities must expect runtime.read_lane")
 
 
 def main() -> int:

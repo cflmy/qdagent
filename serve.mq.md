@@ -66,82 +66,85 @@ import:
 
 `调用表` =
 
-| 路径 | 方法 | 函数 | 正文 | 返回 |
-|------|------|------|------|------|
-| /api/health | GET | api.health | query | json |
-| /api/store/run | POST | api.capture | json | json |
-| /api/store/sync | POST | api.sync | json | json |
-| /api/store/search | POST | api.search | json | json |
-| /api/store/list | POST | api.list | json | json |
-| /api/store/runs | GET | api.list | query | json |
-| /api/store/get | POST | api.get_run | json | json |
-| /api/store/context | POST | api.context | json | json |
-| /api/store/profile | POST | api.profile_get | json | json |
-| /api/config | GET | api.settings_get | query | json |
-| /api/config/update | POST | api.settings_update | json | json |
-| /api/store/profile/update | POST | api.profile_update | json | json |
-| /api/store/profile/reset | POST | api.profile_reset | json | json |
-| /api/store/organize | POST | api.organize | json | json |
-| /api/store/kb/list | POST | api.kb_list | json | json |
-| /api/store/kb/get | POST | api.kb_get | json | json |
-| /api/store/web_search | POST | api.web_search | json | json |
-| /api/store/asr_transcribe | POST | api.asr_transcribe | json | json |
-| /api/store/changes/propose | POST | api.change_propose | json | json |
-| /api/store/changes/list | POST | api.change_list | json | json |
-| /api/store/changes/get | POST | api.change_get | json | json |
-| /api/store/changes/apply | POST | api.change_apply | json | json |
-| /api/store/changes/reject | POST | api.change_reject | json | json |
-| /api/store/git/log | POST | api.git_log | json | json |
-| /api/store/git/show | POST | api.git_show | json | json |
-| /api/store/git/revert | POST | api.git_revert | json | json |
-| /api/eng/preflight | POST | api.preflight | json | json |
-| /api/eng/reuse | POST | api.eng_reuse | json | json |
-| /api/eng/find | POST | api.eng_find | json | json |
-| /api/eng/capability | POST | api.eng_capability | json | json |
-| /api/eng/impact | POST | api.eng_impact | json | json |
-| /api/eng/conflicts | POST | api.eng_conflicts | json | json |
-| /api/eng/stale | POST | api.eng_stale | json | json |
-| /api/eng/duplicate | POST | api.eng_duplicate | json | json |
-| /api/eng/verify | POST | api.eng_verify | json | json |
-| /api/eng/docgate | POST | api.eng_docgate | json | json |
-| /api/eng/learn | POST | api.eng_learn | json | json |
-| /api/eng/metrics | GET | api.eng_metrics | query | json |
-| /api/eng/candidates | POST | api.eng_candidates | json | json |
-| /api/eng/promote | POST | api.eng_promote | json | json |
-| /api/eng/reject | POST | api.eng_reject | json | json |
-| /api/eng/build | POST | api.eng_build | json | json |
-| /api/eng/session | POST | api.eng_session | json | json |
-| /api/eng/sessions | POST | api.eng_sessions | json | json |
-| /api/eng/knowledge | POST | api.eng_knowledge | json | json |
-| /api/eng/kb/status | POST | api.eng_kb_status | json | json |
-| /api/eng/import | POST | api.eng_import | json | json |
-| /api/eng/policies | POST | api.eng_policies | json | json |
-| /v1/models | GET | api.v1_models | query | json |
-| /v1/chat/completions | POST | api.v1_chat_completions | json | sse-live |
-| /api/eng/workbooks | POST | api.eng_workbooks | json | json |
-| /api/eng/workbook | POST | api.eng_workbook | json | json |
-| /api/eng/today | GET | api.eng_today | query | json |
-| /api/app/providers | GET | api.app_providers | query | json |
-| /api/app/providers/save | POST | api.app_providers_save | json | json |
-| /api/app/providers/probe | POST | api.app_providers_probe | json | json |
-| /api/app/providers/discover | POST | api.app_providers_discover | json | json |
-| /api/app/models | GET | api.app_models | query | json |
-| /api/app/models/save | POST | api.app_models_save | json | json |
-| /api/app/usage/query | POST | api.app_usage_query | json | json |
-| /api/app/workspaces | GET | api.app_workspaces | query | json |
-| /api/app/workspaces/save | POST | api.app_workspaces_save | json | json |
-| /api/app/workspaces/tree | POST | api.app_workspaces_tree | json | json |
-| /api/app/documents/read | POST | api.app_documents_read | json | json |
-| /api/app/citations/resolve | POST | api.app_citations_resolve | json | json |
-| /api/app/uploads/create | POST | api.app_uploads_create | json | json |
-| /api/app/imports/start | POST | api.app_imports_start | json | json |
-| /api/app/imports/get | POST | api.app_imports_get | json | json |
-| /api/app/imports/publish | POST | api.app_imports_publish | json | json |
-| /api/app/profile/items | POST | api.app_profile_items | json | json |
-| /api/app/profile/propose | POST | api.app_profile_propose | json | json |
-| /api/app/profile/set_status | POST | api.app_profile_set_status | json | json |
-| /api/app/turns/cancel | POST | api.app_turns_cancel | json | json |
-| /api/app/feature_flags | GET | api.app_feature_flags | query | json |
+| 路径 | 方法 | 函数 | 正文 | 返回 | 类别 |
+|------|------|------|------|------|------|
+| /api/health | GET | api.health | query | json | read |
+| /api/store/run | POST | api.capture | json | json | short |
+| /api/store/sync | POST | api.sync | json | json | short |
+| /api/store/search | POST | api.search | json | json | read |
+| /api/store/list | POST | api.list | json | json | read |
+| /api/store/runs | GET | api.list | query | json | read |
+| /api/store/get | POST | api.get_run | json | json | read |
+| /api/store/context | POST | api.context | json | json | read |
+| /api/store/profile | POST | api.profile_get | json | json | read |
+| /api/config | GET | api.settings_get | query | json | read |
+| /api/config/update | POST | api.settings_update | json | json | short |
+| /api/store/profile/update | POST | api.profile_update | json | json | short |
+| /api/store/profile/reset | POST | api.profile_reset | json | json | read |
+| /api/store/organize | POST | api.organize | json | json | short |
+| /api/store/kb/list | POST | api.kb_list | json | json | read |
+| /api/store/kb/get | POST | api.kb_get | json | json | read |
+| /api/store/web_search | POST | api.web_search | json | json | short |
+| /api/store/asr_transcribe | POST | api.asr_transcribe | json | json | short |
+| /api/store/changes/propose | POST | api.change_propose | json | json | short |
+| /api/store/changes/list | POST | api.change_list | json | json | read |
+| /api/store/changes/get | POST | api.change_get | json | json | read |
+| /api/store/changes/apply | POST | api.change_apply | json | json | short |
+| /api/store/changes/reject | POST | api.change_reject | json | json | short |
+| /api/store/git/log | POST | api.git_log | json | json | read |
+| /api/store/git/show | POST | api.git_show | json | json | read |
+| /api/store/git/revert | POST | api.git_revert | json | json | short |
+| /api/eng/preflight | POST | api.preflight | json | json | short |
+| /api/eng/reuse | POST | api.eng_reuse | json | json | short |
+| /api/eng/find | POST | api.eng_find | json | json | short |
+| /api/eng/capability | POST | api.eng_capability | json | json | short |
+| /api/eng/impact | POST | api.eng_impact | json | json | short |
+| /api/eng/conflicts | POST | api.eng_conflicts | json | json | short |
+| /api/eng/stale | POST | api.eng_stale | json | json | short |
+| /api/eng/duplicate | POST | api.eng_duplicate | json | json | short |
+| /api/eng/verify | POST | api.eng_verify | json | json | short |
+| /api/eng/docgate | POST | api.eng_docgate | json | json | short |
+| /api/eng/learn | POST | api.eng_learn | json | json | short |
+| /api/eng/metrics | GET | api.eng_metrics | query | json | read |
+| /api/eng/candidates | POST | api.eng_candidates | json | json | short |
+| /api/eng/promote | POST | api.eng_promote | json | json | short |
+| /api/eng/reject | POST | api.eng_reject | json | json | short |
+| /api/eng/build | POST | api.eng_build | json | json | short |
+| /api/eng/session | POST | api.eng_session | json | json | short |
+| /api/eng/sessions | POST | api.eng_sessions | json | json | short |
+| /api/eng/knowledge | POST | api.eng_knowledge | json | json | short |
+| /api/eng/kb/status | POST | api.eng_kb_status | json | json | short |
+| /api/eng/import | POST | api.eng_import | json | json | short |
+| /api/eng/policies | POST | api.eng_policies | json | json | short |
+| /v1/models | GET | api.v1_models | query | json | read |
+| /v1/chat/completions | POST | api.v1_chat_completions | json | sse-live | execute |
+| /api/eng/workbooks | POST | api.eng_workbooks | json | json | short |
+| /api/eng/workbook | POST | api.eng_workbook | json | json | short |
+| /api/eng/today | GET | api.eng_today | query | json | read |
+| /api/app/providers | GET | api.app_providers | query | json | read |
+| /api/app/providers/save | POST | api.app_providers_save | json | json | short |
+| /api/app/providers/probe | POST | api.app_providers_probe | json | json | short |
+| /api/app/providers/discover | POST | api.app_providers_discover | json | json | short |
+| /api/app/models | GET | api.app_models | query | json | read |
+| /api/app/models/save | POST | api.app_models_save | json | json | short |
+| /api/app/usage/query | POST | api.app_usage_query | json | json | read |
+| /api/app/workspaces | GET | api.app_workspaces | query | json | read |
+| /api/app/workspaces/save | POST | api.app_workspaces_save | json | json | short |
+| /api/app/workspaces/tree | POST | api.app_workspaces_tree | json | json | read |
+| /api/app/documents/read | POST | api.app_documents_read | json | json | read |
+| /api/app/citations/resolve | POST | api.app_citations_resolve | json | json | read |
+| /api/app/uploads/create | POST | api.app_uploads_create | json | json | short |
+| /api/app/imports/start | POST | api.app_imports_start | json | json | short |
+| /api/app/imports/get | POST | api.app_imports_get | json | json | short |
+| /api/app/imports/publish | POST | api.app_imports_publish | json | json | short |
+| /api/app/profile/items | POST | api.app_profile_items | json | json | short |
+| /api/app/profile/propose | POST | api.app_profile_propose | json | json | short |
+| /api/app/profile/set_status | POST | api.app_profile_set_status | json | json | short |
+| /api/app/turns/cancel | POST | api.app_turns_cancel | json | json | control |
+| /api/app/feature_flags | GET | api.app_feature_flags | query | json | read |
+| /api/app/turns/get | POST | api.app_turns_get | json | json | read |
+| /api/app/turns/{id} | GET | api.app_turns_get | query | json | read |
+| /api/app/turns/{id}/events | GET | api.app_turns_events | query | sse-live | control |
 
 **接口 = > ui.接口**
 

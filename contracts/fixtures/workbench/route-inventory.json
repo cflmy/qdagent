@@ -9,6 +9,7 @@
       "path": "/api/app/documents/read",
       "api": "api.app_documents_read",
       "impl": "workbench.documents_read",
+      "class": "read",
       "authority": "KEEP",
       "notes": "Must pass revision/generation/node_id; reject unknown workspace"
     },
@@ -17,6 +18,7 @@
       "path": "/api/app/citations/resolve",
       "api": "api.app_citations_resolve",
       "impl": "workbench.citations_resolve",
+      "class": "read",
       "authority": "KEEP",
       "notes": "Inject authorized project into locator; never trust client project_id alone"
     },
@@ -25,6 +27,7 @@
       "path": "/api/app/uploads/create",
       "api": "api.app_uploads_create",
       "impl": "workbench.uploads_create",
+      "class": "short",
       "authority": "MERGE",
       "notes": "Server-generated path; request_id is index only; prefer uploads.create_upload semantics"
     },
@@ -33,6 +36,7 @@
       "path": "/api/app/imports/start",
       "api": "api.app_imports_start",
       "impl": "workbench.imports_start",
+      "class": "short",
       "authority": "MERGE",
       "notes": "Use eng_imp draft path; stage ImportJob"
     },
@@ -41,6 +45,7 @@
       "path": "/api/app/imports/get",
       "api": "api.app_imports_get",
       "impl": "workbench.imports_get",
+      "class": "read",
       "authority": "KEEP"
     },
     {
@@ -48,6 +53,7 @@
       "path": "/api/app/imports/publish",
       "api": "api.app_imports_publish",
       "impl": "workbench.imports_publish → knowledge/publication.publish",
+      "class": "short",
       "authority": "REFACTOR",
       "notes": "Must create manifest/CURRENT; DB status is projection only"
     },
@@ -56,14 +62,33 @@
       "path": "/api/app/turns/cancel",
       "api": "api.app_turns_cancel",
       "impl": "turns.cancel (execution/turns.mq.md)",
+      "class": "control",
       "authority": "MERGE",
-      "notes": "workbench.turns_cancel is facade; unknown turn → 404; no placeholder insert"
+      "notes": "CAS + /_runtime bridge; unknown turn → 404; no placeholder insert"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/turns/{id}",
+      "api": "api.app_turns_get",
+      "impl": "turns.get",
+      "class": "read",
+      "authority": "KEEP"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/turns/{id}/events",
+      "api": "api.app_turns_events",
+      "impl": "turns.events",
+      "class": "control",
+      "authority": "KEEP",
+      "notes": "Last-Event-ID / after_seq replay; does not re-run model"
     },
     {
       "method": "GET",
       "path": "/api/app/workspaces",
       "api": "api.app_workspaces",
       "impl": "workbench.workspaces_list",
+      "class": "read",
       "authority": "KEEP"
     },
     {
@@ -71,6 +96,15 @@
       "path": "/api/app/models",
       "api": "api.app_models",
       "impl": "registry / workbench",
+      "class": "read",
+      "authority": "KEEP"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/providers",
+      "api": "api.app_providers",
+      "impl": "workbench.providers",
+      "class": "read",
       "authority": "KEEP"
     },
     {
@@ -78,7 +112,17 @@
       "path": "/api/app/usage/query",
       "api": "api.app_usage_query",
       "impl": "workbench.usage_query",
+      "class": "read",
       "authority": "KEEP"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "api": "api.v1_chat_completions",
+      "impl": "gateway/openai.chat",
+      "class": "execute",
+      "authority": "KEEP",
+      "notes": "sse-live; disconnect ≠ cancel; resume via turn_id + events"
     }
   ],
   "duplicate_modules": [
@@ -101,6 +145,7 @@
   "invariants": [
     "Each user operation maps to exactly one business function",
     "Negative tests must hit the HTTP authority path, not a sibling module",
-    "Facade may adapt protocol but must not own a second state machine"
+    "Facade may adapt protocol but must not own a second state machine",
+    "Every route declares class: execute|short|read|control"
   ]
 }

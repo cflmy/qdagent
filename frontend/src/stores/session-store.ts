@@ -27,10 +27,14 @@ export interface Session {
   /** Session default model — next turn freezes this selection (Q02). */
   modelId?: string
   lastTurnId?: string
+  /** Last durable event_id for Last-Event-ID resume. */
+  lastEventId?: string
   /** Client-generated idempotency key for the in-flight turn (Q-R3). */
   lastRequestId?: string
   /** UI: stopping until server confirms cancelled. */
   stopping?: boolean
+  /** Non-terminal turn interrupted (≠ cancelled). */
+  interrupted?: boolean
 }
 
 interface SessionState {
@@ -53,6 +57,7 @@ interface SessionActions {
   setLastUsage: (sessionId: string, usage: UsageInfo) => void
   finalizeAssistant: (sessionId: string) => void
   streamChat: (sessionId: string, signal?: AbortSignal) => Promise<void>
+  resumeTurn: (sessionId: string, signal?: AbortSignal) => Promise<void>
   cancelTurn: (sessionId: string, controller?: AbortController | null) => Promise<void>
   loadFromStorage: () => void
   saveToStorage: () => void
@@ -105,6 +110,8 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       set((state) => {
         state.currentId = id
       })
+      // Resume non-terminal turn via events (no model re-run).
+      void get().resumeTurn(id)
     },
 
     deleteSession: (id) => {
@@ -194,24 +201,131 @@ export const useSessionStore = create<SessionState & SessionActions>()(
     },
 
     cancelTurn: async (sessionId, controller) => {
-      // Q-R3: keep observing until server cancel confirms; Abort ≠ cancelled.
+      // Stop = cancel API. Abort alone only closes the observer (≠ cancel).
       set((s) => {
         const sess = s.sessions.find((x) => x.id === sessionId)
         if (sess) sess.stopping = true
       })
       const session = get().sessions.find((s) => s.id === sessionId)
+      let confirmed = false
       if (session?.lastTurnId) {
         try {
           await api.appTurnsCancel({ turn_id: session.lastTurnId })
         } catch {
-          // still abort local stream after cancel attempt
+          /* cancel may race terminal */
+        }
+        // Wait briefly for server terminal before UI 「已停止」.
+        for (let i = 0; i < 40; i++) {
+          try {
+            const got = await api.appTurnsGet(session.lastTurnId) as {
+              data?: { turn?: { state?: string } }
+              turn?: { state?: string }
+            }
+            const st = got?.data?.turn?.state || got?.turn?.state || ''
+            if (st === 'cancelled' || st === 'cancelling' || st === 'interrupted' || st === 'completed' || st === 'failed') {
+              confirmed = st === 'cancelled' || st === 'cancelling' || st === 'interrupted'
+              break
+            }
+          } catch { /* keep waiting */ }
+          await new Promise((r) => setTimeout(r, 150))
         }
       }
+      // Close observer only — task cancel already requested on server.
       controller?.abort()
       set((s) => {
         const sess = s.sessions.find((x) => x.id === sessionId)
-        if (sess) sess.stopping = false
+        if (!sess) return
+        sess.stopping = false
+        if (confirmed) {
+          const last = sess.messages[sess.messages.length - 1]
+          if (last?.role === 'assistant' && !(last.content || '').trim()) {
+            last.content = '[已停止]'
+          }
+        }
       })
+      get().finalizeAssistant(sessionId)
+    },
+
+    resumeTurn: async (sessionId, signal) => {
+      const session = get().sessions.find((s) => s.id === sessionId)
+      if (!session?.lastTurnId) return
+      let state = ''
+      try {
+        const got = await api.appTurnsGet(session.lastTurnId) as {
+          data?: { turn?: { state?: string } }
+          turn?: { state?: string }
+        }
+        state = got?.data?.turn?.state || got?.turn?.state || ''
+      } catch {
+        return
+      }
+      if (['completed', 'cancelled', 'failed', 'interrupted'].includes(state)) {
+        if (state === 'interrupted') {
+          set((s) => {
+            const sess = s.sessions.find((x) => x.id === sessionId)
+            if (sess) sess.interrupted = true
+          })
+        }
+        return
+      }
+      set((s) => {
+        s.streamingBySession[sessionId] = true
+        const sess = s.sessions.find((x) => x.id === sessionId)
+        if (sess) {
+          sess.interrupted = false
+          sess.stopping = false
+        }
+      })
+      const last = session.messages[session.messages.length - 1]
+      if (!last || last.role !== 'assistant') {
+        get().addMessage(sessionId, { role: 'assistant', content: '' })
+      }
+      try {
+        const stream = api.appTurnsEvents(session.lastTurnId, {
+          lastEventId: session.lastEventId,
+          signal,
+        })
+        for await (const chunk of stream) {
+          const c = chunk as { event_id?: string; type?: string; turn_id?: string; payload?: Record<string, unknown> }
+          if (c?.event_id) {
+            set((s) => {
+              const sess = s.sessions.find((x) => x.id === sessionId)
+              if (sess) sess.lastEventId = c.event_id
+            })
+          }
+          if (c?.type === 'message.delta') {
+            const p = c.payload as { delta?: string; text?: string; kind?: string; type?: string } | undefined
+            if (p?.type === 'preflight' || p?.kind === 'plan' || p?.kind === 'reasoning') {
+              get().appendProcess(sessionId, {
+                kind: String(p.type || p.kind),
+                label: p.type === 'preflight' ? '工程预检' : String(p.kind),
+                detail: String(p.delta || p.text || '').slice(0, 240) || undefined,
+                appendDetail: p.kind === 'plan' || p.kind === 'reasoning',
+              })
+              continue
+            }
+            const token = p?.delta || ''
+            if (token) get().updateLastAssistant(sessionId, token)
+            continue
+          }
+          if (c?.type === 'turn.cancelled' || c?.type === 'turn.interrupted') {
+            set((s) => {
+              const sess = s.sessions.find((x) => x.id === sessionId)
+              if (!sess) return
+              if (c.type === 'turn.interrupted') sess.interrupted = true
+              const m = sess.messages[sess.messages.length - 1]
+              if (m?.role === 'assistant' && !(m.content || '').trim()) {
+                m.content = c.type === 'turn.interrupted' ? '[已中断，可继续恢复]' : '[已停止]'
+              }
+            })
+          }
+        }
+      } catch (e) {
+        if (signal?.aborted) return
+        if (e instanceof Error && /abort/i.test(e.message)) return
+      } finally {
+        get().finalizeAssistant(sessionId)
+      }
     },
 
     streamChat: async (sessionId, signal) => {
@@ -289,6 +403,13 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               if (sess) sess.lastTurnId = turnId
             })
           }
+          const eid = (c as { event_id?: string }).event_id
+          if (eid) {
+            set((s) => {
+              const sess = s.sessions.find((x) => x.id === sessionId)
+              if (sess) sess.lastEventId = eid
+            })
+          }
           if (c?.type === 'run.started') {
             get().appendProcess(sessionId, { kind: 'run', label: '请求开始' })
           }
@@ -313,6 +434,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             const evType = p?.type || ''
             // Execution trail — every agent step visible immediately (never drop).
             if (
+              evType === 'preflight' ||
               evType === 'decompose' ||
               evType === 'decision' ||
               evType === 'await' ||
@@ -323,6 +445,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               evType === 'plan_act'
             ) {
               const label =
+                evType === 'preflight' ? '工程预检' :
                 evType === 'decompose' ? '分解工作簿' :
                 evType === 'decision' ? `决策 ${p?.decision || ''}`.trim() :
                 evType === 'await' ? '等待子任务' :
@@ -484,11 +607,10 @@ export const useSessionStore = create<SessionState & SessionActions>()(
           }
         }
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
+        if ((err as Error).name !== 'AbortError' && !signal?.aborted) {
           get().updateLastAssistant(sessionId, `\n\n[错误: ${(err as Error).message}]`)
-        } else {
-          get().updateLastAssistant(sessionId, '\n\n[已停止]')
         }
+        // Abort = observer closed only; cancelTurn owns 「已停止」 after server confirm.
       } finally {
         // Hydrate usage from server ledger when stream omitted it (never invent 0).
         const sess = get().sessions.find((s) => s.id === sessionId)

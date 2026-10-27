@@ -11,6 +11,8 @@ import:
   time: lib/time.mq.md
   text: lib/text.mq.md
   sys: lib/sys.mq.md
+  fs: lib/fs.mq.md
+  net: lib/net.mq.md
 ---
 
 ## create
@@ -89,9 +91,9 @@ import:
     **model_snapshot = "{\"mode\":\"manual\",\"model_id\":\"" + `model_id` + "\"}"**
 `ins` =
 
-| id | session_id | workspace_id | owner_id | request_id | payload_hash | state | model_id | model_snapshot | cancel_requested | usage_state | error | last_event_seq | revision | created_at | updated_at |
-|----|------------|--------------|----------|------------|--------------|-------|----------|----------------|------------------|-------------|-------|----------------|----------|------------|------------|
-| `tid` | `session_id` | `workspace_id` | local | `request_id` | `payload_hash` | accepted | `model_id` | `model_snapshot` | 0 | unknown |  | 0 | 1 | `u` | `u` |
+| id | session_id | workspace_id | owner_id | request_id | payload_hash | state | model_id | model_snapshot | cancel_requested | usage_state | error | last_event_seq | result_ref | recovery_action | runtime_task_id | runtime_cancel_token | revision | created_at | updated_at |
+|----|------------|--------------|----------|------------|--------------|-------|----------|----------------|------------------|-------------|-------|----------------|------------|-----------------|-----------------|----------------------|----------|------------|------------|
+| `tid` | `session_id` | `workspace_id` | local | `request_id` | `payload_hash` | accepted | `model_id` | `model_snapshot` | 0 | unknown |  | 0 |  |  |  |  | 1 | `u` | `u` |
 
 > `store`.insert table=turn_state rows=`ins`
 `ret` =
@@ -143,9 +145,11 @@ import:
 ## cancel
     + `turn_id`=""
     + `request_id`=""
+    + `expected_revision`=0
     + `payload`=None
 
-Idempotent cancel request. Runtime cooperates by checking cancel_requested.
+CAS cancel → cancelling, then bridge `/_runtime/tasks/{id}/cancel` (and cancel-token file).
+Unknown turn → 404. Terminal → already_terminal (ok).
 
 1. `payload`
   **pt = > json.get value=`payload` key="turn_id"**
@@ -154,6 +158,9 @@ Idempotent cancel request. Runtime cooperates by checking cancel_requested.
   **pr = > json.get value=`payload` key="request_id"**
   1. `pr`
     **request_id = `pr`**
+  **er = > json.get value=`payload` key="expected_revision"**
+  1. `er`
+    **expected_revision = `er`**
 
 **store = > db.open**
 **u = > time.now_unix**
@@ -185,12 +192,22 @@ Idempotent cancel request. Runtime cooperates by checking cancel_requested.
   *nf*
 
 **st = [state](access(cur, "state"))**
+**crev = [revision](access(cur, "revision"))**
+1. `expected_revision`
+  1. not `crev` == `expected_revision`
+    `cas` =
+
+    | ok | error | code | revision |
+    |----|-------|------|----------|
+    | False | revision mismatch | revision.conflict | `crev` |
+
+    *cas*
 1. `st` == "completed"
   `done` =
 
   | ok | turn_id | state | cancel_requested | note |
   |----|---------|-------|------------------|------|
-  | True | `turn_id` | `st` | False | already finished |
+  | True | `turn_id` | `st` | False | already_terminal |
 
   *done*
 2. `st` == "cancelled"
@@ -198,24 +215,91 @@ Idempotent cancel request. Runtime cooperates by checking cancel_requested.
 
   | ok | turn_id | state | cancel_requested | note |
   |----|---------|-------|------------------|------|
-  | True | `turn_id` | cancelled | True | already cancelled |
+  | True | `turn_id` | cancelled | True | already_terminal |
 
   *alr*
+3. `st` == "interrupted"
+  `intr` =
 
+  | ok | turn_id | state | cancel_requested | note |
+  |----|---------|-------|------------------|------|
+  | True | `turn_id` | interrupted | False | already_terminal |
+
+  *intr*
+4. `st` == "cancelling"
+  > bridge_runtime_cancel turn=`cur`
+  `prog` =
+
+  | ok | turn_id | state | cancel_requested | note |
+  |----|---------|-------|------------------|------|
+  | True | `turn_id` | cancelling | True | cancel_in_progress |
+
+  *prog*
+
+**nrev = `crev` + 1**
 `patch` =
 
-| state | cancel_requested | updated_at |
-|-------|------------------|------------|
-| cancelling | 1 | `u` |
+| state | cancel_requested | revision | updated_at |
+|-------|------------------|----------|------------|
+| cancelling | 1 | `nrev` | `u` |
 
 > `store`.update table="turn_state" id=`turn_id` row=`patch`
+**cur2 = > `store`.get table="turn_state" id=`turn_id`**
+> bridge_runtime_cancel turn=`cur2`
 `ret` =
 
-| ok | turn_id | state | cancel_requested |
-|----|---------|-------|------------------|
-| True | `turn_id` | cancelling | True |
+| ok | turn_id | state | cancel_requested | revision |
+|----|---------|-------|------------------|----------|
+| True | `turn_id` | cancelling | True | `nrev` |
 
 *ret*
+
+## bridge_runtime_cancel
+    + `turn`=None
+
+Write cancel-token file (if known) and POST `/_runtime/tasks/{runtime_task_id}/cancel`.
+
+1. not `turn`
+  *False*
+**tok = > json.get value=`turn` key="runtime_cancel_token"**
+1. `tok`
+  > fs.write path=`tok` text="cancelled"
+**tid = > json.get value=`turn` key="runtime_task_id"**
+1. `tid`
+  **port_s = > sys.env_get name="QDAGENT_PORT"**
+  1. not `port_s`
+    **port_s = "7431"**
+  **url = "http://127.0.0.1:" + `port_s` + "/_runtime/tasks/" + `tid` + "/cancel"**
+  **_ = > net.http_post url=`url` body="{}" content_type="application/json"**
+*True*
+
+## bind_runtime
+    + `turn_id`=""
+    + `payload`=None
+
+Capture worker `MARQDO_TASK_ID` / `MARQDO_CANCEL_TOKEN` onto the turn for cancel bridge.
+
+1. `payload`
+  **pt = > json.get value=`payload` key="turn_id"**
+  1. `pt`
+    **turn_id = `pt`**
+1. not `turn_id`
+  *False*
+**task = > sys.env_get name="MARQDO_TASK_ID"**
+**tok = > sys.env_get name="MARQDO_CANCEL_TOKEN"**
+1. not `task`
+  1. not `tok`
+    *False*
+**store = > db.open**
+**u = > time.now_unix**
+`patch` =
+
+| runtime_task_id | runtime_cancel_token | state | updated_at |
+|-----------------|----------------------|-------|------------|
+| `task` | `tok` | running | `u` |
+
+> `store`.update table="turn_state" id=`turn_id` row=`patch`
+*True*
 
 ## is_cancelled
     + `turn_id`
@@ -269,7 +353,253 @@ Terminal write with optional expected_revision CAS. Never regress completed/canc
 | `state` | `usage_state` | `error` | `cancel_flag` | `nrev` | `u` |
 
 > `store`.update table="turn_state" id=`turn_id` row=`patch`
+1. `state` == "completed"
+  > append_event turn_id=`turn_id` type="turn.completed" payload=None
+2. `state` == "cancelled"
+  > append_event turn_id=`turn_id` type="turn.cancelled" payload=None
+3. `state` == "failed"
+  > append_event turn_id=`turn_id` type="turn.failed" payload=None
+4. `state` == "interrupted"
+  > append_event turn_id=`turn_id` type="turn.interrupted" payload=None
 *True*
+
+## append_event
+    + `turn_id`=""
+    + `type`="message.delta"
+    + `payload`=None
+    + `event`=None
+    + `publish`=True
+
+Persist then optionally `sys.stream_publish`. Updates `last_event_seq`. Terminal types also set `result_ref`.
+
+1. `event`
+  **etype = > json.get value=`event` key="type"**
+  1. `etype`
+    **type = `etype`**
+  **etid = > json.get value=`event` key="turn_id"**
+  1. `etid`
+    1. not `turn_id`
+      **turn_id = `etid`**
+  **ep = > json.get value=`event` key="payload"**
+  1. `ep`
+    1. not `payload`
+      **payload = `ep`**
+1. not `turn_id`
+  `need` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | turn_id required | resource.not_found |
+
+  *need*
+
+**store = > db.open**
+**cur = > `store`.get table="turn_state" id=`turn_id`**
+1. not `cur`
+  `nf` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | turn not found | resource.not_found |
+
+  *nf*
+
+**prev = > json.get value=`cur` key="last_event_seq"**
+1. not `prev`
+  **prev = 0**
+**seq = `prev` + 1**
+**u = > time.now_unix**
+**eid = "evt-" + `turn_id` + "-" + `seq`**
+**sid = > json.get value=`cur` key="session_id"**
+**wid = > json.get value=`cur` key="workspace_id"**
+1. not `sid`
+  **sid = ""**
+1. not `wid`
+  **wid = "ws-default"**
+**body_map = > table.empty_map**
+1. `event`
+  **body_map = `event`**
+2. *
+  **pl = `payload`**
+  1. not `pl`
+    **pl = > table.empty_map**
+  **body_map = > table.put in=`body_map` at="schema_version" value=1**
+  **body_map = > table.put in=`body_map` at="event_id" value=`eid`**
+  **body_map = > table.put in=`body_map` at="seq" value=`seq`**
+  **body_map = > table.put in=`body_map` at="type" value=`type`**
+  **body_map = > table.put in=`body_map` at="turn_id" value=`turn_id`**
+  **body_map = > table.put in=`body_map` at="session_id" value=`sid`**
+  **body_map = > table.put in=`body_map` at="workspace_id" value=`wid`**
+  **body_map = > table.put in=`body_map` at="created_at" value=`u`**
+  **body_map = > table.put in=`body_map` at="payload" value=`pl`**
+**body_map = > table.put in=`body_map` at="event_id" value=`eid`**
+**body_map = > table.put in=`body_map` at="seq" value=`seq`**
+**body_s = > json.stringify value=`body_map`**
+**row_id = `turn_id` + ":" + `seq`**
+`ins` =
+
+| id | turn_id | seq | event_id | type | body | created_at |
+|----|---------|-----|----------|------|------|------------|
+| `row_id` | `turn_id` | `seq` | `eid` | `type` | `body_s` | `u` |
+
+> `store`.insert table=turn_events rows=`ins`
+`seq_patch` =
+
+| last_event_seq | updated_at |
+|----------------|------------|
+| `seq` | `u` |
+
+> `store`.update table="turn_state" id=`turn_id` row=`seq_patch`
+1. `type` == "turn.completed"
+  `rf` =
+
+  | result_ref | updated_at |
+  |------------|------------|
+  | `eid` | `u` |
+
+  > `store`.update table="turn_state" id=`turn_id` row=`rf`
+2. `type` == "turn.failed"
+  `rf2` =
+
+  | result_ref | updated_at |
+  |------------|------------|
+  | `eid` | `u` |
+
+  > `store`.update table="turn_state" id=`turn_id` row=`rf2`
+3. `type` == "turn.cancelled"
+  `rf3` =
+
+  | result_ref | updated_at |
+  |------------|------------|
+  | `eid` | `u` |
+
+  > `store`.update table="turn_state" id=`turn_id` row=`rf3`
+4. `type` == "turn.interrupted"
+  `rf4` =
+
+  | result_ref | recovery_action | updated_at |
+  |------------|-----------------|------------|
+  | `eid` | resume_events | `u` |
+
+  > `store`.update table="turn_state" id=`turn_id` row=`rf4`
+1. `publish`
+  > sys.stream_publish event=`body_map`
+`ret` =
+
+| ok | turn_id | seq | event_id | event |
+|----|---------|-----|----------|-------|
+| True | `turn_id` | `seq` | `eid` | `body_map` |
+
+*ret*
+
+## events
+    + `turn_id`=""
+    + `after_seq`=0
+    + `last_event_id`=""
+    + `payload`=None
+    + `stream`=True
+
+Replay persisted events after `after_seq` / Last-Event-ID. Live-tail until terminal (control lane).
+
+1. `payload`
+  **pt = > json.get value=`payload` key="turn_id"**
+  1. `pt`
+    **turn_id = `pt`**
+  **pa = > json.get value=`payload` key="after_seq"**
+  1. `pa`
+    **after_seq = `pa`**
+  **pl = > json.get value=`payload` key="last_event_id"**
+  1. `pl`
+    **last_event_id = `pl`**
+1. `last_event_id`
+  **parts = > split value=`last_event_id` sep="-"**
+  **n = > len value=`parts`**
+  1. `n` > 0
+    **tail = [last](access(parts, n))**
+    1. `tail`
+      **after_seq = `tail`**
+1. not `turn_id`
+  `need` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | turn_id required | resource.not_found |
+
+  *need*
+
+**store = > db.open**
+**cur = > `store`.get table="turn_state" id=`turn_id`**
+1. not `cur`
+  `nf` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | turn not found | resource.not_found |
+
+  *nf*
+
+**cursor = `after_seq`**
+1. not `cursor`
+  **cursor = 0**
+**remain = 1**
+1. `stream`
+  **remain = 120**
+**sse = ""**
+**terminal = False**
+- `remain` > 0
+  **emitted = 0**
+  **rows = > `store`.select table="turn_events" limit=500 order="seq"**
+  1. `rows`
+    - [r](遍历 rows 为 r)
+      **rid = > json.get value=`r` key="turn_id"**
+      1. `rid` == `turn_id`
+        **rseq = > json.get value=`r` key="seq"**
+        1. `rseq` > `cursor`
+          **body = > json.get value=`r` key="body"**
+          **etype = > json.get value=`r` key="type"**
+          **eid = > json.get value=`r` key="event_id"**
+          1. `body`
+            **sse = `sse` + "id: " + `eid` + "\nevent: " + `etype` + "\ndata: " + `body` + "\n\n"**
+            **emitted = `emitted` + 1**
+            1. `stream`
+              **ev = > json.parse text=`body`**
+              1. `ev`
+                > sys.stream_publish event=`ev`
+          **cursor = `rseq`**
+          1. `etype` == "turn.completed"
+            **terminal = True**
+          2. `etype` == "turn.failed"
+            **terminal = True**
+          3. `etype` == "turn.cancelled"
+            **terminal = True**
+          4. `etype` == "turn.interrupted"
+            **terminal = True**
+  **trow = > `store`.get table="turn_state" id=`turn_id`**
+  **tst = > json.get value=`trow` key="state"**
+  1. `tst` == "completed"
+    **terminal = True**
+  2. `tst` == "cancelled"
+    **terminal = True**
+  3. `tst` == "failed"
+    **terminal = True**
+  4. `tst` == "interrupted"
+    **terminal = True**
+  1. `terminal`
+    **remain = 0**
+  2. not `stream`
+    **remain = 0**
+  3. *
+    > time.sleep_ms ms=250
+    **remain = `remain` - 1**
+1. `terminal`
+  **sse = `sse` + "data: [DONE]\n\n"**
+`ret` =
+
+| ok | sse | turn_id | last_seq | terminal | streaming_contract |
+|----|-----|---------|----------|----------|--------------------|
+| True | `sse` | `turn_id` | `cursor` | `terminal` | "turn_events replay; Last-Event-ID / after_seq" |
+
+*ret*
 
 ## sse_events
     + `turn_id`=""

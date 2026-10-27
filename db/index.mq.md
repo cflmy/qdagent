@@ -16,6 +16,7 @@ import:
   profile_items: profile_items.mq.md
   import_jobs: import_jobs.mq.md
   turn_state: turn_state.mq.md
+  turn_events: turn_events.mq.md
   run: ../lib/run.mq.md
   time: lib/time.mq.md
   table: lib/table.mq.md
@@ -59,6 +60,27 @@ Does not sync run bodies to disk (use `sync_runs`).
 > `store`.init name=import_jobs fields=`ij_fields`
 **ts_fields = > turn_state.schema**
 > `store`.init name=turn_state fields=`ts_fields`
+**te_fields = > turn_events.schema**
+> `store`.init name=turn_events fields=`te_fields`
+
+Q-R1 columns may already exist from `init` (full schema). SQLite has no
+`ADD COLUMN IF NOT EXISTS`, so ensure via PRAGMA then record versions with no-op SQL.
+
+> ensure_column store=`store` table="turn_state" column="owner_id" decl="TEXT"
+> ensure_column store=`store` table="turn_state" column="payload_hash" decl="TEXT"
+> ensure_column store=`store` table="turn_state" column="last_event_seq" decl="INTEGER"
+> ensure_column store=`store` table="turn_state" column="result_ref" decl="TEXT"
+> ensure_column store=`store` table="turn_state" column="recovery_action" decl="TEXT"
+> ensure_column store=`store` table="turn_state" column="runtime_task_id" decl="TEXT"
+> ensure_column store=`store` table="turn_state" column="runtime_cancel_token" decl="TEXT"
+> ensure_column store=`store` table="import_jobs" column="original_digest" decl="TEXT"
+> ensure_column store=`store` table="import_jobs" column="extracted_text_digest" decl="TEXT"
+> ensure_column store=`store` table="import_jobs" column="extractor_version" decl="TEXT"
+> ensure_column store=`store` table="import_jobs" column="candidate_digest" decl="TEXT"
+> ensure_column store=`store` table="import_jobs" column="publication_manifest" decl="TEXT"
+> ensure_column store=`store` table="import_jobs" column="publication_generation" decl="TEXT"
+> ensure_column store=`store` table="import_jobs" column="payload_hash" decl="TEXT"
+> ensure_column store=`store` table="import_jobs" column="stage_revision" decl="INTEGER"
 
 `migrate_steps` =
 
@@ -73,19 +95,20 @@ Does not sync run bodies to disk (use `sync_runs`).
 | 7 | CREATE INDEX IF NOT EXISTS idx_turn_state_workspace_state ON turn_state(workspace_id, state, updated_at) |
 | 8 | CREATE INDEX IF NOT EXISTS idx_import_jobs_workspace_status ON import_jobs(workspace_id, status, updated_at) |
 | 9 | CREATE INDEX IF NOT EXISTS idx_model_calls_revision ON model_calls(call_id, attempt_id, revision) |
-| 10 | ALTER TABLE turn_state ADD COLUMN owner_id TEXT |
-| 11 | ALTER TABLE turn_state ADD COLUMN payload_hash TEXT |
-| 12 | ALTER TABLE turn_state ADD COLUMN last_event_seq INTEGER |
-| 13 | ALTER TABLE turn_state ADD COLUMN result_ref TEXT |
-| 14 | ALTER TABLE turn_state ADD COLUMN recovery_action TEXT |
-| 15 | ALTER TABLE import_jobs ADD COLUMN original_digest TEXT |
-| 16 | ALTER TABLE import_jobs ADD COLUMN extracted_text_digest TEXT |
-| 17 | ALTER TABLE import_jobs ADD COLUMN extractor_version TEXT |
-| 18 | ALTER TABLE import_jobs ADD COLUMN candidate_digest TEXT |
-| 19 | ALTER TABLE import_jobs ADD COLUMN publication_manifest TEXT |
-| 20 | ALTER TABLE import_jobs ADD COLUMN publication_generation TEXT |
-| 21 | ALTER TABLE import_jobs ADD COLUMN payload_hash TEXT |
-| 22 | ALTER TABLE import_jobs ADD COLUMN stage_revision INTEGER |
+| 10 | CREATE UNIQUE INDEX IF NOT EXISTS idx_turn_events_turn_seq ON turn_events(turn_id, seq) |
+| 11 | CREATE UNIQUE INDEX IF NOT EXISTS idx_turn_events_event_id ON turn_events(event_id) |
+| 12 | CREATE INDEX IF NOT EXISTS idx_turn_events_turn_created ON turn_events(turn_id, created_at) |
+| 13 | SELECT 1 |
+| 14 | SELECT 1 |
+| 15 | SELECT 1 |
+| 16 | SELECT 1 |
+| 17 | SELECT 1 |
+| 18 | SELECT 1 |
+| 19 | SELECT 1 |
+| 20 | SELECT 1 |
+| 21 | SELECT 1 |
+| 22 | SELECT 1 |
+| 23 | SELECT 1 |
 
 > `store`.migrate steps=`migrate_steps`
 
@@ -116,6 +139,30 @@ Never calls run.同步库 on the hot path (Q-R1 / R10).
   *store*
 **store = > connect**
 *store*
+
+## ensure_column
+    + `store`
+    + `table`
+    + `column`
+    + `decl`="TEXT"
+
+Idempotent ADD COLUMN for SQLite (no IF NOT EXISTS). No-op when column exists.
+
+**sql = "PRAGMA table_info(" + `table` + ")"**
+**info = > `store`.query sql=`sql`**
+**rows = > json.get value=`info` key="rows"**
+1. not `rows`
+  **rows = `info`**
+**found = False**
+- [r](遍历 rows 为 r)
+  **n = > json.get value=`r` key="name"**
+  1. `n` == `column`
+    **found = True**
+1. `found`
+  *True*
+**alter = "ALTER TABLE " + `table` + " ADD COLUMN " + `column` + " " + `decl`**
+> `store`.exec sql=`alter`
+*True*
 
 ## sync_runs
     + `store`=None

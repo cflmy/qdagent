@@ -170,7 +170,11 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
 1. not `message`
   **message = ""**
 
-**gate = > precheck message=`message` root=`root` out=`out` with_preflight=True**
+Denylist-only gate here. Product Preflight (`pf.run` / knowledge preflight) runs
+once inside `qd.run` → `ask`/`build`/`learn`. Duplicating it here added ~8s of
+silent lag before the first SSE event (Context Pack from this call was unused).
+
+**gate = > precheck message=`message` root=`root` out=`out` with_preflight=False**
 **gd = > json.get value=`gate` key="decision"**
 1. `gd` == "deny"
   **reason = > json.get value=`gate` key="reason"**
@@ -195,13 +199,55 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
   1. `model_id`
     **selection = > json.parse text="{\"mode\":\"manual\",\"model_id\":\"" + `model_id` + "\"}"**
 
+**subscribe_only = False**
+1. `turn_id`
+  **existing = > turns.get turn_id=`turn_id`**
+  **eok = > json.get value=`existing` key="ok"**
+  1. `eok`
+    **eturn = > json.get value=`existing` key="turn"**
+    **est = > json.get value=`eturn` key="state"**
+    1. not `est` == "completed"
+      1. not `est` == "cancelled"
+        1. not `est` == "failed"
+          1. not `est` == "interrupted"
+            **subscribe_only = True**
 1. not `turn_id`
   **created = > turns.create session_id=`session_id` workspace_id=`workspace_id` model_id=`model_id` payload=`payload`**
+  **cok = > json.get value=`created` key="ok"**
+  1. not `cok`
+    **ccode = > json.get value=`created` key="code"**
+    1. `ccode` == "request_id.conflict"
+      `conflict` =
+
+      | ok | content | run_id | decision | mode | error | code | turn_id | model |
+      |----|---------|--------|----------|------|-------|------|---------|-------|
+      | False | same request_id different payload |  | deny | `mode` | request_id.conflict | request_id.conflict |  |  |
+
+      *conflict*
   **turn_id = > json.get value=`created` key="turn_id"**
   1. not `turn_id`
     **turn_id = > json.get value=`created` key="id"**
   2. *
     **_ = 1**
+  **reused = > json.get value=`created` key="reused"**
+  1. `reused`
+    **rst = > json.get value=`created` key="state"**
+    1. not `rst` == "completed"
+      1. not `rst` == "cancelled"
+        1. not `rst` == "failed"
+          **subscribe_only = True**
+
+1. `subscribe_only`
+  Resume / second observer: do not re-run the model; replay turn_events.
+  **ev = > turns.events turn_id=`turn_id` after_seq=0 stream=True**
+  **events_url = "/api/app/turns/" + `turn_id` + "/events"**
+  `resume_ret` =
+
+  | ok | content | run_id | decision | mode | status | error | context_path | session_id | turn_id | model | events_url | raw | subscribe_only |
+  |----|---------|--------|----------|------|--------|-------|--------------|------------|---------|-------|------------|-----|----------------|
+  | True |  |  | resume | `mode` | running |  |  | `session_id` | `turn_id` |  | `events_url` | `ev` | True |
+
+  *resume_ret*
 
 **agent_out = > qd.run task=`message` mode=`mode` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` messages=`messages` stream=`stream`**
 **ao_s = > json.stringify value=`agent_out`**

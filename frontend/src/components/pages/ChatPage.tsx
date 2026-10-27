@@ -30,7 +30,7 @@ export function ChatPage() {
   const {
     sessions, currentId, isStreaming,
     createSession, setSessionModel,
-    addMessage, streamChat, cancelTurn, loadFromStorage,
+    addMessage, streamChat, cancelTurn, resumeTurn, loadFromStorage,
   } = useSessionStore()
   const rightbar = useRightbar()
 
@@ -43,7 +43,20 @@ export function ChatPage() {
   const currentSession = sessions.find((s) => s.id === currentId)
   const streaming = isStreaming(currentId)
 
-  useEffect(() => { loadFromStorage() }, [loadFromStorage])
+  useEffect(() => {
+    loadFromStorage()
+  }, [loadFromStorage])
+
+  // On load / session focus: resume non-terminal turn (events only).
+  useEffect(() => {
+    if (!currentId) return
+    const ctrl = new AbortController()
+    void resumeTurn(currentId, ctrl.signal)
+    return () => {
+      // Unmount/切页：只关观察者，不 cancel 任务。
+      ctrl.abort()
+    }
+  }, [currentId, resumeTurn])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

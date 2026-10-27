@@ -23,6 +23,8 @@ markup: occlusion
 | last_event_seq | integer | true |
 | result_ref | text | true |
 | recovery_action | text | true |
+| runtime_task_id | text | true |
+| runtime_cancel_token | text | true |
 | revision | integer | false |
 | created_at | text | true |
 | updated_at | text | true |

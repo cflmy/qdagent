@@ -535,6 +535,21 @@ matching `user-你好` when the user later asks 「你叫什么名字」).
 2. *
   **_ = 1**
 
+Publish progress before the (single) product Preflight so SSE is not silent for
+the full knowledge-preflight wall time.
+
+1. `turn_id`
+  > turns.bind_runtime turn_id=`turn_id`
+1. `stream`
+  1. `turn_id`
+    **tev0 = > json.parse text="{\"schema_version\":1,\"type\":\"turn.started\",\"turn_id\":\"" + `turn_id` + "\",\"session_id\":\"" + `session_id` + "\",\"payload\":{}}"**
+    > turns.append_event turn_id=`turn_id` type="turn.started" event=`tev0`
+  **pev = > json.parse text="{\"schema_version\":1,\"type\":\"message.delta\",\"turn_id\":\"" + `turn_id` + "\",\"payload\":{\"type\":\"preflight\",\"summary\":\"工程预检\"}}"**
+  1. `turn_id`
+    > turns.append_event turn_id=`turn_id` type="message.delta" event=`pev`
+  2. *
+    > sys.stream_publish event=`pev`
+
 **pack = > pf.run task=`task` root=`root` out=`out`**
 **ok = > json.get value=`pack` key="ok"**
 1. not `ok`
@@ -574,13 +589,13 @@ matching `user-你好` when the user later asks 「你叫什么名字」).
     **_ = 1**
   **助手 = > make_agent standing=`standing` model_id=`model_id` selection=`selection` snap=`snap`**
   1. `stream`
-    1. `turn_id`
-      **tev = > json.parse text="{\"schema_version\":1,\"type\":\"turn.started\",\"turn_id\":\"" + `turn_id` + "\",\"session_id\":\"" + `session_id` + "\",\"payload\":{}}"**
-      > sys.stream_publish event=`tev`
     **pub = > registry.public_snapshot snap=`snap`**
     1. `pub`
       **mev = > table.put in=`pub` at="type" value="model.resolved"**
-      > sys.stream_publish event=`mev`
+      1. `turn_id`
+        > turns.append_event turn_id=`turn_id` type="model.resolved" event=`mev`
+      2. *
+        > sys.stream_publish event=`mev`
   **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=False reuse=True router="marqdo" max_rounds=3 sandbox=False stream=`stream`**
   **status = ""**
   **raw = ""**
