@@ -26,6 +26,7 @@ import:
   agent: ext/ai/agent.mq.md
   llm: ext/ai/llm.mq.md
   plugin: lib/plugin.mq.md
+  catalog: tools/catalog.mq.md
   db: ../db/index.mq.md
   registry: ../lib/registry.mq.md
   usage: ../execution/usage.mq.md
@@ -150,15 +151,18 @@ Never treat discovery_only scores as success.
 
 Whitelist list for Marqdo agent CALL: (same-file ## tools). Must be a real list,
 not a columnar GFM table (agent.run iterates tool names).
-Q-A4: same ids are ToolSpec aliases — see `agent/tools/catalog.mq.md` (`register_defaults`).
+Q-A4: ToolSpec aliases via `catalog.register_defaults` (eng five + `note_read`).
 
-**t = > table.empty_list**
-**t = > table.append list=`t` item="tool_find"**
-**t = > table.append list=`t` item="tool_reuse"**
-**t = > table.append list=`t` item="tool_bind"**
-**t = > table.append list=`t` item="tool_verify"**
-**t = > table.append list=`t` item="tool_summarize"**
-*t*
+*> catalog.eng_tools_alias*
+
+## note_read
+    + `path`
+    + `root`="data"
+    + `max_chars`=32000
+
+Product note reader (CALL:note_read) — same-file entry for agent.run / run_tool.
+
+*> catalog.note_read path=`path` root=`root` max_chars=`max_chars`*
 
 ## ensure_llm
     + `model_id`=""
@@ -241,6 +245,7 @@ This is transport bridging for child runs, not request-level selection.
 1. `key`
   > sys.env_set name="OPENAI_API_KEY" value=`key`
   > sys.env_set name="MARQDO_LLM_API_KEY" value=`key`
+**_reg = > catalog.register_defaults**
 *> agent.agent model=`model` tools=`tools` standing=`standing`*
 
 ## latch_efi
