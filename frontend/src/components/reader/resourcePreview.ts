@@ -18,11 +18,16 @@ export type PreviewView = {
   /** Workspace-relative path / resource_id for resources/read continuation. */
   resourceId?: string
   digest?: string
+  mediaType?: string
+  byteLength?: number
+  title?: string
   /** Plain source for JsonPreview / CodePreview (alongside sanitized fragment). */
   sourceText?: string
   /** Client visual preview (PDF.js / ImagePreview); extract/OCR stay independent. */
   blobRef?: BlobRefPayload
   visualPreview?: 'client' | false | string
+  /** Office: conversion plugin missing — show honest card, never spin. */
+  conversionUnavailable?: boolean
   focusLocator?: { page?: number; line?: number; [k: string]: unknown }
 }
 
@@ -74,13 +79,22 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
     title?: string
     resource_id?: string
     digest?: string
+    media_type?: string
+    size?: number
+    path?: string
+    source_ref?: string
   } | undefined
   const format = String(render?.format || data.format || '').toLowerCase()
   const kind = String(resource?.kind || caps.kind || '')
   const schema = String(data.schema || '')
-  const resourceId = resource?.resource_id
+  const resourceId = resource?.resource_id || resource?.path || resource?.source_ref
   const digest = resource?.digest
   const sourceText = typeof render?.text === 'string' ? render.text : undefined
+  const diagnostics = (data.diagnostics as unknown[]) || []
+  const conversionUnavailable = diagnostics.some((d) => {
+    const code = typeof d === 'object' && d && 'code' in d ? String((d as { code?: string }).code) : ''
+    return code === 'conversion.unavailable'
+  }) || caps.conversion === false
   const focusFromData = data.focus_locator && typeof data.focus_locator === 'object'
     ? data.focus_locator as { page?: number; line?: number; [k: string]: unknown }
     : undefined
@@ -146,15 +160,19 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
   return {
     ok: true,
     view: {
-      fragmentHtml,
+      fragmentHtml: conversionUnavailable ? '' : fragmentHtml,
       outline: (data.outline as unknown[]) || [],
-      diagnostics: (data.diagnostics as unknown[]) || [],
+      diagnostics,
       completeness: String(data.completeness || ''),
       kind: kind || undefined,
       schema: schema || undefined,
       resourceId,
       digest,
+      mediaType: resource?.media_type,
+      byteLength: typeof resource?.size === 'number' ? resource.size : undefined,
+      title: resource?.title,
       sourceText,
+      conversionUnavailable: conversionUnavailable || undefined,
       focusLocator: focusLine != null
         ? { ...(focusFromData || {}), line: focusLine }
         : focusFromData,

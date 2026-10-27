@@ -147,4 +147,33 @@ describe('applyResourceOrDocumentView', () => {
     if (!r.ok) return
     expect(r.view.focusLocator?.page).toBe(4)
   })
+
+  it('marks office conversion.unavailable without claiming preview', () => {
+    const r = applyResourceOrDocumentView({
+      data: {
+        schema: 'ResourceViewV1',
+        resource: {
+          kind: 'docx',
+          resource_id: 'memo.docx',
+          title: 'memo.docx',
+          media_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          size: 12,
+        },
+        capabilities: { kind: 'docx', conversion: false, extract: false },
+        diagnostics: [
+          { code: 'conversion.unavailable', message: 'office conversion plugin not installed' },
+        ],
+        render: {
+          format: 'sanitized_html',
+          fragment: '<pre>should not be used as fake preview</pre>',
+        },
+      },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.view.conversionUnavailable).toBe(true)
+    expect(r.view.kind).toBe('docx')
+    expect(r.view.fragmentHtml).toBe('')
+    expect(r.view.resourceId).toBe('memo.docx')
+  })
 })

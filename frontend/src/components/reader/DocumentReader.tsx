@@ -14,6 +14,7 @@ import { ImagePreview } from './ImagePreview'
 import { JsonPreview, type OutlineNode } from './JsonPreview'
 import { CodePreview } from './CodePreview'
 import { TablePreview } from './TablePreview'
+import { OfficePreview } from './OfficePreview'
 
 type BlobState = {
   kind: 'pdf' | 'image'
@@ -43,6 +44,17 @@ type StructuredState =
       title?: string
       selectedRange?: { line: number; line_end?: number } | null
     }
+  | {
+      kind: 'office'
+      title?: string
+      officeKind?: string
+      mediaType?: string
+      size?: number
+      diagnostics?: unknown[]
+      path?: string
+      digest?: string
+      workspaceId?: string
+    }
 
 /** Read-only DocumentView / ResourceView embed. Never triggers execution. */
 export function DocumentReader() {
@@ -54,6 +66,7 @@ export function DocumentReader() {
   const [blob, setBlob] = useState<BlobState | null>(null)
   const [structured, setStructured] = useState<StructuredState | null>(null)
   const [csvRange, setCsvRange] = useState<{ line: number; line_end?: number } | null>(null)
+  const [officeDownloading, setOfficeDownloading] = useState(false)
   const [pinning, setPinning] = useState(false)
   const [pinMsg, setPinMsg] = useState('')
   const pin = useContextAttachmentStore((s) => s.pin)
@@ -443,6 +456,54 @@ export function DocumentReader() {
             onRangeChange={setCsvRange}
           />
         )}
+        {!loading && !error && !blob && structured?.kind === 'office' && (
+          <OfficePreview
+            title={structured.title || title}
+            kind={structured.officeKind}
+            mediaType={structured.mediaType}
+            size={structured.size}
+            diagnostics={structured.diagnostics}
+            downloading={officeDownloading}
+            onDownload={
+              structured.path && structured.workspaceId
+                ? async () => {
+                    setOfficeDownloading(true)
+                    try {
+                      const res = await api.appResourcesBlob({
+                        workspace_id: structured.workspaceId,
+                        path: structured.path!,
+                        digest: structured.digest,
+                      })
+                      const envelope = res as {
+                        ok?: boolean
+                        data?: Record<string, unknown>
+                        error?: { message?: string }
+                      }
+                      if (envelope.ok === false) {
+                        throw new Error(envelope.error?.message || '下载失败')
+                      }
+                      const data = (envelope.data ?? res) as Record<string, unknown>
+                      const b64 = String(data.content_base64 || '')
+                      if (!b64) throw new Error('blob 缺少 content_base64')
+                      const bytes = decodeBase64ToBytes(b64)
+                      const media = String(data.media_type || structured.mediaType || 'application/octet-stream')
+                      const blobObj = new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)], { type: media })
+                      const url = URL.createObjectURL(blobObj)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = structured.title || structured.path!.split('/').pop() || 'document'
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    } catch (e) {
+                      setPinMsg(e instanceof Error ? e.message : String(e))
+                    } finally {
+                      setOfficeDownloading(false)
+                    }
+                  }
+                : undefined
+            }
+          />
+        )}
         {!loading && !error && !blob && !structured && fragmentHtml && (
           <div
             className="mq-document mq-resource-preview prose prose-sm max-w-none"
@@ -515,6 +576,26 @@ async function settlePreview(opts: {
       truncated: preview.completeness === 'partial',
       diagnostics: preview.diagnostics,
       title: preview.resourceId,
+    })
+    opts.setLoading(false)
+    return
+  }
+  if (
+    preview.conversionUnavailable
+    || preview.kind === 'docx'
+    || preview.kind === 'xlsx'
+    || preview.kind === 'pptx'
+  ) {
+    opts.setStructured({
+      kind: 'office',
+      title: preview.title || preview.resourceId,
+      officeKind: preview.kind,
+      mediaType: preview.mediaType,
+      size: preview.byteLength,
+      diagnostics: preview.diagnostics,
+      path: preview.resourceId,
+      digest: preview.digest,
+      workspaceId: opts.workspaceId,
     })
     opts.setLoading(false)
     return
