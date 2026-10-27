@@ -2,8 +2,8 @@
 markup: occlusion
 title: agent/tools/catalog
 description: >-
-  Q-A4 tool catalog — register ToolSpecV1 for eng tools and product read tools;
-  eng_tools remain CALL aliases (tool_find … tool_summarize).
+  Q-A4/Q-A5 tool catalog — register ToolSpecV1 for eng tools and product
+  read/network tools; eng_tools remain CALL aliases (tool_find … tool_summarize).
 import:
   agent: ext/ai/agent.mq.md
   plugin: lib/plugin.mq.md
@@ -11,6 +11,8 @@ import:
   json: lib/json.mq.md
   note_read: note_read.mq.md
   file_read: file_read.mq.md
+  web_search: web_search.mq.md
+  web_fetch: web_fetch.mq.md
 ---
 
 ## ensure_plugin
@@ -25,14 +27,17 @@ import:
 ## register_defaults
 
 Seed Marqdo ToolSpec registry with the five engineering tools plus product
-read tools (`note_read`, `file_read`). CALL names stay `tool_find` /
+read/network tools. CALL names stay `tool_find` /
 `tool_reuse` / `tool_bind` / `tool_verify` / `tool_summarize`.
 
 > ensure_plugin
 **eng = > agent.tools_register_eng_defaults**
 **schema = > json.parse text={"type":"object","properties":{"path":{"type":"string"},"root":{"type":"string"},"max_chars":{"type":"integer","minimum":1,"maximum":200000}},"required":["path"],"additionalProperties":false}**
+**search_schema = > json.parse text={"type":"object","properties":{"query":{"type":"string","minLength":1},"limit":{"type":"integer","minimum":1,"maximum":8}},"required":["query"],"additionalProperties":false}**
+**fetch_schema = > json.parse text={"type":"object","properties":{"url":{"type":"string","minLength":1},"max_bytes":{"type":"integer","minimum":1024,"maximum":2097152},"timeout_s":{"type":"number","minimum":1,"maximum":60}},"required":["url"],"additionalProperties":false}**
 **note_scopes = > json.parse text=["notes:read"]**
 **file_scopes = > json.parse text=["workspace:read"]**
+**web_scopes = > json.parse text=["network:read"]**
 `note_spec` =
 
 | id | version | description | input_schema | effect | scopes | availability |
@@ -45,13 +50,27 @@ read tools (`note_read`, `file_read`). CALL names stay `tool_find` /
 |----|---------|-------------|--------------|--------|--------|--------------|
 | file_read | 1 | Read a host-relative workspace file (default root .) | `schema` | read | `file_scopes` | ready |
 
+`web_search_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| web_search | 1 | Web search hits as unverified clues; fetch originals for critical facts | `search_schema` | read | `web_scopes` | ready |
+
+`web_fetch_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| web_fetch | 1 | Fetch one http(s) URL with SSRF/size/redirect guards; trust=unverified | `fetch_schema` | read | `web_scopes` | ready |
+
 **prod_note = > agent.tools_register spec=`note_spec`**
 **prod_file = > agent.tools_register spec=`file_spec`**
+**prod_ws = > agent.tools_register spec=`web_search_spec`**
+**prod_wf = > agent.tools_register spec=`web_fetch_spec`**
 `out` =
 
-| ok | eng | note | file |
-|----|-----|------|------|
-| True | `eng` | `prod_note` | `prod_file` |
+| ok | eng | note | file | web_search | web_fetch |
+|----|-----|------|------|------------|-----------|
+| True | `eng` | `prod_note` | `prod_file` | `prod_ws` | `prod_wf` |
 
 *out*
 
@@ -92,7 +111,7 @@ Validate + authorize without executing.
 ## eng_tools_alias
 
 Same whitelist as `qdagent.eng_tools` — product alias list for CALL.
-Includes `note_read` / `file_read` after Q-A4 product registration.
+Includes `note_read` / `file_read` / `web_search` / `web_fetch`.
 
 **t = > table.empty_list**
 **t = > table.append list=`t` item="tool_find"**
@@ -102,6 +121,8 @@ Includes `note_read` / `file_read` after Q-A4 product registration.
 **t = > table.append list=`t` item="tool_summarize"**
 **t = > table.append list=`t` item="note_read"**
 **t = > table.append list=`t` item="file_read"**
+**t = > table.append list=`t` item="web_search"**
+**t = > table.append list=`t` item="web_fetch"**
 *t*
 
 ## note_read
@@ -121,3 +142,20 @@ Product CALL target — delegates to `note_read.run` (read-only, no-exec).
 Workspace file CALL target — delegates to `file_read.run` (read-only, no-exec).
 
 *> file_read.run path=`path` root=`root` max_chars=`max_chars`*
+
+## web_search
+    + `query`=""
+    + `limit`=5
+
+Product CALL target — web search clues (trust=unverified).
+
+*> web_search.run query=`query` limit=`limit`*
+
+## web_fetch
+    + `url`=""
+    + `max_bytes`=524288
+    + `timeout_s`=20
+
+Product CALL target — bounded URL fetch with SSRF guards.
+
+*> web_fetch.run url=`url` max_bytes=`max_bytes` timeout_s=`timeout_s`*

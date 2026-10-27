@@ -173,6 +173,23 @@ Workspace file reader (CALL:file_read) — same-file entry for agent.run / run_t
 
 *> catalog.file_read path=`path` root=`root` max_chars=`max_chars`*
 
+## web_search
+    + `query`=""
+    + `limit`=5
+
+Web search (CALL:web_search) — hits are unverified clues; fetch for critical facts.
+
+*> catalog.web_search query=`query` limit=`limit`*
+
+## web_fetch
+    + `url`=""
+    + `max_bytes`=524288
+    + `timeout_s`=20
+
+Web fetch (CALL:web_fetch) — SSRF/size/redirect guarded; trust=unverified.
+
+*> catalog.web_fetch url=`url` max_bytes=`max_bytes` timeout_s=`timeout_s`*
+
 ## ensure_llm
     + `model_id`=""
     + `selection`=None

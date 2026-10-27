@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "description": "Q-A5 web.search / web.fetch tool contracts",
+  "tools": [
+    {
+      "id": "web_search",
+      "effect": "read",
+      "required_args": ["query"],
+      "trust": "unverified"
+    },
+    {
+      "id": "web_fetch",
+      "effect": "read",
+      "required_args": ["url"],
+      "trust": "unverified",
+      "guards": ["http_https_only", "ssrf_block_private", "max_redirects", "max_bytes"]
+    }
+  ],
+  "invariants": [
+    "Search hits are clues with trust=unverified; never labeled verified",
+    "Answer-critical facts require web.fetch of the source URL",
+    "web_search and web_fetch use per-call unique output paths (no shared last_*.json)",
+    "web_fetch blocks non-http(s), localhost, private/link-local/metadata addresses",
+    "Truncated or failed fetch retains error/truncated evidence status",
+    "Offline or provider failure returns honest ok=false — never fabricates hits"
+  ]
+}

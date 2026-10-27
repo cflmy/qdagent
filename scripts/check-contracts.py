@@ -32,6 +32,7 @@ REQUIRED = {
     "resource-read.json": ("route", "envelope", "invariants"),
     "resource-ref.json": ("routes", "resource_ref_fields", "id_schemes", "invariants"),
     "context-attachment.json": ("fields", "invariants"),
+    "web-tools.json": ("tools", "invariants"),
 }
 
 
@@ -223,6 +224,10 @@ def check_tool_schema(data: dict) -> None:
     ):
         if name not in aliases:
             raise AssertionError(f"eng_aliases missing {name}")
+    product = set(data.get("product_aliases") or [])
+    for name in ("note_read", "file_read", "web_search", "web_fetch"):
+        if name not in product:
+            raise AssertionError(f"product_aliases missing {name}")
     by_id = {ex["id"]: ex for ex in data["examples"]}
     unauth = by_id.get("prepare_unauthorized_is_zero")
     if not unauth or unauth.get("executions") != 0:
@@ -235,6 +240,27 @@ def check_tool_schema(data: dict) -> None:
     good = by_id.get("prepare_authorized_find")
     if not good or good.get("expect_call_schema") != "ToolCallV1":
         raise AssertionError("authorized prepare must expect ToolCallV1")
+
+
+def check_web_tools(data: dict) -> None:
+    by_id = {t.get("id"): t for t in data["tools"] if isinstance(t, dict)}
+    for tid in ("web_search", "web_fetch"):
+        if tid not in by_id:
+            raise AssertionError(f"web-tools missing {tid}")
+        if by_id[tid].get("trust") != "unverified":
+            raise AssertionError(f"{tid} must declare trust=unverified")
+    fetch = by_id["web_fetch"]
+    guards = set(fetch.get("guards") or [])
+    for g in ("http_https_only", "ssrf_block_private", "max_redirects", "max_bytes"):
+        if g not in guards:
+            raise AssertionError(f"web_fetch missing guard {g}")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "unverified" not in inv:
+        raise AssertionError("web-tools invariants must keep trust unverified")
+    if "unique" not in inv and "per-call" not in inv:
+        raise AssertionError("web-tools invariants must require per-call unique out paths")
+    if "fabricat" not in inv and "伪造" not in inv:
+        raise AssertionError("web-tools invariants must forbid fabricating hits offline")
 
 
 def check_agent_reliability_bits(data: dict) -> None:
@@ -359,6 +385,7 @@ def main() -> int:
         "resource-read.json": check_resource_read,
         "resource-ref.json": check_resource_ref,
         "context-attachment.json": check_context_attachment,
+        "web-tools.json": check_web_tools,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

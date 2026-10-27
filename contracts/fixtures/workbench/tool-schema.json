@@ -36,9 +36,16 @@
     "tool_verify",
     "tool_summarize"
   ],
+  "product_aliases": [
+    "note_read",
+    "file_read",
+    "web_search",
+    "web_fetch"
+  ],
   "invariants": [
     "CALL and native prepare share one ToolSpec registry",
     "unauthorized prepare never spawns subtask",
-    "eng_tools names remain aliases of registered ToolSpec ids"
+    "eng_tools names remain aliases of registered ToolSpec ids",
+    "web_search hits and web_fetch text are trust=unverified evidence"
   ]
 }
