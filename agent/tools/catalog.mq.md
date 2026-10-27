@@ -10,6 +10,7 @@ import:
   table: lib/table.mq.md
   json: lib/json.mq.md
   note_read: note_read.mq.md
+  file_read: file_read.mq.md
 ---
 
 ## ensure_plugin
@@ -24,25 +25,33 @@ import:
 ## register_defaults
 
 Seed Marqdo ToolSpec registry with the five engineering tools plus product
-read tools (`note_read`). CALL names stay `tool_find` / `tool_reuse` /
-`tool_bind` / `tool_verify` / `tool_summarize`.
+read tools (`note_read`, `file_read`). CALL names stay `tool_find` /
+`tool_reuse` / `tool_bind` / `tool_verify` / `tool_summarize`.
 
 > ensure_plugin
 **eng = > agent.tools_register_eng_defaults**
 **schema = > json.parse text={"type":"object","properties":{"path":{"type":"string"},"root":{"type":"string"},"max_chars":{"type":"integer","minimum":1,"maximum":200000}},"required":["path"],"additionalProperties":false}**
-**scopes = > json.parse text=["notes:read"]**
+**note_scopes = > json.parse text=["notes:read"]**
+**file_scopes = > json.parse text=["workspace:read"]**
 `note_spec` =
 
 | id | version | description | input_schema | effect | scopes | availability |
 |----|---------|-------------|--------------|--------|--------|--------------|
-| note_read | 1 | Read a host-relative note under an allowed root (default data/) | `schema` | read | `scopes` | ready |
+| note_read | 1 | Read a host-relative note under an allowed root (default data/) | `schema` | read | `note_scopes` | ready |
 
-**prod = > agent.tools_register spec=`note_spec`**
+`file_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| file_read | 1 | Read a host-relative workspace file (default root .) | `schema` | read | `file_scopes` | ready |
+
+**prod_note = > agent.tools_register spec=`note_spec`**
+**prod_file = > agent.tools_register spec=`file_spec`**
 `out` =
 
-| ok | eng | product |
-|----|-----|---------|
-| True | `eng` | `prod` |
+| ok | eng | note | file |
+|----|-----|------|------|
+| True | `eng` | `prod_note` | `prod_file` |
 
 *out*
 
@@ -83,7 +92,7 @@ Validate + authorize without executing.
 ## eng_tools_alias
 
 Same whitelist as `qdagent.eng_tools` — product alias list for CALL.
-Includes `note_read` after Q-A4 product registration.
+Includes `note_read` / `file_read` after Q-A4 product registration.
 
 **t = > table.empty_list**
 **t = > table.append list=`t` item="tool_find"**
@@ -92,6 +101,7 @@ Includes `note_read` after Q-A4 product registration.
 **t = > table.append list=`t` item="tool_verify"**
 **t = > table.append list=`t` item="tool_summarize"**
 **t = > table.append list=`t` item="note_read"**
+**t = > table.append list=`t` item="file_read"**
 *t*
 
 ## note_read
@@ -102,3 +112,12 @@ Includes `note_read` after Q-A4 product registration.
 Product CALL target — delegates to `note_read.run` (read-only, no-exec).
 
 *> note_read.run path=`path` root=`root` max_chars=`max_chars`*
+
+## file_read
+    + `path`
+    + `root`="."
+    + `max_chars`=32000
+
+Workspace file CALL target — delegates to `file_read.run` (read-only, no-exec).
+
+*> file_read.run path=`path` root=`root` max_chars=`max_chars`*

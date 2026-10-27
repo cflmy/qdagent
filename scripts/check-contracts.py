@@ -260,9 +260,16 @@ def check_agent_reliability_bits(data: dict) -> None:
         if bit not in ones:
             raise AssertionError(f"M-A1–M-A4 expects {bit}=1")
     unavailable = set(data["extract_formats_unavailable"])
-    for fmt in ("pdf", "docx", "ocr", "json", "csv", "image"):
+    for fmt in ("pdf", "docx", "ocr", "image"):
         if fmt not in unavailable:
-            raise AssertionError(f"extract format {fmt} must stay unavailable in freeze")
+            raise AssertionError(f"extract format {fmt} must stay unavailable until plugins land")
+    for fmt in ("json", "csv"):
+        if fmt in unavailable:
+            raise AssertionError(f"extract format {fmt} is live after M-A5 ResourceView subset")
+    available = set(data.get("extract_formats_available") or [])
+    for fmt in ("json", "csv", "text", "markdown"):
+        if fmt not in available:
+            raise AssertionError(f"extract_formats_available missing live format {fmt}")
 
 
 def main() -> int:

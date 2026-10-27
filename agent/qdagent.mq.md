@@ -151,7 +151,7 @@ Never treat discovery_only scores as success.
 
 Whitelist list for Marqdo agent CALL: (same-file ## tools). Must be a real list,
 not a columnar GFM table (agent.run iterates tool names).
-Q-A4: ToolSpec aliases via `catalog.register_defaults` (eng five + `note_read`).
+Q-A4: ToolSpec aliases via `catalog.register_defaults` (eng five + note/file read).
 
 *> catalog.eng_tools_alias*
 
@@ -163,6 +163,15 @@ Q-A4: ToolSpec aliases via `catalog.register_defaults` (eng five + `note_read`).
 Product note reader (CALL:note_read) — same-file entry for agent.run / run_tool.
 
 *> catalog.note_read path=`path` root=`root` max_chars=`max_chars`*
+
+## file_read
+    + `path`
+    + `root`="."
+    + `max_chars`=32000
+
+Workspace file reader (CALL:file_read) — same-file entry for agent.run / run_tool.
+
+*> catalog.file_read path=`path` root=`root` max_chars=`max_chars`*
 
 ## ensure_llm
     + `model_id`=""
