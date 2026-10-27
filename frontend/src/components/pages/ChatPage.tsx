@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSessionStore } from '@/stores/session-store'
+import { useContextAttachmentStore } from '@/stores/context-attachment-store'
 import { useRightbar } from '@/components/layout/DesktopFrame'
 import { ModelPicker } from '@/components/chat/ModelPicker'
 import { UsageFooter } from '@/components/chat/UsageFooter'
 import { CitationLink } from '@/components/chat/CitationLink'
-import { Send, Square, PanelRightOpen } from 'lucide-react'
+import { Send, Square, PanelRightOpen, X } from 'lucide-react'
 
 function renderWithCitations(text: string, workspaceId = 'ws-default') {
   const parts: Array<string | { n: number; id: string }> = []
@@ -32,6 +33,9 @@ export function ChatPage() {
     createSession, setSessionModel,
     addMessage, streamChat, cancelTurn, resumeTurn, loadFromStorage,
   } = useSessionStore()
+  const pendingAttachments = useContextAttachmentStore((s) => s.pending)
+  const unpinAttachment = useContextAttachmentStore((s) => s.unpin)
+  const takeFrozen = useContextAttachmentStore((s) => s.takeFrozen)
   const rightbar = useRightbar()
 
   const [input, setInput] = useState('')
@@ -72,15 +76,31 @@ export function ChatPage() {
 
   const handleSend = useCallback(async () => {
     const text = input.trim()
-    if (!text || streaming || composing) return
+    const hasPins = useContextAttachmentStore.getState().pending.length > 0
+    if ((!text && !hasPins) || streaming || composing) return
 
     let sid = currentId
     if (!sid) {
       sid = createSession()
     }
 
+    // Freeze pins at send — preview alone never reaches here (QA-16).
+    const frozen = takeFrozen()
     setInput('')
-    addMessage(sid, { role: 'user', content: text })
+    addMessage(sid, {
+      role: 'user',
+      content: text || (frozen.length ? '（分析已固定的上下文资源）' : ''),
+      context_attachments: frozen.map((a) => ({
+        id: a.id,
+        resource_id: a.resource_id,
+        workspace_id: a.workspace_id,
+        title: a.title,
+        revision: a.revision,
+        kind: a.kind,
+        range: a.range,
+        origin: a.origin,
+      })),
+    })
 
     const ctrl = new AbortController()
     abortRef.current = ctrl
@@ -90,7 +110,7 @@ export function ChatPage() {
       // aborted or network error
     }
     abortRef.current = null
-  }, [input, streaming, composing, currentId, createSession, addMessage, streamChat])
+  }, [input, streaming, composing, currentId, createSession, addMessage, streamChat, takeFrozen])
 
   const handleStop = useCallback(() => {
     if (currentId) void cancelTurn(currentId, abortRef.current)
@@ -352,6 +372,59 @@ export function ChatPage() {
             lineHeight: '24px',
             boxSizing: 'border-box',
           }}>
+            {pendingAttachments.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '6px',
+                  padding: '8px 12px 0',
+                }}
+                aria-label="已加入上下文"
+              >
+                {pendingAttachments.map((a) => (
+                  <span
+                    key={a.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      maxWidth: '100%',
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,0.04))',
+                      border: '0.5px solid var(--dsw-alias-border-l2)',
+                      fontSize: '12px',
+                      color: 'var(--dsw-alias-label-primary)',
+                    }}
+                    title={`${a.resource_id}\n${a.revision}`}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {a.title}
+                      {a.range?.page != null ? ` · p${a.range.page}` : ''}
+                      {a.range?.line != null ? ` · L${a.range.line}` : ''}
+                      <span style={{ opacity: 0.55 }}> · {a.revision.slice(0, 14)}…</span>
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`移除 ${a.title}`}
+                      onClick={() => unpinAttachment(a.id)}
+                      style={{
+                        display: 'grid',
+                        placeItems: 'center',
+                        border: 'none',
+                        background: 'transparent',
+                        padding: 0,
+                        cursor: 'pointer',
+                        color: 'var(--dsw-alias-label-secondary)',
+                      }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             {/* Textarea */}
             <div style={{ position: 'relative', maxHeight: '336px', overflowY: 'auto', margin: '0 4px' }}>
               <textarea
@@ -361,7 +434,7 @@ export function ChatPage() {
                 onKeyDown={handleKeyDown}
                 onCompositionStart={() => setComposing(true)}
                 onCompositionEnd={() => setComposing(false)}
-                placeholder="给求道发送消息…"
+                placeholder={pendingAttachments.length ? '补充说明（可选），发送时冻结上方上下文…' : '给求道发送消息…'}
                 disabled={streaming}
                 rows={1}
                 style={{
@@ -434,7 +507,7 @@ export function ChatPage() {
                 ) : (
                   <button
                     onClick={handleSend}
-                    disabled={!input.trim()}
+                    disabled={!input.trim() && pendingAttachments.length === 0}
                     style={{
                       display: 'grid',
                       placeItems: 'center',
@@ -444,8 +517,8 @@ export function ChatPage() {
                       borderRadius: '999px',
                       background: 'var(--dsw-alias-button-info-fill, var(--dsw-alias-state-business-primary))',
                       color: '#fff',
-                      cursor: input.trim() ? 'pointer' : 'default',
-                      opacity: input.trim() ? 1 : 0.4,
+                      cursor: (input.trim() || pendingAttachments.length) ? 'pointer' : 'default',
+                      opacity: (input.trim() || pendingAttachments.length) ? 1 : 0.4,
                       transition: 'background 100ms ease, opacity 100ms ease',
                       transform: 'translateY(-2px)',
                     }}

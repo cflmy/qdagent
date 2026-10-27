@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "description": "Q-A4 ContextAttachment freeze contract (QA-16)",
+  "fields": [
+    "id",
+    "resource_id",
+    "workspace_id",
+    "title",
+    "revision",
+    "range",
+    "origin",
+    "pinned_at"
+  ],
+  "invariants": [
+    "Preview alone never creates ContextAttachment or calls the model",
+    "Pin shows chip with title/version/range; removable before send",
+    "Send freezes ResourceRef revision; later file edits do not silently refresh the pin",
+    "Excerpt via resources/read is bounded; truncated excerpts must be labeled",
+    "origin is user|auto; auto retrieval is separate from user pin priority"
+  ]
+}

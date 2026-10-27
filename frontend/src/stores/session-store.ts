@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { api, newRequestId, type ChatMessage, type ChatCompletionChunk } from '@/lib/api'
 import type { UsageInfo } from '@/components/chat/UsageFooter'
+import { formatAttachmentFreeze } from '@/stores/context-attachment-store'
 
 /** Live execution trail — every agent step visible as it happens. */
 export interface ProcessStep {
@@ -11,11 +12,24 @@ export interface ProcessStep {
   detail?: string
 }
 
+export type FrozenContextAttachment = {
+  id: string
+  resource_id: string
+  workspace_id: string
+  title: string
+  revision: string
+  kind?: string
+  range?: { page?: number; line?: number; line_end?: number; cell?: string }
+  origin: 'user' | 'auto'
+}
+
 export interface SessionMessage extends ChatMessage {
   usage?: UsageInfo | null
   citations?: Array<{ id: string; label?: string; document_id?: string; node_id?: string }>
   /** Streaming process / plan / tool / reasoning — never hidden. */
   process?: ProcessStep[]
+  /** Frozen at send (QA-16); preview alone never populates this. */
+  context_attachments?: FrozenContextAttachment[]
 }
 
 export interface Session {
@@ -417,6 +431,19 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         })
         .map(({ role, content }) => ({ role, content }))
 
+      // Latest user message may carry frozen ContextAttachments (pin ≠ preview).
+      const lastUser = [...session.messages].reverse().find((m) => m.role === 'user')
+      const frozenAtts = lastUser?.context_attachments || []
+      if (frozenAtts.length) {
+        const freeze = formatAttachmentFreeze(frozenAtts as Parameters<typeof formatAttachmentFreeze>[0])
+        if (freeze) {
+          history.splice(Math.max(0, history.length - 1), 0, {
+            role: 'system',
+            content: freeze,
+          })
+        }
+      }
+
       const frozenModelId = session.modelId
       const requestId = newRequestId('chat')
       set((s) => {
@@ -441,6 +468,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               : undefined,
             session_id: sessionId,
             request_id: requestId,
+            context_attachments: frozenAtts,
           },
           signal,
         )

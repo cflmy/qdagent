@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { useContextPanelStore } from '@/stores/context-panel-store'
-import { ArrowLeft, X, Loader2 } from 'lucide-react'
+import { useContextAttachmentStore } from '@/stores/context-attachment-store'
+import { ArrowLeft, X, Loader2, Plus } from 'lucide-react'
 import {
   applyResourceOrDocumentView,
   decodeBase64ToBytes,
@@ -43,6 +44,9 @@ export function DocumentReader() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [blob, setBlob] = useState<BlobState | null>(null)
   const [structured, setStructured] = useState<StructuredState | null>(null)
+  const [pinning, setPinning] = useState(false)
+  const [pinMsg, setPinMsg] = useState('')
+  const pin = useContextAttachmentStore((s) => s.pin)
   const kindBadge = (() => {
     const path =
       activeTarget?.kind === 'file'
@@ -217,6 +221,90 @@ export function DocumentReader() {
             ? activeTarget.slug
             : '阅读器'
 
+  const canPin = !!(
+    activeTarget
+    && (activeTarget.kind === 'file' || activeTarget.kind === 'document' || activeTarget.kind === 'note')
+  )
+
+  const handlePin = async () => {
+    if (!activeTarget || !canPin || pinning) return
+    setPinning(true)
+    setPinMsg('')
+    try {
+      const workspaceId =
+        activeTarget.kind === 'note' ? 'local' : activeTarget.workspaceId
+      const path =
+        activeTarget.kind === 'file'
+          ? activeTarget.path
+          : activeTarget.kind === 'document'
+            ? activeTarget.documentId
+            : undefined
+      const slug = activeTarget.kind === 'note' ? activeTarget.slug : undefined
+      const resolved = await api.appResourcesResolve({
+        workspace_id: workspaceId,
+        path,
+        slug,
+      }) as {
+        ok?: boolean
+        data?: {
+          resource_id?: string
+          revision?: string
+          digest?: string
+          title?: string
+          kind?: string
+          media_type?: string
+          source_ref?: string
+          workspace_id?: string
+        }
+        error?: { message?: string }
+      }
+      if (resolved.ok === false || !resolved.data?.resource_id) {
+        throw new Error(resolved.error?.message || '无法解析 ResourceRef')
+      }
+      const ref = resolved.data
+      const locator = (activeTarget.kind === 'file' || activeTarget.kind === 'document')
+        ? activeTarget.locator
+        : undefined
+      let excerpt: string | undefined
+      let excerptTruncated = false
+      // Bound excerpt via resources/read — never silent full-file claim (QA-16).
+      if (ref.source_ref && ref.kind !== 'pdf' && ref.kind !== 'image') {
+        const read = await api.appResourcesRead({
+          workspace_id: workspaceId,
+          path: ref.source_ref,
+          digest: ref.digest || ref.revision,
+          line_start: locator?.line,
+          max_bytes: 8000,
+        }) as { ok?: boolean; data?: { text?: string | null; truncated?: boolean; next_cursor?: string | null } }
+        if (read.ok !== false && typeof read.data?.text === 'string') {
+          excerpt = read.data.text
+          excerptTruncated = !!(read.data.truncated || read.data.next_cursor)
+        }
+      }
+      pin({
+        resource_id: ref.resource_id!,
+        workspace_id: ref.workspace_id || workspaceId,
+        title: ref.title || title,
+        revision: ref.revision || ref.digest || '',
+        digest: ref.digest,
+        kind: ref.kind,
+        media_type: ref.media_type,
+        source_ref: ref.source_ref,
+        range: locator
+          ? { page: locator.page, line: locator.line }
+          : undefined,
+        excerpt,
+        excerpt_truncated: excerptTruncated,
+        origin: 'user',
+      })
+      setPinMsg('已加入上下文（发送时冻结版本）')
+    } catch (e) {
+      setPinMsg(e instanceof Error ? e.message : String(e))
+    } finally {
+      setPinning(false)
+    }
+  }
+
   return (
     <aside
       className="qd-reader flex h-full flex-col border-l border-[var(--qd-border)] bg-[var(--qd-surface)]"
@@ -242,10 +330,27 @@ export function DocumentReader() {
         {completeness === 'partial' && (
           <span className="rounded bg-amber-100 px-1.5 text-xs text-amber-800">部分</span>
         )}
+        {canPin && (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded border border-[var(--qd-border)] px-1.5 py-0.5 text-xs hover:bg-black/5 disabled:opacity-40"
+            disabled={pinning || loading}
+            onClick={() => void handlePin()}
+            title="加入上下文：仅 pin，不调用模型；发送时冻结 ResourceRef"
+          >
+            <Plus size={12} />
+            {pinning ? '…' : '加入上下文'}
+          </button>
+        )}
         <button type="button" className="rounded p-1 hover:bg-black/5" onClick={close} aria-label="关闭">
           <X size={16} />
         </button>
       </header>
+      {pinMsg && (
+        <div className="border-b border-[var(--qd-border)] px-3 py-1 text-xs text-[var(--qd-muted)]">
+          {pinMsg}
+        </div>
+      )}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto p-3">
         {loading && (
           <div className="flex items-center gap-2 text-sm text-[var(--qd-muted)]">

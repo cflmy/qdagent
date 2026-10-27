@@ -31,6 +31,7 @@ REQUIRED = {
     "tool-schema.json": ("examples", "eng_aliases", "invariants"),
     "resource-read.json": ("route", "envelope", "invariants"),
     "resource-ref.json": ("routes", "resource_ref_fields", "id_schemes", "invariants"),
+    "context-attachment.json": ("fields", "invariants"),
 }
 
 
@@ -274,6 +275,18 @@ def check_agent_reliability_bits(data: dict) -> None:
             raise AssertionError(f"extract_formats_available missing live format {fmt}")
 
 
+def check_context_attachment(data: dict) -> None:
+    fields = set(data["fields"])
+    for req in ("resource_id", "workspace_id", "title", "revision", "origin", "range"):
+        if req not in fields:
+            raise AssertionError(f"ContextAttachment missing field {req}")
+    inv = "\n".join(data.get("invariants") or [])
+    if "Preview alone" not in inv and "preview" not in inv.lower():
+        raise AssertionError("invariants must separate preview from pin")
+    if "freeze" not in inv.lower() and "冻结" not in inv:
+        raise AssertionError("invariants must require freeze on send")
+
+
 def check_resource_ref(data: dict) -> None:
     paths = {r.get("path") for r in data["routes"]}
     if "/api/app/resources/resolve" not in paths or "/api/app/resources/list" not in paths:
@@ -339,6 +352,7 @@ def main() -> int:
         "tool-schema.json": check_tool_schema,
         "resource-read.json": check_resource_read,
         "resource-ref.json": check_resource_ref,
+        "context-attachment.json": check_context_attachment,
     }
     for name, keys in REQUIRED.items():
         data = load(name)
