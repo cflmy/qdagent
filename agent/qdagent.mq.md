@@ -444,22 +444,40 @@ Tolerates non-map `agent_out` / `gate_out` (bare text / None).
 
 ## 契约提示
     + `mode`="ask"
+    + `detail`="concise"
+    + `response_kind`="answer_with_artifact"
 
-Return the strict standing prompt for a mode. Single source of truth for the
-output contract: the text is injected as agent standing, and the same rules
-are enforced mechanically by `execution/docgate.mq.md` afterwards.
+Return the standing prompt for a mode. BUILD keeps the full six-section runnable
+document contract (enforced by `execution/docgate.mq.md`). ASK uses ResponsePolicy
+(`detail` / `response_kind`): chat shows only the projected `# 结论` (F01); the full
+document remains the sedimented artifact. `direct_answer` standing is lighter and
+does not require six sections (validation=not_applicable); gate still runs only when
+an artifact document is produced.
 
-**head = "你正在以 marqdo 语言工作，最终答复必须是一篇完整、可在沙箱中运行的 marqdo 文档（后缀 .mq.md）。这不是建议，是硬性输出契约：答复里只能有这篇文档，禁止任何前言、后记、解释或围栏包裹。\n\n"**
-**body = "文档结构（顺序固定）：\n1. 首行起 --- frontmatter，含 title 与 description。\n2. # 任务 —— 用叙述复述用户目标（人读）。\n3. # 结论 —— 人读结论；可引用但不得伪造运行结果。\n4. # main —— 知识源码 / 试跑入口：可执行函数与调用；事实函数可无副作用。\n5. # 验证 —— 初稿只写「待验证」；由求道工具填写真实试跑结果，禁止模型自称试跑通过。\n6. # 元数据 —— mode / slug / 来源 digest 表。\n\n"**
+**head_doc = "你正在以 marqdo 语言工作，最终答复必须是一篇完整、可在沙箱中运行的 marqdo 文档（后缀 .mq.md）。这不是建议，是硬性输出契约：答复里只能有这篇文档，禁止任何前言、后记、解释或围栏包裹。\n\n"**
+**head_ask = "你正在回答用户问题。宿主会把 # 结论 投影到聊天（answer 通道），完整文档作为产物（artifact）。答复里只能有这篇 .mq.md 文档，禁止前言后记或围栏包裹。\n\n"**
+**head_direct = "你正在直接回答用户。输出简洁自然语言即可，不要强制六节文档。未实测不得声称已验证；需要长文或可执行笔记时再说明应改为产物模式。\n\n"**
+**body = "文档结构（顺序固定）：\n1. 首行起 --- frontmatter，含 title 与 description。\n2. # 任务 —— 用叙述复述用户目标（人读）。\n3. # 结论 —— 人读结论（聊天投影源）；可引用但不得伪造运行结果。\n4. # main —— 知识源码 / 试跑入口：可执行函数与调用；事实函数可无副作用。\n5. # 验证 —— 初稿只写「待验证」；由求道工具填写真实试跑结果，禁止模型自称试跑通过。\n6. # 元数据 —— mode / slug / 来源 digest 表。\n\n"**
 **rules = "硬规则：\n1. 叙述行（非标题行）必须以文字开头；禁止以数字、连字符、大于号、竖线、星号、方括号、井号、加号开头。行内反引号与围栏代码块内不受限。\n2. 执行语句只允许出现在 # main 之内；# main 之外不得出现 ## 子对象。\n3. # main 必须无副作用、不写宿主文件、不联网，只做计算与打印。\n4. 结论中的数字必须可追溯到 # main；不得编造。\n5. 验证节禁止写「试跑通过」——由工具回填。\n6. 工具协议半角冒号：CALL:tool_find、CALL:tool_reuse、CALL:tool_bind。禁止 CALL 框架内部函数。\n\n"**
 **tail = "工程纪律：先读 Preflight Context Pack；REUSE 走实际 bind_execute（禁止把 discovery_only 当执行）；CREATE 前确认 create_allowed；禁止再造第二套 Agent Runtime 或 EKC。"**
 **skill = "求道工程智能体正在执行 BUILD：除上述输出契约外，必须先判定 Reuse / Adapt / Create 并在 # 结论 里写明判定依据；若决定 Create 而 create_allowed 为 false，则在 # 结论 里说明被阻断的原因，不要绕过。\n\n"**
+1. `detail` == "detailed"
+  **len_hint = "表达策略 detailed：# 结论 可按任务完整性展开；长报告细节放文档其余章节。\n\n"**
+2. *
+  1. `detail` == "standard"
+    **len_hint = "表达策略 standard：# 结论 约 250–700 字；多章节细节留在文档产物。\n\n"**
+  2. *
+    **len_hint = "表达策略 concise：# 结论 约 80–250 字（简单事实可更短）；长细节折叠进产物。\n\n"**
 1. `mode` == "build"
-  **p = `head` + `skill` + `body` + `rules` + `tail`**
+  **p = `head_doc` + `skill` + `body` + `rules` + `tail`**
   *p*
 2. *
-  **p = `head` + `body` + `rules` + `tail`**
-  *p*
+  1. `response_kind` == "direct_answer"
+    **p = `head_direct` + `len_hint` + `tail`**
+    *p*
+  2. *
+    **p = `head_ask` + `len_hint` + `body` + `rules` + `tail`**
+    *p*
 
 ## 门禁沉淀
     + `slug`
@@ -528,9 +546,14 @@ of regenerating from scratch.
     + `workspace_id`=""
     + `stream`=False
     + `history`=""
+    + `detail`="concise"
+    + `response_kind`="answer_with_artifact"
+    + `max_chars`=0
 
 ASK — product Preflight + EFI latch + agent.run (efi=False after product pack, learn=False). No host mutation.
-The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo doc.
+Default path still produces a runnable marqdo doc gated by `execution/docgate.mq.md`;
+chat `result` is the projected `# 结论` under ResponsePolicy (F01), not the six-section dump.
+`response_kind=direct_answer` uses lighter standing and skips docgate (validation not_applicable).
 Model selection is frozen for this call via `model_id` / `selection` (no env clobber).
 `task` is the **latest user turn** (KB reuse / route). Optional `history` is prior
 conversation injected into standing only — never into the reuse key (avoids
@@ -589,7 +612,7 @@ the full knowledge-preflight wall time.
 **agent_out = ""**
 **gated_out = ""**
 1. `key`
-  **standing0 = > 契约提示 mode="ask"**
+  **standing0 = > 契约提示 mode="ask" detail=`detail` response_kind=`response_kind`**
   **standing = > standing_with_profile base=`standing0` workspace_id=`workspace_id` session_id=`session_id`**
   1. `history`
     **standing = `standing` + "\n\n--- conversation ---\n" + `history` + "\n\nAnswer the latest user turn only. Do not reuse an earlier greeting when the latest turn asks something else."**
@@ -627,51 +650,102 @@ the full knowledge-preflight wall time.
   **accepted = ""**
   **outcome = "failed"**
   **fn_ok = False**
+  **agent_output = None**
   1. `status` == "ok"
     **mode = "live"**
-    **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
-    **gok = [ok](access(gated_out, "ok"))**
-    **accepted = `raw`**
-    1. not `gok`
-      1. `raw`
-        **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
-        **second = > `助手`.step task=`fix_task` writeback=False**
-        **s2 = > json.get value=`second` key="status"**
-        **r2 = > json.get value=`second` key="result"**
-        1. `s2` == "ok"
-          1. `r2`
-            **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
-            **gok = [ok](access(gated_out, "ok"))**
-            1. `gok`
-              **accepted = `r2`**
+    1. `response_kind` == "direct_answer"
+      **accepted = `raw`**
+      **gok = True**
+      **gated_out = None**
+      `vna` =
+
+      | status | report_ref |
+      |--------|------------|
+      | not_applicable | None |
+
+      `pol` =
+
+      | detail | max_chars | artifact_allowed |
+      |--------|-----------|------------------|
+      | `detail` | `max_chars` | False |
+
+      **agent_output = > agent.output_apply_policy status="succeeded" text=`raw` validation=`vna` policy=`pol`**
+      **result = > json.get value=`agent_output` key="answer"**
+      **result = > json.get value=`result` key="text"**
+      1. not `result`
+        **result = `raw`**
+      **outcome = "succeeded"**
+      **fn_ok = True**
+    2. *
+      **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
+      **gok = [ok](access(gated_out, "ok"))**
+      **accepted = `raw`**
+      1. not `gok`
+        1. `raw`
+          **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
+          **second = > `助手`.step task=`fix_task` writeback=False**
+          **s2 = > json.get value=`second` key="status"**
+          **r2 = > json.get value=`second` key="result"**
+          1. `s2` == "ok"
+            1. `r2`
+              **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
+              **gok = [ok](access(gated_out, "ok"))**
+              1. `gok`
+                **accepted = `r2`**
+              2. *
+                **_ = 1**
             2. *
               **_ = 1**
           2. *
             **_ = 1**
         2. *
           **_ = 1**
-      2. *
-        **_ = 1**
-    **apath = > json.get value=`gated_out` key="answer_path"**
-    1. `gok`
-      **result = `accepted`**
-      **outcome = "succeeded"**
-      **fn_ok = True**
-      1. not `result`
+      **apath = > json.get value=`gated_out` key="answer_path"**
+      1. `gok`
+        **proj = > agent.output_project_conclusion document=`accepted`**
+        **chat = > json.get value=`proj` key="text"**
+        1. not `chat`
+          **chat = `accepted`**
         1. `apath`
-          **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
+          `vpass` =
+
+          | status | report_ref |
+          |--------|------------|
+          | passed | `apath` |
+
         2. *
-          **result = ""**
-    2. *
-      **mode = "gated_error"**
-      **outcome = "failed"**
-      **fn_ok = False**
-      **status = "error"**
-      **stage = > json.get value=`gated_out` key="stage"**
-      **err = "docgate_" + `stage`**
-      **result = `accepted`**
-      1. not `result`
-        **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "）"**
+          `vpass` =
+
+          | status | report_ref |
+          |--------|------------|
+          | not_run | None |
+
+        `pol` =
+
+        | detail | max_chars | artifact_allowed |
+        |--------|-----------|------------------|
+        | `detail` | `max_chars` | True |
+
+        **agent_output = > agent.output_apply_policy status="succeeded" text=`chat` validation=`vpass` policy=`pol`**
+        **result = > json.get value=`agent_output` key="answer"**
+        **result = > json.get value=`result` key="text"**
+        1. not `result`
+          1. `apath`
+            **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
+          2. *
+            **result = `chat`**
+        **outcome = "succeeded"**
+        **fn_ok = True**
+      2. *
+        **mode = "gated_error"**
+        **outcome = "failed"**
+        **fn_ok = False**
+        **status = "error"**
+        **stage = > json.get value=`gated_out` key="stage"**
+        **err = "docgate_" + `stage`**
+        **result = `accepted`**
+        1. not `result`
+          **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "）"**
   2. *
     **mode = "error"**
     **outcome = "failed"**
@@ -689,6 +763,7 @@ the full knowledge-preflight wall time.
   **outcome = "failed"**
   **fn_ok = False**
   **accepted = ""**
+  **agent_output = None**
 
 > run.attach_result slug=`slug` result=`result`
 **kpi = > metrics.read out=`out` root=`root`**
@@ -699,9 +774,9 @@ the full knowledge-preflight wall time.
 **model_pub = > registry.public_snapshot snap=`snap`**
 `ret` =
 
-| ok | mode | slug | decision | context_path | status | outcome | error | result | session_id | model |
-|----|------|------|----------|--------------|--------|---------|-------|--------|------------|-------|
-| `fn_ok` | `mode` | `slug` | `decision` | `path` | `status` | `outcome` | `err` | `result` | `sid` | `model_pub` |
+| ok | mode | slug | decision | context_path | status | outcome | error | result | session_id | model | agent_output | accepted | response_kind | detail |
+|----|------|------|----------|--------------|--------|---------|-------|--------|------------|-------|--------------|----------|---------------|--------|
+| `fn_ok` | `mode` | `slug` | `decision` | `path` | `status` | `outcome` | `err` | `result` | `sid` | `model_pub` | `agent_output` | `accepted` | `response_kind` | `detail` |
 
 *ret*
 

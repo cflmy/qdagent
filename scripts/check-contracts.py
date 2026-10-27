@@ -237,22 +237,28 @@ def check_tool_schema(data: dict) -> None:
 def check_agent_reliability_bits(data: dict) -> None:
     if data["required_min_version"] != "2.1.4":
         raise AssertionError("required_min_version must be 2.1.4")
-    zeros = data["features_expected_zero"]
+    zeros = set(data.get("features_expected_zero") or [])
     for bit in (
         "agent.output_channels_v1",
         "agent.context_pack_v2",
-    ):
-        if bit not in zeros:
-            raise AssertionError(f"M-A0 freeze missing expected-zero bit {bit}")
-    ones = data["features_expected_one"]
-    for bit in (
         "agent.error_v1",
         "agent.checkpoint_v2",
         "agent.tool_schema_v1",
         "resource.view_v1",
     ):
+        if bit in zeros:
+            raise AssertionError(f"M-A1–M-A4 bit {bit} must not stay expected-zero")
+    ones = data["features_expected_one"]
+    for bit in (
+        "agent.error_v1",
+        "agent.checkpoint_v2",
+        "agent.tool_schema_v1",
+        "agent.output_channels_v1",
+        "agent.context_pack_v2",
+        "resource.view_v1",
+    ):
         if bit not in ones:
-            raise AssertionError(f"M-A1–M-A3 expects {bit}=1")
+            raise AssertionError(f"M-A1–M-A4 expects {bit}=1")
     unavailable = set(data["extract_formats_unavailable"])
     for fmt in ("pdf", "docx", "ocr", "json", "csv", "image"):
         if fmt not in unavailable:
