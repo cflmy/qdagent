@@ -3,20 +3,21 @@
   "description": "Q-A0 expected Marqdo capability bits for agent reliability (M-A0 freeze — all false until emitters)",
   "required_min_version": "2.1.4",
   "features_expected_zero": [
-    "agent.tool_schema_v1",
     "agent.output_channels_v1",
     "agent.context_pack_v2"
   ],
   "features_expected_one": [
     "agent.error_v1",
     "agent.checkpoint_v2",
+    "agent.tool_schema_v1",
     "resource.view_v1"
   ],
   "extract_formats_unavailable": ["pdf", "docx", "ocr", "json", "csv", "image", "html", "svg", "xlsx", "pptx"],
   "invariants": [
-    "agent.error_v1 / agent.checkpoint_v2 / resource.view_v1 are live after M-A1/M-A3",
+    "agent.error_v1 / checkpoint_v2 / tool_schema_v1 / resource.view_v1 are live after M-A1–M-A3",
     "write auto-resume stays closed until effect ledger watermark is present",
     "unknown schema_version must degrade without flipping unimplemented bits",
-    "tool_schema / output_channels / context_pack stay 0 until emitters land"
+    "output_channels / context_pack stay 0 until emitters land",
+    "unauthorized tool prepare returns forbidden with zero executions"
   ]
 }

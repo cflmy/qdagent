@@ -150,6 +150,7 @@ Never treat discovery_only scores as success.
 
 Whitelist list for Marqdo agent CALL: (same-file ## tools). Must be a real list,
 not a columnar GFM table (agent.run iterates tool names).
+Q-A4: same ids are ToolSpec aliases — see `agent/tools/catalog.mq.md` (`register_defaults`).
 
 **t = > table.empty_list**
 **t = > table.append list=`t` item="tool_find"**

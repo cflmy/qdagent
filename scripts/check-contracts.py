@@ -28,6 +28,7 @@ REQUIRED = {
         "extract_formats_unavailable",
         "invariants",
     ),
+    "tool-schema.json": ("examples", "eng_aliases", "invariants"),
 }
 
 
@@ -208,21 +209,50 @@ def check_answer_outcome(data: dict) -> None:
         raise AssertionError("F03: gated_error must be ok=false outcome=failed")
 
 
+def check_tool_schema(data: dict) -> None:
+    aliases = data["eng_aliases"]
+    for name in (
+        "tool_find",
+        "tool_reuse",
+        "tool_bind",
+        "tool_verify",
+        "tool_summarize",
+    ):
+        if name not in aliases:
+            raise AssertionError(f"eng_aliases missing {name}")
+    by_id = {ex["id"]: ex for ex in data["examples"]}
+    unauth = by_id.get("prepare_unauthorized_is_zero")
+    if not unauth or unauth.get("executions") != 0:
+        raise AssertionError("unauthorized prepare must declare executions=0")
+    if unauth.get("expect_category") != "forbidden":
+        raise AssertionError("unauthorized prepare expect_category=forbidden")
+    bad = by_id.get("prepare_invalid_args")
+    if not bad or bad.get("expect_category") != "invalid_arguments":
+        raise AssertionError("invalid args must be invalid_arguments")
+    good = by_id.get("prepare_authorized_find")
+    if not good or good.get("expect_call_schema") != "ToolCallV1":
+        raise AssertionError("authorized prepare must expect ToolCallV1")
+
+
 def check_agent_reliability_bits(data: dict) -> None:
     if data["required_min_version"] != "2.1.4":
         raise AssertionError("required_min_version must be 2.1.4")
     zeros = data["features_expected_zero"]
     for bit in (
-        "agent.tool_schema_v1",
         "agent.output_channels_v1",
         "agent.context_pack_v2",
     ):
         if bit not in zeros:
             raise AssertionError(f"M-A0 freeze missing expected-zero bit {bit}")
     ones = data["features_expected_one"]
-    for bit in ("agent.error_v1", "agent.checkpoint_v2", "resource.view_v1"):
+    for bit in (
+        "agent.error_v1",
+        "agent.checkpoint_v2",
+        "agent.tool_schema_v1",
+        "resource.view_v1",
+    ):
         if bit not in ones:
-            raise AssertionError(f"M-A1/M-A3 expects {bit}=1")
+            raise AssertionError(f"M-A1–M-A3 expects {bit}=1")
     unavailable = set(data["extract_formats_unavailable"])
     for fmt in ("pdf", "docx", "ocr", "json", "csv", "image"):
         if fmt not in unavailable:
@@ -242,6 +272,7 @@ def main() -> int:
         "capabilities-probe.json": check_capabilities,
         "answer-outcome.json": check_answer_outcome,
         "agent-reliability-bits.json": check_agent_reliability_bits,
+        "tool-schema.json": check_tool_schema,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

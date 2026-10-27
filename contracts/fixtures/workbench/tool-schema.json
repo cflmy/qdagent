@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "description": "Q-A0/Q-A4 ToolSpec contract — unauthorized calls are zero executions (F04)",
+  "examples": [
+    {
+      "id": "prepare_authorized_find",
+      "tool_id": "tool_find",
+      "allowlist": ["tool_find", "tool_reuse", "tool_bind", "tool_verify", "tool_summarize"],
+      "arguments": {"query": "SymbolId"},
+      "expect_ok": true,
+      "expect_call_schema": "ToolCallV1"
+    },
+    {
+      "id": "prepare_unauthorized_is_zero",
+      "tool_id": "tool_bind",
+      "allowlist": ["tool_find"],
+      "arguments": {"query": "x"},
+      "expect_ok": false,
+      "expect_category": "forbidden",
+      "executions": 0
+    },
+    {
+      "id": "prepare_invalid_args",
+      "tool_id": "tool_find",
+      "allowlist": ["tool_find"],
+      "arguments": {},
+      "expect_ok": false,
+      "expect_category": "invalid_arguments",
+      "executions": 0
+    }
+  ],
+  "eng_aliases": [
+    "tool_find",
+    "tool_reuse",
+    "tool_bind",
+    "tool_verify",
+    "tool_summarize"
+  ],
+  "invariants": [
+    "CALL and native prepare share one ToolSpec registry",
+    "unauthorized prepare never spawns subtask",
+    "eng_tools names remain aliases of registered ToolSpec ids"
+  ]
+}
