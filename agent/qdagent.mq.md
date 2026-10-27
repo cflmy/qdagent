@@ -347,6 +347,19 @@ Artifacts update (CALL:artifacts_update) — CAS via expected_digest.
 
 *> catalog.artifacts_update path=`path` root=`root` content=`content` media_type=`media_type` expected_digest=`expected_digest`*
 
+## resources_read
+    + `path`=""
+    + `root`="."
+    + `digest`=""
+    + `line_start`=0
+    + `line_end`=0
+    + `max_bytes`=65536
+    + `cursor`=""
+
+Resources read (CALL:resources_read) — model range read; never executes.
+
+*> catalog.resources_read path=`path` root=`root` digest=`digest` line_start=`line_start` line_end=`line_end` max_bytes=`max_bytes` cursor=`cursor`*
+
 ## ensure_llm
     + `model_id`=""
     + `selection`=None

@@ -57,6 +57,7 @@ No credentials, API keys, or connector secrets. Capability/state/version only.
 | 21 | notes_search | 1 | read | ready | Search notes under data/ with line locators |
 | 24 | artifacts_create | 1 | write | ready | Create versioned artifact under data/artifacts |
 | 25 | artifacts_update | 1 | write | ready | CAS update artifact with expected_digest |
+| 26 | resources_read | 1 | read | ready | Bounded resource range read for model |
 
 `data` =
 

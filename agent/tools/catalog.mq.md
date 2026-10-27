@@ -27,6 +27,7 @@ import:
   files_patch: files_patch.mq.md
   artifacts_create: artifacts_create.mq.md
   artifacts_update: artifacts_update.mq.md
+  resources_read: resources_read.mq.md
 ---
 
 ## ensure_plugin
@@ -193,6 +194,12 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 |----|---------|-------------|--------------|--------|--------|--------------|
 | artifacts_update | 1 | CAS update artifact with expected_digest | `artifacts_update_schema` | write | `artifact_scopes` | ready |
 
+`resources_read_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| resources_read | 1 | Bounded resource range read for model (same projection family as UI read) | `ws_read_schema` | read | `file_scopes` | ready |
+
 **prod_note = > agent.tools_register spec=`note_spec`**
 **prod_file = > agent.tools_register spec=`file_spec`**
 **prod_ws = > agent.tools_register spec=`web_search_spec`**
@@ -213,6 +220,7 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_ns = > agent.tools_register spec=`notes_search_spec`**
 **prod_ac = > agent.tools_register spec=`artifacts_create_spec`**
 **prod_au = > agent.tools_register spec=`artifacts_update_spec`**
+**prod_rr = > agent.tools_register spec=`resources_read_spec`**
 `out` =
 
 | ok | eng |
@@ -285,6 +293,7 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="notes_search"**
 **t = > table.append list=`t` item="artifacts_create"**
 **t = > table.append list=`t` item="artifacts_update"**
+**t = > table.append list=`t` item="resources_read"**
 *t*
 
 ## note_read
@@ -439,3 +448,14 @@ Catalog search — authorize only; does not execute tools.
     + `expected_digest`=""
 
 *> artifacts_update.run path=`path` root=`root` content=`content` media_type=`media_type` expected_digest=`expected_digest`*
+
+## resources_read
+    + `path`=""
+    + `root`="."
+    + `digest`=""
+    + `line_start`=0
+    + `line_end`=0
+    + `max_bytes`=65536
+    + `cursor`=""
+
+*> resources_read.run path=`path` root=`root` digest=`digest` line_start=`line_start` line_end=`line_end` max_bytes=`max_bytes` cursor=`cursor`*

@@ -56,7 +56,8 @@
     "files_patch",
     "notes_search",
     "artifacts_create",
-    "artifacts_update"
+    "artifacts_update",
+    "resources_read"
   ],
   "invariants": [
     "CALL and native prepare share one ToolSpec registry",
