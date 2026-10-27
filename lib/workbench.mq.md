@@ -1135,6 +1135,24 @@ Bridges `/_runtime` cancel (control lane; no parent INVOKE_LOCK).
   *> app_err code=`code` message=`msg`*
 *> app_ok data=`ret`*
 
+## turns_recover
+    + `payload`=None
+
+Q-A3 recover gate — reconnect is events-only; continue creates a linked attempt
+under CAS without silent tool replay.
+
+**ret = > turns.recover payload=`payload`**
+**ok = > json.get value=`ret` key="ok"**
+1. not `ok`
+  **code = > json.get value=`ret` key="code"**
+  **msg = > json.get value=`ret` key="error"**
+  1. not `msg`
+    **msg = "turn recover failed"**
+  1. not `code`
+    **code = "resource.not_found"**
+  *> app_err code=`code` message=`msg`*
+*> app_ok data=`ret`*
+
 ## turns_events
     + `turn_id`=""
     + `id`=""
@@ -1171,4 +1189,4 @@ Replay turn_events (Last-Event-ID). Control class; does not re-run the model.
   1. not `code`
     **code = "resource.not_found"**
   *> app_err code=`code` message=`msg`*
-*ret*
+*> app_ok data=`ret`*

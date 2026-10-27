@@ -108,6 +108,9 @@ import:
     + `turn_id`=""
     + `payload`=None
 
+Q-A3: always return state/result_ref/last_seq/answer_revision plus a message
+snapshot when events exist. Terminal get still fills projection — never bare state.
+
 1. `payload`
   **pt = > json.get value=`payload` key="turn_id"**
   1. `pt`
@@ -134,13 +137,320 @@ import:
   | False | turn not found | resource.not_found |
 
   *nf*
+**snap = > build_message_snapshot turn_id=`turn_id`**
+**st = > json.get value=`row` key="state"**
+**last_seq = > json.get value=`row` key="last_event_seq"**
+1. not `last_seq`
+  **last_seq = 0**
+**result_ref = > json.get value=`row` key="result_ref"**
+**rev = > json.get value=`row` key="revision"**
+1. not `rev`
+  **rev = 0**
+**answer_revision = > json.get value=`snap` key="answer_revision"**
+1. not `answer_revision`
+  **answer_revision = `rev`**
+**message_snapshot = > json.get value=`snap` key="text"**
+1. not `message_snapshot`
+  **message_snapshot = ""**
+**recovery_options = > recovery_options_for state=`st` recovery_action=`row`**
 `ret` =
 
-| ok | turn |
-|----|------|
-| True | `row` |
+| ok | turn | state | last_seq | result_ref | answer_revision | message_snapshot | recovery_options | events_url |
+|----|------|-------|----------|------------|-----------------|------------------|------------------|------------|
+| True | `row` | `st` | `last_seq` | `result_ref` | `answer_revision` | `message_snapshot` | `recovery_options` | "/api/app/turns/" + `turn_id` + "/events" |
 
 *ret*
+
+## build_message_snapshot
+    + `turn_id`
+
+Rebuild answer projection from durable message.delta events (read-only; no tool exec).
+
+**store = > db.open**
+**text = ""**
+**answer_revision = 0**
+**rows = > `store`.select table="turn_events" limit=2000 order="seq"**
+1. `rows`
+  - [r](遍历 rows 为 r)
+    **rid = > json.get value=`r` key="turn_id"**
+    1. `rid` == `turn_id`
+      **etype = > json.get value=`r` key="type"**
+      **rseq = > json.get value=`r` key="seq"**
+      1. `etype` == "message.delta"
+        **body_s = > json.get value=`r` key="body"**
+        1. `body_s`
+          **body = > json.parse text=`body_s`**
+          **pl = > json.get value=`body` key="payload"**
+          1. not `pl`
+            **pl = `body`**
+          **delta = > json.get value=`pl` key="delta"**
+          1. not `delta`
+            **delta = > json.get value=`pl` key="text"**
+          **kind = > json.get value=`pl` key="kind"**
+          **ptype = > json.get value=`pl` key="type"**
+          1. `ptype` == "preflight"
+            **_ = 1**
+          2. `kind` == "plan"
+            **_ = 1**
+          3. `kind` == "reasoning"
+            **_ = 1**
+          4. `delta`
+            **text = `text` + `delta`**
+            1. `rseq`
+              **answer_revision = `rseq`**
+`out` =
+
+| text | answer_revision |
+|------|-----------------|
+| `text` | `answer_revision` |
+
+*out*
+
+## recovery_options_for
+    + `state`=""
+    + `recovery_action`=None
+
+Map durable turn state → UI recovery_options (Chinese labels). Observe ≠ write.
+
+**ra = ""**
+1. `recovery_action`
+  **ra = > json.get value=`recovery_action` key="recovery_action"**
+1. not `ra`
+  **ra = ""**
+**opts = > table.empty_list**
+`opt_reconnect` =
+
+| action | label | effect |
+|--------|-------|--------|
+| reconnect | 重新连接 | events_only |
+
+`opt_continue` =
+
+| action | label | effect |
+|--------|-------|--------|
+| continue | 继续执行 | new_attempt |
+
+`opt_view` =
+
+| action | label | effect |
+|--------|-------|--------|
+| reconnect | 查看已完成步骤 | events_only |
+
+1. `state` == "interrupted"
+  **opts = > table.append list=`opts` item=`opt_reconnect`**
+  **opts = > table.append list=`opts` item=`opt_continue`**
+2. `state` == "running"
+  **opts = > table.append list=`opts` item=`opt_reconnect`**
+3. `state` == "queued"
+  **opts = > table.append list=`opts` item=`opt_reconnect`**
+4. `state` == "accepted"
+  **opts = > table.append list=`opts` item=`opt_reconnect`**
+5. `state` == "failed"
+  **opts = > table.append list=`opts` item=`opt_view`**
+  1. `ra` == "resume_events"
+    **opts = > table.append list=`opts` item=`opt_continue`**
+6. `state` == "completed"
+  **opts = > table.append list=`opts` item=`opt_view`**
+7. `state` == "cancelled"
+  **opts = > table.append list=`opts` item=`opt_view`**
+*opts*
+
+## recover
+    + `turn_id`=""
+    + `action`="reconnect"
+    + `expected_revision`=0
+    + `idempotency_key`=""
+    + `payload`=None
+
+Q-A3 server recovery gate. `reconnect` = events only (no tool re-exec).
+`continue` = explicit new attempt under CAS; original terminal row stays immutable.
+Never blind-retry writes; ledger via recovery_action + resumed_from.
+
+1. `payload`
+  **pt = > json.get value=`payload` key="turn_id"**
+  1. `pt`
+    **turn_id = `pt`**
+  **pa = > json.get value=`payload` key="action"**
+  1. `pa`
+    **action = `pa`**
+  **er = > json.get value=`payload` key="expected_revision"**
+  1. `er`
+    **expected_revision = `er`**
+  **ik = > json.get value=`payload` key="idempotency_key"**
+  1. `ik`
+    **idempotency_key = `ik`**
+1. not `turn_id`
+  `need` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | turn_id required | resource.not_found |
+
+  *need*
+1. not `action`
+  **action = "reconnect"**
+
+**store = > db.open**
+**cur = > `store`.get table="turn_state" id=`turn_id`**
+1. not `cur`
+  `nf` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | turn not found | resource.not_found |
+
+  *nf*
+
+**st = > json.get value=`cur` key="state"**
+**crev = > json.get value=`cur` key="revision"**
+1. not `crev`
+  **crev = 0**
+**u = > time.now_unix**
+
+Idempotent continue before CAS — same key returns prior child even if parent revision moved.
+1. `action` == "continue"
+  1. `idempotency_key`
+    **dup0 = > `store`.select table="turn_state" limit=200 order="-created_at"**
+    1. `dup0`
+      - [t0](遍历 dup0 为 t0)
+        **rid0 = > json.get value=`t0` key="request_id"**
+        1. `rid0` == `idempotency_key`
+          **child0 = > json.get value=`t0` key="id"**
+          **cst0 = > json.get value=`t0` key="state"**
+          **child_url0 = "/api/app/turns/" + `child0` + "/events"**
+          `reuse0` =
+
+          | ok | action | effect | turn_id | resumed_from | state | revision | events_url | allow_run | reused | note |
+          |----|--------|--------|---------|--------------|-------|----------|------------|-----------|--------|------|
+          | True | continue | new_attempt | `child0` | `turn_id` | `cst0` | `crev` | `child_url0` | True | True | idempotent continue |
+
+          *reuse0*
+
+1. `expected_revision`
+  1. not `crev` == `expected_revision`
+    `cas` =
+
+    | ok | error | code | revision |
+    |----|-------|------|----------|
+    | False | revision mismatch | revision.conflict | `crev` |
+
+    *cas*
+
+**events_url = "/api/app/turns/" + `turn_id` + "/events"**
+
+1. `action` == "reconnect"
+  Observe-only: never spawn tools or mutate terminal state.
+  `obs` =
+
+  | ok | action | effect | turn_id | state | revision | events_url | allow_run | note |
+  |----|--------|--------|---------|-------|----------|------------|-----------|------|
+  | True | reconnect | events_only | `turn_id` | `st` | `crev` | `events_url` | False | reconnect does not re-POST user task |
+
+  *obs*
+
+1. `action` == "continue"
+  1. `st` == "completed"
+    `term` =
+
+    | ok | error | code | state |
+    |----|-------|------|-------|
+    | False | terminal turn is immutable; start a new user message | turn.already_terminal | `st` |
+
+    *term*
+  2. `st` == "cancelled"
+    `term2` =
+
+    | ok | error | code | state |
+    |----|-------|------|-------|
+    | False | cancelled turn is immutable; start a new user message | turn.already_terminal | `st` |
+
+    *term2*
+  3. `st` == "failed"
+    **ra0 = > json.get value=`cur` key="recovery_action"**
+    1. not `ra0` == "resume_events"
+      1. not `ra0` == "continue_granted"
+        `nofail` =
+
+        | ok | error | code | state |
+        |----|-------|------|-------|
+        | False | failed turn has no continue grant; reconnect to inspect | turn.continue_denied | `st` |
+
+        *nofail*
+  4. `st` == "interrupted"
+    **_ = 1**
+  5. *
+    `norun` =
+
+    | ok | error | code | state |
+    |----|-------|------|-------|
+    | False | continue only for interrupted (or granted failed); use reconnect | turn.continue_denied | `st` |
+
+    *norun*
+
+  Idempotent continue: same idempotency_key returns prior child turn.
+  1. `idempotency_key`
+    **dup = > `store`.select table="turn_state" limit=200 order="-created_at"**
+    1. `dup`
+      - [t](遍历 dup 为 t)
+        **rid = > json.get value=`t` key="request_id"**
+        1. `rid` == `idempotency_key`
+          **child = > json.get value=`t` key="id"**
+          **cst = > json.get value=`t` key="state"**
+          **child_url = "/api/app/turns/" + `child` + "/events"**
+          `reuse` =
+
+          | ok | action | effect | turn_id | resumed_from | state | revision | events_url | allow_run | reused | note |
+          |----|--------|--------|---------|--------------|-------|----------|------------|-----------|--------|------|
+          | True | continue | new_attempt | `child` | `turn_id` | `cst` | `crev` | `child_url` | True | True | idempotent continue |
+
+          *reuse*
+
+  **sid = > json.get value=`cur` key="session_id"**
+  **wid = > json.get value=`cur` key="workspace_id"**
+  **mid = > json.get value=`cur` key="model_id"**
+  **ms = > json.get value=`cur` key="model_snapshot"**
+  1. not `sid`
+    **sid = ""**
+  1. not `wid`
+    **wid = "ws-default"**
+  1. not `idempotency_key`
+    **nonce = > sys.env_get name="RANDOM"**
+    1. not `nonce`
+      **nonce = `u`**
+    **idempotency_key = "recover-" + `turn_id` + "-" + `u` + "-" + `nonce`**
+  **payload_hash = "resumed_from:" + `turn_id`**
+  **child_id = "turn-" + `u` + "-" + `idempotency_key`**
+  `ins` =
+
+  | id | session_id | workspace_id | owner_id | request_id | payload_hash | state | model_id | model_snapshot | cancel_requested | usage_state | error | last_event_seq | result_ref | recovery_action | runtime_task_id | runtime_cancel_token | revision | created_at | updated_at |
+  |----|------------|--------------|----------|------------|--------------|-------|----------|----------------|------------------|-------------|-------|----------------|------------|-----------------|-----------------|----------------------|----------|------------|------------|
+  | `child_id` | `sid` | `wid` | local | `idempotency_key` | `payload_hash` | accepted | `mid` | `ms` | 0 | unknown |  | 0 |  | resumed_from:`turn_id` |  |  | 1 | `u` | `u` |
+
+  > `store`.insert table=turn_state rows=`ins`
+  **nrev = `crev` + 1**
+  `parent_patch` =
+
+  | recovery_action | revision | updated_at |
+  |-----------------|----------|------------|
+  | continue_granted | `nrev` | `u` |
+
+  > `store`.update table="turn_state" id=`turn_id` row=`parent_patch`
+  **child_url = "/api/app/turns/" + `child_id` + "/events"**
+  `cont` =
+
+  | ok | action | effect | turn_id | resumed_from | state | revision | events_url | allow_run | reused | note |
+  |----|--------|--------|---------|--------------|-------|----------|------------|-----------|--------|------|
+  | True | continue | new_attempt | `child_id` | `turn_id` | accepted | `nrev` | `child_url` | True | False | original turn immutable; client must not silent-retry tools |
+
+  *cont*
+
+`bad` =
+
+| ok | error | code |
+|----|-------|------|
+| False | unknown recovery action | invalid_arguments |
+
+*bad*
 
 ## cancel
     + `turn_id`=""

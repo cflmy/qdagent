@@ -121,6 +121,15 @@
       "notes": "CAS + /_runtime bridge; unknown turn → 404; no placeholder insert"
     },
     {
+      "method": "POST",
+      "path": "/api/app/turns/recover",
+      "api": "api.app_turns_recover",
+      "impl": "workbench.turns_recover",
+      "class": "control",
+      "authority": "KEEP",
+      "notes": "reconnect=events_only; continue=new attempt under CAS; no silent tool replay"
+    },
+    {
       "method": "GET",
       "path": "/api/app/turns/{id}",
       "api": "api.app_turns_get",

@@ -569,6 +569,13 @@ export const api = {
   appTurnsCancel: (data: unknown) => POST('/api/app/turns/cancel', data),
   appTurnsGet: (turnId: string) =>
     GET(`/api/app/turns/${encodeURIComponent(turnId)}`),
+  /** Q-A3: server recovery gate — reconnect=events only; continue=new attempt under CAS. */
+  appTurnsRecover: (data: {
+    turn_id: string
+    action: 'reconnect' | 'continue' | string
+    expected_revision?: number
+    idempotency_key?: string
+  }) => POST('/api/app/turns/recover', data),
   appTurnsEvents: (
     turnId: string,
     opts?: { lastEventId?: string; afterSeq?: number; signal?: AbortSignal },

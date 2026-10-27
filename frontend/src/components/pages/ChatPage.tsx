@@ -32,7 +32,7 @@ export function ChatPage() {
   const {
     sessions, currentId, isStreaming,
     createSession, setSessionModel,
-    addMessage, streamChat, cancelTurn, resumeTurn, loadFromStorage,
+    addMessage, streamChat, cancelTurn, resumeTurn, recoverTurn, loadFromStorage,
   } = useSessionStore()
   const pendingAttachments = useContextAttachmentStore((s) => s.pending)
   const unpinAttachment = useContextAttachmentStore((s) => s.unpin)
@@ -218,6 +218,15 @@ export function ChatPage() {
   const handleStop = useCallback(() => {
     if (currentId) void cancelTurn(currentId, abortRef.current)
   }, [currentId, cancelTurn])
+
+  const handleRecover = useCallback((action: 'reconnect' | 'continue') => {
+    if (!currentId || streaming) return
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    void recoverTurn(currentId, action, ctrl.signal).finally(() => {
+      abortRef.current = null
+    })
+  }, [currentId, streaming, recoverTurn])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && streaming) {
@@ -446,6 +455,66 @@ export function ChatPage() {
           })()}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Q-A3: reconnect ≠ continue — server recovery_options only */}
+        {!!currentSession && !streaming && (
+          (currentSession.interrupted || currentSession.connectionLost || (currentSession.recoveryOptions?.length ?? 0) > 0)
+        ) && (
+          <div
+            style={{
+              flex: 'none',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              alignItems: 'center',
+              padding: '8px 24px',
+              borderTop: '0.5px solid var(--dsw-alias-border-l3)',
+              background: 'var(--dsw-alias-bg-layer-1, rgba(0,0,0,0.02))',
+              fontSize: 12,
+              color: 'var(--dsw-alias-label-secondary)',
+            }}
+            role="status"
+          >
+            <span>
+              {currentSession.interrupted
+                ? '运行已中断，已保留完成步骤。'
+                : currentSession.connectionLost
+                  ? '连接中断；任务状态未判定失败。'
+                  : '可恢复操作：'}
+            </span>
+            {(currentSession.recoveryOptions?.length
+              ? currentSession.recoveryOptions
+              : [
+                  ...(currentSession.connectionLost || currentSession.interrupted
+                    ? [{ action: 'reconnect', label: '重新连接' }]
+                    : []),
+                  ...(currentSession.interrupted
+                    ? [{ action: 'continue', label: '继续执行' }]
+                    : []),
+                ]
+            ).map((opt) => (
+              <button
+                key={`${opt.action}-${opt.label}`}
+                type="button"
+                onClick={() => {
+                  const a = opt.action === 'continue' ? 'continue' : 'reconnect'
+                  handleRecover(a)
+                }}
+                style={{
+                  border: '0.5px solid var(--dsw-alias-border-l2)',
+                  borderRadius: 6,
+                  padding: '4px 10px',
+                  background: 'var(--dsw-alias-bg-base)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: 'var(--dsw-alias-label-primary)',
+                }}
+              >
+                {opt.label || opt.action}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Composer Seat — DSH sticky bottom */}
         <div style={{

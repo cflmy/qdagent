@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "description": "Q-A3 turns.get snapshot + turns/recover contract (F08)",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/app/turns/recover",
+      "api": "api.app_turns_recover",
+      "impl": "workbench.turns_recover",
+      "class": "control"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/turns/get",
+      "notes": "returns state/result_ref/last_seq/answer_revision/message_snapshot/recovery_options"
+    }
+  ],
+  "actions": [
+    {
+      "action": "reconnect",
+      "effect": "events_only",
+      "allow_run": false,
+      "note": "Never re-POST user task; never re-exec tools"
+    },
+    {
+      "action": "continue",
+      "effect": "new_attempt",
+      "allow_run": true,
+      "requires_state": ["interrupted"],
+      "note": "CAS expected_revision; original terminal immutable; resumed_from link"
+    }
+  ],
+  "get_fields": [
+    "state",
+    "last_seq",
+    "result_ref",
+    "answer_revision",
+    "message_snapshot",
+    "recovery_options",
+    "events_url"
+  ],
+  "invariants": [
+    "Terminal get still returns message_snapshot for local fill — never skip fill because state is final",
+    "reconnect is events_only and does not create a new attempt",
+    "continue requires CAS expected_revision; mismatch is revision.conflict",
+    "continue on completed/cancelled is turn.already_terminal",
+    "Event recovery never executes tools; write continue is ledgered via recovery_action",
+    "Idempotent continue with same idempotency_key reuses child turn",
+    "UI reconnect and continue are separate buttons mapped from recovery_options"
+  ]
+}

@@ -49,6 +49,12 @@ export interface Session {
   stopping?: boolean
   /** Non-terminal turn interrupted (≠ cancelled). */
   interrupted?: boolean
+  /** From turns.get recovery_options (server authority). */
+  recoveryOptions?: Array<{ action?: string; label?: string; effect?: string }>
+  /** Turn revision for recover CAS. */
+  turnRevision?: number
+  /** Connection lost while turn still running — distinct from interrupted. */
+  connectionLost?: boolean
 }
 
 interface SessionState {
@@ -72,6 +78,12 @@ interface SessionActions {
   finalizeAssistant: (sessionId: string) => void
   streamChat: (sessionId: string, signal?: AbortSignal) => Promise<void>
   resumeTurn: (sessionId: string, signal?: AbortSignal) => Promise<void>
+  /** Explicit recover: reconnect (events) vs continue (new attempt). */
+  recoverTurn: (
+    sessionId: string,
+    action: 'reconnect' | 'continue',
+    signal?: AbortSignal,
+  ) => Promise<void>
   cancelTurn: (sessionId: string, controller?: AbortController | null) => Promise<void>
   loadFromStorage: () => void
   saveToStorage: () => void
@@ -264,17 +276,42 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       const session = get().sessions.find((s) => s.id === sessionId)
       if (!session?.lastTurnId) return
       let state = ''
+      let messageSnapshot = ''
+      let recoveryOptions: Array<{ action?: string; label?: string; effect?: string }> = []
+      let turnRevision = 0
       try {
         const got = await api.appTurnsGet(session.lastTurnId) as {
-          data?: { turn?: { state?: string } }
-          turn?: { state?: string }
+          data?: {
+            turn?: { state?: string; revision?: number }
+            state?: string
+            message_snapshot?: string
+            answer_revision?: number
+            recovery_options?: Array<{ action?: string; label?: string; effect?: string }>
+            last_seq?: number
+          }
+          turn?: { state?: string; revision?: number }
         }
-        state = got?.data?.turn?.state || got?.turn?.state || ''
+        const data = got?.data
+        state = data?.state || data?.turn?.state || got?.turn?.state || ''
+        messageSnapshot = typeof data?.message_snapshot === 'string' ? data.message_snapshot : ''
+        recoveryOptions = Array.isArray(data?.recovery_options) ? data!.recovery_options! : []
+        turnRevision = Number(data?.turn?.revision ?? got?.turn?.revision ?? 0) || 0
+        set((s) => {
+          const sess = s.sessions.find((x) => x.id === sessionId)
+          if (!sess) return
+          sess.recoveryOptions = recoveryOptions
+          sess.turnRevision = turnRevision
+          sess.connectionLost = false
+        })
       } catch {
+        set((s) => {
+          const sess = s.sessions.find((x) => x.id === sessionId)
+          if (sess) sess.connectionLost = true
+        })
         return
       }
       if (['completed', 'cancelled', 'failed', 'interrupted'].includes(state)) {
-        // Q-A3: terminal snapshot fill — replay persisted events once; never re-exec tools.
+        // Q-A3: terminal snapshot fill — prefer message_snapshot; events replay never re-exec tools.
         if (state === 'interrupted') {
           set((s) => {
             const sess = s.sessions.find((x) => x.id === sessionId)
@@ -285,65 +322,80 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         const needsFill =
           !last ||
           last.role !== 'assistant' ||
-          !(last.content || '').trim()
+          !(last.content || '').trim() ||
+          (messageSnapshot && last.role === 'assistant' && (last.content || '').length < messageSnapshot.length)
         if (needsFill) {
           if (!last || last.role !== 'assistant') {
             get().addMessage(sessionId, { role: 'assistant', content: '' })
           }
-          try {
-            const stream = api.appTurnsEvents(session.lastTurnId, {
-              afterSeq: 0,
-              signal,
-            })
-            for await (const chunk of stream) {
-              const c = chunk as {
-                event_id?: string
-                type?: string
-                payload?: Record<string, unknown>
-              }
-              if (c?.event_id) {
-                set((s) => {
-                  const sess = s.sessions.find((x) => x.id === sessionId)
-                  if (sess) sess.lastEventId = c.event_id
-                })
-              }
-              if (c?.type === 'message.delta') {
-                const p = c.payload as
-                  | { delta?: string; text?: string; kind?: string; type?: string }
-                  | undefined
-                if (p?.type === 'preflight' || p?.kind === 'plan' || p?.kind === 'reasoning') {
-                  continue
+          if (messageSnapshot) {
+            set((s) => {
+              const sess = s.sessions.find((x) => x.id === sessionId)
+              if (!sess) return
+              const m = sess.messages[sess.messages.length - 1]
+              if (m?.role === 'assistant') {
+                // Replace stub / short local text with durable projection (F08).
+                if (!(m.content || '').trim() || (m.content || '').length < messageSnapshot.length) {
+                  m.content = messageSnapshot
                 }
-                const token = p?.delta || p?.text || ''
-                if (token) get().updateLastAssistant(sessionId, token)
               }
-              if (c?.type === 'turn.cancelled' || c?.type === 'turn.interrupted') {
-                set((s) => {
-                  const sess = s.sessions.find((x) => x.id === sessionId)
-                  if (!sess) return
-                  const m = sess.messages[sess.messages.length - 1]
-                  if (m?.role === 'assistant' && !(m.content || '').trim()) {
-                    m.content =
-                      c.type === 'turn.interrupted'
-                        ? '[已中断，可继续恢复]'
-                        : '[已停止]'
+            })
+          } else {
+            try {
+              const stream = api.appTurnsEvents(session.lastTurnId, {
+                afterSeq: 0,
+                signal,
+              })
+              for await (const chunk of stream) {
+                const c = chunk as {
+                  event_id?: string
+                  type?: string
+                  payload?: Record<string, unknown>
+                }
+                if (c?.event_id) {
+                  set((s) => {
+                    const sess = s.sessions.find((x) => x.id === sessionId)
+                    if (sess) sess.lastEventId = c.event_id
+                  })
+                }
+                if (c?.type === 'message.delta') {
+                  const p = c.payload as
+                    | { delta?: string; text?: string; kind?: string; type?: string }
+                    | undefined
+                  if (p?.type === 'preflight' || p?.kind === 'plan' || p?.kind === 'reasoning') {
+                    continue
                   }
-                })
+                  const token = p?.delta || p?.text || ''
+                  if (token) get().updateLastAssistant(sessionId, token)
+                }
+                if (c?.type === 'turn.cancelled' || c?.type === 'turn.interrupted') {
+                  set((s) => {
+                    const sess = s.sessions.find((x) => x.id === sessionId)
+                    if (!sess) return
+                    const m = sess.messages[sess.messages.length - 1]
+                    if (m?.role === 'assistant' && !(m.content || '').trim()) {
+                      m.content =
+                        c.type === 'turn.interrupted'
+                          ? '[已中断，可继续恢复]'
+                          : '[已停止]'
+                    }
+                  })
+                }
+                if (c?.type === 'turn.failed') {
+                  set((s) => {
+                    const sess = s.sessions.find((x) => x.id === sessionId)
+                    if (!sess) return
+                    const m = sess.messages[sess.messages.length - 1]
+                    if (m?.role === 'assistant' && !(m.content || '').trim()) {
+                      m.content = '[回合失败]'
+                    }
+                  })
+                }
               }
-              if (c?.type === 'turn.failed') {
-                set((s) => {
-                  const sess = s.sessions.find((x) => x.id === sessionId)
-                  if (!sess) return
-                  const m = sess.messages[sess.messages.length - 1]
-                  if (m?.role === 'assistant' && !(m.content || '').trim()) {
-                    m.content = '[回合失败]'
-                  }
-                })
-              }
+            } catch (e) {
+              if (signal?.aborted) return
+              if (e instanceof Error && /abort/i.test(e.message)) return
             }
-          } catch (e) {
-            if (signal?.aborted) return
-            if (e instanceof Error && /abort/i.test(e.message)) return
           }
         }
         get().finalizeAssistant(sessionId)
@@ -355,6 +407,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         if (sess) {
           sess.interrupted = false
           sess.stopping = false
+          sess.connectionLost = false
         }
       })
       const last = session.messages[session.messages.length - 1]
@@ -404,6 +457,88 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       } catch (e) {
         if (signal?.aborted) return
         if (e instanceof Error && /abort/i.test(e.message)) return
+        set((s) => {
+          const sess = s.sessions.find((x) => x.id === sessionId)
+          if (sess) sess.connectionLost = true
+        })
+      } finally {
+        get().finalizeAssistant(sessionId)
+      }
+    },
+
+    recoverTurn: async (sessionId, action, signal) => {
+      const session = get().sessions.find((s) => s.id === sessionId)
+      if (!session?.lastTurnId) return
+      const key = newRequestId(`recover-${action}`)
+      try {
+        const res = await api.appTurnsRecover({
+          turn_id: session.lastTurnId,
+          action,
+          expected_revision: session.turnRevision,
+          idempotency_key: key,
+        }) as {
+          ok?: boolean
+          data?: {
+            ok?: boolean
+            turn_id?: string
+            resumed_from?: string
+            allow_run?: boolean
+            events_url?: string
+            revision?: number
+            note?: string
+            error?: string
+            code?: string
+          }
+          error?: { message?: string; code?: string }
+        }
+        const data = res.data
+        if (res.ok === false || data?.ok === false) {
+          throw new Error(data?.error || res.error?.message || '恢复被拒绝')
+        }
+        if (action === 'reconnect') {
+          set((s) => {
+            const sess = s.sessions.find((x) => x.id === sessionId)
+            if (sess) {
+              sess.connectionLost = false
+              if (typeof data?.revision === 'number') sess.turnRevision = data.revision
+            }
+          })
+          await get().resumeTurn(sessionId, signal)
+          return
+        }
+        // continue: switch to child turn; user must send next message — no silent tool replay.
+        if (data?.turn_id) {
+          set((s) => {
+            const sess = s.sessions.find((x) => x.id === sessionId)
+            if (!sess) return
+            sess.lastTurnId = data.turn_id
+            sess.interrupted = false
+            sess.connectionLost = false
+            sess.turnRevision = typeof data.revision === 'number' ? data.revision : 1
+            sess.recoveryOptions = []
+            const m = sess.messages[sess.messages.length - 1]
+            if (m?.role === 'assistant') {
+              const note = data.note || '已获继续许可；原回合不可变。请发送下一条消息开启新 attempt（不会静默重放工具）。'
+              if (!(m.content || '').trim() || /已中断/.test(m.content || '')) {
+                m.content = (m.content ? m.content + '\n\n' : '') + note
+              } else {
+                m.content = m.content + '\n\n' + note
+              }
+            }
+          })
+        }
+      } catch (e) {
+        set((s) => {
+          const sess = s.sessions.find((x) => x.id === sessionId)
+          if (!sess) return
+          const m = sess.messages[sess.messages.length - 1]
+          const msg = e instanceof Error ? e.message : String(e)
+          if (m?.role === 'assistant') {
+            m.content = (m.content || '') + `\n\n[恢复失败: ${msg}]`
+          } else {
+            sess.messages.push({ role: 'assistant', content: `[恢复失败: ${msg}]` })
+          }
+        })
       } finally {
         get().finalizeAssistant(sessionId)
       }

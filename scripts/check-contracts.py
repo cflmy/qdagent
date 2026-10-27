@@ -33,6 +33,7 @@ REQUIRED = {
     "resource-ref.json": ("routes", "resource_ref_fields", "id_schemes", "invariants"),
     "context-attachment.json": ("fields", "invariants"),
     "web-tools.json": ("tools", "invariants"),
+    "turn-recover.json": ("routes", "actions", "get_fields", "invariants"),
 }
 
 
@@ -242,6 +243,37 @@ def check_tool_schema(data: dict) -> None:
         raise AssertionError("authorized prepare must expect ToolCallV1")
 
 
+def check_turn_recover(data: dict) -> None:
+    paths = {r.get("path") for r in data["routes"] if isinstance(r, dict)}
+    if "/api/app/turns/recover" not in paths:
+        raise AssertionError("turn-recover must inventori /api/app/turns/recover")
+    actions = {a.get("action"): a for a in data["actions"] if isinstance(a, dict)}
+    if "reconnect" not in actions or "continue" not in actions:
+        raise AssertionError("turn-recover actions must include reconnect and continue")
+    if actions["reconnect"].get("effect") != "events_only":
+        raise AssertionError("reconnect must be events_only")
+    if actions["continue"].get("effect") != "new_attempt":
+        raise AssertionError("continue must be new_attempt")
+    fields = set(data["get_fields"])
+    for f in (
+        "state",
+        "last_seq",
+        "result_ref",
+        "answer_revision",
+        "message_snapshot",
+        "recovery_options",
+    ):
+        if f not in fields:
+            raise AssertionError(f"turns.get enrichment missing {f}")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "message_snapshot" not in inv and "snapshot" not in inv:
+        raise AssertionError("invariants must require terminal snapshot fill")
+    if "events_only" not in inv and "tool" not in inv:
+        raise AssertionError("invariants must separate event recover from tool exec")
+    if "revision.conflict" not in inv and "cas" not in inv:
+        raise AssertionError("invariants must require CAS expected_revision")
+
+
 def check_web_tools(data: dict) -> None:
     by_id = {t.get("id"): t for t in data["tools"] if isinstance(t, dict)}
     for tid in ("web_search", "web_fetch"):
@@ -386,6 +418,7 @@ def main() -> int:
         "resource-ref.json": check_resource_ref,
         "context-attachment.json": check_context_attachment,
         "web-tools.json": check_web_tools,
+        "turn-recover.json": check_turn_recover,
     }
     for name, keys in REQUIRED.items():
         data = load(name)
