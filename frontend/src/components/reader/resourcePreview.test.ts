@@ -114,6 +114,24 @@ describe('applyResourceOrDocumentView', () => {
     expect(r.view.outline).toHaveLength(1)
   })
 
+  it('keeps HTML/SVG sourceText for safe-source HtmlPreview (no live inject)', () => {
+    const r = applyResourceOrDocumentView({
+      data: {
+        schema: 'ResourceViewV1',
+        resource: { kind: 'html', path: 'x.html', resource_id: 'x.html' },
+        render: {
+          format: 'plain_text',
+          fragment: '',
+          text: '<script>alert(1)</script><p>hi</p>',
+        },
+      },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.view.kind).toBe('html')
+    expect(r.view.sourceText).toContain('<script>')
+  })
+
   it('exposes focus line for CodePreview', () => {
     const r = applyResourceOrDocumentView({
       data: {

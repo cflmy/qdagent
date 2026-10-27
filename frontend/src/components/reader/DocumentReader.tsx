@@ -15,6 +15,7 @@ import { JsonPreview, type OutlineNode } from './JsonPreview'
 import { CodePreview } from './CodePreview'
 import { TablePreview } from './TablePreview'
 import { OfficePreview } from './OfficePreview'
+import { HtmlPreview } from './HtmlPreview'
 
 type BlobState = {
   kind: 'pdf' | 'image'
@@ -55,6 +56,7 @@ type StructuredState =
       digest?: string
       workspaceId?: string
     }
+  | { kind: 'html'; sourceText: string; title?: string }
 
 /** Read-only DocumentView / ResourceView embed. Never triggers execution. */
 export function DocumentReader() {
@@ -86,7 +88,8 @@ export function DocumentReader() {
     if (/\.(docx|xlsx|pptx)$/.test(lower)) return 'office'
     if (lower.endsWith('.mq.md')) return 'mq'
     if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'md'
-    if (/\.(rs|ts|tsx|js|jsx|py|go|toml|ya?ml|css|html|sh|txt|log)$/.test(lower)) return 'code'
+    if (/\.(html?|svg)$/.test(lower)) return 'html'
+    if (/\.(rs|ts|tsx|js|jsx|py|go|toml|ya?ml|css|sh|txt|log)$/.test(lower)) return 'code'
     return ''
   })()
 
@@ -502,6 +505,13 @@ export function DocumentReader() {
             onRangeChange={setCsvRange}
           />
         )}
+        {!loading && !error && !blob && structured?.kind === 'html' && (
+          <HtmlPreview
+            sourceText={structured.sourceText}
+            title={structured.title || title}
+            restrictedPreviewAvailable={false}
+          />
+        )}
         {!loading && !error && !blob && structured?.kind === 'office' && (
           <OfficePreview
             title={structured.title || title}
@@ -642,6 +652,19 @@ async function settlePreview(opts: {
       path: preview.resourceId,
       digest: preview.digest,
       workspaceId: opts.workspaceId,
+    })
+    opts.setLoading(false)
+    return
+  }
+  const htmlish =
+    preview.kind === 'html'
+    || preview.kind === 'svg'
+    || /\.(html?|svg)$/i.test(preview.resourceId || preview.title || '')
+  if (htmlish && typeof preview.sourceText === 'string') {
+    opts.setStructured({
+      kind: 'html',
+      sourceText: preview.sourceText,
+      title: preview.title || preview.resourceId,
     })
     opts.setLoading(false)
     return
