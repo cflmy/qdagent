@@ -96,4 +96,22 @@ describe('applyResourceOrDocumentView', () => {
     expect(r.view.fragmentHtml).toBe('')
     expect(JSON.stringify(r.view.diagnostics)).toContain('ocr.unavailable')
   })
+
+  it('carries focus_locator.page for PDF page navigation', () => {
+    const r = applyResourceOrDocumentView({
+      data: {
+        schema: 'ResourceViewV1',
+        resource: { kind: 'pdf' },
+        capabilities: { visual_preview: 'client', extract: false, ocr: false },
+        focus_locator: { page: 4 },
+        render: {
+          format: 'blob_ref',
+          blob_ref: { path: 'x.pdf', media_type: 'application/pdf' },
+        },
+      },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.view.focusLocator?.page).toBe(4)
+  })
 })

@@ -501,6 +501,18 @@ export const api = {
   appWorkspacesTree: (data?: { workspace_id?: string; path?: string }) =>
     POST('/api/app/workspaces/tree', data || {}),
   appDocumentsRead: (data: unknown) => POST('/api/app/documents/read', data),
+  /** Designed unified preview (§11.1); documents/read remains compatible. */
+  appResourcesPreview: (data: {
+    workspace_id?: string
+    document?: string
+    path?: string
+    resource_id?: string
+    revision?: string
+    generation?: string
+    node_id?: string
+    locator?: { page?: number; line?: number; cell?: string; [k: string]: unknown }
+    renderer?: string
+  }) => POST('/api/app/resources/preview', data),
   appResourcesBlob: (data: {
     workspace_id?: string
     path: string

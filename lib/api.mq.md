@@ -1265,6 +1265,10 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
     + `payload`=None
 *> workbench.documents_read payload=`payload`*
 
+## app_resources_preview
+    + `payload`=None
+*> workbench.resources_preview payload=`payload`*
+
 ## app_resources_blob
     + `payload`=None
 *> workbench.resources_blob payload=`payload`*

@@ -15,6 +15,15 @@
     },
     {
       "method": "POST",
+      "path": "/api/app/resources/preview",
+      "api": "api.app_resources_preview",
+      "impl": "workbench.resources_preview",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "Unified read-only preview; adapts to documents_read/resources_view; locator page/line"
+    },
+    {
+      "method": "POST",
       "path": "/api/app/resources/blob",
       "api": "api.app_resources_blob",
       "impl": "workbench.resources_blob",

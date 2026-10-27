@@ -18,6 +18,7 @@ export type PreviewView = {
   /** Client visual preview (PDF.js / ImagePreview); extract/OCR stay independent. */
   blobRef?: BlobRefPayload
   visualPreview?: 'client' | false | string
+  focusLocator?: { page?: number; line?: number; [k: string]: unknown }
 }
 
 export type PreviewResult =
@@ -73,6 +74,9 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
     if (!blob?.path) {
       return { ok: false, error: 'ResourceView blob_ref 缺少 path' }
     }
+    const focus = (data.focus_locator && typeof data.focus_locator === 'object')
+      ? data.focus_locator as { page?: number; line?: number; [k: string]: unknown }
+      : undefined
     return {
       ok: true,
       view: {
@@ -90,6 +94,7 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
           title: blob.title || resource?.title,
         },
         visualPreview: (caps.visual_preview as string | false | undefined) ?? 'client',
+        focusLocator: focus && focus.page != null ? focus : undefined,
       },
     }
   }

@@ -135,6 +135,36 @@ per-request temp files — never fixed /tmp names (R06).
 **mlsp_req = "{\"id\":1,\"method\":\"view.document\",\"params\":" + `params_s` + "}"**
 *> mlsp_roundtrip req=`mlsp_req` fail_msg="view.document failed" soft_schema="DocumentViewV1" soft_caps_key="view.document"*
 
+## resources_preview
+    + `payload`=None
+
+Designed unified read-only preview (design §11.1). Adapts to documents_read /
+resources_view authority — does not invent a second state machine. Accepts
+path/document/resource_id + revision + locator; `.mq.md` stays on DocumentView.
+Never executes. Old `/documents/read` remains compatible.
+
+**workspace_id = > json.get value=`payload` key="workspace_id"**
+**document = > json.get value=`payload` key="document"**
+1. not `document`
+  **document = > json.get value=`payload` key="path"**
+1. not `document`
+  **document = > json.get value=`payload` key="resource_id"**
+1. not `document`
+  *> app_err code="resource.not_found" message="document, path, or resource_id required"*
+**revision = > json.get value=`payload` key="revision"**
+**generation = > json.get value=`payload` key="generation"**
+**node_id = > json.get value=`payload` key="node_id"**
+**locator = > json.get value=`payload` key="locator"**
+**renderer = > json.get value=`payload` key="renderer"**
+
+`norm` =
+
+| workspace_id | document | path | revision | generation | node_id | locator | renderer |
+|--------------|----------|------|----------|------------|---------|---------|----------|
+| `workspace_id` | `document` | `document` | `revision` | `generation` | `node_id` | `locator` | `renderer` |
+
+*> documents_read payload=`norm`*
+
 ## resources_view
     + `payload`=None
     + `project`=""
@@ -159,12 +189,13 @@ ResourceViewV1 for ordinary files (json/csv/md/code/txt). `no_exec` always.
 1. not `document`
   *> app_err code="resource.not_found" message="document or path required"*
 **revision = > json.get value=`payload` key="revision"**
+**locator = > json.get value=`payload` key="locator"**
 
 `params` =
 
-| project | path | mode | revision |
-|---------|------|------|----------|
-| `project` | `document` | read | `revision` |
+| project | path | mode | revision | locator |
+|---------|------|------|----------|---------|
+| `project` | `document` | read | `revision` | `locator` |
 
 **params_s = > json.stringify value=`params`**
 **mlsp_req = "{\"id\":1,\"method\":\"resource.view\",\"params\":" + `params_s` + "}"**

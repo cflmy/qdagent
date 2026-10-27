@@ -1,11 +1,20 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 
+/** Page/line/cell focus for resources/preview (Q-A5); does not imply extract/OCR. */
+export type ReaderLocator = {
+  page?: number
+  line?: number
+  cell?: string
+  nodeId?: string
+  [key: string]: unknown
+}
+
 export type ReaderTarget =
-  | { kind: 'document'; workspaceId: string; documentId: string; revision?: string; generation?: string; nodeId?: string; title?: string }
-  | { kind: 'citation'; workspaceId: string; citationId: string; messageId?: string; locator?: Record<string, unknown>; revision?: string; generation?: string; documentId?: string; nodeId?: string }
+  | { kind: 'document'; workspaceId: string; documentId: string; revision?: string; generation?: string; nodeId?: string; title?: string; locator?: ReaderLocator }
+  | { kind: 'citation'; workspaceId: string; citationId: string; messageId?: string; locator?: ReaderLocator; revision?: string; generation?: string; documentId?: string; nodeId?: string }
   | { kind: 'profile_item'; id: string; title?: string }
-  | { kind: 'file'; workspaceId: string; path: string; title?: string }
+  | { kind: 'file'; workspaceId: string; path: string; title?: string; locator?: ReaderLocator }
   | { kind: 'note'; slug: string; title?: string }
 
 interface ContextPanelState {
@@ -42,9 +51,13 @@ const WIDTH_DEFAULT = 440
 
 function keyOf(t: ReaderTarget | null): string {
   if (!t) return ''
-  if (t.kind === 'document') return `doc:${t.workspaceId}:${t.documentId}:${t.revision || ''}:${t.generation || ''}:${t.nodeId || ''}`
-  if (t.kind === 'citation') return `cite:${t.workspaceId}:${t.citationId}:${t.revision || ''}:${t.generation || ''}`
-  if (t.kind === 'file') return `file:${t.workspaceId}:${t.path}`
+  const loc =
+    t && 'locator' in t && t.locator
+      ? `:p${t.locator.page ?? ''}:l${t.locator.line ?? ''}`
+      : ''
+  if (t.kind === 'document') return `doc:${t.workspaceId}:${t.documentId}:${t.revision || ''}:${t.generation || ''}:${t.nodeId || ''}${loc}`
+  if (t.kind === 'citation') return `cite:${t.workspaceId}:${t.citationId}:${t.revision || ''}:${t.generation || ''}${loc}`
+  if (t.kind === 'file') return `file:${t.workspaceId}:${t.path}${loc}`
   if (t.kind === 'note') return `note:${t.slug}`
   return `profile:${t.id}`
 }

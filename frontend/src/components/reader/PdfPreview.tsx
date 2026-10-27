@@ -8,12 +8,14 @@ GlobalWorkerOptions.workerSrc = pdfWorker
 type Props = {
   bytes: Uint8Array
   title?: string
+  /** 1-based page from resources/preview locator — visual only, not extract. */
+  initialPage?: number
   extractUnavailable?: boolean
 }
 
-export function PdfPreview({ bytes, title, extractUnavailable = true }: Props) {
+export function PdfPreview({ bytes, title, initialPage = 1, extractUnavailable = true }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(Math.max(1, initialPage || 1))
   const [pageCount, setPageCount] = useState(0)
   const [scale, setScale] = useState(1.1)
   const [error, setError] = useState('')
@@ -34,7 +36,8 @@ export function PdfPreview({ bytes, title, extractUnavailable = true }: Props) {
         }
         docRef.current = pdf
         setPageCount(pdf.numPages)
-        setPage(1)
+        const want = Math.max(1, initialPage || 1)
+        setPage(Math.min(want, pdf.numPages || want))
         setLoading(false)
       } catch (e) {
         if (!cancelled) {
@@ -49,7 +52,7 @@ export function PdfPreview({ bytes, title, extractUnavailable = true }: Props) {
       docRef.current = null
       void d?.destroy()
     }
-  }, [bytes])
+  }, [bytes, initialPage])
 
   useEffect(() => {
     const pdf = docRef.current

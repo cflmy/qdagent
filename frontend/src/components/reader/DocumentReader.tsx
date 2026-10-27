@@ -16,6 +16,7 @@ type BlobState = {
   bytes: Uint8Array
   mediaType: string
   title?: string
+  initialPage?: number
 }
 
 /** Read-only DocumentView / ResourceView embed. Never triggers execution. */
@@ -100,17 +101,25 @@ export function DocumentReader() {
             ?? (data as { document_id?: string }).document_id
             ?? activeTarget.documentId
           if (docId) {
-            const view = await api.appDocumentsRead({
+            const locator = {
+              ...(activeTarget.locator || {}),
+              ...(target?.node_id || activeTarget.nodeId
+                ? { nodeId: target?.node_id ?? activeTarget.nodeId }
+                : {}),
+            }
+            const view = await api.appResourcesPreview({
               workspace_id: activeTarget.workspaceId,
               document: docId,
               revision: target?.revision ?? activeTarget.revision,
               generation: target?.generation ?? activeTarget.generation,
               node_id: target?.node_id ?? activeTarget.nodeId,
+              locator: Object.keys(locator).length ? locator : undefined,
             })
             if (cancelled) return
             await settlePreview({
               view,
               workspaceId: activeTarget.workspaceId,
+              fallbackPage: typeof locator.page === 'number' ? locator.page : undefined,
               gen,
               cancelled: () => cancelled,
               setView,
@@ -123,24 +132,31 @@ export function DocumentReader() {
           setError('引用未能定位到文档', gen)
           return
         }
-        // Q-A5: .mq.md → view.document; json/csv/md/code → ResourceView HTML;
+        // Q-A5: unified resources/preview (documents/read still compatible).
+        // .mq.md → DocumentView; json/csv/md/code → ResourceView HTML;
         // pdf/image → blob_ref → PdfPreview / ImagePreview (extract/OCR independent).
         const documentId = activeTarget.kind === 'file' ? activeTarget.path : activeTarget.documentId
         const workspaceId = activeTarget.workspaceId
         const revision = activeTarget.kind === 'document' ? activeTarget.revision : undefined
         const generation = activeTarget.kind === 'document' ? activeTarget.generation : undefined
         const nodeId = activeTarget.kind === 'document' ? activeTarget.nodeId : undefined
-        const view = await api.appDocumentsRead({
+        const locator = activeTarget.kind === 'file' || activeTarget.kind === 'document'
+          ? activeTarget.locator
+          : undefined
+        const view = await api.appResourcesPreview({
           workspace_id: workspaceId,
           document: documentId,
+          path: documentId,
           revision,
           generation,
           node_id: nodeId,
+          locator,
         })
         if (cancelled) return
         await settlePreview({
           view,
           workspaceId,
+          fallbackPage: typeof locator?.page === 'number' ? locator.page : undefined,
           gen,
           cancelled: () => cancelled,
           setView,
@@ -220,7 +236,11 @@ export function DocumentReader() {
           </div>
         )}
         {!loading && !error && blob?.kind === 'pdf' && (
-          <PdfPreview bytes={blob.bytes} title={blob.title || title} />
+          <PdfPreview
+            bytes={blob.bytes}
+            title={blob.title || title}
+            initialPage={blob.initialPage || 1}
+          />
         )}
         {!loading && !error && blob?.kind === 'image' && (
           <ImagePreview
@@ -252,6 +272,7 @@ export function DocumentReader() {
 async function settlePreview(opts: {
   view: unknown
   workspaceId: string
+  fallbackPage?: number
   gen: number
   cancelled: () => boolean
   setView: (v: { fragmentHtml?: string; outline?: unknown[]; diagnostics?: unknown[]; completeness?: string }, gen?: number) => void
@@ -273,7 +294,8 @@ async function settlePreview(opts: {
   }, opts.gen)
 
   if (preview.blobRef && preview.visualPreview === 'client') {
-    await loadBlobPreview(preview.blobRef, preview.kind, opts)
+    const page = preview.focusLocator?.page ?? opts.fallbackPage
+    await loadBlobPreview(preview.blobRef, preview.kind, page, opts)
     return
   }
   opts.setBlob(null)
@@ -283,6 +305,7 @@ async function settlePreview(opts: {
 async function loadBlobPreview(
   blobRef: BlobRefPayload,
   kind: string | undefined,
+  initialPage: number | undefined,
   opts: {
     workspaceId: string
     gen: number
@@ -328,6 +351,7 @@ async function loadBlobPreview(
       bytes,
       mediaType,
       title: blobRef.title,
+      initialPage: typeof initialPage === 'number' && initialPage >= 1 ? initialPage : 1,
     })
     opts.setLoading(false)
   } catch (e) {
