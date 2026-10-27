@@ -257,6 +257,13 @@ Task status (CALL:task_status) — pending|running|done|blocked.
 
 *> catalog.task_status turn_id=`turn_id` task_id=`task_id` status=`status` detail=`detail`*
 
+## memory_forget
+    + `id`=""
+
+Memory forget (CALL:memory_forget) — auditable; not injectable.
+
+*> catalog.memory_forget id=`id`*
+
 ## ensure_llm
     + `model_id`=""
     + `selection`=None

@@ -131,6 +131,24 @@
     },
     {
       "method": "GET",
+      "path": "/api/app/tools",
+      "api": "api.app_tools",
+      "impl": "workbench.tools_catalog",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "Authorized tool inventory; never includes credentials"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/profile/get",
+      "api": "api.app_profile_get",
+      "impl": "workbench.profile_items_get_one",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "Single profile item for ResourcePreview"
+    },
+    {
+      "method": "GET",
       "path": "/api/app/turns/{id}",
       "api": "api.app_turns_get",
       "impl": "turns.get",

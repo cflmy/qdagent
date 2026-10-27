@@ -146,8 +146,10 @@ import:
 | /api/app/profile/items | POST | api.app_profile_items | json | json | short |
 | /api/app/profile/propose | POST | api.app_profile_propose | json | json | short |
 | /api/app/profile/set_status | POST | api.app_profile_set_status | json | json | short |
+| /api/app/profile/get | POST | api.app_profile_get | json | json | read |
 | /api/app/turns/cancel | POST | api.app_turns_cancel | json | json | control |
 | /api/app/turns/recover | POST | api.app_turns_recover | json | json | control |
+| /api/app/tools | GET | api.app_tools | query | json | read |
 | /api/app/feature_flags | GET | api.app_feature_flags | query | json | read |
 | /api/app/turns/get | POST | api.app_turns_get | json | json | read |
 | /api/app/turns/{id} | GET | api.app_turns_get | query | json | read |

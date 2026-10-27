@@ -466,9 +466,11 @@ function ProfileItemsTab() {
   const [items, setItems] = useState<Array<Record<string, unknown>>>([])
   const [text, setText] = useState('')
   const [msg, setMsg] = useState('')
+  const [busyId, setBusyId] = useState('')
 
   const refresh = () => {
-    api.appProfileItems({}).then((res) => {
+    // status=all so proposed / forgotten remain auditable (design §10.2).
+    api.appProfileItems({ status: 'all' }).then((res) => {
       const data = (res as { data?: unknown[] }).data ?? (Array.isArray(res) ? res : [])
       setItems(data as Array<Record<string, unknown>>)
     }).catch((e) => setMsg(String(e)))
@@ -487,19 +489,64 @@ function ProfileItemsTab() {
     }
   }
 
+  const setStatus = async (id: string, status: 'confirmed' | 'rejected' | 'forgotten' | 'proposed') => {
+    setBusyId(id)
+    try {
+      await api.appProfileSetStatus({ id, status })
+      setMsg(
+        status === 'forgotten'
+          ? '已忘记该记忆（保留审计；不会再注入上下文）'
+          : status === 'confirmed'
+            ? '已确认，将可注入下一轮上下文'
+            : `状态已更新为 ${status}`,
+      )
+      refresh()
+    } catch (e) {
+      setMsg(String(e))
+    } finally {
+      setBusyId('')
+    }
+  }
+
   return (
     <>
       <SectionTitle>用户画像条目</SectionTitle>
       <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>
-        仅 status=confirmed 且作用域匹配的条目会进入下一轮上下文。
+        仅 status=confirmed 且作用域匹配的条目会进入下一轮上下文。来源可审阅；忘记后仍保留记录。
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-        {items.map((it) => (
-          <div key={String(it.id)} style={{ border: '0.5px solid var(--dsw-alias-border-l3)', borderRadius: 8, padding: 10, fontSize: 13 }}>
-            <div><strong>{String(it.status)}</strong> · {String(it.scope)} · {String(it.category)}</div>
-            <div>{String(it.text)}</div>
-          </div>
-        ))}
+        {items.map((it) => {
+          const id = String(it.id || '')
+          const status = String(it.status || '')
+          const source = it.source_refs ? String(it.source_refs) : ''
+          return (
+            <div key={id} style={{ border: '0.5px solid var(--dsw-alias-border-l3)', borderRadius: 8, padding: 10, fontSize: 13 }}>
+              <div>
+                <strong>{status}</strong> · {String(it.scope)} · {String(it.category)}
+                {it.revision != null ? ` · rev ${String(it.revision)}` : ''}
+              </div>
+              <div style={{ marginTop: 4 }}>{String(it.text)}</div>
+              {source && source !== '[]' && (
+                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' }}>
+                  来源：{source}
+                </div>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                {status === 'proposed' && (
+                  <>
+                    <button type="button" disabled={busyId === id} onClick={() => void setStatus(id, 'confirmed')} style={{ fontSize: 12 }}>确认</button>
+                    <button type="button" disabled={busyId === id} onClick={() => void setStatus(id, 'rejected')} style={{ fontSize: 12 }}>拒绝</button>
+                  </>
+                )}
+                {status !== 'forgotten' && (
+                  <button type="button" disabled={busyId === id} onClick={() => void setStatus(id, 'forgotten')} style={{ fontSize: 12 }}>
+                    忘记
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
         {!items.length && <div style={{ fontSize: 13, color: 'var(--dsw-alias-label-tertiary)' }}>暂无画像条目</div>}
       </div>
       <SettingRow label="提出新偏好（待确认）">

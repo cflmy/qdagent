@@ -566,6 +566,9 @@ export const api = {
   appProfilePropose: (data: unknown) => POST('/api/app/profile/propose', data),
   appProfileSetStatus: (data: { id: string; status: string }) =>
     POST('/api/app/profile/set_status', data),
+  appProfileGet: (data: { id: string }) => POST('/api/app/profile/get', data),
+  /** Design §11.1 — authorized tool inventory; never includes secrets. */
+  appTools: () => GET('/api/app/tools'),
   appTurnsCancel: (data: unknown) => POST('/api/app/turns/cancel', data),
   appTurnsGet: (turnId: string) =>
     GET(`/api/app/turns/${encodeURIComponent(turnId)}`),

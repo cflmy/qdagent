@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "description": "GET /api/app/tools inventory contract (design §11.1)",
+  "route": {
+    "method": "GET",
+    "path": "/api/app/tools",
+    "api": "api.app_tools",
+    "impl": "workbench.tools_catalog",
+    "class": "read"
+  },
+  "fields": ["id", "version", "effect", "availability", "description"],
+  "forbidden_fields": ["api_key", "token", "secret", "password", "credential"],
+  "invariants": [
+    "Catalog never includes provider credentials or connector secrets",
+    "availability reflects product readiness, not a search hit grant",
+    "tools_search hit does not authorize execution by itself",
+    "memory_forget leaves auditable forgotten status (not silent delete)"
+  ]
+}

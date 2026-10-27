@@ -160,6 +160,22 @@ Creates a proposed item — never auto-confirmed.
   | False | status required | resource.not_found |
 
   *needs*
+1. `status` == "proposed"
+  **_ = 1**
+2. `status` == "confirmed"
+  **_ = 1**
+3. `status` == "rejected"
+  **_ = 1**
+4. `status` == "forgotten"
+  **_ = 1**
+5. *
+  `badst` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | status must be proposed|confirmed|rejected|forgotten | invalid_arguments |
+
+  *badst*
 
 **store = > db.open**
 **cur = > `store`.get table="profile_items" id=`id`**

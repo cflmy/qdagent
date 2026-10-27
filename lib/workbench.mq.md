@@ -21,6 +21,42 @@ import:
   workspace: ../lib/workspace.mq.md
 ---
 
+## tools_catalog
+    + `payload`=None
+
+GET /api/app/tools — authorized tool inventory for current product scope.
+No credentials, API keys, or connector secrets. Capability/state/version only.
+
+`tools` =
+
+| @ | id | version | effect | availability | description |
+|---|----|---------|--------|--------------|-------------|
+| 1 | tools_search | 1 | read | ready | Search authorized tool catalog by intent |
+| 2 | tools_describe | 1 | read | ready | Describe one authorized ToolSpec by id |
+| 3 | note_read | 1 | read | ready | Read a host-relative note under an allowed root |
+| 4 | file_read | 1 | read | ready | Read a host-relative workspace file |
+| 5 | workspace_list | 1 | read | ready | List workspace directory entries with cursor |
+| 6 | workspace_search | 1 | read | ready | Search workspace paths/content with locators |
+| 7 | workspace_read | 1 | read | ready | Bounded workspace file range read |
+| 8 | web_search | 1 | read | ready | Web search hits (trust=unverified) |
+| 9 | web_fetch | 1 | read | ready | Fetch one http(s) URL with SSRF guards |
+| 10 | plan_update | 1 | write | ready | Publish plan milestones (not execution proof) |
+| 11 | task_status | 1 | write | ready | Publish task status pending\|running\|done\|blocked |
+| 12 | tool_find | 1 | read | ready | Engineering find (EKC) |
+| 13 | tool_reuse | 1 | read | ready | Engineering reuse |
+| 14 | tool_bind | 1 | write | ready | Engineering bind |
+| 15 | tool_verify | 1 | read | ready | Engineering verify |
+| 16 | tool_summarize | 1 | read | ready | Engineering summarize |
+| 17 | memory_forget | 1 | write | ready | Forget a profile memory item (auditable) |
+
+`data` =
+
+| schema | schema_version | tools | secrets | note |
+|--------|----------------|-------|---------|------|
+| ToolsCatalogV1 | 1 | `tools` | never | inventory only — search hit ≠ authorization to execute |
+
+*> app_ok data=`data`*
+
 ## feature_flags_snapshot
 
 **snap = > flags.snapshot**
@@ -1063,6 +1099,9 @@ Q-R8: default returns confirmed items only for injection; status=all for admin l
 ## profile_items_set_status
     + `payload`=None
 
+Allowed status: proposed | confirmed | rejected | forgotten.
+`forgotten` is memory.forget — item stays auditable, never injectable.
+
 **store = > db.open**
 **id = > json.get value=`payload` key="id"**
 **status = > json.get value=`payload` key="status"**
@@ -1070,6 +1109,16 @@ Q-R8: default returns confirmed items only for injection; status=all for admin l
   *> app_err code="resource.not_found" message="id required"*
 1. not `status`
   *> app_err code="resource.not_found" message="status required"*
+1. `status` == "proposed"
+  **_ = 1**
+2. `status` == "confirmed"
+  **_ = 1**
+3. `status` == "rejected"
+  **_ = 1**
+4. `status` == "forgotten"
+  **_ = 1**
+5. *
+  *> app_err code="invalid_arguments" message="status must be proposed|confirmed|rejected|forgotten"*
 **cur = > `store`.get table="profile_items" id=`id`**
 1. not `cur`
   *> app_err code="resource.not_found" message="profile item not found"*
@@ -1087,6 +1136,20 @@ Q-R8: default returns confirmed items only for injection; status=all for admin l
 
 > `store`.update table="profile_items" id=`id` row=`patch`
 **row = > `store`.get table="profile_items" id=`id`**
+*> app_ok data=`row`*
+
+## profile_items_get_one
+    + `payload`=None
+
+Read one profile item for ResourcePreview (profile_item target).
+
+**id = > json.get value=`payload` key="id"**
+1. not `id`
+  *> app_err code="resource.not_found" message="id required"*
+**store = > db.open**
+**row = > `store`.get table="profile_items" id=`id`**
+1. not `row`
+  *> app_err code="resource.not_found" message="profile item not found"*
 *> app_ok data=`row`*
 
 ## turns_cancel

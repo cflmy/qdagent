@@ -47,7 +47,8 @@
     "tools_search",
     "tools_describe",
     "plan_update",
-    "task_status"
+    "task_status",
+    "memory_forget"
   ],
   "invariants": [
     "CALL and native prepare share one ToolSpec registry",
@@ -55,6 +56,7 @@
     "eng_tools names remain aliases of registered ToolSpec ids",
     "web_search hits and web_fetch text are trust=unverified evidence",
     "workspace_search hits carry locators; workspace_read is the range authority",
-    "plan_update/task_status are planning evidence only — not execution completion"
+    "plan_update/task_status are planning evidence only — not execution completion",
+    "memory_forget is auditable forgotten status — not silent delete"
   ]
 }

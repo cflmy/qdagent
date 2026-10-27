@@ -96,7 +96,8 @@ export function DocumentReader() {
       activeTarget.kind !== 'document' &&
       activeTarget.kind !== 'citation' &&
       activeTarget.kind !== 'file' &&
-      activeTarget.kind !== 'note'
+      activeTarget.kind !== 'note' &&
+      activeTarget.kind !== 'profile_item'
     ) return
     const gen = requestGen
     let cancelled = false
@@ -106,6 +107,49 @@ export function DocumentReader() {
     ;(async () => {
       setLoading(true)
       try {
+        if (activeTarget.kind === 'profile_item') {
+          const res = await api.appProfileGet({ id: activeTarget.id }) as {
+            ok?: boolean
+            data?: Record<string, unknown>
+            error?: { message?: string }
+          }
+          if (cancelled) return
+          if (res.ok === false || !res.data) {
+            setError(res.error?.message || '画像条目不存在', gen)
+            return
+          }
+          const row = res.data
+          const body = [
+            `# 画像记忆`,
+            ``,
+            `- id: ${row.id}`,
+            `- status: ${row.status}`,
+            `- scope: ${row.scope}`,
+            `- category: ${row.category}`,
+            `- revision: ${row.revision ?? ''}`,
+            row.source_refs ? `- source: ${row.source_refs}` : '',
+            ``,
+            String(row.text || ''),
+            ``,
+            row.status === 'forgotten'
+              ? '（已忘记：保留审计，不会注入上下文）'
+              : row.status === 'confirmed'
+                ? '（已确认：可按作用域注入上下文）'
+                : '（未确认：不会注入上下文）',
+          ].filter(Boolean).join('\n')
+          const escaped = body
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+          setView({
+            fragmentHtml: `<article class="mq-resource"><pre class="mq-resource-body">${escaped}</pre></article>`,
+            outline: [],
+            diagnostics: [],
+            completeness: 'complete',
+          }, gen)
+          setLoading(false)
+          return
+        }
         if (activeTarget.kind === 'note') {
           const run = await api.getRun({ slug: activeTarget.slug })
           if (cancelled) return
@@ -243,7 +287,9 @@ export function DocumentReader() {
           ? activeTarget.path
           : activeTarget?.kind === 'note'
             ? activeTarget.slug
-            : '阅读器'
+            : activeTarget?.kind === 'profile_item'
+              ? `画像 ${activeTarget.id}`
+              : '阅读器'
 
   const canPin = !!(
     activeTarget

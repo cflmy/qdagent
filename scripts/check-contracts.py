@@ -35,6 +35,7 @@ REQUIRED = {
     "web-tools.json": ("tools", "invariants"),
     "turn-recover.json": ("routes", "actions", "get_fields", "invariants"),
     "workspace-tools.json": ("tools", "invariants"),
+    "tools-catalog.json": ("route", "fields", "invariants"),
 }
 
 
@@ -239,6 +240,7 @@ def check_tool_schema(data: dict) -> None:
         "tools_describe",
         "plan_update",
         "task_status",
+        "memory_forget",
     ):
         if name not in product:
             raise AssertionError(f"product_aliases missing {name}")
@@ -285,6 +287,25 @@ def check_turn_recover(data: dict) -> None:
         raise AssertionError("invariants must separate event recover from tool exec")
     if "revision.conflict" not in inv and "cas" not in inv:
         raise AssertionError("invariants must require CAS expected_revision")
+
+
+def check_tools_catalog(data: dict) -> None:
+    route = data["route"]
+    if route.get("path") != "/api/app/tools":
+        raise AssertionError("tools-catalog route path must be /api/app/tools")
+    if route.get("method") != "GET":
+        raise AssertionError("tools-catalog must be GET")
+    fields = set(data["fields"])
+    for f in ("id", "effect", "availability", "description"):
+        if f not in fields:
+            raise AssertionError(f"tools catalog missing field {f}")
+    forbidden = set(data.get("forbidden_fields") or [])
+    for f in ("api_key", "token", "secret"):
+        if f not in forbidden:
+            raise AssertionError(f"forbidden_fields must include {f}")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "secret" not in inv and "credential" not in inv:
+        raise AssertionError("invariants must forbid leaking secrets")
 
 
 def check_workspace_tools(data: dict) -> None:
@@ -457,6 +478,7 @@ def main() -> int:
         "web-tools.json": check_web_tools,
         "turn-recover.json": check_turn_recover,
         "workspace-tools.json": check_workspace_tools,
+        "tools-catalog.json": check_tools_catalog,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

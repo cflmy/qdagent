@@ -1343,6 +1343,14 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
     + `payload`=None
 *> workbench.profile_items_set_status payload=`payload`*
 
+## app_profile_get
+    + `payload`=None
+*> workbench.profile_items_get_one payload=`payload`*
+
+## app_tools
+    + `payload`=None
+*> workbench.tools_catalog payload=`payload`*
+
 ## app_feature_flags
 *> workbench.feature_flags_snapshot*
 

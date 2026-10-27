@@ -18,6 +18,7 @@ import:
   workspace_read: workspace_read.mq.md
   plan_update: plan_update.mq.md
   task_status: task_status.mq.md
+  memory_forget: memory_forget.mq.md
 ---
 
 ## ensure_plugin
@@ -51,6 +52,7 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **web_scopes = > json.parse text=["network:read"]**
 **meta_scopes = > json.parse text=["tools:describe"]**
 **plan_scopes = > json.parse text=["turn:plan"]**
+**memory_scopes = > json.parse text=["memory:write"]**
 `note_spec` =
 
 | id | version | description | input_schema | effect | scopes | availability |
@@ -117,6 +119,13 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 |----|---------|-------------|--------------|--------|--------|--------------|
 | task_status | 1 | Publish task status pending|running|done|blocked from real turn | `task_status_schema` | write | `plan_scopes` | ready |
 
+**memory_forget_schema = > json.parse text={"type":"object","properties":{"id":{"type":"string","minLength":1}},"required":["id"],"additionalProperties":false}**
+`memory_forget_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| memory_forget | 1 | Forget a profile memory item (auditable; not injectable) | `memory_forget_schema` | write | `memory_scopes` | ready |
+
 **prod_note = > agent.tools_register spec=`note_spec`**
 **prod_file = > agent.tools_register spec=`file_spec`**
 **prod_ws = > agent.tools_register spec=`web_search_spec`**
@@ -128,6 +137,7 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_td = > agent.tools_register spec=`tools_describe_spec`**
 **prod_pu = > agent.tools_register spec=`plan_update_spec`**
 **prod_tst = > agent.tools_register spec=`task_status_spec`**
+**prod_mf = > agent.tools_register spec=`memory_forget_spec`**
 `out` =
 
 | ok | eng |
@@ -191,6 +201,7 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="tools_describe"**
 **t = > table.append list=`t` item="plan_update"**
 **t = > table.append list=`t` item="task_status"**
+**t = > table.append list=`t` item="memory_forget"**
 *t*
 
 ## note_read
@@ -274,3 +285,8 @@ Catalog search — authorize only; does not execute tools.
     + `detail`=""
 
 *> task_status.run turn_id=`turn_id` task_id=`task_id` status=`status` detail=`detail`*
+
+## memory_forget
+    + `id`=""
+
+*> memory_forget.run id=`id`*
