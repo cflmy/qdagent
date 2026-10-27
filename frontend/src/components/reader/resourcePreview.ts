@@ -1,4 +1,5 @@
 /** Shared ResourceView / DocumentView → panel fragment (Q-R4 / Q-A5). Never executes. */
+import createDOMPurify from 'dompurify'
 
 export type BlobRefPayload = {
   path: string
@@ -180,13 +181,36 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
   }
 }
 
-/** Minimal HTML allowlist — strip script/event handlers/dangerous URLs (R13). */
+let purify: ReturnType<typeof createDOMPurify> | null = null
+
+function getPurify(): ReturnType<typeof createDOMPurify> {
+  if (purify) return purify
+  let win: Window
+  if (typeof window !== 'undefined' && window.document) {
+    win = window
+  } else {
+    // Node / vitest: jsdom window for DOMPurify (browser uses real window).
+    // Dynamic import avoided — createDOMPurify needs a sync window at call time.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { JSDOM } = require('jsdom') as typeof import('jsdom')
+    win = new JSDOM('').window as unknown as Window
+  }
+  purify = createDOMPurify(win)
+  if (!purify.isSupported) {
+    throw new Error('DOMPurify isSupported=false — need a real DOM (browser or jsdom)')
+  }
+  return purify
+}
+
+/** DOM allowlist sanitize — design §8.3; replaces regex strip (R13). */
 export function sanitizeHtmlFragment(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(href|src)\s*=\s*("\s*javascript:[^"]*"|'\s*javascript:[^']*'|javascript:[^\s>]+)/gi, '$1="#"')
-    .replace(/<(iframe|object|embed|svg)\b[\s\S]*?>[\s\S]*?<\/\1>/gi, '')
+  return getPurify().sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea', 'select', 'svg', 'math'],
+    FORBID_ATTR: ['style', 'srcdoc'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    KEEP_CONTENT: false,
+  })
 }
 
 export function escapeHtml(s: string) {

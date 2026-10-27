@@ -70,8 +70,11 @@ describe('applyResourceOrDocumentView', () => {
     expect(r.error).toContain('resource.view')
   })
 
-  it('strips script tags in sanitize', () => {
+  it('DOMPurify strips script/events/dangerous uri (design §8.3)', () => {
     expect(sanitizeHtmlFragment('<p>x</p><script>alert(1)</script>')).toBe('<p>x</p>')
+    expect(sanitizeHtmlFragment('<a href="javascript:alert(1)">x</a>')).not.toContain('javascript:')
+    expect(sanitizeHtmlFragment('<p onclick="evil()">x</p>')).not.toContain('onclick')
+    expect(sanitizeHtmlFragment('<iframe src="https://evil"></iframe><b>ok</b>')).toBe('<b>ok</b>')
   })
 
   it('maps PDF blob_ref for client visual preview without claiming extract', () => {
