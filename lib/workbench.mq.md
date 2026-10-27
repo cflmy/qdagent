@@ -99,8 +99,9 @@ import:
 ## documents_read
     + `payload`=None
 
-Read-only DocumentView (Q-R4). Passes revision/generation/node_id end-to-end.
-Unique per-request temp files — never fixed /tmp names (R06).
+Read-only preview (Q-R4 / Q-A5). `.mq.md` → `view.document`; ordinary
+files (json/csv/md/txt/code/…) → `resource.view`. Never executes. Unique
+per-request temp files — never fixed /tmp names (R06).
 
 **workspace_id = > json.get value=`payload` key="workspace_id"**
 **document = > json.get value=`payload` key="document"**
@@ -120,6 +121,10 @@ Unique per-request temp files — never fixed /tmp names (R06).
 1. not `project`
   **project = "."**
 
+**is_mq = > text.ends_with text=`document` suffix=".mq.md"**
+1. not `is_mq`
+  *> resources_view payload=`payload` project=`project`*
+
 `params` =
 
 | project | document | mode | revision | generation | node_id |
@@ -128,6 +133,51 @@ Unique per-request temp files — never fixed /tmp names (R06).
 
 **params_s = > json.stringify value=`params`**
 **mlsp_req = "{\"id\":1,\"method\":\"view.document\",\"params\":" + `params_s` + "}"**
+*> mlsp_roundtrip req=`mlsp_req` fail_msg="view.document failed" soft_schema="DocumentViewV1" soft_caps_key="view.document"*
+
+## resources_view
+    + `payload`=None
+    + `project`=""
+
+ResourceViewV1 for ordinary files (json/csv/md/code/txt). `no_exec` always.
+
+1. not `project`
+  **workspace_id = > json.get value=`payload` key="workspace_id"**
+  **store = > db.open**
+  1. `workspace_id`
+    **ws = > `store`.get table="workspaces" id=`workspace_id`**
+    1. not `ws`
+      *> app_err code="workspace.forbidden" message="unknown workspace"*
+    **project = [project_root_ref](access(ws, "project_root_ref"))**
+  2. *
+    **project = "."**
+1. not `project`
+  **project = "."**
+**document = > json.get value=`payload` key="document"**
+1. not `document`
+  **document = > json.get value=`payload` key="path"**
+1. not `document`
+  *> app_err code="resource.not_found" message="document or path required"*
+**revision = > json.get value=`payload` key="revision"**
+
+`params` =
+
+| project | path | mode | revision |
+|---------|------|------|----------|
+| `project` | `document` | read | `revision` |
+
+**params_s = > json.stringify value=`params`**
+**mlsp_req = "{\"id\":1,\"method\":\"resource.view\",\"params\":" + `params_s` + "}"**
+*> mlsp_roundtrip req=`mlsp_req` fail_msg="resource.view failed" soft_schema="ResourceViewV1" soft_caps_key="resource.view"*
+
+## mlsp_roundtrip
+    + `req`
+    + `fail_msg`="mlsp failed"
+    + `soft_schema`="ResourceViewV1"
+    + `soft_caps_key`="resource.view"
+
+Shared temp-file mlsp invoke. Soft-fail to capability-unavailable envelope.
+
 **root = > run.确保目录**
 **u = > time.now_unix**
 **nonce = > sys.env_get name="RANDOM"**
@@ -135,7 +185,7 @@ Unique per-request temp files — never fixed /tmp names (R06).
   **nonce = `u`**
 **req_path = `root` + "/tmp/qd-view-" + `u` + "-" + `nonce` + "-req.json"**
 **out_path = `root` + "/tmp/qd-view-" + `u` + "-" + `nonce` + "-out.json"**
-> fs.write_text path=`req_path` text=`mlsp_req`
+> fs.write_text path=`req_path` text=`req`
 > sys.env_set name="QDAGENT_VIEW_REQ" value=`req_path`
 > sys.env_set name="QDAGENT_VIEW_OUT" value=`out_path`
 `args` =
@@ -159,16 +209,18 @@ Unique per-request temp files — never fixed /tmp names (R06).
     **err = > json.get value=`resp` key="error"**
     **msg = > json.get value=`err` key="message"**
     1. not `msg`
-      **msg = "view.document failed"**
+      **msg = `fail_msg`**
     **ecode = > json.get value=`err` key="code"**
     1. `ecode` == "version_unavailable"
       *> app_err code="reference.stale" message=`msg` retryable=True*
     *> app_err code="runtime.unavailable" message=`msg` retryable=True*
+**caps_obj = > json.parse text="{\"" + `soft_caps_key` + "\":false,\"read_only\":true}"**
+**diag_msg = "Marqdo " + `soft_caps_key` + " unavailable — install matching CLI/ext/native"**
 `unavailable` =
 
 | schema | schema_version | completeness | capabilities | diagnostics | render | no_exec |
 |--------|----------------|--------------|--------------|-------------|--------|---------|
-| DocumentViewV1 | 1 | partial | {"read_only":true,"view.document":false} | ["Marqdo view.document unavailable — install matching CLI/ext/native"] | {"format":"plain_text","fragment":"","renderer_version":"0"} | True |
+| `soft_schema` | 1 | partial | `caps_obj` | [`diag_msg`] | {"format":"plain_text","fragment":"","renderer_version":"0"} | True |
 
 *> app_ok data=`unavailable`*
 

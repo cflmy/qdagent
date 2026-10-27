@@ -2,14 +2,30 @@ import { useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 import { useContextPanelStore } from '@/stores/context-panel-store'
 import { ArrowLeft, X, Loader2 } from 'lucide-react'
+import { applyResourceOrDocumentView } from './resourcePreview'
 
-/** Read-only Marqdo DocumentView embed. Never triggers execution. */
+/** Read-only DocumentView / ResourceView embed. Never triggers execution. */
 export function DocumentReader() {
   const {
     open, width, loading, error, activeTarget, fragmentHtml, completeness, diagnostics,
     close, back, backStack, setLoading, setError, setView, requestGen, rememberScroll, targetKey,
   } = useContextPanelStore()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const kindBadge = (() => {
+    const path =
+      activeTarget?.kind === 'file'
+        ? activeTarget.path
+        : activeTarget?.kind === 'document'
+          ? activeTarget.documentId
+          : ''
+    if (!path) return ''
+    const lower = path.toLowerCase()
+    if (lower.endsWith('.json')) return 'json'
+    if (lower.endsWith('.csv')) return 'csv'
+    if (lower.endsWith('.mq.md')) return 'mq'
+    if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'md'
+    return ''
+  })()
 
   useEffect(() => {
     if (!open || !activeTarget) return
@@ -74,12 +90,14 @@ export function DocumentReader() {
               node_id: target?.node_id ?? activeTarget.nodeId,
             })
             if (cancelled) return
-            applyView(view, (v) => setView(v, gen), (e) => setError(e, gen))
+            applyPreview(view, (v) => setView(v, gen), (e) => setError(e, gen))
             return
           }
           setError('引用未能定位到文档', gen)
           return
         }
+        // Q-A5: documents_read routes .mq.md → view.document, else → resource.view
+        // (json/csv/md/code). Same client API for both.
         const documentId = activeTarget.kind === 'file' ? activeTarget.path : activeTarget.documentId
         const workspaceId = activeTarget.workspaceId
         const revision = activeTarget.kind === 'document' ? activeTarget.revision : undefined
@@ -93,7 +111,7 @@ export function DocumentReader() {
           node_id: nodeId,
         })
         if (cancelled) return
-        applyView(view, (v) => setView(v, gen), (e) => setError(e, gen))
+        applyPreview(view, (v) => setView(v, gen), (e) => setError(e, gen))
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e), gen)
       }
@@ -142,6 +160,11 @@ export function DocumentReader() {
           <ArrowLeft size={16} />
         </button>
         <div className="min-w-0 flex-1 truncate text-sm font-medium">{title}</div>
+        {kindBadge && (
+          <span className="rounded bg-black/5 px-1.5 text-xs uppercase tracking-wide text-[var(--qd-muted)]">
+            {kindBadge}
+          </span>
+        )}
         {completeness === 'partial' && (
           <span className="rounded bg-amber-100 px-1.5 text-xs text-amber-800">部分</span>
         )}
@@ -162,7 +185,7 @@ export function DocumentReader() {
         )}
         {!loading && !error && fragmentHtml && (
           <div
-            className="mq-document prose prose-sm max-w-none"
+            className="mq-document mq-resource-preview prose prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: fragmentHtml }}
           />
         )}
@@ -180,69 +203,15 @@ export function DocumentReader() {
   )
 }
 
-function applyView(
+function applyPreview(
   view: unknown,
   setView: (v: { fragmentHtml?: string; outline?: unknown[]; diagnostics?: unknown[]; completeness?: string }) => void,
   setError: (e: string) => void,
 ) {
-  const envelope = view as { ok?: boolean; data?: Record<string, unknown>; error?: { message?: string } }
-  const data = (envelope?.data ?? view) as Record<string, unknown>
-  if (envelope?.ok === false) {
-    setError(envelope.error?.message || '读取失败')
+  const result = applyResourceOrDocumentView(view)
+  if (!result.ok) {
+    setError(result.error)
     return
   }
-  const capability = data.capability as string | undefined
-  if (capability === 'unavailable' || data.honest_reason) {
-    const text = String(data.text || '')
-    const reason = String(data.honest_reason || 'view.document_bridge_missing')
-    setView({
-      fragmentHtml: text
-        ? `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(text)}</pre>`
-        : '',
-      outline: [],
-      diagnostics: [reason, 'capability unavailable — 静态只读，未执行'],
-      completeness: 'partial',
-    })
-    return
-  }
-  const render = data.render as { fragment?: string; format?: string } | undefined
-  const caps = data.capabilities as { 'view.document'?: boolean } | undefined
-  if (caps && caps['view.document'] === false) {
-    setError('Marqdo view.document 不可用：请升级匹配的 CLI/ext/native 插件')
-    return
-  }
-  // Q-R4 / R13: trust render.format — never guess HTML from '<' in plain text.
-  const format = String(render?.format || data.format || '').toLowerCase()
-  const raw = String(data.html_fragment || render?.fragment || data.text || '')
-  let fragmentHtml = ''
-  if (raw) {
-    if (format === 'plain' || format === 'plain_text' || format === 'text') {
-      fragmentHtml = `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(raw)}</pre>`
-    } else if (format === 'html' || format === 'sanitized_html' || format.includes('html')) {
-      fragmentHtml = sanitizeHtmlFragment(raw)
-    } else if (data.html_fragment || (render?.fragment && format)) {
-      fragmentHtml = sanitizeHtmlFragment(raw)
-    } else {
-      fragmentHtml = `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(raw)}</pre>`
-    }
-  }
-  setView({
-    fragmentHtml,
-    outline: (data.outline as unknown[]) || [],
-    diagnostics: (data.diagnostics as unknown[]) || [],
-    completeness: String(data.completeness || ''),
-  })
-}
-
-/** Minimal HTML allowlist — strip script/event handlers/dangerous URLs (R13). */
-function sanitizeHtmlFragment(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(href|src)\s*=\s*("\s*javascript:[^"]*"|'\s*javascript:[^']*'|javascript:[^\s>]+)/gi, '$1="#"')
-    .replace(/<(iframe|object|embed|svg)\b[\s\S]*?>[\s\S]*?<\/\1>/gi, '')
-}
-
-function escapeHtml(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  setView(result.view)
 }

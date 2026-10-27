@@ -128,3 +128,30 @@ body[data-ds-dark-theme] {
 .dsh-input-major {
   background-color: var(--dsw-specific-input-major);
 }
+
+/* Q-A5 ResourceView fragments (json/csv/md) — server-sanitized HTML only */
+.mq-resource-preview .mq-csv {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.mq-resource-preview .mq-csv th,
+.mq-resource-preview .mq-csv td {
+  border: 1px solid var(--qd-border);
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+.mq-resource-preview .mq-csv th {
+  background: color-mix(in srgb, var(--qd-surface) 80%, var(--qd-border));
+  font-weight: 600;
+}
+.mq-resource-preview .mq-resource,
+.mq-resource-preview pre.mq-resource {
+  margin: 0;
+  overflow-x: auto;
+  font-family: var(--mq-font-code);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
