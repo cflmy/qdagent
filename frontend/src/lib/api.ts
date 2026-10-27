@@ -599,6 +599,8 @@ export const api = {
   appResponsePreferencesPut: (data: {
     detail: 'concise' | 'standard' | 'detailed' | string
     max_chars?: number
+    token_budget?: number
+    time_budget_s?: number
     scope?: string
     principal?: string
     session_id?: string

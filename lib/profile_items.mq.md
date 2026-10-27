@@ -131,6 +131,97 @@ Creates a proposed item — never auto-confirmed.
 
 *ret*
 
+## update
+    + `id`=""
+    + `text`=""
+    + `scope`=""
+    + `category`=""
+    + `expected_revision`=0
+    + `payload`=None
+
+Update text/scope/category under expected_revision CAS. Does not auto-confirm.
+Forgotten items cannot be silently revived via update (use set_status).
+
+1. `payload`
+  **pid = > json.get value=`payload` key="id"**
+  1. `pid`
+    **id = `pid`**
+  **pt = > json.get value=`payload` key="text"**
+  1. `pt`
+    **text = `pt`**
+  **ps = > json.get value=`payload` key="scope"**
+  1. `ps`
+    **scope = `ps`**
+  **pc = > json.get value=`payload` key="category"**
+  1. `pc`
+    **category = `pc`**
+  **prev = > json.get value=`payload` key="expected_revision"**
+  1. `prev` != None
+    **expected_revision = `prev`**
+1. not `id`
+  `need` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | id required | invalid_arguments |
+
+  *need*
+**store = > db.open**
+**cur = > `store`.get table="profile_items" id=`id`**
+1. not `cur`
+  `nf` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | item not found | resource.not_found |
+
+  *nf*
+**st = [status](access(cur, "status"))**
+1. `st` == "forgotten"
+  `bad` =
+
+  | ok | error | code |
+  |----|-------|------|
+  | False | forgotten items cannot be updated; use set_status to revive | invalid_arguments |
+
+  *bad*
+**crev = [revision](access(cur, "revision"))**
+1. `expected_revision`
+  1. `expected_revision` != `crev`
+    **msg = "expected revision " + `expected_revision` + " but item is " + `crev`**
+    `conf` =
+
+    | ok | error | code |
+    |----|-------|------|
+    | False | `msg` | revision.conflict |
+
+    *conf*
+**u = > time.now_unix**
+**nrev = `crev` + 1**
+**ntext = [text](access(cur, "text"))**
+1. `text`
+  **ntext = `text`**
+**nscope = [scope](access(cur, "scope"))**
+1. `scope`
+  **nscope = `scope`**
+**ncat = [category](access(cur, "category"))**
+1. `category`
+  **ncat = `category`**
+`patch` =
+
+| text | scope | category | revision | updated_at |
+|------|-------|----------|----------|------------|
+| `ntext` | `nscope` | `ncat` | `nrev` | `u` |
+
+> `store`.update table="profile_items" id=`id` row=`patch`
+`ret` =
+
+| ok | id | status | revision | text | scope | category |
+|----|----|--------|----------|------|-------|----------|
+| True | `id` | `st` | `nrev` | `ntext` | `nscope` | `ncat` |
+
+*ret*
+
 ## set_status
     + `id`=""
     + `status`=""

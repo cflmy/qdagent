@@ -286,6 +286,17 @@ Memory propose (CALL:memory_propose) — never auto-confirmed.
 
 *> catalog.memory_propose text=`text` category=`category` scope=`scope` workspace_id=`workspace_id` session_id=`session_id` source_refs=`source_refs`*
 
+## memory_update
+    + `id`=""
+    + `text`=""
+    + `scope`=""
+    + `category`=""
+    + `expected_revision`=0
+
+Memory update (CALL:memory_update) — CAS; never auto-confirm.
+
+*> catalog.memory_update id=`id` text=`text` scope=`scope` category=`category` expected_revision=`expected_revision`*
+
 ## notes_create
     + `path`=""
     + `root`="data"
@@ -359,6 +370,24 @@ Artifacts update (CALL:artifacts_update) — CAS via expected_digest.
 Resources read (CALL:resources_read) — model range read; never executes.
 
 *> catalog.resources_read path=`path` root=`root` digest=`digest` line_start=`line_start` line_end=`line_end` max_bytes=`max_bytes` cursor=`cursor`*
+
+## code_run
+    + `entry`=""
+    + `root`="."
+    + `timeout_s`=30
+
+Code run (CALL:code_run) — restricted sandbox; receipt verified only on exit 0.
+
+*> catalog.code_run entry=`entry` root=`root` timeout_s=`timeout_s`*
+
+## tests_run
+    + `entry`="."
+    + `root`="."
+    + `timeout_s`=60
+
+Tests run (CALL:tests_run) — pytest when available; else honest unavailable.
+
+*> catalog.tests_run entry=`entry` root=`root` timeout_s=`timeout_s`*
 
 ## ensure_llm
     + `model_id`=""

@@ -21,9 +21,9 @@ import:
 
 `row` =
 
-| schema | schema_version | principal | session_id | detail | max_chars | scope | revision | updated_at |
-|--------|----------------|-----------|------------|--------|-----------|-------|----------|------------|
-| ResponsePreferenceV1 | 1 | user |  | concise | 0 | user | sha256:0 |  |
+| schema | schema_version | principal | session_id | detail | max_chars | token_budget | time_budget_s | scope | revision | updated_at |
+|--------|----------------|-----------|------------|--------|-----------|--------------|---------------|-------|----------|------------|
+| ResponsePreferenceV1 | 1 | user |  | concise | 0 | 0 | 0 | user | sha256:0 |  |
 
 *row*
 
@@ -57,6 +57,8 @@ Missing file → defaults with revision sha256:0 (first put must use expected_re
 ## put
     + `detail`="concise"
     + `max_chars`=0
+    + `token_budget`=0
+    + `time_budget_s`=0
     + `scope`="user"
     + `principal`="user"
     + `session_id`=""
@@ -64,6 +66,7 @@ Missing file → defaults with revision sha256:0 (first put must use expected_re
     + `root`="data"
 
 CAS write. expected_revision required (use sha256:0 for first create).
+0 = unlimited for token_budget / time_budget_s.
 
 1. not `expected_revision`
   `err` =
@@ -117,9 +120,9 @@ CAS write. expected_revision required (use sha256:0 for first create).
 > fs.make_dir path=`root`+"/prefs"
 `draft` =
 
-| schema | schema_version | principal | session_id | detail | max_chars | scope | updated_at |
-|--------|----------------|-----------|------------|--------|-----------|-------|------------|
-| ResponsePreferenceV1 | 1 | `principal` | `session_id` | `detail` | `max_chars` | `scope` | `u` |
+| schema | schema_version | principal | session_id | detail | max_chars | token_budget | time_budget_s | scope | updated_at |
+|--------|----------------|-----------|------------|--------|-----------|--------------|---------------|-------|------------|
+| ResponsePreferenceV1 | 1 | `principal` | `session_id` | `detail` | `max_chars` | `token_budget` | `time_budget_s` | `scope` | `u` |
 
 **body0 = > json.stringify value=`draft`**
 **hex = > hash.sha256 text=`body0`**

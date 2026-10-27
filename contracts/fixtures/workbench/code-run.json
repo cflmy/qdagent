@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "description": "code.run / tests.run sandbox receipt contract (design §9.1)",
+  "ops": ["run", "tests"],
+  "result_fields": [
+    "schema",
+    "argv",
+    "cwd",
+    "exit_code",
+    "stdout",
+    "stderr",
+    "elapsed_s",
+    "timeout_s",
+    "network",
+    "verified",
+    "no_exec_marqdo"
+  ],
+  "error_codes": [
+    "invalid_arguments",
+    "workspace.forbidden",
+    "resource.not_found",
+    "deadline.exceeded",
+    "runtime.unavailable"
+  ],
+  "invariants": [
+    "only .py/.sh entries for code.run under allowed root",
+    "absolute paths and .. rejected",
+    "network credentials scrubbed; network=denied_by_policy",
+    "verified true only when exit_code==0",
+    "tests.run without pytest → runtime.unavailable (no fake green)",
+    "never executes Marqdo documents"
+  ]
+}

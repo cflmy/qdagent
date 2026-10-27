@@ -21,6 +21,7 @@ import:
   memory_forget: memory_forget.mq.md
   memory_list: memory_list.mq.md
   memory_propose: memory_propose.mq.md
+  memory_update: memory_update.mq.md
   notes_create: notes_create.mq.md
   notes_update: notes_update.mq.md
   notes_search: notes_search.mq.md
@@ -28,6 +29,8 @@ import:
   artifacts_create: artifacts_create.mq.md
   artifacts_update: artifacts_update.mq.md
   resources_read: resources_read.mq.md
+  code_run: code_run.mq.md
+  tests_run: tests_run.mq.md
 ---
 
 ## ensure_plugin
@@ -149,6 +152,28 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 |----|---------|-------------|--------------|--------|--------|--------------|
 | memory_propose | 1 | Propose a profile memory item — never auto-confirmed | `memory_propose_schema` | write | `memory_scopes` | ready |
 
+**memory_update_schema = > json.parse text={"type":"object","properties":{"id":{"type":"string","minLength":1},"text":{"type":"string"},"scope":{"type":"string"},"category":{"type":"string"},"expected_revision":{"type":"integer","minimum":0}},"required":["id","expected_revision"],"additionalProperties":false}**
+`memory_update_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| memory_update | 1 | CAS update profile memory text/scope; never auto-confirm | `memory_update_schema` | write | `memory_scopes` | ready |
+
+**exec_scopes = > json.parse text=["sandbox:exec"]**
+**code_run_schema = > json.parse text={"type":"object","properties":{"entry":{"type":"string","minLength":1},"root":{"type":"string"},"timeout_s":{"type":"number","minimum":1,"maximum":120}},"required":["entry"],"additionalProperties":false}**
+**tests_run_schema = > json.parse text={"type":"object","properties":{"entry":{"type":"string"},"root":{"type":"string"},"timeout_s":{"type":"number","minimum":1,"maximum":120}},"additionalProperties":false}**
+`code_run_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| code_run | 1 | Restricted .py/.sh run under workspace; receipt with verified=exit0 | `code_run_schema` | execute | `exec_scopes` | ready |
+
+`tests_run_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| tests_run | 1 | pytest under workspace when installed; else honest unavailable | `tests_run_schema` | execute | `exec_scopes` | ready |
+
 **note_write_scopes = > json.parse text=["notes:write"]**
 **file_write_scopes = > json.parse text=["workspace:write"]**
 **notes_create_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string","minLength":1},"root":{"type":"string"},"content":{"type":"string"}},"required":["path","content"],"additionalProperties":false}**
@@ -214,6 +239,7 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_mf = > agent.tools_register spec=`memory_forget_spec`**
 **prod_ml = > agent.tools_register spec=`memory_list_spec`**
 **prod_mp = > agent.tools_register spec=`memory_propose_spec`**
+**prod_mu = > agent.tools_register spec=`memory_update_spec`**
 **prod_nc = > agent.tools_register spec=`notes_create_spec`**
 **prod_nu = > agent.tools_register spec=`notes_update_spec`**
 **prod_fp = > agent.tools_register spec=`files_patch_spec`**
@@ -221,6 +247,8 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_ac = > agent.tools_register spec=`artifacts_create_spec`**
 **prod_au = > agent.tools_register spec=`artifacts_update_spec`**
 **prod_rr = > agent.tools_register spec=`resources_read_spec`**
+**prod_cr = > agent.tools_register spec=`code_run_spec`**
+**prod_tr = > agent.tools_register spec=`tests_run_spec`**
 `out` =
 
 | ok | eng |
@@ -287,6 +315,7 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="memory_forget"**
 **t = > table.append list=`t` item="memory_list"**
 **t = > table.append list=`t` item="memory_propose"**
+**t = > table.append list=`t` item="memory_update"**
 **t = > table.append list=`t` item="notes_create"**
 **t = > table.append list=`t` item="notes_update"**
 **t = > table.append list=`t` item="files_patch"**
@@ -294,6 +323,8 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="artifacts_create"**
 **t = > table.append list=`t` item="artifacts_update"**
 **t = > table.append list=`t` item="resources_read"**
+**t = > table.append list=`t` item="code_run"**
+**t = > table.append list=`t` item="tests_run"**
 *t*
 
 ## note_read
@@ -400,6 +431,15 @@ Catalog search — authorize only; does not execute tools.
 
 *> memory_propose.run text=`text` category=`category` scope=`scope` workspace_id=`workspace_id` session_id=`session_id` source_refs=`source_refs`*
 
+## memory_update
+    + `id`=""
+    + `text`=""
+    + `scope`=""
+    + `category`=""
+    + `expected_revision`=0
+
+*> memory_update.run id=`id` text=`text` scope=`scope` category=`category` expected_revision=`expected_revision`*
+
 ## notes_create
     + `path`=""
     + `root`="data"
@@ -459,3 +499,17 @@ Catalog search — authorize only; does not execute tools.
     + `cursor`=""
 
 *> resources_read.run path=`path` root=`root` digest=`digest` line_start=`line_start` line_end=`line_end` max_bytes=`max_bytes` cursor=`cursor`*
+
+## code_run
+    + `entry`=""
+    + `root`="."
+    + `timeout_s`=30
+
+*> code_run.run entry=`entry` root=`root` timeout_s=`timeout_s`*
+
+## tests_run
+    + `entry`="."
+    + `root`="."
+    + `timeout_s`=60
+
+*> tests_run.run entry=`entry` root=`root` timeout_s=`timeout_s`*

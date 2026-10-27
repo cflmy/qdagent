@@ -58,6 +58,9 @@ No credentials, API keys, or connector secrets. Capability/state/version only.
 | 24 | artifacts_create | 1 | write | ready | Create versioned artifact under data/artifacts |
 | 25 | artifacts_update | 1 | write | ready | CAS update artifact with expected_digest |
 | 26 | resources_read | 1 | read | ready | Bounded resource range read for model |
+| 27 | memory_update | 1 | write | ready | CAS update profile memory text/scope |
+| 28 | code_run | 1 | execute | ready | Restricted .py/.sh sandbox with receipt |
+| 29 | tests_run | 1 | execute | ready | pytest when installed; else unavailable |
 
 `data` =
 
@@ -89,6 +92,8 @@ User turn explicit detail still overrides prefs at ask time.
 
 **detail = > json.get value=`payload` key="detail"**
 **max_chars = > json.get value=`payload` key="max_chars"**
+**token_budget = > json.get value=`payload` key="token_budget"**
+**time_budget_s = > json.get value=`payload` key="time_budget_s"**
 **scope = > json.get value=`payload` key="scope"**
 **principal = > json.get value=`payload` key="principal"**
 **session_id = > json.get value=`payload` key="session_id"**
@@ -97,6 +102,10 @@ User turn explicit detail still overrides prefs at ask time.
   **detail = "concise"**
 1. not `max_chars`
   **max_chars = 0**
+1. not `token_budget`
+  **token_budget = 0**
+1. not `time_budget_s`
+  **time_budget_s = 0**
 1. not `scope`
   **scope = "user"**
 1. not `principal`
@@ -105,7 +114,7 @@ User turn explicit detail still overrides prefs at ask time.
   **session_id = ""**
 1. not `expected`
   *> app_err code="invalid_arguments" message="expected_revision required"*
-**out = > response_preferences.put detail=`detail` max_chars=`max_chars` scope=`scope` principal=`principal` session_id=`session_id` expected_revision=`expected`**
+**out = > response_preferences.put detail=`detail` max_chars=`max_chars` token_budget=`token_budget` time_budget_s=`time_budget_s` scope=`scope` principal=`principal` session_id=`session_id` expected_revision=`expected`**
 **ok = > json.get value=`out` key="ok"**
 1. not `ok`
   **err = > json.get value=`out` key="error"**

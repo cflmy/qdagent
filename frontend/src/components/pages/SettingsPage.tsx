@@ -32,6 +32,8 @@ export function SettingsPage() {
   })
   const [prefDetail, setPrefDetail] = useState<'concise' | 'standard' | 'detailed'>('concise')
   const [prefRevision, setPrefRevision] = useState('sha256:0')
+  const [tokenBudget, setTokenBudget] = useState(0)
+  const [timeBudgetS, setTimeBudgetS] = useState(0)
   const [prefSaving, setPrefSaving] = useState(false)
   const [loadError, setLoadError] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
@@ -46,12 +48,21 @@ export function SettingsPage() {
         asr_base_url: s.asr_base_url || '',
         dictation_lang: s.dictation_lang || 'zh-CN',
       })
-      const data = (pref as { data?: { detail?: string; revision?: string } } | null)?.data
-        ?? (pref as { detail?: string; revision?: string } | null)
+      const data = (pref as {
+        data?: { detail?: string; revision?: string; token_budget?: number; time_budget_s?: number }
+      } | null)?.data
+        ?? (pref as {
+          detail?: string
+          revision?: string
+          token_budget?: number
+          time_budget_s?: number
+        } | null)
       if (data?.detail === 'standard' || data?.detail === 'detailed' || data?.detail === 'concise') {
         setPrefDetail(data.detail)
       }
       if (data?.revision) setPrefRevision(data.revision)
+      if (typeof data?.token_budget === 'number') setTokenBudget(data.token_budget)
+      if (typeof data?.time_budget_s === 'number') setTimeBudgetS(data.time_budget_s)
     }).catch((err) => {
       setLoadError(err instanceof Error ? err.message : String(err))
     }).finally(() => setLoading(false))
@@ -284,6 +295,32 @@ export function SettingsPage() {
                         <option value="detailed">详细 (detailed)</option>
                       </select>
                     </SettingRow>
+                    <SectionTitle>任务预算</SectionTitle>
+                    <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)', margin: 0 }}>
+                      0 表示不限制。超预算应产出部分结果，而不是长篇失败解释。
+                    </p>
+                    <SettingRow label="Token 预算">
+                      <input
+                        type="number"
+                        min={0}
+                        value={tokenBudget}
+                        onChange={(e) => setTokenBudget(Number(e.target.value) || 0)}
+                        style={inputStyle}
+                        onFocus={handleFocus}
+                        onBlur={handleBlur}
+                      />
+                    </SettingRow>
+                    <SettingRow label="时间预算 (秒)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={timeBudgetS}
+                        onChange={(e) => setTimeBudgetS(Number(e.target.value) || 0)}
+                        style={inputStyle}
+                        onFocus={handleFocus}
+                        onBlur={handleBlur}
+                      />
+                    </SettingRow>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <button
                         type="button"
@@ -294,14 +331,30 @@ export function SettingsPage() {
                           try {
                             const res = await api.appResponsePreferencesPut({
                               detail: prefDetail,
+                              token_budget: tokenBudget,
+                              time_budget_s: timeBudgetS,
                               expected_revision: prefRevision,
                             })
-                            const data = (res as { data?: { revision?: string; detail?: string } })?.data
-                              ?? (res as { revision?: string; detail?: string })
+                            const data = (res as {
+                              data?: {
+                                revision?: string
+                                detail?: string
+                                token_budget?: number
+                                time_budget_s?: number
+                              }
+                            })?.data
+                              ?? (res as {
+                                revision?: string
+                                detail?: string
+                                token_budget?: number
+                                time_budget_s?: number
+                              })
                             if (data?.revision) setPrefRevision(data.revision)
                             if (data?.detail === 'standard' || data?.detail === 'detailed' || data?.detail === 'concise') {
                               setPrefDetail(data.detail)
                             }
+                            if (typeof data?.token_budget === 'number') setTokenBudget(data.token_budget)
+                            if (typeof data?.time_budget_s === 'number') setTimeBudgetS(data.time_budget_s)
                           } catch (err) {
                             setLoadError(err instanceof Error ? err.message : String(err))
                           } finally {

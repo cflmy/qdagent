@@ -42,6 +42,7 @@ REQUIRED = {
     "resource-content.json": ("route", "result_fields", "error_codes", "invariants"),
     "notes-search.json": ("tool_id", "hit_fields", "follow_up", "invariants"),
     "artifacts-write.json": ("ops", "result_fields", "error_codes", "invariants"),
+    "code-run.json": ("ops", "result_fields", "error_codes", "invariants"),
 }
 
 
@@ -249,6 +250,7 @@ def check_tool_schema(data: dict) -> None:
         "memory_forget",
         "memory_list",
         "memory_propose",
+        "memory_update",
         "notes_create",
         "notes_update",
         "files_patch",
@@ -256,6 +258,8 @@ def check_tool_schema(data: dict) -> None:
         "artifacts_create",
         "artifacts_update",
         "resources_read",
+        "code_run",
+        "tests_run",
     ):
         if name not in product:
             raise AssertionError(f"product_aliases missing {name}")
@@ -363,7 +367,7 @@ def check_response_preferences(data: dict) -> None:
     if route.get("method") != "POST":
         raise AssertionError("response-preferences must be POST")
     fields = set(data["fields"])
-    for f in ("detail", "revision", "scope", "principal"):
+    for f in ("detail", "revision", "scope", "principal", "token_budget", "time_budget_s"):
         if f not in fields:
             raise AssertionError(f"response-preferences fields missing {f}")
     enum = set(data["detail_enum"])
@@ -428,6 +432,23 @@ def check_artifacts_write(data: dict) -> None:
         raise AssertionError("artifacts-write invariants must require digest CAS")
     if "artifacts" not in inv:
         raise AssertionError("artifacts-write must mention artifacts root")
+
+
+def check_code_run(data: dict) -> None:
+    ops = set(data["ops"])
+    if "run" not in ops or "tests" not in ops:
+        raise AssertionError("code-run ops must include run and tests")
+    fields = set(data["result_fields"])
+    for f in ("exit_code", "verified", "network", "no_exec_marqdo"):
+        if f not in fields:
+            raise AssertionError(f"code-run result_fields missing {f}")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "exit_code" not in inv and "verified" not in inv:
+        raise AssertionError("code-run invariants must tie verified to exit_code")
+    if "pytest" not in inv and "unavailable" not in inv:
+        raise AssertionError("code-run invariants must forbid fake green without pytest")
+    if "marqdo" not in inv:
+        raise AssertionError("code-run must forbid Marqdo document execution")
 
 
 def check_workspace_tools(data: dict) -> None:
@@ -607,6 +628,7 @@ def main() -> int:
         "resource-content.json": check_resource_content,
         "notes-search.json": check_notes_search,
         "artifacts-write.json": check_artifacts_write,
+        "code-run.json": check_code_run,
     }
     for name, keys in REQUIRED.items():
         data = load(name)
