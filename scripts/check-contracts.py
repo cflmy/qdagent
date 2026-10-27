@@ -38,6 +38,7 @@ REQUIRED = {
     "tools-catalog.json": ("route", "fields", "invariants"),
     "notes-write.json": ("ops", "result_fields", "error_codes", "invariants"),
     "files-patch.json": ("result_fields", "error_codes", "invariants"),
+    "response-preferences.json": ("route", "fields", "detail_enum", "invariants"),
 }
 
 
@@ -346,6 +347,27 @@ def check_files_patch(data: dict) -> None:
         raise AssertionError("files-patch must forbid Marqdo execution")
 
 
+def check_response_preferences(data: dict) -> None:
+    route = data["route"]
+    if route.get("path") != "/api/app/response_preferences":
+        raise AssertionError("response-preferences route path mismatch")
+    if route.get("method") != "POST":
+        raise AssertionError("response-preferences must be POST")
+    fields = set(data["fields"])
+    for f in ("detail", "revision", "scope", "principal"):
+        if f not in fields:
+            raise AssertionError(f"response-preferences fields missing {f}")
+    enum = set(data["detail_enum"])
+    for d in ("concise", "standard", "detailed"):
+        if d not in enum:
+            raise AssertionError(f"detail_enum missing {d}")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "expected_revision" not in inv and "revision.conflict" not in inv:
+        raise AssertionError("invariants must require expected_revision CAS")
+    if "override" not in inv and "turn" not in inv:
+        raise AssertionError("invariants must state turn override priority")
+
+
 def check_workspace_tools(data: dict) -> None:
     by_id = {t.get("id"): t for t in data["tools"] if isinstance(t, dict)}
     for tid in (
@@ -519,6 +541,7 @@ def main() -> int:
         "tools-catalog.json": check_tools_catalog,
         "notes-write.json": check_notes_write,
         "files-patch.json": check_files_patch,
+        "response-preferences.json": check_response_preferences,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

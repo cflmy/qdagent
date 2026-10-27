@@ -1351,6 +1351,21 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
     + `payload`=None
 *> workbench.tools_catalog payload=`payload`*
 
+## app_response_preferences
+    + `payload`=None
+
+POST /api/app/response_preferences — get when action=get / missing write fields;
+put when expected_revision present (CAS).
+
+**action = > json.get value=`payload` key="action"**
+**expected = > json.get value=`payload` key="expected_revision"**
+1. `action` == "get"
+  *> workbench.response_preferences_get payload=`payload`*
+1. not `expected`
+  1. `action` != "put"
+    *> workbench.response_preferences_get payload=`payload`*
+*> workbench.response_preferences_put payload=`payload`*
+
 ## app_feature_flags
 *> workbench.feature_flags_snapshot*
 

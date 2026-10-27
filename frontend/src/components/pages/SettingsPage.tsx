@@ -30,16 +30,28 @@ export function SettingsPage() {
     asr_base_url: '',
     dictation_lang: 'zh-CN',
   })
+  const [prefDetail, setPrefDetail] = useState<'concise' | 'standard' | 'detailed'>('concise')
+  const [prefRevision, setPrefRevision] = useState('sha256:0')
+  const [prefSaving, setPrefSaving] = useState(false)
   const [loadError, setLoadError] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    api.getSettings().then((s) => {
+    Promise.all([
+      api.getSettings(),
+      api.appResponsePreferencesGet().catch(() => null),
+    ]).then(([s, pref]) => {
       setForm({
         tts_base_url: s.tts_base_url || '',
         asr_base_url: s.asr_base_url || '',
         dictation_lang: s.dictation_lang || 'zh-CN',
       })
+      const data = (pref as { data?: { detail?: string; revision?: string } } | null)?.data
+        ?? (pref as { detail?: string; revision?: string } | null)
+      if (data?.detail === 'standard' || data?.detail === 'detailed' || data?.detail === 'concise') {
+        setPrefDetail(data.detail)
+      }
+      if (data?.revision) setPrefRevision(data.revision)
     }).catch((err) => {
       setLoadError(err instanceof Error ? err.message : String(err))
     }).finally(() => setLoading(false))
@@ -257,6 +269,62 @@ export function SettingsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {activeTab === 'general' && (
                   <>
+                    <SectionTitle>回答偏好</SectionTitle>
+                    <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)', margin: 0 }}>
+                      本轮明确要求优先于偏好；偏好优先于默认 concise。保存使用 revision CAS。
+                    </p>
+                    <SettingRow label="详细程度">
+                      <select
+                        value={prefDetail}
+                        onChange={(e) => setPrefDetail(e.target.value as typeof prefDetail)}
+                        style={{ ...inputStyle, cursor: 'pointer', height: '36px' }}
+                      >
+                        <option value="concise">简洁 (concise)</option>
+                        <option value="standard">标准 (standard)</option>
+                        <option value="detailed">详细 (detailed)</option>
+                      </select>
+                    </SettingRow>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        disabled={prefSaving}
+                        onClick={async () => {
+                          setPrefSaving(true)
+                          setLoadError('')
+                          try {
+                            const res = await api.appResponsePreferencesPut({
+                              detail: prefDetail,
+                              expected_revision: prefRevision,
+                            })
+                            const data = (res as { data?: { revision?: string; detail?: string } })?.data
+                              ?? (res as { revision?: string; detail?: string })
+                            if (data?.revision) setPrefRevision(data.revision)
+                            if (data?.detail === 'standard' || data?.detail === 'detailed' || data?.detail === 'concise') {
+                              setPrefDetail(data.detail)
+                            }
+                          } catch (err) {
+                            setLoadError(err instanceof Error ? err.message : String(err))
+                          } finally {
+                            setPrefSaving(false)
+                          }
+                        }}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          height: 32, padding: '0 12px', border: 'none',
+                          borderRadius: 'var(--dsw-radius-sm, 6px)',
+                          background: 'var(--dsw-alias-state-business-primary)',
+                          color: 'var(--dsw-alias-label-on-color, #fff)',
+                          cursor: prefSaving ? 'wait' : 'pointer',
+                          fontSize: 13,
+                        }}
+                      >
+                        {prefSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        保存回答偏好
+                      </button>
+                      <span style={{ fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' }}>
+                        rev {prefRevision.slice(0, 18)}…
+                      </span>
+                    </div>
                     <SectionTitle>外观</SectionTitle>
                     <SettingRow label="主题">
                       <select style={{ ...inputStyle, cursor: 'pointer', height: '36px' }}>

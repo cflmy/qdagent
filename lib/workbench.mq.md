@@ -19,6 +19,7 @@ import:
   flags: ../lib/feature_flags.mq.md
   run: lib/run.mq.md
   workspace: ../lib/workspace.mq.md
+  response_preferences: ../lib/response_preferences.mq.md
 ---
 
 ## tools_catalog
@@ -64,6 +65,53 @@ No credentials, API keys, or connector secrets. Capability/state/version only.
 
 **snap = > flags.snapshot**
 *> app_ok data=`snap`*
+
+## response_preferences_get
+    + `payload`=None
+
+**session_id = > json.get value=`payload` key="session_id"**
+1. not `session_id`
+  **session_id = ""**
+**row = > response_preferences.get session_id=`session_id`**
+*> app_ok data=`row`*
+
+## response_preferences_put
+    + `payload`=None
+
+POST /api/app/response_preferences — CAS write (expected_revision required).
+User turn explicit detail still overrides prefs at ask time.
+
+**detail = > json.get value=`payload` key="detail"**
+**max_chars = > json.get value=`payload` key="max_chars"**
+**scope = > json.get value=`payload` key="scope"**
+**principal = > json.get value=`payload` key="principal"**
+**session_id = > json.get value=`payload` key="session_id"**
+**expected = > json.get value=`payload` key="expected_revision"**
+1. not `detail`
+  **detail = "concise"**
+1. not `max_chars`
+  **max_chars = 0**
+1. not `scope`
+  **scope = "user"**
+1. not `principal`
+  **principal = "user"**
+1. not `session_id`
+  **session_id = ""**
+1. not `expected`
+  *> app_err code="invalid_arguments" message="expected_revision required"*
+**out = > response_preferences.put detail=`detail` max_chars=`max_chars` scope=`scope` principal=`principal` session_id=`session_id` expected_revision=`expected`**
+**ok = > json.get value=`out` key="ok"**
+1. not `ok`
+  **err = > json.get value=`out` key="error"**
+  **ecode = > json.get value=`err` key="code"**
+  **emsg = > json.get value=`err` key="message"**
+  1. not `ecode`
+    **ecode = "error"**
+  1. not `emsg`
+    **emsg = "response preferences update failed"**
+  *> app_err code=`ecode` message=`emsg`*
+**pref = > json.get value=`out` key="preference"**
+*> app_ok data=`pref`*
 
 ## app_ok
     + `data`=None

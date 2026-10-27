@@ -569,6 +569,17 @@ export const api = {
   appProfileGet: (data: { id: string }) => POST('/api/app/profile/get', data),
   /** Design §11.1 — authorized tool inventory; never includes secrets. */
   appTools: () => GET('/api/app/tools'),
+  /** Design §11.1 — ResponsePreference get/put with expected_revision CAS. */
+  appResponsePreferencesGet: (data?: { session_id?: string }) =>
+    POST('/api/app/response_preferences', { action: 'get', ...(data || {}) }),
+  appResponsePreferencesPut: (data: {
+    detail: 'concise' | 'standard' | 'detailed' | string
+    max_chars?: number
+    scope?: string
+    principal?: string
+    session_id?: string
+    expected_revision: string
+  }) => POST('/api/app/response_preferences', { action: 'put', ...data }),
   appTurnsCancel: (data: unknown) => POST('/api/app/turns/cancel', data),
   appTurnsGet: (turnId: string) =>
     GET(`/api/app/turns/${encodeURIComponent(turnId)}`),

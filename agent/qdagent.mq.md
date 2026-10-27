@@ -31,6 +31,7 @@ import:
   registry: ../lib/registry.mq.md
   usage: ../execution/usage.mq.md
   profile_items: ../lib/profile_items.mq.md
+  prefs: ../lib/response_preferences.mq.md
   turns: ../execution/turns.mq.md
   sys: lib/sys.mq.md
   json: lib/json.mq.md
@@ -680,7 +681,7 @@ of regenerating from scratch.
     + `workspace_id`=""
     + `stream`=False
     + `history`=""
-    + `detail`="concise"
+    + `detail`=""
     + `response_kind`="answer_with_artifact"
     + `max_chars`=0
 
@@ -693,7 +694,9 @@ Model selection is frozen for this call via `model_id` / `selection` (no env clo
 conversation injected into standing only — never into the reuse key (avoids
 matching `user-你好` when the user later asks 「你叫什么名字」).
 `stream=True` forwards token deltas via EventBus → web sse-live.
+Empty `detail` resolves from ResponsePreference (turn override > prefs > concise).
 
+**detail = > prefs.resolve_detail override=`detail` session_id=`session_id`**
 **wb_task = `task`**
 1. `history`
   **wb_task = `history`**

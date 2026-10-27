@@ -140,6 +140,15 @@
     },
     {
       "method": "POST",
+      "path": "/api/app/response_preferences",
+      "api": "api.app_response_preferences",
+      "impl": "workbench.response_preferences_put",
+      "class": "control",
+      "authority": "KEEP",
+      "notes": "detail/scope with expected_revision CAS; turn override > prefs > default"
+    },
+    {
+      "method": "POST",
       "path": "/api/app/profile/get",
       "api": "api.app_profile_get",
       "impl": "workbench.profile_items_get_one",

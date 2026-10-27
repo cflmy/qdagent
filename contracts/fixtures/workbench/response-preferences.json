@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "description": "POST /api/app/response_preferences CAS contract (design §11.1 / ResponsePreference)",
+  "route": {
+    "method": "POST",
+    "path": "/api/app/response_preferences",
+    "api": "api.app_response_preferences",
+    "class": "control"
+  },
+  "fields": ["schema", "principal", "session_id", "detail", "max_chars", "scope", "revision"],
+  "detail_enum": ["concise", "standard", "detailed"],
+  "priority": ["turn_override", "preference", "default"],
+  "error_codes": ["invalid_arguments", "revision.conflict"],
+  "invariants": [
+    "expected_revision required for put; mismatch → revision.conflict",
+    "detail must be concise|standard|detailed",
+    "current user turn override beats stored preference",
+    "preference beats product default concise",
+    "never stores API keys or model credentials",
+    "first create uses expected_revision=sha256:0"
+  ]
+}
