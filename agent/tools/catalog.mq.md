@@ -19,6 +19,8 @@ import:
   plan_update: plan_update.mq.md
   task_status: task_status.mq.md
   memory_forget: memory_forget.mq.md
+  memory_list: memory_list.mq.md
+  memory_propose: memory_propose.mq.md
   notes_create: notes_create.mq.md
   notes_update: notes_update.mq.md
   notes_search: notes_search.mq.md
@@ -130,6 +132,20 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 |----|---------|-------------|--------------|--------|--------|--------------|
 | memory_forget | 1 | Forget a profile memory item (auditable; not injectable) | `memory_forget_schema` | write | `memory_scopes` | ready |
 
+**memory_list_schema = > json.parse text={"type":"object","properties":{"scope":{"type":"string"},"status":{"type":"string"},"workspace_id":{"type":"string"}},"additionalProperties":false}**
+`memory_list_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| memory_list | 1 | List profile memory items by scope/status (proposed never injects) | `memory_list_schema` | read | `memory_scopes` | ready |
+
+**memory_propose_schema = > json.parse text={"type":"object","properties":{"text":{"type":"string","minLength":1},"category":{"type":"string"},"scope":{"type":"string"},"workspace_id":{"type":"string"},"session_id":{"type":"string"},"source_refs":{"type":"string"}},"required":["text"],"additionalProperties":false}**
+`memory_propose_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| memory_propose | 1 | Propose a profile memory item — never auto-confirmed | `memory_propose_schema` | write | `memory_scopes` | ready |
+
 **note_write_scopes = > json.parse text=["notes:write"]**
 **file_write_scopes = > json.parse text=["workspace:write"]**
 **notes_create_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string","minLength":1},"root":{"type":"string"},"content":{"type":"string"}},"required":["path","content"],"additionalProperties":false}**
@@ -172,6 +188,8 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 **prod_pu = > agent.tools_register spec=`plan_update_spec`**
 **prod_tst = > agent.tools_register spec=`task_status_spec`**
 **prod_mf = > agent.tools_register spec=`memory_forget_spec`**
+**prod_ml = > agent.tools_register spec=`memory_list_spec`**
+**prod_mp = > agent.tools_register spec=`memory_propose_spec`**
 **prod_nc = > agent.tools_register spec=`notes_create_spec`**
 **prod_nu = > agent.tools_register spec=`notes_update_spec`**
 **prod_fp = > agent.tools_register spec=`files_patch_spec`**
@@ -240,6 +258,8 @@ Product CALL whitelist for agent.run.
 **t = > table.append list=`t` item="plan_update"**
 **t = > table.append list=`t` item="task_status"**
 **t = > table.append list=`t` item="memory_forget"**
+**t = > table.append list=`t` item="memory_list"**
+**t = > table.append list=`t` item="memory_propose"**
 **t = > table.append list=`t` item="notes_create"**
 **t = > table.append list=`t` item="notes_update"**
 **t = > table.append list=`t` item="files_patch"**
@@ -332,6 +352,23 @@ Catalog search — authorize only; does not execute tools.
     + `id`=""
 
 *> memory_forget.run id=`id`*
+
+## memory_list
+    + `scope`=""
+    + `status`=""
+    + `workspace_id`=""
+
+*> memory_list.run scope=`scope` status=`status` workspace_id=`workspace_id`*
+
+## memory_propose
+    + `text`=""
+    + `category`="preference"
+    + `scope`="user"
+    + `workspace_id`=""
+    + `session_id`=""
+    + `source_refs`=""
+
+*> memory_propose.run text=`text` category=`category` scope=`scope` workspace_id=`workspace_id` session_id=`session_id` source_refs=`source_refs`*
 
 ## notes_create
     + `path`=""

@@ -265,6 +265,27 @@ Memory forget (CALL:memory_forget) — auditable; not injectable.
 
 *> catalog.memory_forget id=`id`*
 
+## memory_list
+    + `scope`=""
+    + `status`=""
+    + `workspace_id`=""
+
+Memory list (CALL:memory_list) — proposed never injects.
+
+*> catalog.memory_list scope=`scope` status=`status` workspace_id=`workspace_id`*
+
+## memory_propose
+    + `text`=""
+    + `category`="preference"
+    + `scope`="user"
+    + `workspace_id`=""
+    + `session_id`=""
+    + `source_refs`=""
+
+Memory propose (CALL:memory_propose) — never auto-confirmed.
+
+*> catalog.memory_propose text=`text` category=`category` scope=`scope` workspace_id=`workspace_id` session_id=`session_id` source_refs=`source_refs`*
+
 ## notes_create
     + `path`=""
     + `root`="data"

@@ -49,6 +49,8 @@
     "plan_update",
     "task_status",
     "memory_forget",
+    "memory_list",
+    "memory_propose",
     "notes_create",
     "notes_update",
     "files_patch",
@@ -62,6 +64,7 @@
     "workspace_search hits carry locators; workspace_read is the range authority",
     "plan_update/task_status are planning evidence only — not execution completion",
     "memory_forget is auditable forgotten status — not silent delete",
+    "memory_propose never auto-confirms; memory_list exposes source/status",
     "notes_update/files_patch require expected_digest CAS; mismatch → revision.conflict",
     "notes/files writes never execute Marqdo",
     "notes_search hits carry locators for note_read; never executes"

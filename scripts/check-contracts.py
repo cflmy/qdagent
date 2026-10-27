@@ -246,6 +246,8 @@ def check_tool_schema(data: dict) -> None:
         "plan_update",
         "task_status",
         "memory_forget",
+        "memory_list",
+        "memory_propose",
         "notes_create",
         "notes_update",
         "files_patch",
