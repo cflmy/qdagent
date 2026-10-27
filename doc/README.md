@@ -12,7 +12,9 @@
 
 ## 阅读顺序（建议）
 
-本轮增量开发入口：[**可靠工作台详细开发设计（2026-10-26，Proposed）**](design/reliable-workbench-development-2026-10-26.md) → [**最新缺陷复核与测试记录**](gaps/04-workbench-runtime-and-product-audit-2026-10-26.md) → [**Marqdo 隔离运行时配套设计**](../../marqdo/doc/design/isolated-web-runtime-development-2026-10-26.md)（需同级仓库）。以 `64b97e5` / `1b11fe0` 为复核基线，涵盖任务/取消/流式恢复、真实知识发布、版本引用、数据迁移、使用体验和性能验收；目标设计不等于已实现。
+最新增量设计入口：[**求道智能体能力与侧栏预览（2026-10-27，Proposed）**](design/agent-capabilities-and-preview-2026-10-27.md) → [**官方调研与最新源码复核**](../../marqdo/doc/research/agent-capabilities-2026-10-27.md) → [**Marqdo 恢复、工具与资源协议**](../../marqdo/doc/design/agent-reliability-tools-resources-2026-10-27.md)（跨库链接需同级 checkout）。以 qdagent `68b757e` / Marqdo `16f26d7` 为基线，覆盖错误恢复、回答长度、统一侧栏预览、业务工具、文件渲染、上下文及验收；新协议与行为均为待实现设计，不覆盖 2.0 的架构边界。
+
+上一轮可靠性设计：[**可靠工作台详细开发设计（2026-10-26）**](design/reliable-workbench-development-2026-10-26.md) → [**当轮缺陷复核与测试记录**](gaps/04-workbench-runtime-and-product-audit-2026-10-26.md) → [**Marqdo 隔离运行时配套设计**](../../marqdo/doc/design/isolated-web-runtime-development-2026-10-26.md)。当轮以 `64b97e5` / `1b11fe0` 为复核基线；后续落地见 [Q-R0–R9 实施说明](releases/reliable-workbench-q-r0-r9-2026-10-26.md)，实际能力以测试证据为准。
 
 0. [**qdagent 2.0 设计（Accepted）**](design/qdagent-2.0.md) · [下一阶段开发计划](design/qdagent-dev-plan-2026-10.md) · [再下一阶段（审阅稿）](design/qdagent-dev-plan-2026-10-next.md)  
    本轮产品扩展：[**多提供商与知识工作台（2026-10-25，Proposed）**](design/multi-provider-and-knowledge-workbench-2026-10-25.md) — 基于 `643dd31` / Marqdo 2.1.2 的增量审阅；含模型切换、用量账本、View 侧栏与引用、工作区、笔记/画像、统一可读性规范、API 合同、迁移及逐项验收。
