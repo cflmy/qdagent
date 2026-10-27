@@ -30,6 +30,7 @@ REQUIRED = {
     ),
     "tool-schema.json": ("examples", "eng_aliases", "invariants"),
     "resource-read.json": ("route", "envelope", "invariants"),
+    "resource-ref.json": ("routes", "resource_ref_fields", "id_schemes", "invariants"),
 }
 
 
@@ -273,6 +274,33 @@ def check_agent_reliability_bits(data: dict) -> None:
             raise AssertionError(f"extract_formats_available missing live format {fmt}")
 
 
+def check_resource_ref(data: dict) -> None:
+    paths = {r.get("path") for r in data["routes"]}
+    if "/api/app/resources/resolve" not in paths or "/api/app/resources/list" not in paths:
+        raise AssertionError("resource-ref must inventori resolve and list routes")
+    fields = set(data["resource_ref_fields"])
+    for req in (
+        "schema",
+        "resource_id",
+        "workspace_id",
+        "kind",
+        "media_type",
+        "revision",
+        "digest",
+        "title",
+        "origin",
+        "source_ref",
+    ):
+        if req not in fields:
+            raise AssertionError(f"ResourceRefV1 missing field {req}")
+    schemes = " ".join(data.get("id_schemes") or [])
+    if "rf." not in schemes or "rn." not in schemes:
+        raise AssertionError("id_schemes must include rf.* and rn.*")
+    inv = "\n".join(data.get("invariants") or [])
+    if "version_unavailable" not in inv and "silent" not in inv:
+        raise AssertionError("invariants must forbid silent version fallback")
+
+
 def check_resource_read(data: dict) -> None:
     route = data["route"]
     if route.get("path") != "/api/app/resources/read":
@@ -310,6 +338,7 @@ def main() -> int:
         "agent-reliability-bits.json": check_agent_reliability_bits,
         "tool-schema.json": check_tool_schema,
         "resource-read.json": check_resource_read,
+        "resource-ref.json": check_resource_ref,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

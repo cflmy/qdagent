@@ -42,6 +42,24 @@
     },
     {
       "method": "POST",
+      "path": "/api/app/resources/resolve",
+      "api": "api.app_resources_resolve",
+      "impl": "workbench.resources_resolve",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "path/slug/resource_id → ResourceRefV1; version mismatch never silent-fallback"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/resources/list",
+      "api": "api.app_resources_list",
+      "impl": "workbench.resources_list",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "ResourceRef list with cursor; files and/or notes"
+    },
+    {
+      "method": "POST",
       "path": "/api/app/citations/resolve",
       "api": "api.app_citations_resolve",
       "impl": "workbench.citations_resolve",

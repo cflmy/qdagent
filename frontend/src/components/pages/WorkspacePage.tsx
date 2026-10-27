@@ -79,6 +79,27 @@ export function WorkspacePage() {
     setLoading(true)
     setError('')
     try {
+      // Prefer designed resources/list (ResourceRefV1); fall back to workspaces/tree.
+      const listed = await api.appResourcesList({
+        workspace_id: workspaceId,
+        path: rel || undefined,
+        kind: 'file',
+        limit: 200,
+      }) as {
+        ok?: boolean
+        data?: { items?: Array<{ title?: string; source_ref?: string; kind?: string; is_dir?: boolean }> }
+        error?: { message?: string }
+      }
+      if (listed.ok !== false && listed.data?.items) {
+        setEntries(listed.data.items.map((it) => ({
+          name: it.title || it.source_ref || '',
+          path: it.source_ref || '',
+          is_dir: it.is_dir || it.kind === 'directory',
+          workspace_id: workspaceId,
+        })))
+        setPath(rel)
+        return
+      }
       const res = await api.appWorkspacesTree({ workspace_id: workspaceId, path: rel || undefined }) as {
         ok?: boolean
         entries?: TreeEntry[]
@@ -87,7 +108,7 @@ export function WorkspacePage() {
         message?: string
       }
       if (res.ok === false || res.error) {
-        setError(res.error?.message || res.message || res.code || '无法列出目录')
+        setError(listed.error?.message || res.error?.message || res.message || res.code || '无法列出目录')
         setEntries([])
         return
       }
@@ -108,17 +129,35 @@ export function WorkspacePage() {
 
   const crumbs = path ? path.split('/').filter(Boolean) : []
 
-  const openFile = (entry: TreeEntry) => {
+  const openFile = async (entry: TreeEntry) => {
     if (entry.is_dir) {
       void loadTree(wsId, entry.path)
       return
     }
-    openTarget({
-      kind: 'document',
-      workspaceId: wsId || entry.workspace_id || 'ws-default',
-      documentId: entry.path,
-      title: entry.name,
-    })
+    const workspaceId = wsId || entry.workspace_id || 'ws-default'
+    try {
+      const resolved = await api.appResourcesResolve({
+        workspace_id: workspaceId,
+        path: entry.path,
+      }) as {
+        ok?: boolean
+        data?: { source_ref?: string; title?: string; revision?: string; resource_id?: string }
+      }
+      const ref = resolved.ok !== false ? resolved.data : undefined
+      openTarget({
+        kind: 'file',
+        workspaceId,
+        path: ref?.source_ref || entry.path,
+        title: ref?.title || entry.name,
+      })
+    } catch {
+      openTarget({
+        kind: 'file',
+        workspaceId,
+        path: entry.path,
+        title: entry.name,
+      })
+    }
   }
 
   return (

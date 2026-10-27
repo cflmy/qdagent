@@ -535,6 +535,22 @@ export const api = {
     next_cursor?: string
     locator?: { line?: number; page?: number; col?: number; [k: string]: unknown }
   }) => POST('/api/app/resources/read', data),
+  appResourcesResolve: (data: {
+    workspace_id?: string
+    path?: string
+    document?: string
+    slug?: string
+    resource_id?: string
+    digest?: string
+    revision?: string
+  }) => POST('/api/app/resources/resolve', data),
+  appResourcesList: (data: {
+    workspace_id?: string
+    path?: string
+    kind?: 'file' | 'note' | 'all' | string
+    cursor?: number | string
+    limit?: number
+  }) => POST('/api/app/resources/list', data),
   appCitationsResolve: (data: unknown) => POST('/api/app/citations/resolve', data),
   appUploadsCreate: (data: unknown) => POST('/api/app/uploads/create', data),
   appImportsStart: (data: unknown) => POST('/api/app/imports/start', data),

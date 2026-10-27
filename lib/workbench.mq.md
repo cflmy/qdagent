@@ -439,6 +439,153 @@ resources/preview for visual pages; do not invent OCR text.
   **ecode = "runtime.unavailable"**
 *> app_err code=`ecode` message=`msg` retryable=False*
 
+## resources_resolve
+    + `payload`=None
+
+Map path/slug/resource_id → ResourceRefV1 (design §11.1). Opaque IDs
+(`rf.*` / `rn.*`); workspace re-auth on every resolve. Historical digest
+mismatch → reference.version_unavailable (no silent fallback). Never executes.
+
+**workspace_id = > json.get value=`payload` key="workspace_id"**
+**path = > json.get value=`payload` key="path"**
+1. not `path`
+  **path = > json.get value=`payload` key="document"**
+**slug = > json.get value=`payload` key="slug"**
+**resource_id = > json.get value=`payload` key="resource_id"**
+**digest = > json.get value=`payload` key="digest"**
+1. not `digest`
+  **digest = > json.get value=`payload` key="revision"**
+**store = > db.open**
+1. `workspace_id`
+  **ws = > `store`.get table="workspaces" id=`workspace_id`**
+  1. not `ws`
+    *> app_err code="workspace.forbidden" message="unknown workspace"*
+  **project = [project_root_ref](access(ws, "project_root_ref"))**
+2. *
+  **project = "."**
+1. not `project`
+  **project = "."**
+**data_root = > run.确保目录**
+**root_tmp = `data_root`**
+**u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**out_path = `root_tmp` + "/tmp/qd-res-" + `u` + "-" + `nonce` + ".json"**
+**repo = > sys.env_get name="QDAGENT_ROOT"**
+1. not `repo`
+  **repo = > sys.cwd**
+**script = `repo` + "/scripts/resource_index.py"**
+> sys.env_set name="QDAGENT_RES_OP" value="resolve"
+> sys.env_set name="QDAGENT_RES_OUT" value=`out_path`
+> sys.env_set name="QDAGENT_RES_WS" value=`workspace_id`
+> sys.env_set name="QDAGENT_RES_ROOT" value=`project`
+> sys.env_set name="QDAGENT_RES_DATA" value=`data_root`
+> sys.env_set name="QDAGENT_RES_PATH" value=`path`
+> sys.env_set name="QDAGENT_RES_SLUG" value=`slug`
+> sys.env_set name="QDAGENT_RES_ID" value=`resource_id`
+1. `digest`
+  > sys.env_set name="QDAGENT_RES_DIGEST" value=`digest`
+2. *
+  > sys.env_set name="QDAGENT_RES_DIGEST" value=""
+`args` =
+
+| a |
+|---|
+| `script` |
+
+**proc = > sys.exec cmd="python3" args=args capture=True**
+**raw = > fs.read_text path=`out_path`**
+> fs.remove path=`out_path`
+1. not `raw`
+  *> app_err code="runtime.unavailable" message="resource resolve failed" retryable=True*
+**resp = > json.parse text=`raw`**
+**ok = > json.get value=`resp` key="ok"**
+1. `ok`
+  **data = > json.get value=`resp` key="result"**
+  *> app_ok data=`data`*
+**err = > json.get value=`resp` key="error"**
+**msg = > json.get value=`err` key="message"**
+**ecode = > json.get value=`err` key="code"**
+1. not `msg`
+  **msg = "resource resolve failed"**
+1. not `ecode`
+  **ecode = "runtime.unavailable"**
+*> app_err code=`ecode` message=`msg` retryable=False*
+
+## resources_list
+    + `payload`=None
+
+List ResourceRefV1 items under workspace (files) and/or run notes.
+Cursor pagination; never executes.
+
+**workspace_id = > json.get value=`payload` key="workspace_id"**
+**path = > json.get value=`payload` key="path"**
+**kind = > json.get value=`payload` key="kind"**
+1. not `kind`
+  **kind = "file"**
+**cursor = > json.get value=`payload` key="cursor"**
+1. not `cursor`
+  **cursor = > json.get value=`payload` key="next_cursor"**
+1. not `cursor`
+  **cursor = 0**
+**limit = > json.get value=`payload` key="limit"**
+1. not `limit`
+  **limit = 50**
+**store = > db.open**
+1. `workspace_id`
+  **ws = > `store`.get table="workspaces" id=`workspace_id`**
+  1. not `ws`
+    *> app_err code="workspace.forbidden" message="unknown workspace"*
+  **project = [project_root_ref](access(ws, "project_root_ref"))**
+2. *
+  **project = "."**
+1. not `project`
+  **project = "."**
+**data_root = > run.确保目录**
+**u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**out_path = `data_root` + "/tmp/qd-reslist-" + `u` + "-" + `nonce` + ".json"**
+**repo = > sys.env_get name="QDAGENT_ROOT"**
+1. not `repo`
+  **repo = > sys.cwd**
+**script = `repo` + "/scripts/resource_index.py"**
+> sys.env_set name="QDAGENT_RES_OP" value="list"
+> sys.env_set name="QDAGENT_RES_OUT" value=`out_path`
+> sys.env_set name="QDAGENT_RES_WS" value=`workspace_id`
+> sys.env_set name="QDAGENT_RES_ROOT" value=`project`
+> sys.env_set name="QDAGENT_RES_DATA" value=`data_root`
+> sys.env_set name="QDAGENT_RES_PATH" value=`path`
+> sys.env_set name="QDAGENT_RES_KIND" value=`kind`
+> sys.env_set name="QDAGENT_RES_CURSOR" value=`cursor`
+> sys.env_set name="QDAGENT_RES_LIMIT" value=`limit`
+`args` =
+
+| a |
+|---|
+| `script` |
+
+**proc = > sys.exec cmd="python3" args=args capture=True**
+**raw = > fs.read_text path=`out_path`**
+> fs.remove path=`out_path`
+1. not `raw`
+  *> app_err code="runtime.unavailable" message="resource list failed" retryable=True*
+**resp = > json.parse text=`raw`**
+**ok = > json.get value=`resp` key="ok"**
+1. `ok`
+  **data = > json.get value=`resp` key="result"**
+  *> app_ok data=`data`*
+**err = > json.get value=`resp` key="error"**
+**msg = > json.get value=`err` key="message"**
+**ecode = > json.get value=`err` key="code"**
+1. not `msg`
+  **msg = "resource list failed"**
+1. not `ecode`
+  **ecode = "runtime.unavailable"**
+*> app_err code=`ecode` message=`msg` retryable=False*
+
 ## citations_resolve
     + `payload`=None
 

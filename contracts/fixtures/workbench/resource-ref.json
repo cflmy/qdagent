@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "description": "Q-A5 ResourceRefV1 resolve/list contracts",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/app/resources/resolve",
+      "api": "api.app_resources_resolve",
+      "impl": "workbench.resources_resolve"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/resources/list",
+      "api": "api.app_resources_list",
+      "impl": "workbench.resources_list"
+    }
+  ],
+  "resource_ref_fields": [
+    "schema",
+    "resource_id",
+    "workspace_id",
+    "kind",
+    "media_type",
+    "revision",
+    "digest",
+    "title",
+    "size",
+    "origin",
+    "source_ref"
+  ],
+  "id_schemes": ["rf.<b64url-path>", "rn.<slug>", "rd.<b64url-dir>"],
+  "invariants": [
+    "resource_id is host-mapped opaque; browser path is not the permission boundary",
+    "revision digest mismatch returns reference.version_unavailable without silent current-version fallback",
+    "list returns ResourceRefV1 items with next_cursor pagination",
+    "path escape and absolute paths are workspace.forbidden",
+    "no_exec listing/resolve never executes Marqdo"
+  ]
+}
