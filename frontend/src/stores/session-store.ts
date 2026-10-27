@@ -651,10 +651,47 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             content?: string
             error?: string
             ok?: boolean
+            mode?: string
+            outcome?: string
+            status?: string
+            recovery_options?: Array<{ action?: string; label?: string }>
             choices?: Array<{ message?: { content?: string }; delta?: { content?: string } }>
           }
           if (c?.ok === false || (c?.error && !c?.choices && anyChunk.content == null)) {
             const detail = c.error || ''
+            const outcome = anyChunk.outcome || ''
+            const mode = anyChunk.mode || ''
+            const recovery = (anyChunk.recovery_options || [])
+              .map((r) => r.label || r.action)
+              .filter(Boolean)
+              .join('；')
+            // Q-A3: product failure card — outcome ≠ transport; keep draft text if present.
+            const draft = anyChunk.content
+              || anyChunk.choices?.[0]?.message?.content
+              || ''
+            if (draft.trim()) {
+              const banner = [
+                mode === 'gated_error' ? '文档门禁未通过' : '回合未成功',
+                outcome ? `outcome=${outcome}` : '',
+                detail ? String(detail) : '',
+                recovery ? `可恢复：${recovery}` : '写操作不会自动重试',
+              ].filter(Boolean).join(' · ')
+              set((s) => {
+                const sess = s.sessions.find((x) => x.id === sessionId)
+                if (!sess) return
+                const m = sess.messages[sess.messages.length - 1]
+                if (m?.role === 'assistant') {
+                  m.content = `[${banner}]\n\n${draft}`
+                }
+              })
+              get().appendProcess(sessionId, {
+                kind: 'failed',
+                label: mode === 'gated_error' ? '门禁失败' : '失败',
+                detail: String(detail || outcome || mode || 'failed'),
+              })
+              get().saveToStorage()
+              continue
+            }
             const hint = /unauthor|invalid.*key|401/i.test(String(detail))
               ? '模型鉴权失败：请检查「设置 → 模型」中的 API Key 与地址。'
               : String(detail) || '上游模型调用失败'

@@ -1377,6 +1377,9 @@ Accepts full `messages` history and optional `selection.model_id` / `model_id` (
 **cok = > json.get value=`chat` key="ok"**
 **turn_id = > json.get value=`chat` key="turn_id"**
 **model_pub = > json.get value=`chat` key="model"**
+**run_mode = > json.get value=`chat` key="mode"**
+**outcome = > json.get value=`chat` key="outcome"**
+**cerr = > json.get value=`chat` key="error"**
 1. not `cok`
   1. not `content`
     **content = > json.get value=`chat` key="error"**
@@ -1396,6 +1399,11 @@ Accepts full `messages` history and optional `selection.model_id` / `model_id` (
   **turn_id = ""**
 2. *
   **_ = 1**
+1. not `outcome`
+  1. `cok`
+    **outcome = "succeeded"**
+  2. *
+    **outcome = "failed"**
 **u = > time.now_unix**
 **cid = "chatcmpl-" + `run_id`**
 1. not `run_id`
@@ -1417,15 +1425,15 @@ Accepts full `messages` history and optional `selection.model_id` / `model_id` (
 1. `stream`
   `sse_live` =
 
-  | ok | run_id | turn_id | streaming_contract | model | content |
-  |----|--------|---------|--------------------|-------|---------|
-  | `cok` | `run_id` | `turn_id` | "token-stream; marqdo-sse-live+EventBus" | `model_pub` | `content` |
+  | ok | run_id | turn_id | streaming_contract | model | content | mode | outcome | error |
+  |----|--------|---------|--------------------|-------|---------|------|---------|-------|
+  | `cok` | `run_id` | `turn_id` | "token-stream; marqdo-sse-live+EventBus" | `model_pub` | `content` | `run_mode` | `outcome` | `cerr` |
 
   *sse_live*
 `out` =
 
-| id | object | created | model | choices | qdagent_run_id | ok | turn_id | model_snapshot |
-|----|--------|---------|-------|---------|----------------|-----|---------|----------------|
-| `cid` | chat.completion | `u` | `model` | `choices` | `run_id` | `cok` | `turn_id` | `model_pub` |
+| id | object | created | model | choices | qdagent_run_id | ok | turn_id | model_snapshot | mode | outcome | error |
+|----|--------|---------|-------|---------|----------------|-----|---------|----------------|------|---------|-------|
+| `cid` | chat.completion | `u` | `model` | `choices` | `run_id` | `cok` | `turn_id` | `model_pub` | `run_mode` | `outcome` | `cerr` |
 
 *out*

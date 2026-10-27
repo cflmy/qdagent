@@ -3,20 +3,20 @@
   "description": "Q-A0 expected Marqdo capability bits for agent reliability (M-A0 freeze — all false until emitters)",
   "required_min_version": "2.1.4",
   "features_expected_zero": [
-    "agent.error_v1",
-    "agent.checkpoint_v2",
     "agent.tool_schema_v1",
     "agent.output_channels_v1",
     "agent.context_pack_v2"
   ],
   "features_expected_one": [
+    "agent.error_v1",
+    "agent.checkpoint_v2",
     "resource.view_v1"
   ],
   "extract_formats_unavailable": ["pdf", "docx", "ocr", "json", "csv", "image", "html", "svg", "xlsx", "pptx"],
   "invariants": [
-    "UI must not claim agent.error_v1 until Marqdo feature bit is 1",
-    "resource.view_v1 is available for static md/txt/code preview (M-A3 subset)",
+    "agent.error_v1 / agent.checkpoint_v2 / resource.view_v1 are live after M-A1/M-A3",
+    "write auto-resume stays closed until effect ledger watermark is present",
     "unknown schema_version must degrade without flipping unimplemented bits",
-    "contracts list must not advertise AgentErrorV1 until emitters land"
+    "tool_schema / output_channels / context_pack stay 0 until emitters land"
   ]
 }
