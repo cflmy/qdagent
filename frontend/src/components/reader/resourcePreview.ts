@@ -15,6 +15,8 @@ export type PreviewView = {
   completeness?: string
   kind?: string
   schema?: string
+  /** Plain source for JsonPreview / CodePreview (alongside sanitized fragment). */
+  sourceText?: string
   /** Client visual preview (PDF.js / ImagePreview); extract/OCR stay independent. */
   blobRef?: BlobRefPayload
   visualPreview?: 'client' | false | string
@@ -68,15 +70,21 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
   const format = String(render?.format || data.format || '').toLowerCase()
   const kind = String(resource?.kind || caps.kind || '')
   const schema = String(data.schema || '')
+  const sourceText = typeof render?.text === 'string' ? render.text : undefined
+  const focusFromData = data.focus_locator && typeof data.focus_locator === 'object'
+    ? data.focus_locator as { page?: number; line?: number; [k: string]: unknown }
+    : undefined
+  const focusLine = typeof data.focus_line === 'number'
+    ? data.focus_line
+    : typeof focusFromData?.line === 'number'
+      ? focusFromData.line
+      : undefined
 
   if (format === 'blob_ref') {
     const blob = render?.blob_ref
     if (!blob?.path) {
       return { ok: false, error: 'ResourceView blob_ref 缺少 path' }
     }
-    const focus = (data.focus_locator && typeof data.focus_locator === 'object')
-      ? data.focus_locator as { page?: number; line?: number; [k: string]: unknown }
-      : undefined
     return {
       ok: true,
       view: {
@@ -94,7 +102,7 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
           title: blob.title || resource?.title,
         },
         visualPreview: (caps.visual_preview as string | false | undefined) ?? 'client',
-        focusLocator: focus && focus.page != null ? focus : undefined,
+        focusLocator: focusFromData && focusFromData.page != null ? focusFromData : undefined,
       },
     }
   }
@@ -134,6 +142,10 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
       completeness: String(data.completeness || ''),
       kind: kind || undefined,
       schema: schema || undefined,
+      sourceText,
+      focusLocator: focusLine != null
+        ? { ...(focusFromData || {}), line: focusLine }
+        : focusFromData,
     },
   }
 }

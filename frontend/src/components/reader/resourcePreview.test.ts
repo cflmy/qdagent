@@ -97,6 +97,39 @@ describe('applyResourceOrDocumentView', () => {
     expect(JSON.stringify(r.view.diagnostics)).toContain('ocr.unavailable')
   })
 
+  it('exposes sourceText for JsonPreview tree/source toggle', () => {
+    const r = applyResourceOrDocumentView({
+      data: {
+        schema: 'ResourceViewV1',
+        resource: { kind: 'json' },
+        capabilities: { kind: 'json' },
+        outline: [{ id: 'a', label: 'a: number', locator: { path: 'a' } }],
+        render: { format: 'sanitized_html', fragment: '<pre>{}</pre>', text: '{\n  "a": 1\n}' },
+      },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.view.kind).toBe('json')
+    expect(r.view.sourceText).toContain('"a"')
+    expect(r.view.outline).toHaveLength(1)
+  })
+
+  it('exposes focus line for CodePreview', () => {
+    const r = applyResourceOrDocumentView({
+      data: {
+        schema: 'ResourceViewV1',
+        resource: { kind: 'code' },
+        focus_line: 3,
+        focus_locator: { line: 3 },
+        render: { format: 'sanitized_html', fragment: '<pre>x</pre>', text: 'a\nb\nc\n' },
+      },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.view.focusLocator?.line).toBe(3)
+    expect(r.view.sourceText).toContain('c')
+  })
+
   it('carries focus_locator.page for PDF page navigation', () => {
     const r = applyResourceOrDocumentView({
       data: {

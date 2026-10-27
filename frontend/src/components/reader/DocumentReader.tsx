@@ -10,6 +10,8 @@ import {
 } from './resourcePreview'
 import { PdfPreview } from './PdfPreview'
 import { ImagePreview } from './ImagePreview'
+import { JsonPreview, type OutlineNode } from './JsonPreview'
+import { CodePreview } from './CodePreview'
 
 type BlobState = {
   kind: 'pdf' | 'image'
@@ -19,6 +21,10 @@ type BlobState = {
   initialPage?: number
 }
 
+type StructuredState =
+  | { kind: 'json'; sourceText: string; outline: unknown[]; diagnostics?: unknown[] }
+  | { kind: 'code'; sourceText: string; focusLine?: number; truncated?: boolean }
+
 /** Read-only DocumentView / ResourceView embed. Never triggers execution. */
 export function DocumentReader() {
   const {
@@ -27,6 +33,7 @@ export function DocumentReader() {
   } = useContextPanelStore()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [blob, setBlob] = useState<BlobState | null>(null)
+  const [structured, setStructured] = useState<StructuredState | null>(null)
   const kindBadge = (() => {
     const path =
       activeTarget?.kind === 'file'
@@ -43,6 +50,7 @@ export function DocumentReader() {
     if (/\.(docx|xlsx|pptx)$/.test(lower)) return 'office'
     if (lower.endsWith('.mq.md')) return 'mq'
     if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'md'
+    if (/\.(rs|ts|tsx|js|jsx|py|go|toml|ya?ml|css|html|sh|txt|log)$/.test(lower)) return 'code'
     return ''
   })()
 
@@ -57,6 +65,7 @@ export function DocumentReader() {
     const gen = requestGen
     let cancelled = false
     setBlob(null)
+    setStructured(null)
     ;(async () => {
       setLoading(true)
       try {
@@ -120,11 +129,13 @@ export function DocumentReader() {
               view,
               workspaceId: activeTarget.workspaceId,
               fallbackPage: typeof locator.page === 'number' ? locator.page : undefined,
+              fallbackLine: typeof locator.line === 'number' ? locator.line : undefined,
               gen,
               cancelled: () => cancelled,
               setView,
               setError,
               setBlob,
+              setStructured,
               setLoading,
             })
             return
@@ -157,11 +168,13 @@ export function DocumentReader() {
           view,
           workspaceId,
           fallbackPage: typeof locator?.page === 'number' ? locator.page : undefined,
+          fallbackLine: typeof locator?.line === 'number' ? locator.line : undefined,
           gen,
           cancelled: () => cancelled,
           setView,
           setError,
           setBlob,
+          setStructured,
           setLoading,
         })
       } catch (e) {
@@ -249,13 +262,29 @@ export function DocumentReader() {
             title={blob.title || title}
           />
         )}
-        {!loading && !error && !blob && fragmentHtml && (
+        {!loading && !error && !blob && structured?.kind === 'json' && (
+          <JsonPreview
+            outline={(structured.outline || []) as OutlineNode[]}
+            sourceText={structured.sourceText}
+            title={title}
+            diagnostics={structured.diagnostics}
+          />
+        )}
+        {!loading && !error && !blob && structured?.kind === 'code' && (
+          <CodePreview
+            sourceText={structured.sourceText}
+            title={title}
+            focusLine={structured.focusLine}
+            truncated={structured.truncated}
+          />
+        )}
+        {!loading && !error && !blob && !structured && fragmentHtml && (
           <div
             className="mq-document mq-resource-preview prose prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: fragmentHtml }}
           />
         )}
-        {!loading && !error && !blob && !fragmentHtml && (
+        {!loading && !error && !blob && !structured && !fragmentHtml && (
           <p className="text-sm text-[var(--qd-muted)]">选择一条引用或文档以阅读（只读，不执行）。</p>
         )}
         {!!diagnostics?.length && (
@@ -273,11 +302,13 @@ async function settlePreview(opts: {
   view: unknown
   workspaceId: string
   fallbackPage?: number
+  fallbackLine?: number
   gen: number
   cancelled: () => boolean
   setView: (v: { fragmentHtml?: string; outline?: unknown[]; diagnostics?: unknown[]; completeness?: string }, gen?: number) => void
   setError: (e: string, gen?: number) => void
   setBlob: (b: BlobState | null) => void
+  setStructured: (s: StructuredState | null) => void
   setLoading: (v: boolean) => void
 }) {
   const result = applyResourceOrDocumentView(opts.view)
@@ -295,10 +326,34 @@ async function settlePreview(opts: {
 
   if (preview.blobRef && preview.visualPreview === 'client') {
     const page = preview.focusLocator?.page ?? opts.fallbackPage
+    opts.setStructured(null)
     await loadBlobPreview(preview.blobRef, preview.kind, page, opts)
     return
   }
+
   opts.setBlob(null)
+  const line = preview.focusLocator?.line ?? opts.fallbackLine
+  if (preview.kind === 'json' && typeof preview.sourceText === 'string') {
+    opts.setStructured({
+      kind: 'json',
+      sourceText: preview.sourceText,
+      outline: preview.outline || [],
+      diagnostics: preview.diagnostics,
+    })
+    opts.setLoading(false)
+    return
+  }
+  if ((preview.kind === 'code' || preview.kind === 'text') && typeof preview.sourceText === 'string') {
+    opts.setStructured({
+      kind: 'code',
+      sourceText: preview.sourceText,
+      focusLine: typeof line === 'number' ? line : undefined,
+      truncated: preview.completeness === 'partial',
+    })
+    opts.setLoading(false)
+    return
+  }
+  opts.setStructured(null)
   opts.setLoading(false)
 }
 
