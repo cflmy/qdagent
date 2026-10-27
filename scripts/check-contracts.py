@@ -34,6 +34,7 @@ REQUIRED = {
     "context-attachment.json": ("fields", "invariants"),
     "web-tools.json": ("tools", "invariants"),
     "turn-recover.json": ("routes", "actions", "get_fields", "invariants"),
+    "workspace-tools.json": ("tools", "invariants"),
 }
 
 
@@ -226,7 +227,17 @@ def check_tool_schema(data: dict) -> None:
         if name not in aliases:
             raise AssertionError(f"eng_aliases missing {name}")
     product = set(data.get("product_aliases") or [])
-    for name in ("note_read", "file_read", "web_search", "web_fetch"):
+    for name in (
+        "note_read",
+        "file_read",
+        "web_search",
+        "web_fetch",
+        "workspace_list",
+        "workspace_search",
+        "workspace_read",
+        "tools_search",
+        "tools_describe",
+    ):
         if name not in product:
             raise AssertionError(f"product_aliases missing {name}")
     by_id = {ex["id"]: ex for ex in data["examples"]}
@@ -272,6 +283,30 @@ def check_turn_recover(data: dict) -> None:
         raise AssertionError("invariants must separate event recover from tool exec")
     if "revision.conflict" not in inv and "cas" not in inv:
         raise AssertionError("invariants must require CAS expected_revision")
+
+
+def check_workspace_tools(data: dict) -> None:
+    by_id = {t.get("id"): t for t in data["tools"] if isinstance(t, dict)}
+    for tid in (
+        "workspace_list",
+        "workspace_search",
+        "workspace_read",
+        "tools_search",
+        "tools_describe",
+    ):
+        if tid not in by_id:
+            raise AssertionError(f"workspace-tools missing {tid}")
+    hits = by_id["workspace_search"].get("hit_fields") or []
+    for f in ("path", "line", "locator"):
+        if f not in hits:
+            raise AssertionError(f"workspace_search hit_fields missing {f}")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "workspace.forbidden" not in inv and "path escape" not in inv and ".." not in inv:
+        raise AssertionError("invariants must reject path escape")
+    if "revision_mismatch" not in inv and "digest" not in inv:
+        raise AssertionError("invariants must require digest mismatch honesty")
+    if "tools_search" not in inv and "never execute" not in inv:
+        raise AssertionError("invariants must state tools_search does not execute")
 
 
 def check_web_tools(data: dict) -> None:
@@ -419,6 +454,7 @@ def main() -> int:
         "context-attachment.json": check_context_attachment,
         "web-tools.json": check_web_tools,
         "turn-recover.json": check_turn_recover,
+        "workspace-tools.json": check_workspace_tools,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

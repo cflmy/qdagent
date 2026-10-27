@@ -2,8 +2,8 @@
 markup: occlusion
 title: agent/tools/catalog
 description: >-
-  Q-A4/Q-A5 tool catalog — register ToolSpecV1 for eng tools and product
-  read/network tools; eng_tools remain CALL aliases (tool_find … tool_summarize).
+  Q-A4/Q-A5 tool catalog — ToolSpecV1 for eng + product read/network/workspace
+  tools; eng_tools remain CALL aliases.
 import:
   agent: ext/ai/agent.mq.md
   plugin: lib/plugin.mq.md
@@ -13,6 +13,9 @@ import:
   file_read: file_read.mq.md
   web_search: web_search.mq.md
   web_fetch: web_fetch.mq.md
+  workspace_list: workspace_list.mq.md
+  workspace_search: workspace_search.mq.md
+  workspace_read: workspace_read.mq.md
 ---
 
 ## ensure_plugin
@@ -26,18 +29,23 @@ import:
 
 ## register_defaults
 
-Seed Marqdo ToolSpec registry with the five engineering tools plus product
-read/network tools. CALL names stay `tool_find` /
-`tool_reuse` / `tool_bind` / `tool_verify` / `tool_summarize`.
+Seed Marqdo ToolSpec registry with engineering tools plus product tools.
+CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 
 > ensure_plugin
 **eng = > agent.tools_register_eng_defaults**
 **schema = > json.parse text={"type":"object","properties":{"path":{"type":"string"},"root":{"type":"string"},"max_chars":{"type":"integer","minimum":1,"maximum":200000}},"required":["path"],"additionalProperties":false}**
 **search_schema = > json.parse text={"type":"object","properties":{"query":{"type":"string","minLength":1},"limit":{"type":"integer","minimum":1,"maximum":8}},"required":["query"],"additionalProperties":false}**
 **fetch_schema = > json.parse text={"type":"object","properties":{"url":{"type":"string","minLength":1},"max_bytes":{"type":"integer","minimum":1024,"maximum":2097152},"timeout_s":{"type":"number","minimum":1,"maximum":60}},"required":["url"],"additionalProperties":false}**
+**ws_list_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string"},"root":{"type":"string"},"cursor":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":200}},"additionalProperties":false}**
+**ws_search_schema = > json.parse text={"type":"object","properties":{"query":{"type":"string","minLength":1},"path":{"type":"string"},"root":{"type":"string"},"cursor":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":50}},"required":["query"],"additionalProperties":false}**
+**ws_read_schema = > json.parse text={"type":"object","properties":{"path":{"type":"string"},"root":{"type":"string"},"digest":{"type":"string"},"line_start":{"type":"integer","minimum":0},"line_end":{"type":"integer","minimum":0},"max_bytes":{"type":"integer","minimum":1024,"maximum":524288},"cursor":{"type":"string"}},"required":["path"],"additionalProperties":false}**
+**tools_search_schema = > json.parse text={"type":"object","properties":{"query":{"type":"string"}},"additionalProperties":false}**
+**tools_describe_schema = > json.parse text={"type":"object","properties":{"id":{"type":"string","minLength":1}},"required":["id"],"additionalProperties":false}**
 **note_scopes = > json.parse text=["notes:read"]**
 **file_scopes = > json.parse text=["workspace:read"]**
 **web_scopes = > json.parse text=["network:read"]**
+**meta_scopes = > json.parse text=["tools:describe"]**
 `note_spec` =
 
 | id | version | description | input_schema | effect | scopes | availability |
@@ -62,15 +70,50 @@ read/network tools. CALL names stay `tool_find` /
 |----|---------|-------------|--------------|--------|--------|--------------|
 | web_fetch | 1 | Fetch one http(s) URL with SSRF/size/redirect guards; trust=unverified | `fetch_schema` | read | `web_scopes` | ready |
 
+`ws_list_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| workspace_list | 1 | List workspace directory entries with cursor pagination | `ws_list_schema` | read | `file_scopes` | ready |
+
+`ws_search_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| workspace_search | 1 | Search workspace paths/content; hits include line locators for workspace_read | `ws_search_schema` | read | `file_scopes` | ready |
+
+`ws_read_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| workspace_read | 1 | Bounded workspace file range read with digest check and next_cursor | `ws_read_schema` | read | `file_scopes` | ready |
+
+`tools_search_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| tools_search | 1 | Search authorized tool catalog by intent; does not grant execution | `tools_search_schema` | read | `meta_scopes` | ready |
+
+`tools_describe_spec` =
+
+| id | version | description | input_schema | effect | scopes | availability |
+|----|---------|-------------|--------------|--------|--------|--------------|
+| tools_describe | 1 | Describe one authorized ToolSpec by id | `tools_describe_schema` | read | `meta_scopes` | ready |
+
 **prod_note = > agent.tools_register spec=`note_spec`**
 **prod_file = > agent.tools_register spec=`file_spec`**
 **prod_ws = > agent.tools_register spec=`web_search_spec`**
 **prod_wf = > agent.tools_register spec=`web_fetch_spec`**
+**prod_wsl = > agent.tools_register spec=`ws_list_spec`**
+**prod_wss = > agent.tools_register spec=`ws_search_spec`**
+**prod_wsr = > agent.tools_register spec=`ws_read_spec`**
+**prod_ts = > agent.tools_register spec=`tools_search_spec`**
+**prod_td = > agent.tools_register spec=`tools_describe_spec`**
 `out` =
 
-| ok | eng | note | file | web_search | web_fetch |
-|----|-----|------|------|------------|-----------|
-| True | `eng` | `prod_note` | `prod_file` | `prod_ws` | `prod_wf` |
+| ok | eng | note | file | web_search | web_fetch | workspace_list | workspace_search | workspace_read | tools_search | tools_describe |
+|----|-----|------|------|------------|-----------|----------------|------------------|----------------|--------------|----------------|
+| True | `eng` | `prod_note` | `prod_file` | `prod_ws` | `prod_wf` | `prod_wsl` | `prod_wss` | `prod_wsr` | `prod_ts` | `prod_td` |
 
 *out*
 
@@ -110,8 +153,7 @@ Validate + authorize without executing.
 
 ## eng_tools_alias
 
-Same whitelist as `qdagent.eng_tools` — product alias list for CALL.
-Includes `note_read` / `file_read` / `web_search` / `web_fetch`.
+Product CALL whitelist for agent.run.
 
 **t = > table.empty_list**
 **t = > table.append list=`t` item="tool_find"**
@@ -123,14 +165,17 @@ Includes `note_read` / `file_read` / `web_search` / `web_fetch`.
 **t = > table.append list=`t` item="file_read"**
 **t = > table.append list=`t` item="web_search"**
 **t = > table.append list=`t` item="web_fetch"**
+**t = > table.append list=`t` item="workspace_list"**
+**t = > table.append list=`t` item="workspace_search"**
+**t = > table.append list=`t` item="workspace_read"**
+**t = > table.append list=`t` item="tools_search"**
+**t = > table.append list=`t` item="tools_describe"**
 *t*
 
 ## note_read
     + `path`
     + `root`="data"
     + `max_chars`=32000
-
-Product CALL target — delegates to `note_read.run` (read-only, no-exec).
 
 *> note_read.run path=`path` root=`root` max_chars=`max_chars`*
 
@@ -139,15 +184,11 @@ Product CALL target — delegates to `note_read.run` (read-only, no-exec).
     + `root`="."
     + `max_chars`=32000
 
-Workspace file CALL target — delegates to `file_read.run` (read-only, no-exec).
-
 *> file_read.run path=`path` root=`root` max_chars=`max_chars`*
 
 ## web_search
     + `query`=""
     + `limit`=5
-
-Product CALL target — web search clues (trust=unverified).
 
 *> web_search.run query=`query` limit=`limit`*
 
@@ -156,6 +197,44 @@ Product CALL target — web search clues (trust=unverified).
     + `max_bytes`=524288
     + `timeout_s`=20
 
-Product CALL target — bounded URL fetch with SSRF guards.
-
 *> web_fetch.run url=`url` max_bytes=`max_bytes` timeout_s=`timeout_s`*
+
+## workspace_list
+    + `path`=""
+    + `root`="."
+    + `cursor`=0
+    + `limit`=50
+
+*> workspace_list.run path=`path` root=`root` cursor=`cursor` limit=`limit`*
+
+## workspace_search
+    + `query`=""
+    + `path`=""
+    + `root`="."
+    + `cursor`=0
+    + `limit`=20
+
+*> workspace_search.run query=`query` path=`path` root=`root` cursor=`cursor` limit=`limit`*
+
+## workspace_read
+    + `path`=""
+    + `root`="."
+    + `digest`=""
+    + `line_start`=0
+    + `line_end`=0
+    + `max_bytes`=65536
+    + `cursor`=""
+
+*> workspace_read.run path=`path` root=`root` digest=`digest` line_start=`line_start` line_end=`line_end` max_bytes=`max_bytes` cursor=`cursor`*
+
+## tools_search
+    + `query`=""
+
+Catalog search — authorize only; does not execute tools.
+
+*> search query=`query`*
+
+## tools_describe
+    + `id`=""
+
+*> describe id=`id`*

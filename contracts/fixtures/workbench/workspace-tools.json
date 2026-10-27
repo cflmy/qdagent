@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "description": "Q-A4 workspace.list/search/read + tools.search/describe",
+  "tools": [
+    {
+      "id": "workspace_list",
+      "effect": "read",
+      "required_args": [],
+      "pagination": "cursor"
+    },
+    {
+      "id": "workspace_search",
+      "effect": "read",
+      "required_args": ["query"],
+      "hit_fields": ["path", "line", "snippet", "locator"]
+    },
+    {
+      "id": "workspace_read",
+      "effect": "read",
+      "required_args": ["path"],
+      "supports": ["digest", "line_start", "line_end", "max_bytes", "next_cursor"]
+    },
+    {
+      "id": "tools_search",
+      "effect": "read",
+      "note": "Catalog search does not grant execution"
+    },
+    {
+      "id": "tools_describe",
+      "effect": "read",
+      "required_args": ["id"]
+    }
+  ],
+  "invariants": [
+    "workspace tools reject absolute paths and .. (workspace.forbidden)",
+    "workspace_search hits include locators so workspace_read can fetch ranges",
+    "workspace_read truncation is labeled via next_cursor / truncated",
+    "digest mismatch returns resource.revision_mismatch without silent fallback",
+    "tools_search never executes the matched tool",
+    "Search-then-read is the intended loop; search alone is not verified content"
+  ]
+}

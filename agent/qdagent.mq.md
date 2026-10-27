@@ -190,6 +190,54 @@ Web fetch (CALL:web_fetch) — SSRF/size/redirect guarded; trust=unverified.
 
 *> catalog.web_fetch url=`url` max_bytes=`max_bytes` timeout_s=`timeout_s`*
 
+## workspace_list
+    + `path`=""
+    + `root`="."
+    + `cursor`=0
+    + `limit`=50
+
+Workspace list (CALL:workspace_list) — directory entries with cursor.
+
+*> catalog.workspace_list path=`path` root=`root` cursor=`cursor` limit=`limit`*
+
+## workspace_search
+    + `query`=""
+    + `path`=""
+    + `root`="."
+    + `cursor`=0
+    + `limit`=20
+
+Workspace search (CALL:workspace_search) — path/content hits with locators.
+
+*> catalog.workspace_search query=`query` path=`path` root=`root` cursor=`cursor` limit=`limit`*
+
+## workspace_read
+    + `path`=""
+    + `root`="."
+    + `digest`=""
+    + `line_start`=0
+    + `line_end`=0
+    + `max_bytes`=65536
+    + `cursor`=""
+
+Workspace read (CALL:workspace_read) — bounded range; truncated labeled.
+
+*> catalog.workspace_read path=`path` root=`root` digest=`digest` line_start=`line_start` line_end=`line_end` max_bytes=`max_bytes` cursor=`cursor`*
+
+## tools_search
+    + `query`=""
+
+Tool catalog search (CALL:tools_search) — does not grant execution.
+
+*> catalog.tools_search query=`query`*
+
+## tools_describe
+    + `id`=""
+
+Tool catalog describe (CALL:tools_describe).
+
+*> catalog.tools_describe id=`id`*
+
 ## ensure_llm
     + `model_id`=""
     + `selection`=None
