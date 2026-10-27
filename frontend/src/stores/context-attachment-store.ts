@@ -19,6 +19,9 @@ export type ContextAttachment = {
   excerpt?: string
   excerpt_truncated?: boolean
   pinned_at: string
+  /** Live workspace digest differs from pinned — user may refresh (design §10.1). */
+  stale?: boolean
+  live_revision?: string
 }
 
 interface State {
@@ -29,6 +32,9 @@ interface Actions {
   pin: (a: Omit<ContextAttachment, 'id' | 'pinned_at' | 'origin'> & { origin?: 'user' | 'auto' }) => void
   unpin: (id: string) => void
   clear: () => void
+  markStale: (id: string, liveRevision: string) => void
+  /** Replace pin with a freshly resolved ResourceRef (explicit user refresh). */
+  refresh: (id: string, next: Omit<ContextAttachment, 'id' | 'pinned_at' | 'origin' | 'stale' | 'live_revision'> & { origin?: 'user' | 'auto' }) => void
   /** Snapshot + clear for send (freeze into the outgoing turn). */
   takeFrozen: () => ContextAttachment[]
 }
@@ -60,6 +66,26 @@ export const useContextAttachmentStore = create<State & Actions>()(
     }),
 
     clear: () => set((s) => { s.pending = [] }),
+
+    markStale: (id, liveRevision) => set((s) => {
+      const item = s.pending.find((p) => p.id === id)
+      if (!item) return
+      item.stale = true
+      item.live_revision = liveRevision
+    }),
+
+    refresh: (id, next) => set((s) => {
+      const idx = s.pending.findIndex((p) => p.id === id)
+      if (idx < 0) return
+      s.pending[idx] = {
+        ...next,
+        id,
+        origin: next.origin || s.pending[idx].origin || 'user',
+        pinned_at: new Date().toISOString(),
+        stale: false,
+        live_revision: undefined,
+      }
+    }),
 
     takeFrozen: () => {
       const snap = [...get().pending]

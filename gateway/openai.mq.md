@@ -13,6 +13,7 @@ import:
   session: ../execution/session.mq.md
   registry: ../lib/registry.mq.md
   turns: ../execution/turns.mq.md
+  workbench: ../lib/workbench.mq.md
   json: lib/json.mq.md
   text: lib/text.mq.md
   table: lib/table.mq.md
@@ -164,11 +165,49 @@ Full `messages` preferred over last-user-only. Explicit selection freezes the mo
     **stream = True**
   2. `ps` == "true"
     **stream = True**
+  **patt = > json.get value=`payload` key="context_attachments"**
 
 1. `messages`
   **message = > qd.compose_messages messages=`messages` fallback=`message`**
 1. not `message`
   **message = ""**
+
+Verify ContextAttachment pins against live digests (QA-16). Stale keeps frozen
+revision — never silent-refresh. Inject a short system note when any pin is stale/missing.
+
+1. `patt`
+  **vfy = > workbench.resources_verify_attachments payload=`payload`**
+  **vok = > json.get value=`vfy` key="ok"**
+  1. `vok`
+    **vdata = > json.get value=`vfy` key="data"**
+    1. not `vdata`
+      **vdata = > json.get value=`vfy` key="result"**
+    **vstale = > json.get value=`vdata` key="stale"**
+    **vmiss = > json.get value=`vdata` key="missing"**
+    1. `vstale`
+      **vnote = "[context_attachments] " + `vstale` + " stale pin(s); frozen revision kept (no silent refresh)."**
+      1. `messages`
+        `vmsg` =
+
+        | role | content |
+        |------|---------|
+        | system | `vnote` |
+
+        **messages = > table.append list=`messages` item=`vmsg`**
+      2. *
+        **message = `message` + "\n\n" + `vnote`**
+    2. `vmiss`
+      **vnote2 = "[context_attachments] " + `vmiss` + " missing pin(s); do not invent content."**
+      1. `messages`
+        `vmsg2` =
+
+        | role | content |
+        |------|---------|
+        | system | `vnote2` |
+
+        **messages = > table.append list=`messages` item=`vmsg2`**
+      2. *
+        **message = `message` + "\n\n" + `vnote2`**
 
 Denylist-only gate here. Product Preflight (`pf.run` / knowledge preflight) runs
 once inside `qd.run` → `ask`/`build`/`learn`. Duplicating it here added ~8s of

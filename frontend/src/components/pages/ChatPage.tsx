@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { api } from '@/lib/api'
 import { useSessionStore } from '@/stores/session-store'
 import { useContextAttachmentStore } from '@/stores/context-attachment-store'
 import { useRightbar } from '@/components/layout/DesktopFrame'
 import { ModelPicker } from '@/components/chat/ModelPicker'
 import { UsageFooter } from '@/components/chat/UsageFooter'
 import { CitationLink } from '@/components/chat/CitationLink'
-import { Send, Square, PanelRightOpen, X } from 'lucide-react'
+import { Send, Square, PanelRightOpen, X, RefreshCw } from 'lucide-react'
 
 function renderWithCitations(text: string, workspaceId = 'ws-default') {
   const parts: Array<string | { n: number; id: string }> = []
@@ -35,8 +36,11 @@ export function ChatPage() {
   } = useSessionStore()
   const pendingAttachments = useContextAttachmentStore((s) => s.pending)
   const unpinAttachment = useContextAttachmentStore((s) => s.unpin)
+  const markStale = useContextAttachmentStore((s) => s.markStale)
+  const refreshAttachment = useContextAttachmentStore((s) => s.refresh)
   const takeFrozen = useContextAttachmentStore((s) => s.takeFrozen)
   const rightbar = useRightbar()
+  const [refreshingId, setRefreshingId] = useState('')
 
   const [input, setInput] = useState('')
   const [composing, setComposing] = useState(false)
@@ -65,6 +69,105 @@ export function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [currentSession?.messages])
+
+  // Design §10.1: after pin, if workspace bytes change, tip old revision (no silent refresh).
+  useEffect(() => {
+    if (!pendingAttachments.length) return
+    let cancelled = false
+    const tick = async () => {
+      for (const a of pendingAttachments) {
+        if (cancelled || a.stale) continue
+        try {
+          const res = await api.appResourcesResolve({
+            workspace_id: a.workspace_id,
+            resource_id: a.resource_id,
+            path: a.source_ref,
+          }) as {
+            ok?: boolean
+            data?: { digest?: string; revision?: string }
+          }
+          if (cancelled || res.ok === false) continue
+          const live = res.data?.digest || res.data?.revision || ''
+          const pinned = a.digest || a.revision
+          if (live && pinned && live !== pinned) {
+            markStale(a.id, live)
+          }
+        } catch {
+          /* ignore transient */
+        }
+      }
+    }
+    void tick()
+    const id = window.setInterval(() => { void tick() }, 15_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [pendingAttachments, markStale])
+
+  const handleRefreshPin = useCallback(async (id: string) => {
+    const a = useContextAttachmentStore.getState().pending.find((p) => p.id === id)
+    if (!a || refreshingId) return
+    setRefreshingId(id)
+    try {
+      const resolved = await api.appResourcesResolve({
+        workspace_id: a.workspace_id,
+        resource_id: a.resource_id,
+        path: a.source_ref,
+      }) as {
+        ok?: boolean
+        data?: {
+          resource_id?: string
+          revision?: string
+          digest?: string
+          title?: string
+          kind?: string
+          media_type?: string
+          source_ref?: string
+          workspace_id?: string
+        }
+        error?: { message?: string }
+      }
+      if (resolved.ok === false || !resolved.data?.resource_id) {
+        throw new Error(resolved.error?.message || '刷新失败')
+      }
+      const ref = resolved.data
+      let excerpt: string | undefined
+      let excerptTruncated = false
+      if (ref.source_ref && ref.kind !== 'pdf' && ref.kind !== 'image') {
+        const read = await api.appResourcesRead({
+          workspace_id: a.workspace_id,
+          path: ref.source_ref,
+          digest: ref.digest || ref.revision,
+          line_start: a.range?.line,
+          line_end: a.range?.line_end,
+          max_bytes: 8000,
+        }) as { ok?: boolean; data?: { text?: string | null; truncated?: boolean; next_cursor?: string | null } }
+        if (read.ok !== false && typeof read.data?.text === 'string') {
+          excerpt = read.data.text
+          excerptTruncated = !!(read.data.truncated || read.data.next_cursor)
+        }
+      }
+      refreshAttachment(id, {
+        resource_id: ref.resource_id!,
+        workspace_id: ref.workspace_id || a.workspace_id,
+        title: ref.title || a.title,
+        revision: ref.revision || ref.digest || '',
+        digest: ref.digest,
+        kind: ref.kind,
+        media_type: ref.media_type,
+        source_ref: ref.source_ref,
+        range: a.range,
+        excerpt,
+        excerpt_truncated: excerptTruncated,
+        origin: a.origin,
+      })
+    } catch {
+      /* keep stale chip */
+    } finally {
+      setRefreshingId('')
+    }
+  }, [refreshAttachment, refreshingId])
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -392,19 +495,50 @@ export function ChatPage() {
                       maxWidth: '100%',
                       padding: '2px 8px',
                       borderRadius: '999px',
-                      background: 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,0.04))',
-                      border: '0.5px solid var(--dsw-alias-border-l2)',
+                      background: a.stale
+                        ? 'color-mix(in srgb, #b45309 12%, var(--dsw-alias-bg-layer-2, rgba(0,0,0,0.04)))'
+                        : 'var(--dsw-alias-bg-layer-2, rgba(0,0,0,0.04))',
+                      border: a.stale
+                        ? '0.5px solid #b45309'
+                        : '0.5px solid var(--dsw-alias-border-l2)',
                       fontSize: '12px',
                       color: 'var(--dsw-alias-label-primary)',
                     }}
-                    title={`${a.resource_id}\n${a.revision}`}
+                    title={
+                      a.stale
+                        ? `引用的是旧版 ${a.revision}\n工作区现为 ${a.live_revision || ''}（可刷新）`
+                        : `${a.resource_id}\n${a.revision}`
+                    }
                   >
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {a.title}
                       {a.range?.page != null ? ` · p${a.range.page}` : ''}
                       {a.range?.line != null ? ` · L${a.range.line}` : ''}
+                      {a.range?.line_end != null && a.range.line_end !== a.range.line
+                        ? `–${a.range.line_end}`
+                        : ''}
                       <span style={{ opacity: 0.55 }}> · {a.revision.slice(0, 14)}…</span>
+                      {a.stale ? <span style={{ color: '#b45309' }}> · 旧版</span> : null}
                     </span>
+                    {a.stale && (
+                      <button
+                        type="button"
+                        aria-label={`刷新为新版 ${a.title}`}
+                        disabled={refreshingId === a.id}
+                        onClick={() => void handleRefreshPin(a.id)}
+                        style={{
+                          display: 'grid',
+                          placeItems: 'center',
+                          border: 'none',
+                          background: 'transparent',
+                          padding: 0,
+                          cursor: 'pointer',
+                          color: '#b45309',
+                        }}
+                      >
+                        <RefreshCw size={12} className={refreshingId === a.id ? 'animate-spin' : undefined} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       aria-label={`移除 ${a.title}`}

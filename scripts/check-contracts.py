@@ -285,6 +285,12 @@ def check_context_attachment(data: dict) -> None:
         raise AssertionError("invariants must separate preview from pin")
     if "freeze" not in inv.lower() and "冻结" not in inv:
         raise AssertionError("invariants must require freeze on send")
+    if "silent" not in inv.lower() and "静默" not in inv:
+        raise AssertionError("invariants must forbid silent refresh on digest change")
+    routes = data.get("routes") or []
+    paths = {r.get("path") for r in routes if isinstance(r, dict)}
+    if "/api/app/resources/verify_attachments" not in paths:
+        raise AssertionError("context-attachment must inventori verify_attachments route")
 
 
 def check_resource_ref(data: dict) -> None:

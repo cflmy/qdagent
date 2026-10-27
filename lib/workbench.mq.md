@@ -586,6 +586,77 @@ Cursor pagination; never executes.
   **ecode = "runtime.unavailable"**
 *> app_err code=`ecode` message=`msg` retryable=False*
 
+## resources_verify_attachments
+    + `payload`=None
+
+Verify ContextAttachment pins against live digests (QA-16).
+Stale pins keep frozen revision — never silent-refresh.
+
+**workspace_id = > json.get value=`payload` key="workspace_id"**
+**attachments = > json.get value=`payload` key="attachments"**
+1. not `attachments`
+  **attachments = > json.get value=`payload` key="context_attachments"**
+1. not `attachments`
+  **attachments = > json.parse text="[]"**
+1. not `workspace_id`
+  1. `attachments`
+    **_first = > json.get value=`attachments` key=0**
+    1. `_first`
+      **workspace_id = > json.get value=`_first` key="workspace_id"**
+**store = > db.open**
+1. `workspace_id`
+  **ws = > `store`.get table="workspaces" id=`workspace_id`**
+  1. not `ws`
+    *> app_err code="workspace.forbidden" message="unknown workspace"*
+  **project = [project_root_ref](access(ws, "project_root_ref"))**
+2. *
+  **project = "."**
+1. not `project`
+  **project = "."**
+**data_root = > run.确保目录**
+**u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**out_path = `data_root` + "/tmp/qd-att-" + `u` + "-" + `nonce` + ".json"**
+**att_path = `data_root` + "/tmp/qd-att-in-" + `u` + "-" + `nonce` + ".json"**
+**att_json = > json.stringify value=`attachments`**
+> fs.write_text path=`att_path` text=`att_json`
+**repo = > sys.env_get name="QDAGENT_ROOT"**
+1. not `repo`
+  **repo = > sys.cwd**
+**script = `repo` + "/scripts/context_attachments.py"**
+> sys.env_set name="QDAGENT_RES_OUT" value=`out_path`
+> sys.env_set name="QDAGENT_RES_WS" value=`workspace_id`
+> sys.env_set name="QDAGENT_RES_ROOT" value=`project`
+> sys.env_set name="QDAGENT_RES_DATA" value=`data_root`
+> sys.env_set name="QDAGENT_RES_ATTACHMENTS" value=`att_path`
+`args` =
+
+| a |
+|---|
+| `script` |
+
+**proc = > sys.exec cmd="python3" args=args capture=True**
+**raw = > fs.read_text path=`out_path`**
+> fs.remove path=`out_path`
+> fs.remove path=`att_path`
+1. not `raw`
+  *> app_err code="runtime.unavailable" message="attachment verify failed" retryable=True*
+**resp = > json.parse text=`raw`**
+**ok = > json.get value=`resp` key="ok"**
+1. `ok`
+  **data = > json.get value=`resp` key="result"**
+  *> app_ok data=`data`*
+**err = > json.get value=`resp` key="error"**
+**msg = > json.get value=`err` key="message"**
+**ecode = > json.get value=`err` key="code"**
+1. not `msg`
+  **msg = "attachment verify failed"**
+1. not `ecode`
+  **ecode = "runtime.unavailable"**
+*> app_err code=`ecode` message=`msg` retryable=False*
+
 ## citations_resolve
     + `payload`=None
 

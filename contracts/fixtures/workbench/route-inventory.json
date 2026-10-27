@@ -60,6 +60,15 @@
     },
     {
       "method": "POST",
+      "path": "/api/app/resources/verify_attachments",
+      "api": "api.app_resources_verify_attachments",
+      "impl": "workbench.resources_verify_attachments",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "ContextAttachment pin verify; stale keeps frozen digest (no silent refresh)"
+    },
+    {
+      "method": "POST",
       "path": "/api/app/citations/resolve",
       "api": "api.app_citations_resolve",
       "impl": "workbench.citations_resolve",

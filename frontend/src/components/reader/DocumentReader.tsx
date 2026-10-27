@@ -13,6 +13,7 @@ import { PdfPreview } from './PdfPreview'
 import { ImagePreview } from './ImagePreview'
 import { JsonPreview, type OutlineNode } from './JsonPreview'
 import { CodePreview } from './CodePreview'
+import { TablePreview } from './TablePreview'
 
 type BlobState = {
   kind: 'pdf' | 'image'
@@ -34,6 +35,14 @@ type StructuredState =
       digest?: string
       nextCursor?: string | null
     }
+  | {
+      kind: 'csv'
+      sourceText: string
+      truncated?: boolean
+      diagnostics?: unknown[]
+      title?: string
+      selectedRange?: { line: number; line_end?: number } | null
+    }
 
 /** Read-only DocumentView / ResourceView embed. Never triggers execution. */
 export function DocumentReader() {
@@ -44,6 +53,7 @@ export function DocumentReader() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [blob, setBlob] = useState<BlobState | null>(null)
   const [structured, setStructured] = useState<StructuredState | null>(null)
+  const [csvRange, setCsvRange] = useState<{ line: number; line_end?: number } | null>(null)
   const [pinning, setPinning] = useState(false)
   const [pinMsg, setPinMsg] = useState('')
   const pin = useContextAttachmentStore((s) => s.pin)
@@ -79,6 +89,7 @@ export function DocumentReader() {
     let cancelled = false
     setBlob(null)
     setStructured(null)
+    setCsvRange(null)
     ;(async () => {
       setLoading(true)
       try {
@@ -265,6 +276,11 @@ export function DocumentReader() {
       const locator = (activeTarget.kind === 'file' || activeTarget.kind === 'document')
         ? activeTarget.locator
         : undefined
+      const range = csvRange
+        ? { line: csvRange.line, line_end: csvRange.line_end }
+        : locator
+          ? { page: locator.page, line: locator.line }
+          : undefined
       let excerpt: string | undefined
       let excerptTruncated = false
       // Bound excerpt via resources/read — never silent full-file claim (QA-16).
@@ -273,7 +289,8 @@ export function DocumentReader() {
           workspace_id: workspaceId,
           path: ref.source_ref,
           digest: ref.digest || ref.revision,
-          line_start: locator?.line,
+          line_start: range?.line ?? locator?.line,
+          line_end: range && 'line_end' in range ? range.line_end : undefined,
           max_bytes: 8000,
         }) as { ok?: boolean; data?: { text?: string | null; truncated?: boolean; next_cursor?: string | null } }
         if (read.ok !== false && typeof read.data?.text === 'string') {
@@ -290,9 +307,7 @@ export function DocumentReader() {
         kind: ref.kind,
         media_type: ref.media_type,
         source_ref: ref.source_ref,
-        range: locator
-          ? { page: locator.page, line: locator.line }
-          : undefined,
+        range,
         excerpt,
         excerpt_truncated: excerptTruncated,
         origin: 'user',
@@ -419,6 +434,15 @@ export function DocumentReader() {
             }
           />
         )}
+        {!loading && !error && !blob && structured?.kind === 'csv' && (
+          <TablePreview
+            sourceText={structured.sourceText}
+            title={structured.title || title}
+            truncated={structured.truncated}
+            diagnostics={structured.diagnostics}
+            onRangeChange={setCsvRange}
+          />
+        )}
         {!loading && !error && !blob && !structured && fragmentHtml && (
           <div
             className="mq-document mq-resource-preview prose prose-sm max-w-none"
@@ -480,6 +504,17 @@ async function settlePreview(opts: {
       sourceText: preview.sourceText,
       outline: preview.outline || [],
       diagnostics: preview.diagnostics,
+    })
+    opts.setLoading(false)
+    return
+  }
+  if (preview.kind === 'csv' && typeof preview.sourceText === 'string') {
+    opts.setStructured({
+      kind: 'csv',
+      sourceText: preview.sourceText,
+      truncated: preview.completeness === 'partial',
+      diagnostics: preview.diagnostics,
+      title: preview.resourceId,
     })
     opts.setLoading(false)
     return

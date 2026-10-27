@@ -551,6 +551,12 @@ export const api = {
     cursor?: number | string
     limit?: number
   }) => POST('/api/app/resources/list', data),
+  /** QA-16: verify ContextAttachment pins vs live digests (no silent refresh). */
+  appResourcesVerifyAttachments: (data: {
+    workspace_id?: string
+    attachments?: unknown[]
+    context_attachments?: unknown[]
+  }) => POST('/api/app/resources/verify_attachments', data),
   appCitationsResolve: (data: unknown) => POST('/api/app/citations/resolve', data),
   appUploadsCreate: (data: unknown) => POST('/api/app/uploads/create', data),
   appImportsStart: (data: unknown) => POST('/api/app/imports/start', data),

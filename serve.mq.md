@@ -137,6 +137,7 @@ import:
 | /api/app/resources/read | POST | api.app_resources_read | json | json | read |
 | /api/app/resources/resolve | POST | api.app_resources_resolve | json | json | read |
 | /api/app/resources/list | POST | api.app_resources_list | json | json | read |
+| /api/app/resources/verify_attachments | POST | api.app_resources_verify_attachments | json | json | read |
 | /api/app/citations/resolve | POST | api.app_citations_resolve | json | json | read |
 | /api/app/uploads/create | POST | api.app_uploads_create | json | json | short |
 | /api/app/imports/start | POST | api.app_imports_start | json | json | short |

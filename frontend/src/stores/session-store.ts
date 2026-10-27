@@ -458,6 +458,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       get().addMessage(sessionId, { role: 'assistant', content: '' })
 
       try {
+        const attWs = frozenAtts.find((a) => a.workspace_id)?.workspace_id || ''
         const stream = api.v1ChatCompletions(
           {
             messages: history,
@@ -468,6 +469,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               : undefined,
             session_id: sessionId,
             request_id: requestId,
+            workspace_id: attWs || undefined,
             context_attachments: frozenAtts,
           },
           signal,

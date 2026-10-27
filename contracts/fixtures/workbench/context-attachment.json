@@ -15,7 +15,16 @@
     "Preview alone never creates ContextAttachment or calls the model",
     "Pin shows chip with title/version/range; removable before send",
     "Send freezes ResourceRef revision; later file edits do not silently refresh the pin",
+    "When workspace digest diverges, UI tips old revision and offers explicit refresh",
+    "Server verify_attachments marks stale/missing without swapping pinned digest",
     "Excerpt via resources/read is bounded; truncated excerpts must be labeled",
     "origin is user|auto; auto retrieval is separate from user pin priority"
+  ],
+  "routes": [
+    {
+      "path": "/api/app/resources/verify_attachments",
+      "method": "POST",
+      "purpose": "Verify ContextAttachment pins vs live digests"
+    }
   ]
 }
