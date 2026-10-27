@@ -4,7 +4,8 @@ title: agent/qdagent
 description: >-
   求道 — Executable Engineering Knowledge Agent (CLI≥1.4.4 · Ext≥1.5.2).
   Modes: ASK / BUILD / LEARN. Single Agent Runtime: product Preflight +
-  agent_eng_* latch; agent.run efi=True; CREATE uses sandbox=True.
+  agent_eng_* latch (record-only when pack has decision); agent.run efi=False
+  after product pack; CREATE uses sandbox=True.
   LLM transport failures return mode=error (Marqdo 1.4.4 soft status).
   Tools are ## in this file (code-as-documentation).
   Output contract: agent output AND sedimented notes MUST be runnable
@@ -248,7 +249,10 @@ This is transport bridging for child runs, not request-level selection.
     + `out`=".marqdo"
 
 Process-internal EFI latch on top of product Context Pack.
-Calls agent_eng_preflight + agent_eng_record (plugin ABI, zero LLM).
+Product `pf.run` is the authority for decision / create_allowed / context_path.
+When the pack already carries a decision, skip a second `agent_eng_preflight`
+(avoids rewriting a different task-id pack). Always `agent_eng_record`.
+If the pack lacks a decision (legacy / missing graph), fall back to plugin preflight.
 
 > ensure_agent_plugin
 
@@ -256,23 +260,26 @@ Calls agent_eng_preflight + agent_eng_record (plugin ABI, zero LLM).
 **allowed = > json.get value=`pack` key="create_allowed"**
 **path = > json.get value=`pack` key="context_path"**
 **pf_body = > json.get value=`pack` key="preflight"**
+**latch = None**
 
-**latch = > agent_eng_preflight task=`task` root=`root` marqdo_dir=`out`**
-**latch_status = > json.get value=`latch` key="status"**
-**latch_decision = > json.get value=`latch` key="decision"**
-**latch_allowed = > json.get value=`latch` key="create_allowed"**
-
-1. `latch_status` == "ok"
-  1. `latch_decision`
-    **decision = `latch_decision`**
-  1. `latch_allowed` == False
-    **allowed = False**
-2. `latch_status` == "ready"
-  1. `latch_decision`
-    **decision = `latch_decision`**
-  1. `latch_allowed` == False
-    **allowed = False**
-3. *
+1. not `decision`
+  **latch = > agent_eng_preflight task=`task` root=`root` marqdo_dir=`out`**
+  **latch_status = > json.get value=`latch` key="status"**
+  **latch_decision = > json.get value=`latch` key="decision"**
+  **latch_allowed = > json.get value=`latch` key="create_allowed"**
+  1. `latch_status` == "ok"
+    1. `latch_decision`
+      **decision = `latch_decision`**
+    1. `latch_allowed` == False
+      **allowed = False**
+  2. `latch_status` == "ready"
+    1. `latch_decision`
+      **decision = `latch_decision`**
+    1. `latch_allowed` == False
+      **allowed = False**
+  3. *
+    **_ = 1**
+2. *
   **_ = 1**
 
 > agent_eng_record decision=`decision` root=`root` marqdo_dir=`out`
@@ -521,7 +528,7 @@ of regenerating from scratch.
     + `stream`=False
     + `history`=""
 
-ASK — product Preflight + EFI latch + agent.run (efi=True, learn=False). No host mutation.
+ASK — product Preflight + EFI latch + agent.run (efi=False after product pack, learn=False). No host mutation.
 The answer is gated by `execution/docgate.mq.md` and must be a runnable marqdo doc.
 Model selection is frozen for this call via `model_id` / `selection` (no env clobber).
 `task` is the **latest user turn** (KB reuse / route). Optional `history` is prior
@@ -596,7 +603,7 @@ the full knowledge-preflight wall time.
         > turns.append_event turn_id=`turn_id` type="model.resolved" event=`mev`
       2. *
         > sys.stream_publish event=`mev`
-  **agent_out = > `助手`.run task=`task` efi=True learn=False verify=True writeback=False reuse=True router="marqdo" max_rounds=3 sandbox=False stream=`stream`**
+  **agent_out = > `助手`.run task=`task` efi=False learn=False verify=True writeback=False reuse=True router="marqdo" max_rounds=3 sandbox=False stream=`stream`**
   **status = ""**
   **raw = ""**
   **err = ""**
@@ -689,7 +696,7 @@ the full knowledge-preflight wall time.
     + `sandbox`=True
     + `session_id`=""
 
-BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=True) → Verify → Record.
+BUILD — Preflight → EFI latch → Reuse Gate → agent.run (efi=False after product pack) → Verify → Record.
 
 **pack = > pf.run task=`task` root=`root` out=`out`**
 **ok = [ok](access(pack, "ok"))**
@@ -853,7 +860,7 @@ REUSE path: actual bind_execute before LLM CREATE (discovery_only is never succe
     **use_sandbox = False**
     1. `decision` == "CREATE"
       **use_sandbox = `sandbox`**
-    **agent_out = > `助手`.run task=`task` efi=True learn=True verify=True writeback=True reuse=True router="auto" max_rounds=4 sandbox=`use_sandbox` sandbox_profile="default" promote=False**
+    **agent_out = > `助手`.run task=`task` efi=False learn=True verify=True writeback=True reuse=True router="auto" max_rounds=4 sandbox=`use_sandbox` sandbox_profile="default" promote=False**
     **status = > json.get value=`agent_out` key="status"**
     **raw = > format_agent_outcome agent_out=`agent_out`**
     1. `status` == "ok"

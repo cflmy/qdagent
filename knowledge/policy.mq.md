@@ -158,18 +158,27 @@ Merge matched L6 policies into a Preflight result map (product Context Pack enri
 ## pending_labels
     + `root`="."
 
-M9 两级词表检索（product face）— run `marqdo labels <root> --json` and return
-the pending-debt rows (built-in 待开发 words + explicit `[描述]()` stubs).
-Zero LLM; Marqdo owns the search (no second word list here).
-Prefer `MARQDO_BIN` so PATH’s older CLI (no `labels`) cannot poison Preflight.
-Never `json.parse` empty / failed stdout (was hard-abort `json parse: EOF`).
+M9 两级词表检索（product face）— run `marqdo labels` and return pending-debt
+rows (built-in 待开发 words + explicit `[描述]()` stubs). Zero LLM; Marqdo owns
+the search (no second word list here).
+
+**Product face vs CI face:** Preflight scans product dirs only
+(`knowledge` · `agent` · `policies` · `lib` · `execution` · `gateway` ·
+`serve.mq.md` · `index.mq.md`) — not `tests/`. CI ratchet still uses full-root
+`marqdo labels --baseline --fail-on-increase`.
+
+**Cache:** `.marqdo/labels-pending.json` via `scripts/labels-pending-cached.sh`
+keyed by source fingerprint `(path, mtime, size)`. Hit → reuse rows; miss →
+scan and rewrite. Prefer `MARQDO_BIN`. Never `json.parse` empty / failed stdout.
 
 **root = > resolve_root root=`root`**
 > sys.env_set name="QDAGENT_LABELS_ROOT" value=`root`
 **mq = > sys.env_get name="MARQDO_BIN"**
 1. not `mq`
   **mq = "marqdo"**
-**cmd = "\"" + `mq` + "\" labels \"$QDAGENT_LABELS_ROOT\" --json"**
+> sys.env_set name="MARQDO_BIN" value=`mq`
+**script = `root` + "/scripts/labels-pending-cached.sh"**
+**cmd = "bash \"" + `script` + "\""**
 `args` =
 
 | a |

@@ -271,6 +271,14 @@ def main() -> int:
     )
     if not isinstance(pf, dict):
         raise AssertionError(f"preflight not dict: {pf}")
+    # When preflight succeeds, product Context Pack must expose pending_labels
+    # (top-level or nested under "preflight").
+    if pf.get("ok") is True:
+        body = pf.get("preflight") if isinstance(pf.get("preflight"), dict) else pf
+        if "pending_labels" not in body and "pending_label_count" not in body:
+            raise AssertionError(
+                f"ok preflight missing pending_labels fields: keys={list(body)[:20]}"
+            )
 
     for path, payload in [
         ("/api/eng/reuse", {"task": "认证"}),
