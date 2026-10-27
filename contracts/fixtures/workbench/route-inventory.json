@@ -32,6 +32,15 @@
       "notes": "Authorized workspace blob for PDF.js / ImagePreview; extract/OCR independent"
     },
     {
+      "method": "GET",
+      "path": "/api/app/resources/{id}/content",
+      "api": "api.app_resources_content",
+      "impl": "workbench.resources_content",
+      "class": "read",
+      "authority": "KEEP",
+      "notes": "Authorized content/Range download; rejects remote URLs; revision/digest check"
+    },
+    {
       "method": "POST",
       "path": "/api/app/resources/read",
       "api": "api.app_resources_read",

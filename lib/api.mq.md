@@ -1273,6 +1273,22 @@ OpenAI-compatible `GET /v1/models` — Marqdo invoke (C2b, no Python).
     + `payload`=None
 *> workbench.resources_blob payload=`payload`*
 
+## app_resources_content
+    + `id`=""
+    + `resource_id`=""
+    + `workspace_id`=""
+    + `digest`=""
+    + `revision`=""
+    + `range_start`=""
+    + `range_end`=""
+    + `max_bytes`=20971520
+    + `payload`=None
+
+GET /api/app/resources/:id/content — Range via range_start/range_end query.
+Never accepts remote URLs.
+
+*> workbench.resources_content id=`id` resource_id=`resource_id` workspace_id=`workspace_id` digest=`digest` revision=`revision` range_start=`range_start` range_end=`range_end` max_bytes=`max_bytes` payload=`payload`*
+
 ## app_resources_read
     + `payload`=None
 *> workbench.resources_read payload=`payload`*

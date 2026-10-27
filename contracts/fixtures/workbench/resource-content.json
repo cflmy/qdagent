@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "description": "GET /api/app/resources/:id/content contract (design §11.1)",
+  "route": {
+    "method": "GET",
+    "path": "/api/app/resources/{id}/content",
+    "api": "api.app_resources_content",
+    "impl": "workbench.resources_content",
+    "class": "read"
+  },
+  "result_fields": [
+    "schema",
+    "path",
+    "media_type",
+    "digest",
+    "revision",
+    "byte_length",
+    "total_bytes",
+    "content_base64",
+    "partial",
+    "no_exec",
+    "remote_url_accepted"
+  ],
+  "range_fields": ["content_range", "partial"],
+  "error_codes": [
+    "resource.not_found",
+    "workspace.forbidden",
+    "resource.revision_mismatch",
+    "resource.too_large",
+    "invalid_arguments"
+  ],
+  "invariants": [
+    "Never accepts arbitrary remote http(s) URLs",
+    "opaque resource_id resolves under workspace before read",
+    "digest/revision mismatch → resource.revision_mismatch (no silent fallback)",
+    "Range via range_start/range_end returns content_range and partial=true",
+    "no_exec always true — content download never executes Marqdo"
+  ]
+}

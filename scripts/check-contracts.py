@@ -39,6 +39,7 @@ REQUIRED = {
     "notes-write.json": ("ops", "result_fields", "error_codes", "invariants"),
     "files-patch.json": ("result_fields", "error_codes", "invariants"),
     "response-preferences.json": ("route", "fields", "detail_enum", "invariants"),
+    "resource-content.json": ("route", "result_fields", "error_codes", "invariants"),
 }
 
 
@@ -368,6 +369,25 @@ def check_response_preferences(data: dict) -> None:
         raise AssertionError("invariants must state turn override priority")
 
 
+def check_resource_content(data: dict) -> None:
+    route = data["route"]
+    if route.get("path") != "/api/app/resources/{id}/content":
+        raise AssertionError("resource-content route path mismatch")
+    if route.get("method") != "GET":
+        raise AssertionError("resource-content must be GET")
+    fields = set(data["result_fields"])
+    for f in ("digest", "content_base64", "no_exec", "remote_url_accepted", "partial"):
+        if f not in fields:
+            raise AssertionError(f"resource-content result_fields missing {f}")
+    inv = "\n".join(data.get("invariants") or []).lower()
+    if "remote" not in inv and "url" not in inv:
+        raise AssertionError("invariants must reject remote URLs")
+    if "range" not in inv and "content_range" not in inv:
+        raise AssertionError("invariants must require Range/content_range")
+    if "no_exec" not in inv and "marqdo" not in inv:
+        raise AssertionError("invariants must forbid Marqdo execution")
+
+
 def check_workspace_tools(data: dict) -> None:
     by_id = {t.get("id"): t for t in data["tools"] if isinstance(t, dict)}
     for tid in (
@@ -542,6 +562,7 @@ def main() -> int:
         "notes-write.json": check_notes_write,
         "files-patch.json": check_files_patch,
         "response-preferences.json": check_response_preferences,
+        "resource-content.json": check_resource_content,
     }
     for name, keys in REQUIRED.items():
         data = load(name)

@@ -150,6 +150,7 @@ import:
 | /api/app/turns/cancel | POST | api.app_turns_cancel | json | json | control |
 | /api/app/turns/recover | POST | api.app_turns_recover | json | json | control |
 | /api/app/tools | GET | api.app_tools | query | json | read |
+| /api/app/resources/{id}/content | GET | api.app_resources_content | query | json | read |
 | /api/app/response_preferences | POST | api.app_response_preferences | json | json | short |
 | /api/app/feature_flags | GET | api.app_feature_flags | query | json | read |
 | /api/app/turns/get | POST | api.app_turns_get | json | json | read |

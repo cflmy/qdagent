@@ -41,7 +41,11 @@ def main() -> int:
             open(out, "w", encoding="utf-8"),
         )
         return 0
-    if st.st_size > mx:
+    range_start = os.environ.get("QDAGENT_BLOB_RANGE_START")
+    range_end = os.environ.get("QDAGENT_BLOB_RANGE_END")
+    # Full-file size gate only when not ranging (Range may stream a slice).
+    ranging = range_start not in (None, "") or range_end not in (None, "")
+    if not ranging and st.st_size > mx:
         json.dump(
             {
                 "ok": False,
@@ -53,8 +57,9 @@ def main() -> int:
             open(out, "w", encoding="utf-8"),
         )
         return 0
-    raw = open(abs_path, "rb").read()
-    dig = "sha256:" + hashlib.sha256(raw).hexdigest()
+    with open(abs_path, "rb") as fh:
+        full = fh.read()
+    dig = "sha256:" + hashlib.sha256(full).hexdigest()
     if exp and exp != dig:
         json.dump(
             {
@@ -67,22 +72,76 @@ def main() -> int:
             open(out, "w", encoding="utf-8"),
         )
         return 0
+    total = len(full)
+    start = 0
+    end = total - 1 if total else 0
+    if ranging:
+        try:
+            start = int(range_start) if range_start not in (None, "") else 0
+            end = int(range_end) if range_end not in (None, "") else total - 1
+        except ValueError:
+            json.dump(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "invalid_arguments",
+                        "message": "range_start/range_end must be integers",
+                    },
+                },
+                open(out, "w", encoding="utf-8"),
+            )
+            return 0
+        if start < 0 or end < start or (total and start >= total):
+            json.dump(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "invalid_arguments",
+                        "message": f"bad range {start}-{end} for size {total}",
+                    },
+                },
+                open(out, "w", encoding="utf-8"),
+            )
+            return 0
+        if total:
+            end = min(end, total - 1)
+        raw = full[start : end + 1] if total else b""
+        if len(raw) > mx:
+            json.dump(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "resource.too_large",
+                        "message": f"range exceeds {mx} bytes",
+                    },
+                },
+                open(out, "w", encoding="utf-8"),
+            )
+            return 0
+    else:
+        raw = full
+        start = 0
+        end = total - 1 if total else 0
     ext = os.path.splitext(abs_path)[1].lower()
     mt = MEDIA.get(ext, "application/octet-stream")
-    json.dump(
-        {
-            "ok": True,
-            "result": {
-                "path": rel or os.path.basename(abs_path),
-                "media_type": mt,
-                "digest": dig,
-                "byte_length": len(raw),
-                "content_base64": base64.b64encode(raw).decode("ascii"),
-                "no_exec": True,
-            },
-        },
-        open(out, "w", encoding="utf-8"),
-    )
+    result = {
+        "schema": "ResourceContentV1",
+        "path": rel or os.path.basename(abs_path),
+        "media_type": mt,
+        "digest": dig,
+        "revision": dig,
+        "byte_length": len(raw),
+        "total_bytes": total,
+        "content_base64": base64.b64encode(raw).decode("ascii"),
+        "no_exec": True,
+        "remote_url_accepted": False,
+    }
+    if ranging or (total and len(raw) != total):
+        result["content_range"] = f"bytes {start}-{end}/{total}"
+        result["partial"] = True
+    else:
+        result["partial"] = False
+    json.dump({"ok": True, "result": result}, open(out, "w", encoding="utf-8"))
     return 0
 
 

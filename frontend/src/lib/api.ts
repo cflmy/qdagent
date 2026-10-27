@@ -558,6 +558,30 @@ export const api = {
     context_attachments?: unknown[]
   }) => POST('/api/app/resources/verify_attachments', data),
   appCitationsResolve: (data: unknown) => POST('/api/app/citations/resolve', data),
+  /** Design §11.1 — authorized content / Range; never remote URLs. */
+  appResourcesContent: (
+    id: string,
+    opts?: {
+      workspace_id?: string
+      digest?: string
+      revision?: string
+      range_start?: number
+      range_end?: number
+      max_bytes?: number
+    },
+  ) => {
+    const q = new URLSearchParams()
+    if (opts?.workspace_id) q.set('workspace_id', opts.workspace_id)
+    if (opts?.digest) q.set('digest', opts.digest)
+    if (opts?.revision) q.set('revision', opts.revision)
+    if (opts?.range_start != null) q.set('range_start', String(opts.range_start))
+    if (opts?.range_end != null) q.set('range_end', String(opts.range_end))
+    if (opts?.max_bytes != null) q.set('max_bytes', String(opts.max_bytes))
+    const qs = q.toString()
+    return GET(
+      `/api/app/resources/${encodeURIComponent(id)}/content${qs ? `?${qs}` : ''}`,
+    )
+  },
   appUploadsCreate: (data: unknown) => POST('/api/app/uploads/create', data),
   appImportsStart: (data: unknown) => POST('/api/app/imports/start', data),
   appImportsGet: (data: unknown) => POST('/api/app/imports/get', data),

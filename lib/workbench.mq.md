@@ -419,6 +419,156 @@ Returns base64 payload (Marqdo has no binary HTTP body yet) — FE decodes.
   **ecode = "runtime.unavailable"**
 *> app_err code=`ecode` message=`msg` retryable=False*
 
+## resources_content
+    + `payload`=None
+    + `id`=""
+    + `resource_id`=""
+    + `workspace_id`=""
+    + `digest`=""
+    + `revision`=""
+    + `range_start`=""
+    + `range_end`=""
+    + `max_bytes`=20971520
+
+GET /api/app/resources/:id/content — authorized bytes (optional Range).
+Never accepts remote http(s) URLs. Resolves opaque resource_id then blob slice.
+
+1. `payload`
+  **pid = > json.get value=`payload` key="id"**
+  1. `pid`
+    **id = `pid`**
+  **rid = > json.get value=`payload` key="resource_id"**
+  1. `rid`
+    **resource_id = `rid`**
+  **pws = > json.get value=`payload` key="workspace_id"**
+  1. `pws`
+    **workspace_id = `pws`**
+  **pd = > json.get value=`payload` key="digest"**
+  1. `pd`
+    **digest = `pd`**
+  **prev = > json.get value=`payload` key="revision"**
+  1. `prev`
+    **revision = `prev`**
+  **prs = > json.get value=`payload` key="range_start"**
+  1. `prs` != None
+    1. `prs` != ""
+      **range_start = "" + `prs`**
+  **pre = > json.get value=`payload` key="range_end"**
+  1. `pre` != None
+    1. `pre` != ""
+      **range_end = "" + `pre`**
+  **pmx = > json.get value=`payload` key="max_bytes"**
+  1. `pmx`
+    **max_bytes = `pmx`**
+1. not `resource_id`
+  **resource_id = `id`**
+1. not `digest`
+  **digest = `revision`**
+1. not `resource_id`
+  *> app_err code="resource.not_found" message="resource id required"*
+**httpish = > text.starts_with text=`resource_id` prefix="http"**
+1. `httpish`
+  *> app_err code="workspace.forbidden" message="remote URL content rejected"*
+**path = `resource_id`**
+**looks_opaque = > text.starts_with text=`resource_id` prefix="rf."**
+1. not `looks_opaque`
+  **looks_opaque = > text.starts_with text=`resource_id` prefix="rn."**
+1. `looks_opaque`
+  `resolve_payload` =
+
+  | workspace_id | resource_id | digest |
+  |--------------|-------------|--------|
+  | `workspace_id` | `resource_id` | `digest` |
+
+  **resolved = > resources_resolve payload=`resolve_payload`**
+  **rok = > json.get value=`resolved` key="ok"**
+  1. not `rok`
+    *resolved*
+  **rdata = > json.get value=`resolved` key="data"**
+  **path = > json.get value=`rdata` key="path"**
+  1. not `path`
+    **path = > json.get value=`rdata` key="source_path"**
+  1. not `digest`
+    **digest = > json.get value=`rdata` key="digest"**
+  1. not `digest`
+    **digest = > json.get value=`rdata` key="revision"**
+1. not `path`
+  *> app_err code="resource.not_found" message="could not resolve content path"*
+`blob_payload` =
+
+| workspace_id | path | digest | max_bytes |
+|--------------|------|--------|-----------|
+| `workspace_id` | `path` | `digest` | `max_bytes` |
+
+**root = > run.确保目录**
+**u = > time.now_unix**
+**nonce = > sys.env_get name="RANDOM"**
+1. not `nonce`
+  **nonce = `u`**
+**out_path = `root` + "/tmp/qd-content-" + `u` + "-" + `nonce` + ".json"**
+**store = > db.open**
+1. `workspace_id`
+  **ws = > `store`.get table="workspaces" id=`workspace_id`**
+  1. not `ws`
+    *> app_err code="workspace.forbidden" message="unknown workspace"*
+  **project = [project_root_ref](access(ws, "project_root_ref"))**
+2. *
+  **project = "."**
+1. not `project`
+  **project = "."**
+**trav = > text.contains text=`path` sub=".."**
+**abs_hint = > text.starts_with text=`path` prefix="/"**
+1. `trav`
+  *> app_err code="workspace.forbidden" message="path escape rejected"*
+1. `abs_hint`
+  *> app_err code="workspace.forbidden" message="absolute path rejected"*
+**abs = `project` + "/" + `path`**
+**repo = > sys.env_get name="QDAGENT_ROOT"**
+1. not `repo`
+  **repo = > sys.cwd**
+**script = `repo` + "/scripts/blob_encode.py"**
+**mx_s = "" + `max_bytes`**
+> sys.env_set name="QDAGENT_BLOB_ABS" value=`abs`
+> sys.env_set name="QDAGENT_BLOB_OUT" value=`out_path`
+> sys.env_set name="QDAGENT_BLOB_REL" value=`path`
+> sys.env_set name="QDAGENT_BLOB_MAX" value=`mx_s`
+1. `digest`
+  > sys.env_set name="QDAGENT_BLOB_DIGEST" value=`digest`
+2. *
+  > sys.env_set name="QDAGENT_BLOB_DIGEST" value=""
+1. `range_start`
+  > sys.env_set name="QDAGENT_BLOB_RANGE_START" value=`range_start`
+2. *
+  > sys.env_set name="QDAGENT_BLOB_RANGE_START" value=""
+1. `range_end`
+  > sys.env_set name="QDAGENT_BLOB_RANGE_END" value=`range_end`
+2. *
+  > sys.env_set name="QDAGENT_BLOB_RANGE_END" value=""
+`args` =
+
+| a |
+|---|
+| `script` |
+
+**proc = > sys.exec cmd="python3" args=args capture=True**
+**raw = > fs.read_text path=`out_path`**
+> fs.remove path=`out_path`
+1. not `raw`
+  *> app_err code="runtime.unavailable" message="content read failed" retryable=True*
+**resp = > json.parse text=`raw`**
+**ok = > json.get value=`resp` key="ok"**
+1. `ok`
+  **data = > json.get value=`resp` key="result"**
+  *> app_ok data=`data`*
+**err = > json.get value=`resp` key="error"**
+**msg = > json.get value=`err` key="message"**
+**ecode = > json.get value=`err` key="code"**
+1. not `msg`
+  **msg = "content read failed"**
+1. not `ecode`
+  **ecode = "runtime.unavailable"**
+*> app_err code=`ecode` message=`msg` retryable=False*
+
 ## resources_read
     + `payload`=None
 
