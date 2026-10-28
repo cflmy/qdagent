@@ -97,8 +97,12 @@ case "$cmd" in
     fi
     exec marqdo run cli/求道-导入.mq.md
     ;;
-  serve|web)
-    exec "$ROOT/scripts/mq.sh" run serve.mq.md
+  up|serve|web)
+    # Always prefer scripts/qdagent-up.sh: build SPA → restart serve → verify
+    # hashed assets. serve.mq.md boot-reads public/app/index.html once; skipping
+    # rebuild+restart after a Vite hash change yields a blank page.
+    # SKIP_BUILD=1 up  → restart only; FOREGROUND=1 up → exec serve in fg.
+    exec "$ROOT/scripts/qdagent-up.sh"
     ;;
   mcp)
     exec "$ROOT/scripts/mq.sh" run cli/求道-mcp.mq.md
@@ -126,7 +130,7 @@ Usage:
   qdagent duplicate
   qdagent knowledge   # marqdo knowledge compile
   qdagent import <path>  # TXT/MD → drafts (QDAGENT_IMPORT_PUBLISH=1 to publish)
-  qdagent serve
+  qdagent up|serve|web   # build SPA → restart serve → verify assets (blank-page safe)
   qdagent mcp
 
 Dogfood example:

@@ -155,3 +155,90 @@ body[data-ds-dark-theme] {
   line-height: 1.45;
   white-space: pre-wrap;
 }
+
+/* Client-side Markdown (chat / notes / reader) */
+.qd-md {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--qd-text);
+  word-break: break-word;
+}
+.qd-md > :first-child { margin-top: 0; }
+.qd-md > :last-child { margin-bottom: 0; }
+.qd-md h1, .qd-md h2, .qd-md h3, .qd-md h4 {
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 1.1em 0 0.45em;
+  color: var(--qd-text);
+}
+.qd-md h1 { font-size: 1.35em; }
+.qd-md h2 { font-size: 1.2em; }
+.qd-md h3 { font-size: 1.08em; }
+.qd-md h4 { font-size: 1em; }
+.qd-md p { margin: 0.55em 0; }
+.qd-md ul, .qd-md ol {
+  margin: 0.55em 0;
+  padding-left: 1.4em;
+}
+.qd-md li { margin: 0.2em 0; }
+.qd-md li > ul, .qd-md li > ol { margin: 0.15em 0; }
+.qd-md blockquote {
+  margin: 0.7em 0;
+  padding: 0.15em 0 0.15em 0.9em;
+  border-left: 3px solid var(--qd-border);
+  color: var(--qd-muted);
+}
+.qd-md hr {
+  border: none;
+  border-top: 1px solid var(--qd-border);
+  margin: 1em 0;
+}
+.qd-md a {
+  color: var(--qd-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.qd-md code {
+  font-family: var(--mq-font-code);
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--qd-surface) 70%, var(--qd-border));
+}
+.qd-md pre {
+  margin: 0.7em 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--qd-border);
+  background: var(--qd-surface);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.qd-md pre code {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: inherit;
+}
+.qd-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.7em 0;
+  font-size: 0.92em;
+}
+.qd-md th, .qd-md td {
+  border: 1px solid var(--qd-border);
+  padding: 0.35em 0.55em;
+  text-align: left;
+  vertical-align: top;
+}
+.qd-md th {
+  background: color-mix(in srgb, var(--qd-surface) 80%, var(--qd-border));
+  font-weight: 600;
+}
+.qd-md img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}

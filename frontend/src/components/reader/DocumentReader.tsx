@@ -16,6 +16,7 @@ import { CodePreview } from './CodePreview'
 import { TablePreview } from './TablePreview'
 import { OfficePreview } from './OfficePreview'
 import { HtmlPreview } from './HtmlPreview'
+import { MarkdownBody } from '@/components/markdown/MarkdownBody'
 
 type BlobState = {
   kind: 'pdf' | 'image'
@@ -57,6 +58,7 @@ type StructuredState =
       workspaceId?: string
     }
   | { kind: 'html'; sourceText: string; title?: string }
+  | { kind: 'markdown'; sourceText: string; title?: string }
 
 /** Read-only DocumentView / ResourceView embed. Never triggers execution. */
 export function DocumentReader() {
@@ -140,12 +142,9 @@ export function DocumentReader() {
                 ? '（已确认：可按作用域注入上下文）'
                 : '（未确认：不会注入上下文）',
           ].filter(Boolean).join('\n')
-          const escaped = body
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
+          setStructured({ kind: 'markdown', sourceText: body, title: '画像记忆' })
           setView({
-            fragmentHtml: `<article class="mq-resource"><pre class="mq-resource-body">${escaped}</pre></article>`,
+            fragmentHtml: '',
             outline: [],
             diagnostics: [],
             completeness: 'complete',
@@ -158,12 +157,13 @@ export function DocumentReader() {
           if (cancelled) return
           const raw = typeof run.content === 'string' ? run.content : ''
           const body = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
-          const escaped = body
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
+          setStructured({
+            kind: 'markdown',
+            sourceText: body || '（空内容）',
+            title: activeTarget.title || activeTarget.slug,
+          })
           setView({
-            fragmentHtml: `<article class="mq-resource"><pre class="mq-resource-body">${escaped}</pre></article>`,
+            fragmentHtml: '',
             outline: [],
             diagnostics: [],
             completeness: 'complete',
@@ -512,6 +512,9 @@ export function DocumentReader() {
             restrictedPreviewAvailable={false}
           />
         )}
+        {!loading && !error && !blob && structured?.kind === 'markdown' && (
+          <MarkdownBody text={structured.sourceText} className="mq-document mq-resource-preview" />
+        )}
         {!loading && !error && !blob && structured?.kind === 'office' && (
           <OfficePreview
             title={structured.title || title}
@@ -668,6 +671,24 @@ async function settlePreview(opts: {
     })
     opts.setLoading(false)
     return
+  }
+  if (
+    preview.markdownSource
+    || preview.kind === 'markdown'
+    || preview.kind === 'md'
+    || preview.kind === 'mq'
+  ) {
+    const md = preview.markdownSource
+      || (typeof preview.sourceText === 'string' ? preview.sourceText : '')
+    if (md) {
+      opts.setStructured({
+        kind: 'markdown',
+        sourceText: md,
+        title: preview.title || preview.resourceId,
+      })
+      opts.setLoading(false)
+      return
+    }
   }
   if ((preview.kind === 'code' || preview.kind === 'text') && typeof preview.sourceText === 'string') {
     const lineCount = preview.sourceText.replace(/\n$/, '').split('\n').length

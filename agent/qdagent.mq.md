@@ -31,6 +31,7 @@ import:
   registry: ../lib/registry.mq.md
   usage: ../execution/usage.mq.md
   profile_items: ../lib/profile_items.mq.md
+  profile: ../lib/profile.mq.md
   prefs: ../lib/response_preferences.mq.md
   turns: ../execution/turns.mq.md
   sys: lib/sys.mq.md
@@ -38,6 +39,7 @@ import:
   table: lib/table.mq.md
   text: lib/text.mq.md
   fs: lib/fs.mq.md
+  time: lib/time.mq.md
 ---
 
 ## standing_with_profile
@@ -45,9 +47,14 @@ import:
     + `workspace_id`=""
     + `session_id`=""
 
-Append only confirmed+scoped profile items (Q08 / T14). Proposed never injects.
+Inject disk authority `data/kb/用户画像.mq.md` plus confirmed+scoped profile items
+(Q08 / T14). Proposed items never inject. Document profile is the sedimented source of
+truth; structured items overlay preferences confirmed in Settings.
 
 **standing = `base`**
+**doc = > profile.读取**
+1. `doc`
+  **standing = `standing` + "\n\n## User profile (document authority)\nThe following sedimented profile is authoritative for assistant name, persona, and user preferences. If it names the assistant (e.g. 胖头), that name overrides any workbook/worker default self-name such as workbook.\n\n" + `doc` + "\n"**
 **inj = > profile_items.injectable workspace_id=`workspace_id` session_id=`session_id`**
 **items = [items](access(inj, "items"))**
 1. `items`
@@ -556,6 +563,41 @@ Write Preflight fields into workbook (metrics via eng_record in latch_efi).
 
 *out*
 
+## extract_chat_soft_answer
+    + `text`=""
+
+Best-effort human answer from a plan soft-failure payload (prose, SUMMARY, or
+REPLACE `json.parse text="\"…\""` body). Never returns the bare error tokens.
+
+1. not `text`
+  *""*
+**t = > trim value=`text`**
+1. `t` == "unrecognized plan decision"
+  *""*
+1. `t` == "no patches applied"
+  *""*
+**sum = > agent.extract_plan_summary reply=`t`**
+1. `sum`
+  1. not `sum` == `t`
+    *sum*
+**marker = "json.parse text=\""**
+**parts = > split value=`t` sep=`marker`**
+**n = > len value=`parts`**
+1. `n` > 1
+  **rest = > at value=`parts` index=1**
+  **qparts = > split value=`rest` sep="\""**
+  **qn = > len value=`qparts`**
+  1. `qn` > 0
+    **cand = > at value=`qparts` index=0**
+    **cand = > trim value=`cand`**
+    1. `cand`
+      *cand*
+**has_find = > split value=`t` sep="<<<"**
+**nf = > len value=`has_find`**
+1. `nf` > 1
+  *""*
+*t*
+
 ## format_agent_outcome
     + `agent_out`
 
@@ -777,13 +819,15 @@ of regenerating from scratch.
     + `stream`=False
     + `history`=""
     + `detail`=""
-    + `response_kind`="answer_with_artifact"
+    + `response_kind`="direct_answer"
     + `max_chars`=0
 
 ASK — product Preflight + EFI latch + agent.run (efi=False after product pack, learn=False). No host mutation.
-Default path still produces a runnable marqdo doc gated by `execution/docgate.mq.md`;
-chat `result` is the projected `# 结论` under ResponsePolicy (F01), not the six-section dump.
-`response_kind=direct_answer` uses lighter standing and skips docgate (validation not_applicable).
+Default `response_kind=direct_answer` (design §5.1): ordinary chat skips docgate/repair
+so greetings and KB/llm_free hits are not forced through a six-section document + LLM repair.
+Pass `answer_with_artifact` when the caller wants a gated sedimented note; chat `result`
+then projects `# 结论` (F01). `direct_answer` uses lighter standing and marks
+validation not_applicable.
 Model selection is frozen for this call via `model_id` / `selection` (no env clobber).
 `task` is the **latest user turn** (KB reuse / route). Optional `history` is prior
 conversation injected into standing only — never into the reuse key (avoids
@@ -859,7 +903,26 @@ the full knowledge-preflight wall time.
         > turns.append_event turn_id=`turn_id` type="model.resolved" event=`mev`
       2. *
         > sys.stream_publish event=`mev`
-  **agent_out = > `助手`.run task=`task` efi=False learn=False verify=True writeback=False reuse=True router="marqdo" max_rounds=3 sandbox=False stream=`stream`**
+  Ordinary chat (`direct_answer`) uses one `step` turn — avoids plan CONTINUE/PATCH
+  failures on short questions. Artifact mode still uses `run` / plan.
+  1. `response_kind` == "direct_answer"
+    **agent_out = > `助手`.step task=`task` writeback=False stream=`stream`**
+    **_st_calls = > json.get value=`agent_out` key="llm_calls"**
+    **_st_toks = > json.get value=`agent_out` key="tokens"**
+    1. `_st_calls` == None
+      **_st_calls = 1**
+    1. `_st_toks` == None
+      **_st_toks = 0**
+    `usage_bag` =
+
+    | llm_calls | tokens | token_cost |
+    |-----------|--------|------------|
+    | `_st_calls` | `_st_toks` | `_st_toks` |
+
+    **agent_out = table.put in=`agent_out` at="usage" value=`usage_bag`**
+    **agent_out = table.put in=`agent_out` at="token_cost" value=`_st_toks`**
+  2. *
+    **agent_out = > `助手`.run task=`task` efi=False learn=False verify=True writeback=False reuse=True router="marqdo" max_rounds=3 sandbox=False stream=`stream`**
   **status = ""**
   **raw = ""**
   **err = ""**
@@ -875,6 +938,28 @@ the full knowledge-preflight wall time.
     **raw = > format_agent_outcome agent_out=`agent_out`**
     1. not `status`
       **status = "ok"**
+    1. `status` == "error"
+      Soft-recover plan protocol misses (unknown decision / failed CONTINUE patch).
+      Do not use `not soft == …` (Marqdo binds that as `(not soft) == …`).
+      1. `err` == "unrecognized plan decision"
+        **_soft_kind = "unrecognized"**
+      2. `err` == "no patches applied"
+        **_soft_kind = "no_patches"**
+      3. *
+        **_soft_kind = ""**
+      1. `_soft_kind`
+        **soft = > json.get value=`agent_out` key="result"**
+        1. not `soft`
+          **soft = > json.get value=`agent_out` key="summary"**
+        **soft = > extract_chat_soft_answer text=`soft`**
+        1. `soft`
+          **raw = `soft`**
+          **status = "ok"**
+          **err = ""**
+        2. *
+          **_ = 1**
+      2. *
+        **_ = 1**
   2. *
     **status = "error"**
     **err = "agent_out_empty"**
@@ -883,10 +968,12 @@ the full knowledge-preflight wall time.
   **outcome = "failed"**
   **fn_ok = False**
   **agent_output = None**
+  **usage_state = "unknown"**
   1. `status` == "ok"
     **mode = "live"**
     1. `response_kind` == "direct_answer"
       **accepted = `raw`**
+      **result = `raw`**
       **gok = True**
       **gated_out = None**
       `vna` =
@@ -902,28 +989,45 @@ the full knowledge-preflight wall time.
       | `detail` | `max_chars` | False |
 
       **agent_output = > agent.output_apply_policy status="succeeded" text=`raw` validation=`vna` policy=`pol`**
-      **result = > json.get value=`agent_output` key="answer"**
-      **result = > json.get value=`result` key="text"**
-      1. not `result`
-        **result = `raw`**
+      **ao_s2 = > json.stringify value=`agent_output`**
+      **ao_ok = > text.starts_with text=`ao_s2` prefix="{"**
+      1. `ao_ok`
+        **pol_ans = > json.get value=`agent_output` key="answer"**
+        **pas = > json.stringify value=`pol_ans`**
+        **pans_ok = > text.starts_with text=`pas` prefix="{"**
+        1. `pans_ok`
+          **pol_txt = > json.get value=`pol_ans` key="text"**
+          1. `pol_txt`
+            **result = `pol_txt`**
+          2. *
+            **_ = 1**
+        2. *
+          **_ = 1**
+      2. *
+        **agent_output = None**
       **outcome = "succeeded"**
       **fn_ok = True**
     2. *
       **gated_out = > 门禁沉淀 slug=`slug` result=`raw` root=`root`**
       **gok = [ok](access(gated_out, "ok"))**
       **accepted = `raw`**
+      **fb_direct = False**
       1. not `gok`
-        1. `raw`
-          **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
-          **second = > `助手`.step task=`fix_task` writeback=False**
-          **s2 = > json.get value=`second` key="status"**
-          **r2 = > json.get value=`second` key="result"**
-          1. `s2` == "ok"
-            1. `r2`
-              **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
-              **gok = [ok](access(gated_out, "ok"))**
-              1. `gok`
-                **accepted = `r2`**
+        **looks_doc = > text.starts_with text=`raw` prefix="---"**
+        1. `looks_doc`
+          1. `raw`
+            **fix_task = > 契约修复 task=`task` result=`raw` gate_out=`gated_out`**
+            **second = > `助手`.step task=`fix_task` writeback=False**
+            **s2 = > json.get value=`second` key="status"**
+            **r2 = > json.get value=`second` key="result"**
+            1. `s2` == "ok"
+              1. `r2`
+                **gated_out = > 门禁沉淀 slug=`slug` result=`r2` root=`root`**
+                **gok = [ok](access(gated_out, "ok"))**
+                1. `gok`
+                  **accepted = `r2`**
+                2. *
+                  **_ = 1**
               2. *
                 **_ = 1**
             2. *
@@ -931,53 +1035,78 @@ the full knowledge-preflight wall time.
           2. *
             **_ = 1**
         2. *
-          **_ = 1**
-      **apath = > json.get value=`gated_out` key="answer_path"**
-      1. `gok`
-        **proj = > agent.output_project_conclusion document=`accepted`**
-        **chat = > json.get value=`proj` key="text"**
-        1. not `chat`
-          **chat = `accepted`**
-        1. `apath`
-          `vpass` =
+          **fb_direct = True**
+          **accepted = `raw`**
+          **gated_out = None**
+          `vna_fb` =
 
           | status | report_ref |
           |--------|------------|
-          | passed | `apath` |
+          | not_applicable | None |
 
-        2. *
-          `vpass` =
+          `pol_fb` =
 
-          | status | report_ref |
-          |--------|------------|
-          | not_run | None |
+          | detail | max_chars | artifact_allowed |
+          |--------|-----------|------------------|
+          | `detail` | `max_chars` | False |
 
-        `pol` =
-
-        | detail | max_chars | artifact_allowed |
-        |--------|-----------|------------------|
-        | `detail` | `max_chars` | True |
-
-        **agent_output = > agent.output_apply_policy status="succeeded" text=`chat` validation=`vpass` policy=`pol`**
-        **result = > json.get value=`agent_output` key="answer"**
-        **result = > json.get value=`result` key="text"**
-        1. not `result`
-          1. `apath`
-            **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
-          2. *
-            **result = `chat`**
-        **outcome = "succeeded"**
-        **fn_ok = True**
+          **agent_output = > agent.output_apply_policy status="succeeded" text=`raw` validation=`vna_fb` policy=`pol_fb`**
+          **result = > json.get value=`agent_output` key="answer"**
+          **result = > json.get value=`result` key="text"**
+          1. not `result`
+            **result = `raw`**
+          **outcome = "succeeded"**
+          **fn_ok = True**
       2. *
-        **mode = "gated_error"**
-        **outcome = "failed"**
-        **fn_ok = False**
-        **status = "error"**
-        **stage = > json.get value=`gated_out` key="stage"**
-        **err = "docgate_" + `stage`**
-        **result = `accepted`**
-        1. not `result`
-          **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "）"**
+      1. not `fb_direct`
+        **apath = > json.get value=`gated_out` key="answer_path"**
+        1. `gok`
+          **proj = > agent.output_project_conclusion document=`accepted`**
+          **chat = > json.get value=`proj` key="text"**
+          1. not `chat`
+            **chat = `accepted`**
+          1. `apath`
+            `vpass` =
+
+            | status | report_ref |
+            |--------|------------|
+            | passed | `apath` |
+
+          2. *
+            `vpass` =
+
+            | status | report_ref |
+            |--------|------------|
+            | not_run | None |
+
+          `pol` =
+
+          | detail | max_chars | artifact_allowed |
+          |--------|-----------|------------------|
+          | `detail` | `max_chars` | True |
+
+          **agent_output = > agent.output_apply_policy status="succeeded" text=`chat` validation=`vpass` policy=`pol`**
+          **result = > json.get value=`agent_output` key="answer"**
+          **result = > json.get value=`result` key="text"**
+          1. not `result`
+            1. `apath`
+              **result = "答案文档已通过文档门禁并沉淀：" + `apath`**
+            2. *
+              **result = `chat`**
+          **outcome = "succeeded"**
+          **fn_ok = True**
+        2. *
+          **mode = "gated_error"**
+          **outcome = "failed"**
+          **fn_ok = False**
+          **status = "error"**
+          **stage = > json.get value=`gated_out` key="stage"**
+          **err = "docgate_" + `stage`**
+          **result = `accepted`**
+          1. not `result`
+            **result = "答复未通过 marqdo 文档门禁（stage=" + `stage` + "）"**
+      2. *
+        **_ = 1**
   2. *
     **mode = "error"**
     **outcome = "failed"**
@@ -987,7 +1116,30 @@ the full knowledge-preflight wall time.
   **pub = > registry.public_snapshot snap=`snap`**
   **ms = > json.stringify value=`pub`**
   **mid = [model_id](access(snap, "model_id"))**
-  > usage.record_from_agent agent_out=`agent_out` run_id=`slug` session_id=`session_id` turn_id=`turn_id` workspace_id=`workspace_id` purpose="answer" model_id=`mid` model_snapshot=`ms`
+  **urec = > usage.record_from_agent agent_out=`agent_out` run_id=`slug` session_id=`session_id` turn_id=`turn_id` workspace_id=`workspace_id` purpose="answer" model_id=`mid` model_snapshot=`ms`**
+  **usage_state = > json.get value=`urec` key="usage_state"**
+  1. not `usage_state`
+    **usage_state = "unknown"**
+  **usage_total = > json.get value=`urec` key="total_tokens"**
+  **usage_src = > json.get value=`urec` key="measurement_source"**
+  1. not `usage_src`
+    **usage_src = ""**
+  1. `turn_id`
+    `uev_payload` =
+
+    | usage_state | model_id | measurement_source | total_tokens |
+    |-------------|---------|--------------------|--------------|
+    | `usage_state` | `mid` | `usage_src` | `usage_total` |
+
+    `uev` =
+
+    | schema_version | type | turn_id | payload |
+    |----------------|------|---------|---------|
+    | 1 | usage.updated | `turn_id` | `uev_payload` |
+
+    > turns.append_event turn_id=`turn_id` type="usage.updated" event=`uev`
+  2. *
+    **_ = 1**
 2. *
   **result = "（未在设置中配置提供商凭证）Preflight decision=" + `decision` + " context=" + `path`**
   **mode = "dry"**
@@ -996,6 +1148,7 @@ the full knowledge-preflight wall time.
   **fn_ok = False**
   **accepted = ""**
   **agent_output = None**
+  **usage_state = "unknown"**
 
 > run.attach_result slug=`slug` result=`result`
 **kpi = > metrics.read out=`out` root=`root`**
@@ -1006,9 +1159,9 @@ the full knowledge-preflight wall time.
 **model_pub = > registry.public_snapshot snap=`snap`**
 `ret` =
 
-| ok | mode | slug | decision | context_path | status | outcome | error | result | session_id | model | agent_output | accepted | response_kind | detail |
-|----|------|------|----------|--------------|--------|---------|-------|--------|------------|-------|--------------|----------|---------------|--------|
-| `fn_ok` | `mode` | `slug` | `decision` | `path` | `status` | `outcome` | `err` | `result` | `sid` | `model_pub` | `agent_output` | `accepted` | `response_kind` | `detail` |
+| ok | mode | slug | decision | context_path | status | outcome | error | result | session_id | model | agent_output | accepted | response_kind | detail | usage_state |
+|----|------|------|----------|--------------|--------|---------|-------|--------|------------|-------|--------------|----------|---------------|--------|-------------|
+| `fn_ok` | `mode` | `slug` | `decision` | `path` | `status` | `outcome` | `err` | `result` | `sid` | `model_pub` | `agent_output` | `accepted` | `response_kind` | `detail` | `usage_state` |
 
 *ret*
 
@@ -1441,7 +1594,7 @@ turns (e.g. 「你好」) cannot exact-match a stale KB skill for a new question
 
 ## run
     + `task`
-    + `mode`="build"
+    + `mode`="ask"
     + `root`="."
     + `out`=".marqdo"
     + `session_id`=""
@@ -1458,15 +1611,18 @@ When `messages` is provided: **latest user turn** → `task` (route/reuse/prefli
 full transcript → `history` (standing context only). Never feed the whole
 transcript into KB exact-match.
 `stream=True` enables Marqdo agent SSE publish (token deltas via EventBus → web sse-live).
+Default and unknown modes are ASK — BUILD only on explicit `mode=build` (CLI uses
+`qd.build` directly). Prevents chat `selection.mode=manual` / empty mode from
+falling into Reuse Gate (`reuse_gate_blocked` on greetings).
 
 **history = ""**
 1. `messages`
   **history = > compose_messages messages=`messages` fallback=`task`**
   **task = > latest_user_message messages=`messages` fallback=`task`**
 
-1. `mode` == "ask"
-  *> ask task=`task` history=`history` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` stream=`stream`*
+1. `mode` == "build"
+  *> build task=`task` root=`root` out=`out` session_id=`session_id`*
 2. `mode` == "learn"
   *> learn task=`task` root=`root` out=`out`*
 3. *
-  *> build task=`task` root=`root` out=`out` session_id=`session_id`*
+  *> ask task=`task` history=`history` root=`root` out=`out` session_id=`session_id` model_id=`model_id` selection=`selection` turn_id=`turn_id` workspace_id=`workspace_id` stream=`stream`*

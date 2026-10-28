@@ -56,6 +56,8 @@ export interface Session {
   turnRevision?: number
   /** Connection lost while turn still running — distinct from interrupted. */
   connectionLost?: boolean
+  /** Transient recover failure — not part of durable chat content. */
+  recoveryError?: string
 }
 
 interface SessionState {
@@ -92,6 +94,16 @@ interface SessionActions {
 }
 
 const STORE_KEY = 'qdagent.sessions.v2'
+
+/** Recover failures used to be appended into assistant text; strip leftovers. */
+function hasRecoverFailMarkers(content: string | undefined): boolean {
+  return Boolean(content && content.includes('[恢复失败:'))
+}
+
+function stripRecoverFailMarkers(content: string | undefined): string {
+  if (!content) return ''
+  return content.replace(/(?:\n\n)?\[恢复失败:[^\]]*\]/g, '').trimEnd()
+}
 
 function uid(): string {
   return 's-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
@@ -297,12 +309,22 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         messageSnapshot = typeof data?.message_snapshot === 'string' ? data.message_snapshot : ''
         recoveryOptions = Array.isArray(data?.recovery_options) ? data!.recovery_options! : []
         turnRevision = Number(data?.turn?.revision ?? got?.turn?.revision ?? 0) || 0
+        // Terminal completed/cancelled must not keep stale "查看已完成步骤" chips.
+        // Keep continue (and reconnect only while interrupted / mid-flight).
+        if (state === 'completed' || state === 'cancelled') {
+          recoveryOptions = []
+        } else if (state === 'failed') {
+          recoveryOptions = recoveryOptions.filter((o) => o.action === 'continue')
+        }
         set((s) => {
           const sess = s.sessions.find((x) => x.id === sessionId)
           if (!sess) return
           sess.recoveryOptions = recoveryOptions
           sess.turnRevision = turnRevision
           sess.connectionLost = false
+          if (state === 'completed' || state === 'cancelled' || state === 'failed') {
+            sess.interrupted = false
+          }
         })
       } catch {
         set((s) => {
@@ -325,6 +347,20 @@ export const useSessionStore = create<SessionState & SessionActions>()(
           last.role !== 'assistant' ||
           !(last.content || '').trim() ||
           (messageSnapshot && last.role === 'assistant' && (last.content || '').length < messageSnapshot.length)
+        // Failed/cancelled with empty snap + empty bubble: don't replay stale events into a
+        // newer user turn's placeholder (common after mid-answer refresh before turnId persist).
+        if (needsFill && !messageSnapshot && (state === 'failed' || state === 'cancelled')) {
+          set((s) => {
+            const sess = s.sessions.find((x) => x.id === sessionId)
+            if (!sess) return
+            const m = sess.messages[sess.messages.length - 1]
+            if (m?.role === 'assistant' && !(m.content || '').trim()) {
+              m.content = state === 'cancelled' ? '[已停止]' : '[回合失败]'
+            }
+          })
+          get().finalizeAssistant(sessionId)
+          return
+        }
         if (needsFill) {
           if (!last || last.role !== 'assistant') {
             get().addMessage(sessionId, { role: 'assistant', content: '' })
@@ -524,9 +560,17 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             const sess = s.sessions.find((x) => x.id === sessionId)
             if (sess) {
               sess.connectionLost = false
+              sess.recoveryError = undefined
               if (typeof data?.revision === 'number') sess.turnRevision = data.revision
+              // Clear stale recover-fail lines baked into content before the server fix.
+              for (const m of sess.messages) {
+                if (m.role === 'assistant' && hasRecoverFailMarkers(m.content)) {
+                  m.content = stripRecoverFailMarkers(m.content)
+                }
+              }
             }
           })
+          get().saveToStorage()
           await get().resumeTurn(sessionId, signal)
           return
         }
@@ -555,13 +599,8 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         set((s) => {
           const sess = s.sessions.find((x) => x.id === sessionId)
           if (!sess) return
-          const m = sess.messages[sess.messages.length - 1]
-          const msg = e instanceof Error ? e.message : String(e)
-          if (m?.role === 'assistant') {
-            m.content = (m.content || '') + `\n\n[恢复失败: ${msg}]`
-          } else {
-            sess.messages.push({ role: 'assistant', content: `[恢复失败: ${msg}]` })
-          }
+          // Keep durable chat clean — surface recover errors as session UI state only.
+          sess.recoveryError = e instanceof Error ? e.message : String(e)
         })
       } finally {
         get().finalizeAssistant(sessionId)
@@ -583,12 +622,16 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             if (!t) return false
             if (/^\[已停止\]$/.test(t)) return false
             if (/^\[错误:/.test(t)) return false
+            if (/^\[恢复失败:/.test(t)) return false
             if (/^（未在设置中配置提供商凭证）/.test(t)) return false
             if (/^（无 API Key）/.test(t)) return false
           }
           return Boolean(t) || m.role === 'user'
         })
-        .map(({ role, content }) => ({ role, content }))
+        .map(({ role, content }) => ({
+          role,
+          content: role === 'assistant' ? stripRecoverFailMarkers(content) : content,
+        }))
 
       // Latest user message may carry frozen ContextAttachments (pin ≠ preview).
       const lastUser = [...session.messages].reverse().find((m) => m.role === 'user')
@@ -658,6 +701,8 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               const sess = s.sessions.find((x) => x.id === sessionId)
               if (sess) sess.lastTurnId = turnId
             })
+            // Persist immediately: refresh mid-stream otherwise resumes the *previous* turn.
+            get().saveToStorage()
           }
           const eid = (c as { event_id?: string }).event_id
           if (eid) {
@@ -665,6 +710,8 @@ export const useSessionStore = create<SessionState & SessionActions>()(
               const sess = s.sessions.find((x) => x.id === sessionId)
               if (sess) sess.lastEventId = eid
             })
+            // Persist cursor so mid-answer refresh resumes after the last seen event.
+            get().saveToStorage()
           }
           if (c?.type === 'run.started') {
             get().appendProcess(sessionId, { kind: 'run', label: '请求开始' })
@@ -770,6 +817,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
           if (c?.type === 'usage.updated' && c.payload) {
             get().setLastUsage(sessionId, {
               usage_state: c.payload.usage_state || 'unknown',
+              measurement_source: (c.payload as { measurement_source?: string }).measurement_source,
               total_tokens: c.payload.total_tokens ?? null,
               input_tokens: c.payload.input_tokens ?? null,
               output_tokens: c.payload.output_tokens ?? null,
@@ -917,10 +965,15 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         }
         // Abort = observer closed only; cancelTurn owns 「已停止」 after server confirm.
       } finally {
-        // Hydrate usage from server ledger when stream omitted it (never invent 0).
+        // Hydrate usage from server ledger when stream omitted totals (never invent 0).
         const sess = get().sessions.find((s) => s.id === sessionId)
         const last = sess?.messages[sess.messages.length - 1]
-        if (last?.role === 'assistant' && (!last.usage || last.usage.usage_state === 'unknown')) {
+        const needUsageHydrate =
+          last?.role === 'assistant' &&
+          (!last.usage ||
+            last.usage.usage_state === 'unknown' ||
+            last.usage.total_tokens == null)
+        if (needUsageHydrate) {
           try {
             const q = await api.appUsageQuery({ session_id: sessionId, limit: 5 }) as {
               data?: { rows?: Array<Record<string, unknown>>; calls?: Array<Record<string, unknown>> }
@@ -930,14 +983,18 @@ export const useSessionStore = create<SessionState & SessionActions>()(
             const rows = q.data?.rows || q.data?.calls || q.calls || []
             const row = rows[0]
             if (row) {
+              const us = String(row.usage_state || 'unknown')
+              const ms = String(row.measurement_source || '')
               get().setLastUsage(sessionId, {
-                usage_state: String(row.usage_state || 'unknown'),
+                usage_state: us,
+                measurement_source: ms,
                 total_tokens: (row.total_tokens as number | null | undefined) ?? null,
                 input_tokens: (row.input_tokens as number | null | undefined) ?? null,
                 output_tokens: (row.output_tokens as number | null | undefined) ?? null,
                 model: String(row.model_id || last.usage?.model || ''),
                 provider: last.usage?.provider,
                 status: String(row.status || '完成'),
+                call_count: us === 'zero_calls' ? 0 : (us === 'unknown' && ms !== 'runtime_confirmed_no_llm' ? 1 : undefined),
               })
             } else if (!last.usage) {
               get().setLastUsage(sessionId, { usage_state: 'unknown', status: '完成' })
@@ -957,11 +1014,42 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem('qdagent.sessions.v1')
         if (!raw) return
         const data = JSON.parse(raw)
+        const sessions = (data.sessions || []) as Session[]
+        let dirty = false
+        for (const sess of sessions) {
+          if (!Array.isArray(sess.messages)) continue
+          for (const m of sess.messages) {
+            if (m.role === 'assistant' && hasRecoverFailMarkers(m.content)) {
+              m.content = stripRecoverFailMarkers(m.content)
+              dirty = true
+            }
+          }
+          // Drop empty assistant stubs *except* the trailing placeholder for an
+          // in-flight turn (mid-answer refresh must keep the bubble to resume into).
+          const before = sess.messages.length
+          sess.messages = sess.messages.filter((m, i, arr) => {
+            if (m.role !== 'assistant') return true
+            if ((m.content || '').trim()) return true
+            const isLast = i === arr.length - 1
+            if (isLast && sess.lastTurnId) return true
+            return false
+          })
+          if (sess.messages.length !== before) dirty = true
+        }
+        for (const sess of sessions) {
+          // Drop persisted recover chips from terminal chats (pre-fix localStorage).
+          if (!sess.interrupted && !sess.connectionLost) {
+            const kept = (sess.recoveryOptions || []).filter((o) => o.action === 'continue')
+            if ((sess.recoveryOptions?.length ?? 0) !== kept.length) dirty = true
+            sess.recoveryOptions = kept
+          }
+        }
         set((state) => {
-          state.sessions = data.sessions || []
+          state.sessions = sessions
           state.currentId = data.currentId || state.sessions[0]?.id || null
           state.streamingBySession = {}
         })
+        if (dirty) get().saveToStorage()
       } catch {
         // ignore corrupt data
       }

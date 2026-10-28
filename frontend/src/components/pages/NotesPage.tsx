@@ -4,6 +4,7 @@ import { api, type Run } from '@/lib/api'
 import {
   Search, Plus, FileText, Clock, Loader2, ArrowLeft,
 } from 'lucide-react'
+import { MarkdownBody } from '@/components/markdown/MarkdownBody'
 
 type View = 'list' | 'detail' | 'new'
 
@@ -238,8 +239,10 @@ export function NotesPage() {
                     {new Date(currentRun.created_at).toLocaleString('zh-CN')}
                   </p>
                 )}
-                <div style={{ marginTop: '24px', whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: 1.7 }}>
-                  {stripFrontmatter(currentRun.content) || '（空内容）'}
+                <div style={{ marginTop: '24px' }}>
+                  {stripFrontmatter(currentRun.content)?.trim()
+                    ? <MarkdownBody text={stripFrontmatter(currentRun.content)} />
+                    : <p style={{ fontSize: '14px', color: 'var(--dsw-alias-label-secondary)' }}>（空内容）</p>}
                 </div>
               </article>
             ) : (

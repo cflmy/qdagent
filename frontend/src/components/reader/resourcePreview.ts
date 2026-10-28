@@ -24,6 +24,8 @@ export type PreviewView = {
   title?: string
   /** Plain source for JsonPreview / CodePreview (alongside sanitized fragment). */
   sourceText?: string
+  /** Markdown body for client GFM render (notes / kb / chat-adjacent reader). */
+  markdownSource?: string
   /** Client visual preview (PDF.js / ImagePreview); extract/OCR stay independent. */
   blobRef?: BlobRefPayload
   visualPreview?: 'client' | false | string
@@ -140,9 +142,31 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
     || '',
   )
 
+  const pathHint = String(
+    resource?.path
+    || resource?.resource_id
+    || resource?.source_ref
+    || resource?.title
+    || '',
+  ).toLowerCase()
+  const isMarkdown =
+    format === 'markdown'
+    || format === 'md'
+    || format === 'gfm'
+    || kind === 'markdown'
+    || kind === 'md'
+    || kind === 'mq'
+    || /\.(mq\.)?md$/.test(pathHint)
+    || pathHint.endsWith('.markdown')
+
   let fragmentHtml = ''
+  let markdownSource: string | undefined
   if (raw) {
-    if (format === 'plain' || format === 'plain_text' || format === 'text') {
+    if (isMarkdown && !(format.includes('html') || data.html_fragment)) {
+      // Prefer client Markdown render over escaped <pre> (notes / kb / .mq.md).
+      markdownSource = typeof sourceText === 'string' && sourceText ? sourceText : raw
+      fragmentHtml = ''
+    } else if (format === 'plain' || format === 'plain_text' || format === 'text') {
       fragmentHtml = `<pre style="white-space:pre-wrap;font:inherit">${escapeHtml(raw)}</pre>`
     } else if (format === 'html' || format === 'sanitized_html') {
       fragmentHtml = sanitizeHtmlFragment(raw)
@@ -165,14 +189,15 @@ export function applyResourceOrDocumentView(view: unknown): PreviewResult {
       outline: (data.outline as unknown[]) || [],
       diagnostics,
       completeness: String(data.completeness || ''),
-      kind: kind || undefined,
+      kind: kind || (markdownSource ? 'markdown' : undefined),
       schema: schema || undefined,
       resourceId,
       digest,
       mediaType: resource?.media_type,
       byteLength: typeof resource?.size === 'number' ? resource.size : undefined,
       title: resource?.title,
-      sourceText,
+      sourceText: markdownSource || sourceText,
+      markdownSource: conversionUnavailable ? undefined : markdownSource,
       conversionUnavailable: conversionUnavailable || undefined,
       focusLocator: focusLine != null
         ? { ...(focusFromData || {}), line: focusLine }

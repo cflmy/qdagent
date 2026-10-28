@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { ChevronDown } from 'lucide-react'
 
@@ -18,22 +18,49 @@ interface Props {
   disabled?: boolean
 }
 
+async function loadModels(attempt = 0): Promise<ModelOption[]> {
+  try {
+    const res = await api.appModels()
+    const data = (res as { models?: ModelOption[]; data?: ModelOption[] }).models
+      ?? (res as { data?: ModelOption[] }).data
+      ?? (Array.isArray(res) ? res : [])
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('模型列表为空')
+    }
+    return data as ModelOption[]
+  } catch (e) {
+    if (attempt < 3) {
+      await new Promise((r) => setTimeout(r, 200 * (attempt + 1)))
+      return loadModels(attempt + 1)
+    }
+    throw e
+  }
+}
+
 export function ModelPicker({ value, onChange, disabled }: Props) {
   const [models, setModels] = useState<ModelOption[]>([])
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [err, setErr] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setErr('')
+    loadModels()
+      .then((data) => {
+        setModels(data)
+      })
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : String(e)
+        setErr(msg)
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   useEffect(() => {
-    api.appModels()
-      .then((res) => {
-        const data = (res as { models?: ModelOption[]; data?: ModelOption[] }).models
-          ?? (res as { data?: ModelOption[] }).data
-          ?? (Array.isArray(res) ? res : [])
-        setModels(data as ModelOption[])
-      })
-      .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
-  }, [])
+    refresh()
+  }, [refresh])
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase()
@@ -48,21 +75,34 @@ export function ModelPicker({ value, onChange, disabled }: Props) {
   const current = models.find((m) => m.id === value)
   const currentUnavailable = current && current.credential_configured === false
 
+  const label = (() => {
+    if (current) {
+      return `${current.provider_name || current.provider_id} / ${current.display_name}${currentUnavailable ? '（缺凭证）' : ''}`
+    }
+    if (loading) return '加载模型…'
+    if (err) return `模型加载失败 — 点击重试`
+    if (value) return `已选 ${value.slice(0, 12)}…（列表未加载，点击重试）`
+    if (models.length) return '选择模型'
+    return '未配置模型 — 打开设置'
+  })()
+
   return (
     <div className="relative min-w-[12rem]">
       <button
         type="button"
         disabled={disabled}
         className="flex w-full items-center justify-between gap-2 rounded border border-[var(--qd-border)] bg-[var(--qd-surface)] px-2 py-1.5 text-left text-sm text-[var(--qd-fg,var(--dsw-alias-label-primary,#e8e8e8))]"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!loading && (err || (!models.length && value))) {
+            refresh()
+            return
+          }
+          setOpen((v) => !v)
+        }}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="truncate">
-          {current
-            ? `${current.provider_name || current.provider_id} / ${current.display_name}${currentUnavailable ? '（缺凭证）' : ''}`
-            : models.length ? '选择模型' : (err || '未配置模型 — 打开设置')}
-        </span>
+        <span className="truncate">{label}</span>
         <ChevronDown size={14} />
       </button>
       {open && (
@@ -128,7 +168,7 @@ export function ModelPicker({ value, onChange, disabled }: Props) {
           })}
           {!filtered.length && (
             <div className="px-3 py-2 text-sm" style={{ color: 'var(--dsw-alias-label-tertiary, #999)' }}>
-              无匹配模型
+              {err ? err : '无匹配模型'}
             </div>
           )}
         </div>

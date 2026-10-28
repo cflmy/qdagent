@@ -455,7 +455,7 @@ export function ProviderModelPanes() {
         )}
       </div>
       <div style={{ paddingTop: 8 }}>
-        <SmallBtn onClick={() => void addProvider}><Plus size={12} /> 添加提供商</SmallBtn>
+        <SmallBtn onClick={() => void addProvider()}><Plus size={12} /> 添加提供商</SmallBtn>
       </div>
       {msg && <p style={{ fontSize: 12, color: '#f87171' }}>{msg}</p>}
     </>

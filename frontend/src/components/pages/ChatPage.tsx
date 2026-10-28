@@ -5,30 +5,10 @@ import { useContextAttachmentStore } from '@/stores/context-attachment-store'
 import { useRightbar } from '@/components/layout/DesktopFrame'
 import { ModelPicker } from '@/components/chat/ModelPicker'
 import { UsageFooter } from '@/components/chat/UsageFooter'
-import { CitationLink } from '@/components/chat/CitationLink'
 import { Send, Square, PanelRightOpen, X, RefreshCw } from 'lucide-react'
 import { shouldCollapseAnswer } from '@/lib/streamChannels'
 import { PlanPanel } from '@/components/chat/PlanPanel'
-
-function renderWithCitations(text: string, workspaceId = 'ws-default') {
-  const parts: Array<string | { n: number; id: string }> = []
-  const re = /\[(\d+)\]/g
-  let last = 0
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text))) {
-    if (m.index > last) parts.push(text.slice(last, m.index))
-    parts.push({ n: Number(m[1]), id: `cite-${m[1]}` })
-    last = m.index + m[0].length
-  }
-  if (last < text.length) parts.push(text.slice(last))
-  return parts.map((p, i) =>
-    typeof p === 'string' ? (
-      <span key={i}>{p}</span>
-    ) : (
-      <CitationLink key={i} index={p.n} citationId={p.id} workspaceId={workspaceId} />
-    ),
-  )
-}
+import { MarkdownBody } from '@/components/markdown/MarkdownBody'
 
 export function ChatPage() {
   const {
@@ -381,7 +361,6 @@ export function ChatPage() {
                   color: 'var(--dsw-alias-label-primary)',
                   fontSize: '14px',
                   lineHeight: '22px',
-                  whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
                 }
               }>
@@ -450,11 +429,14 @@ export function ChatPage() {
                 ) : null}
                 {msg.role === 'assistant' ? (
                   <>
-                    {renderWithCitations(
-                      shouldCollapseAnswer(msg.content) && !answerExpanded[i]
-                        ? msg.content.slice(0, 1200) + '…'
-                        : msg.content,
-                    )}
+                    <MarkdownBody
+                      text={
+                        shouldCollapseAnswer(msg.content) && !answerExpanded[i]
+                          ? msg.content.slice(0, 1200) + '…'
+                          : msg.content
+                      }
+                      citationsWorkspaceId="ws-default"
+                    />
                     {shouldCollapseAnswer(msg.content) && (
                       <button
                         type="button"
@@ -474,7 +456,9 @@ export function ChatPage() {
                       </button>
                     )}
                   </>
-                ) : msg.content}
+                ) : (
+                  <MarkdownBody text={msg.content} />
+                )}
                 {msg.role === 'assistant' && msg.usage ? (
                   <UsageFooter usage={msg.usage} />
                 ) : null}
@@ -514,66 +498,6 @@ export function ChatPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Q-A3: reconnect ≠ continue — server recovery_options only */}
-        {!!currentSession && !streaming && (
-          (currentSession.interrupted || currentSession.connectionLost || (currentSession.recoveryOptions?.length ?? 0) > 0)
-        ) && (
-          <div
-            style={{
-              flex: 'none',
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 8,
-              alignItems: 'center',
-              padding: '8px 24px',
-              borderTop: '0.5px solid var(--dsw-alias-border-l3)',
-              background: 'var(--dsw-alias-bg-layer-1, rgba(0,0,0,0.02))',
-              fontSize: 12,
-              color: 'var(--dsw-alias-label-secondary)',
-            }}
-            role="status"
-          >
-            <span>
-              {currentSession.interrupted
-                ? '运行已中断，已保留完成步骤。'
-                : currentSession.connectionLost
-                  ? '连接中断；任务状态未判定失败。'
-                  : '可恢复操作：'}
-            </span>
-            {(currentSession.recoveryOptions?.length
-              ? currentSession.recoveryOptions
-              : [
-                  ...(currentSession.connectionLost || currentSession.interrupted
-                    ? [{ action: 'reconnect', label: '重新连接' }]
-                    : []),
-                  ...(currentSession.interrupted
-                    ? [{ action: 'continue', label: '继续执行' }]
-                    : []),
-                ]
-            ).map((opt) => (
-              <button
-                key={`${opt.action}-${opt.label}`}
-                type="button"
-                onClick={() => {
-                  const a = opt.action === 'continue' ? 'continue' : 'reconnect'
-                  handleRecover(a)
-                }}
-                style={{
-                  border: '0.5px solid var(--dsw-alias-border-l2)',
-                  borderRadius: 6,
-                  padding: '4px 10px',
-                  background: 'var(--dsw-alias-bg-base)',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  color: 'var(--dsw-alias-label-primary)',
-                }}
-              >
-                {opt.label || opt.action}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Composer Seat — DSH sticky bottom */}
         <div style={{
           flex: 'none',
@@ -585,6 +509,104 @@ export function ChatPage() {
           background: 'linear-gradient(180deg, color-mix(in srgb, var(--dsw-alias-bg-base) 0%, transparent) 0px, var(--dsw-alias-bg-base) 36px)',
           padding: '0 16px 4px',
         }}>
+          {(() => {
+            if (!currentSession || streaming) return null
+            const interrupted = Boolean(currentSession.interrupted)
+            const lost = Boolean(currentSession.connectionLost)
+            // Only actionable recover chips — ignore terminal "查看已完成步骤" noise.
+            const serverOpts = (currentSession.recoveryOptions || []).filter((o) => {
+              if (o.action === 'continue') return true
+              if (o.action === 'reconnect' && (interrupted || lost)) return true
+              return false
+            })
+            const opts = serverOpts.length
+              ? serverOpts
+              : [
+                  ...(lost || interrupted ? [{ action: 'reconnect' as const, label: '重新连接' }] : []),
+                  ...(interrupted ? [{ action: 'continue' as const, label: '继续执行' }] : []),
+                ]
+            const show = interrupted || lost || opts.length > 0
+            const err = currentSession.recoveryError
+            if (!show && !err) return null
+            return (
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: 'min(calc(100% - 32px), 952px)',
+                  margin: '0 auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 4,
+                  paddingTop: 4,
+                }}
+              >
+                {err ? (
+                  <span
+                    role="status"
+                    style={{
+                      fontSize: 11,
+                      lineHeight: '16px',
+                      color: 'var(--dsw-alias-label-secondary)',
+                      padding: '0 4px 2px',
+                      maxWidth: '100%',
+                    }}
+                  >
+                    恢复失败：{err}
+                  </span>
+                ) : null}
+                {show ? (
+                  <div
+                    role="toolbar"
+                    aria-label="可恢复操作"
+                    style={{
+                      display: 'inline-flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'flex-end',
+                      gap: 4,
+                      maxWidth: '100%',
+                      marginBottom: -1,
+                      paddingLeft: 10,
+                    }}
+                  >
+                    {opts.map((opt) => (
+                      <button
+                        key={`${opt.action}-${opt.label}`}
+                        type="button"
+                        title={
+                          interrupted
+                            ? '运行已中断，已保留完成步骤'
+                            : lost
+                              ? '连接中断；任务状态未判定失败'
+                              : undefined
+                        }
+                        onClick={() => {
+                          const a = opt.action === 'continue' ? 'continue' : 'reconnect'
+                          handleRecover(a)
+                        }}
+                        style={{
+                          appearance: 'none',
+                          border: '0.5px solid var(--dsw-alias-border-l2)',
+                          borderBottom: 'none',
+                          borderRadius: '8px 8px 0 0',
+                          padding: '3px 10px 5px',
+                          background: 'var(--dsw-specific-input-major, var(--dsw-alias-bg-base))',
+                          boxShadow: '0 -1px 0 color-mix(in srgb, var(--dsw-alias-border-l2) 55%, transparent)',
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          lineHeight: '16px',
+                          color: 'var(--dsw-alias-label-secondary)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {opt.label || opt.action}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )
+          })()}
           {/* Input Card — DSH InputBar card */}
           <div style={{
             display: 'flex',

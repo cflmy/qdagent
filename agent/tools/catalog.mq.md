@@ -129,7 +129,7 @@ CALL names stay `tool_find` … `tool_summarize` plus product aliases.
 
 | id | version | description | input_schema | effect | scopes | availability |
 |----|---------|-------------|--------------|--------|--------|--------------|
-| task_status | 1 | Publish task status pending|running|done|blocked from real turn | `task_status_schema` | write | `plan_scopes` | ready |
+| task_status | 1 | Publish task status pending/running/done/blocked from real turn | `task_status_schema` | write | `plan_scopes` | ready |
 
 **memory_forget_schema = > json.parse text={"type":"object","properties":{"id":{"type":"string","minLength":1}},"required":["id"],"additionalProperties":false}**
 `memory_forget_spec` =

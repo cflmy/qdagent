@@ -27,10 +27,15 @@ import:
 ## connect
 
 Daily open — no migrate, no full run sync. Safe for short GETs.
+Enable WAL + busy_timeout so concurrent isolated workers / GETs
+(`/api/app/models`, turns, usage) do not fail with SQLITE_BUSY (5).
 
 **root = > run.确保目录**
 **db_url = "sqlite:" + `root` + "/qdagent.db"**
 **store = > data.db url=`db_url`**
+> `store`.exec sql="PRAGMA journal_mode=WAL"
+> `store`.exec sql="PRAGMA busy_timeout=8000"
+> `store`.exec sql="PRAGMA synchronous=NORMAL"
 *store*
 
 ## initialize
@@ -321,7 +326,7 @@ Re-running must not create duplicates (stable ids).
 *True*
 
 ## recent
-    + `limit`=20
+    + `limit`=200
 
 返回最近笔记行（在本模块内调用 `` `store`.select ``）。
 

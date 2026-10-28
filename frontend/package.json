@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:spa": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -22,7 +23,9 @@
     "pdfjs-dist": "^4.10.38",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.1.0",
+    "remark-gfm": "^4.0.1",
     "sonner": "^1.7.0",
     "tailwind-merge": "^2.6.0",
     "zustand": "^5.0.0"

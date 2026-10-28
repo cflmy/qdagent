@@ -152,7 +152,7 @@ import:
 *> 成功 字段=`字段`*
 
 ## list
-    + `limit`=20
+    + `limit`=200
     + `payload`=None
 
 1. `payload`
@@ -1438,7 +1438,10 @@ Accepts full `messages` history and optional `selection.model_id` / `model_id` (
           **task = `content`**
 1. not `task`
   *> 失败 error="empty messages: latest user content required"*
-**chat = > eng_openai.chat message=`task` mode="" authorization=`authorization` api_key=`api_key` payload=`payload` model_id=`selection_model_id` messages=`history` stream=`stream`**
+Chat completions are conversational ASK — never fall through to BUILD / Reuse Gate
+(selection.mode=manual must not be confused with task mode=build).
+
+**chat = > eng_openai.chat message=`task` mode="ask" authorization=`authorization` api_key=`api_key` payload=`payload` model_id=`selection_model_id` messages=`history` stream=`stream`**
 **content = > json.get value=`chat` key="content"**
 **run_id = > json.get value=`chat` key="run_id"**
 **cok = > json.get value=`chat` key="ok"**

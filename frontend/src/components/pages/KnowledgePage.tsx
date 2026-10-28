@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { BookMarked, FileUp, Loader2, RefreshCw } from 'lucide-react'
+import { useContextPanelStore } from '@/stores/context-panel-store'
+import { MarkdownBody } from '@/components/markdown/MarkdownBody'
+import { useRightbar } from '@/components/layout/DesktopFrame'
 
 type KbState = 'corpus' | 'runs' | 'drafts' | 'published'
 
@@ -28,6 +31,55 @@ export function KnowledgePage() {
   const [path, setPath] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [previewName, setPreviewName] = useState('')
+  const [previewText, setPreviewText] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const openTarget = useContextPanelStore((s) => s.openTarget)
+  const rightbar = useRightbar()
+
+  const subdirFor = (t: KbState) => {
+    if (t === 'published') return 'knowledge'
+    if (t === 'drafts') return 'drafts'
+    return 'corpus'
+  }
+
+  const openKbItem = async (name: string) => {
+    const root = (status?.kb_root || 'data/kb').replace(/\/$/, '')
+    const filePath = `${root}/${subdirFor(tab)}/${name}`
+    setPreviewName(name)
+    setPreviewText('')
+    setPreviewLoading(true)
+    rightbar.setOpen(true)
+    openTarget({
+      kind: 'file',
+      workspaceId: 'ws-default',
+      path: filePath,
+      title: name,
+    })
+    try {
+      const view = await api.appResourcesPreview({
+        workspace_id: 'ws-default',
+        path: filePath,
+        document: filePath,
+      }) as {
+        ok?: boolean
+        data?: { render?: { text?: string; fragment?: string }; text?: string }
+        render?: { text?: string }
+        text?: string
+      }
+      const data = view.data ?? view
+      const text = String(
+        data.render?.text
+        || data.text
+        || '',
+      )
+      if (text) setPreviewText(text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ''))
+    } catch {
+      /* panel may still load */
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
 
   const refresh = () => {
     setLoading(true)
@@ -217,17 +269,43 @@ export function KnowledgePage() {
               <li style={{ color: 'var(--dsw-alias-label-secondary)', fontSize: 14 }}>（空）</li>
             )}
             {listFor(tab).map((name) => (
-              <li
-                key={name}
-                style={{
-                  padding: '10px 12px', marginBottom: 6, borderRadius: 8,
-                  border: '1px solid var(--dsw-alias-border-l2)', fontSize: 14,
-                }}
-              >
-                {name}
+              <li key={name} style={{ marginBottom: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => { void openKbItem(name) }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                    border: previewName === name
+                      ? '1px solid var(--dsw-alias-label-primary)'
+                      : '1px solid var(--dsw-alias-border-l2)',
+                    background: previewName === name ? 'var(--dsw-alias-bg-layer-2)' : 'transparent',
+                    fontSize: 14, color: 'var(--dsw-alias-label-primary)', fontFamily: 'inherit',
+                  }}
+                >
+                  {name}
+                </button>
               </li>
             ))}
           </ul>
+        )}
+        {(previewLoading || previewText) && (
+          <div style={{
+            marginTop: 16, padding: 16, borderRadius: 8,
+            border: '1px solid var(--dsw-alias-border-l2)',
+          }}>
+            <div style={{
+              fontSize: 12, fontWeight: 600, marginBottom: 10,
+              color: 'var(--dsw-alias-label-secondary)',
+            }}>
+              {previewName || '预览'}
+            </div>
+            {previewLoading && !previewText ? (
+              <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <MarkdownBody text={previewText} />
+            )}
+          </div>
         )}
       </div>
     </div>

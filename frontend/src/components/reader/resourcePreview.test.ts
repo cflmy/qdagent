@@ -57,6 +57,21 @@ describe('applyResourceOrDocumentView', () => {
     expect(r.view.fragmentHtml).toContain('hello &lt;b&gt;')
   })
 
+  it('routes markdown ResourceView to client markdownSource', () => {
+    const r = applyResourceOrDocumentView({
+      data: {
+        schema: 'ResourceViewV1',
+        resource: { kind: 'md', path: 'notes/hello.md', title: 'hello.md' },
+        render: { format: 'text', fragment: null, text: '# Hello\n\n- a' },
+      },
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.view.markdownSource).toContain('# Hello')
+    expect(r.view.fragmentHtml).toBe('')
+    expect(r.view.kind).toBe('md')
+  })
+
   it('errors when resource.view capability is false', () => {
     const r = applyResourceOrDocumentView({
       data: {

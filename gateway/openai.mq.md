@@ -128,6 +128,11 @@ Map conversation to qdagent.run. Auth gate first, then precheck; deny never reac
 Full `messages` preferred over last-user-only. Explicit selection freezes the model for this turn.
 `stream=True` (or payload.stream) enables live token SSE via Marqdo M02 EventBus.
 
+Bind `patt` before the payload branch so later `1. patt` is a local check,
+not an implicit required parameter of `chat` (would fail every isolated worker).
+
+**patt = None**
+
 **authres = > auth.check authorization=`authorization` api_key=`api_key` payload=`payload`**
 **aok = > json.get value=`authres` key="ok"**
 1. not `aok`
@@ -226,8 +231,19 @@ silent lag before the first SSE event (Context Pack from this call was unused).
 
   *blocked*
 
+Classify on the **latest user turn** only — never on the full composed transcript
+(history containing「实现」must not force BUILD). Unknown modes (e.g. leaked
+`selection.mode=manual`) fall back to ASK so chat never hits Reuse Gate by accident.
+
+**classify_text = `message`**
+1. `messages`
+  **classify_text = > qd.latest_user_message messages=`messages` fallback=`message`**
 1. `mode` == ""
-  **mode = > classify text=`message`**
+  **mode = > classify text=`classify_text`**
+1. not `mode` == "ask"
+  1. not `mode` == "build"
+    1. not `mode` == "learn"
+      **mode = "ask"**
 
 1. `model_id` == "qdagent"
   **model_id = ""**
@@ -314,6 +330,10 @@ silent lag before the first SSE event (Context Pack from this call was unused).
     **fail_content = > json.stringify value=`agent_out`**
   2. *
     **_ = 1**
+  1. `fail_content` == "reuse_gate_blocked"
+    **fail_content = "Reuse Gate 阻断：Preflight 判定 CREATE 但 create_allowed=false。日常对话应走 ASK；工程构建请用明确的 BUILD/构建 指令，或先复用已有能力。"**
+  2. *
+    **_ = 1**
   `agent_fail` =
 
   | ok | content | run_id | decision | mode | status | error | context_path | session_id | turn_id | model | raw |
@@ -360,14 +380,17 @@ silent lag before the first SSE event (Context Pack from this call was unused).
 5. *
   **_ = 1**
 
+**ust = > json.get value=`agent_out` key="usage_state"**
+1. not `ust`
+  **ust = "unknown"**
 1. `live_ok`
   1. `turn_id`
-    > turns.complete turn_id=`turn_id` state="completed" usage_state="unknown"
+    > turns.complete turn_id=`turn_id` state="completed" usage_state=`ust`
   2. *
     **_ = 1**
 2. *
   1. `turn_id`
-    > turns.complete turn_id=`turn_id` state="failed" usage_state="unknown" error=`err`
+    > turns.complete turn_id=`turn_id` state="failed" usage_state=`ust` error=`err`
   2. *
     **_ = 1**
 

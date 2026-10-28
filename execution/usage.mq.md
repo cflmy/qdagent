@@ -71,9 +71,9 @@ Upsert one attempt. Unique (call_id, attempt_id). Numeric nulls stay null.
   > `store`.update table="model_calls" id=`rid` row=`row`
   `ok` =
 
-  | ok | id | call_id | attempt_id | usage_state |
-  |----|----|---------|------------|-------------|
-  | True | `rid` | `call_id` | `attempt_id` | `usage_state` |
+  | ok | id | call_id | attempt_id | usage_state | total_tokens | measurement_source |
+  |----|----|---------|------------|-------------|----------------|--------------------|
+  | True | `rid` | `call_id` | `attempt_id` | `usage_state` | `total_tokens` | `measurement_source` |
 
   *ok*
 
@@ -89,9 +89,9 @@ Upsert one attempt. Unique (call_id, attempt_id). Numeric nulls stay null.
 > `store`.insert table=model_calls rows=`ins`
 `okins` =
 
-| ok | id | call_id | attempt_id | usage_state |
-|----|----|---------|------------|-------------|
-| True | `rid` | `call_id` | `attempt_id` | `usage_state` |
+| ok | id | call_id | attempt_id | usage_state | total_tokens | measurement_source |
+|----|----|---------|------------|-------------|----------------|--------------------|
+| True | `rid` | `call_id` | `attempt_id` | `usage_state` | `total_tokens` | `measurement_source` |
 
 *okins*
 
@@ -110,12 +110,17 @@ Best-effort extract usage from Marqdo agent outcome. Missing fields → usage_st
 1. not `run_id`
   **run_id = "anon-"**
 **call_id = "call-" + `run_id`**
+1. `turn_id`
+  **call_id = "call-" + `turn_id`**
+2. *
+  **_ = 1**
 **input_tokens = None**
 **output_tokens = None**
 **total_tokens = None**
 **usage_state = "unknown"**
 **measurement_source = "provider_omitted"**
 **status = "completed"**
+**llm_calls = None**
 
 **ao_s = > json.stringify value=`agent_out`**
 **ao_map = > text.starts_with text=`ao_s` prefix="{"**
@@ -127,18 +132,68 @@ Best-effort extract usage from Marqdo agent outcome. Missing fields → usage_st
     **pt = > json.get value=`usage` key="prompt_tokens"**
     **ct = > json.get value=`usage` key="completion_tokens"**
     **tt = > json.get value=`usage` key="total_tokens"**
+    1. `tt` == None
+      **tt = > json.get value=`usage` key="tokens"**
+    **llm_calls = > json.get value=`usage` key="llm_calls"**
     1. `pt` != None
       **input_tokens = `pt`**
     1. `ct` != None
       **output_tokens = `ct`**
     1. `tt` != None
       **total_tokens = `tt`**
-    1. `input_tokens` != None
+    1. `llm_calls` == 0
+      **usage_state = "zero_calls"**
+      **total_tokens = 0**
+      **input_tokens = 0**
+      **output_tokens = 0**
+      **measurement_source = "runtime_confirmed_no_llm"**
+    2. `input_tokens` != None
       **usage_state = "final"**
       **measurement_source = "provider_usage"**
+    3. `total_tokens` != None
+      1. `llm_calls` != None
+        1. `llm_calls` > 0
+          1. `total_tokens` == 0
+            **usage_state = "unknown"**
+            **measurement_source = "provider_omitted_tokens"**
+            **total_tokens = None**
+          2. *
+            **usage_state = "final"**
+            **measurement_source = "provider_usage"**
+        2. *
+          **usage_state = "final"**
+          **measurement_source = "provider_usage"**
+      2. *
+        **usage_state = "final"**
+        **measurement_source = "provider_usage"**
+  2. *
+    agent.step returns top-level tokens without a usage bag.
+    **tt = > json.get value=`agent_out` key="tokens"**
+    **llm_calls = > json.get value=`agent_out` key="llm_calls"**
+    1. `tt` != None
+      **total_tokens = `tt`**
+    1. `llm_calls` == 0
+      **usage_state = "zero_calls"**
+      **total_tokens = 0**
+      **input_tokens = 0**
+      **output_tokens = 0**
+      **measurement_source = "runtime_confirmed_no_llm"**
     2. `total_tokens` != None
-      **usage_state = "final"**
-      **measurement_source = "provider_usage"**
+      1. `llm_calls` != None
+        1. `llm_calls` > 0
+          1. `total_tokens` == 0
+            **usage_state = "unknown"**
+            **measurement_source = "provider_omitted_tokens"**
+            **total_tokens = None**
+          2. *
+            **usage_state = "final"**
+            **measurement_source = "provider_usage"**
+        2. *
+          **usage_state = "final"**
+          **measurement_source = "provider_usage"**
+      2. *
+        **usage_state = "final"**
+        **measurement_source = "provider_usage"**
   **st = > json.get value=`agent_out` key="status"**
   1. `st` == "error"
     **status = "failed"**

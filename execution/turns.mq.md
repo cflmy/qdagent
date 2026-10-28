@@ -257,13 +257,12 @@ Map durable turn state → UI recovery_options (Chinese labels). Observe ≠ wri
 4. `state` == "accepted"
   **opts = > table.append list=`opts` item=`opt_reconnect`**
 5. `state` == "failed"
-  **opts = > table.append list=`opts` item=`opt_view`**
   1. `ra` == "resume_events"
     **opts = > table.append list=`opts` item=`opt_continue`**
 6. `state` == "completed"
-  **opts = > table.append list=`opts` item=`opt_view`**
+  终端已完成：正文已在会话里，不再挂「查看已完成步骤」噪声按钮。
 7. `state` == "cancelled"
-  **opts = > table.append list=`opts` item=`opt_view`**
+  已取消同理：无恢复动作。
 *opts*
 
 ## recover
@@ -349,15 +348,19 @@ Idempotent continue before CAS — same key returns prior child even if parent r
 
 **events_url = "/api/app/turns/" + `turn_id` + "/events"**
 
+Observe-only reconnect: never spawn tools or mutate terminal state.
+Bind the result map before the branch so `*reconnect_out*` is never an
+implicit required parameter / undefined local (same class as gateway `patt`).
+
+**reconnect_out = None**
 1. `action` == "reconnect"
-  Observe-only: never spawn tools or mutate terminal state.
-  `obs` =
+  `reconnect_out` =
 
   | ok | action | effect | turn_id | state | revision | events_url | allow_run | note |
   |----|--------|--------|---------|-------|----------|------------|-----------|------|
   | True | reconnect | events_only | `turn_id` | `st` | `crev` | `events_url` | False | reconnect does not re-POST user task |
 
-  *obs*
+  *reconnect_out*
 
 1. `action` == "continue"
   1. `st` == "completed"

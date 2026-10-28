@@ -4,6 +4,7 @@ import {
   Shield, BookOpen, Zap, GitBranch, Loader2, RefreshCw,
   CheckCircle, XCircle, ArrowUpCircle,
 } from 'lucide-react'
+import { MarkdownBody } from '@/components/markdown/MarkdownBody'
 
 type Tab = 'preflight' | 'workbook' | 'capability' | 'candidates'
 
@@ -260,9 +261,9 @@ function CandidatesPanel() {
               <div key={id} style={{ borderRadius: '12px', border: '1px solid var(--dsw-alias-border-l2)', padding: '16px' }}>
                 <p style={{ fontSize: '14px', fontWeight: 500, margin: 0 }}>{String(c.title || c.name || id)}</p>
                 {c.content ? (
-                  <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--dsw-alias-label-secondary)' }}>
-                    {String(c.content)}
-                  </p>
+                  <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--dsw-alias-label-secondary)' }}>
+                    <MarkdownBody text={String(c.content)} />
+                  </div>
                 ) : null}
                 <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
                   <button

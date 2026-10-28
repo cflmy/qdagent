@@ -6,6 +6,7 @@ import:
   fs: lib/fs.mq.md
   time: lib/time.mq.md
   sys: lib/sys.mq.md
+  text: lib/text.mq.md
   data: ext/data/db.mq.md
 ---
 
@@ -148,3 +149,62 @@ import:
     1. `body`
       > fs.write_text path=`root` + "/runs/" + `slug` + ".mq.md" text=`body`
 *root*
+
+## 从盘重建
+    + `store`
+
+把 `data/runs/*.mq.md` 写回笔记库索引（磁盘 → `runs` 表）。
+`同步库` 的反向：库空或丢索引时用。已有同 `slug` 行则更新 title/summary/body。
+跳过 `*.answer.mq.md`（workbook 应答，不是笔记卡）。
+
+**root = > 确保目录**
+**dir = `root` + "/runs"**
+**names = > fs.list_dir path=`dir`**
+**n = 0**
+- [name](遍历 names 为 name)
+  **ok_ext = > text.ends_with text=`name` suffix=".mq.md"**
+  **is_ans = > text.ends_with text=`name` suffix=".answer.mq.md"**
+  1. `ok_ext`
+    1. not `is_ans`
+      **slug = > text.replace text=`name` old=".mq.md" new=""**
+      **path = `dir` + "/" + `name`**
+      **body = > fs.read_text path=`path`**
+      **title = `slug`**
+      **sum1 = `slug`**
+      **parts = > split value=`body` sep="\n"**
+      - [line](遍历 parts 为 line)
+        **has_t = > text.starts_with text=`line` prefix="title: "**
+        1. `has_t`
+          1. `title` == `slug`
+            **title = > text.replace text=`line` old="title: " new=""**
+            **title = > text.replace text=`title` old="\r" new=""**
+        **has_d = > text.starts_with text=`line` prefix="description: "**
+        1. `has_d`
+          1. `sum1` == `slug`
+            **sum1 = > text.replace text=`line` old="description: " new=""**
+            **sum1 = > text.replace text=`sum1` old="\r" new=""**
+      **sn = > len value=`sum1`**
+      1. `sn` > 140
+        **sum1 = `sum1` + "…"**
+      `where` =
+
+      | 字段 | 操作 | 值 |
+      |------|------|-----|
+      | slug | = | `slug` |
+
+      **exist = > `store`.select table="runs" where=`where` limit=1**
+      1. `exist`
+        **hit = [1](access(exist, "1"))**
+        **hid = [id](access(hit, "id"))**
+        `urow` =
+
+        | title | summary | body |
+        |-------|---------|------|
+        | `title` | `sum1` | `body` |
+
+        > `store`.update table=runs id=`hid` row=`urow`
+      2. *
+        **`row` = > 库行 slug=`slug` title=`title` summary=`sum1` body=`body`**
+        > `store`.insert table=runs rows=`row`
+      **n = `n` + 1**
+*`n`*
