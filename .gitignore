@@ -83,3 +83,12 @@ old/
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
+
+# Runtime task workspaces / dialogue caches
+/data/workspaces/
+/data/dialogue/
+/data/qdagent/
+
+# Accidental duplicate trees (space in name)
+/ext + "/
+/pages/ext + "/

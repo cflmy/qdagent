@@ -65,8 +65,7 @@ The header title comes from the owner-checked session context. An unsuccessful r
 
 We **out = [读取所选任务](dispatch(session=`session`, principal=`principal`))**.
 1. not access(`out`, "ok")
-  We **out = [默认选择仅引用已有配置](table.put(in=`out`,at="default_model",value=models.preferred(principal=`principal`)))**.
-Return *out*.
+  Return *out*.
 We **out = [回显切换身份](table.put(in=`out`, at="epoch", value=str(`epoch`)))**.
 We **out = [插件目录可阅读](table.put(in=`out`, at="plugins_html", value=panels.plugins(entries=plugins.catalog(principal=`principal`))))**.
 We **out = [所有任务可切换](table.put(in=`out`, at="sessions_html", value=panels.sessions(entries=sessions.list(principal=`principal`), selected=access(`out`,"session"))))**.
@@ -75,6 +74,7 @@ We **out = table.put(in=`out`, at="models_html", value=panels.models(entries=mod
 We **opened = sessions.ensure(id=access(`out`,"session"), principal=`principal`)**.
 We **workspace = access(`opened`,"value")**.
 We **out = table.put(in=`out`, at="workspace_title", value=access(`workspace`,"title"))**.
+We **out = [默认选择仅引用已有配置](table.put(in=`out`,at="default_model",value=models.preferred(principal=`principal`)))**.
 We **out = [公开模型名不混入凭据](table.put(in=`out`,at="model_titles",value=models.titles(principal=`principal`)))**.
 Return *out*.
 
