@@ -1,0 +1,44 @@
+[
+  {
+    "id": "resize-sidebar",
+    "anchor": 267,
+    "target": 330,
+    "left": 330,
+    "right": 496
+  },
+  {
+    "id": "resize-inspector",
+    "anchor": 1104,
+    "target": 1000,
+    "left": 330,
+    "right": 600
+  },
+  {
+    "id": "resize-sidebar",
+    "anchor": 330,
+    "target": 4000,
+    "left": 440,
+    "right": 600
+  },
+  {
+    "id": "resize-inspector",
+    "anchor": 1000,
+    "target": -500,
+    "left": 440,
+    "right": 680
+  },
+  {
+    "id": "resize-sidebar",
+    "anchor": 440,
+    "target": -1000,
+    "left": 220,
+    "right": 680
+  },
+  {
+    "id": "resize-inspector",
+    "anchor": 920,
+    "target": 4000,
+    "left": 220,
+    "right": 320
+  }
+]

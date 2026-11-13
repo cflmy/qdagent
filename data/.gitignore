@@ -1,8 +1,0 @@
-# qdagent knowledge vault (nested git)
-*.db
-*.db-shm
-*.db-wal
-*.log
-*.pid
-tmp/
-.cache/

@@ -1,0 +1,46 @@
+[
+  {
+    "find": "Return *browser.set_text(sel=\"#probe\",text=\"harness-ui-pass\")*.",
+    "replace": "Return *browser.after(ms=10,then=\"fixture_panes_next\")*."
+  },
+  {
+    "find": "1. `viewport_width` <= 1180 or (`id` != \"resize-sidebar\" and `id` != \"resize-inspector\")\n  Return *None*.\nWe **drag_region",
+    "replace": "We **id = `fixture_id`** and **client_x = `fixture_anchor`** and **viewport_width = 1600**.\n1. `viewport_width` <= 1180 or (`id` != \"resize-sidebar\" and `id` != \"resize-inspector\")\n  Return *None*.\nWe **drag_region"
+  },
+  {
+    "find": "1. `drag_region` == \"\" or `viewport_width` <= 1180",
+    "replace": "We **client_x = `fixture_target`** and **viewport_width = 1600**.\n1. `drag_region` == \"\" or `viewport_width` <= 1180"
+  },
+  {
+    "find": "Return *[拖拽期间防止选择文字](browser.add_class(sel=\"body\",class=\"qd-pane-dragging\"))*.",
+    "replace": "Return *_merge(a=browser.add_class(sel=\"body\",class=\"qd-pane-dragging\"),b=browser.after(ms=10,then=\"resize_pane\"))*."
+  },
+  {
+    "find": "Return *[只改变阅读空间](_layout_effect(left=`layout_sidebar`,right=`layout_inspector`))*.",
+    "replace": "Return *_merge(a=_layout_effect(left=`layout_sidebar`,right=`layout_inspector`),b=browser.after(ms=10,then=\"end_resize\"))*."
+  },
+  {
+    "find": "Return *[恢复阅读并记住尺寸](_merge(a=browser.remove_class(sel=\"body\",class=\"qd-pane-dragging\"),b=browser.store_set(key=\"qdagent.panes.v3\",value=json.stringify(value=`value`),scope=\"local\")))*.",
+    "replace": "Return *_merge(a=_merge(a=browser.remove_class(sel=\"body\",class=\"qd-pane-dragging\"),b=browser.store_set(key=\"qdagent.panes.v3\",value=json.stringify(value=`value`),scope=\"local\")),b=browser.after(ms=10,then=\"fixture_panes_observe\"))*."
+  },
+  {
+    "find": "Return *[恢复界面偏好](_layout_effect(left=`layout_sidebar`,right=`layout_inspector`))*.",
+    "replace": "Return *_merge(a=_layout_effect(left=`layout_sidebar`,right=`layout_inspector`),b=browser.after(ms=10,then=\"fixture_panes_restored\"))*."
+  },
+  {
+    "find": "1. `viewport_width` <= 1180 or (`id` != \"resize-sidebar\" and `id` != \"resize-inspector\") or (`key`",
+    "replace": "We **id = `fixture_id`** and **key = `fixture_key`** and **viewport_width = 1600**.\n1. `viewport_width` <= 1180 or (`id` != \"resize-sidebar\" and `id` != \"resize-inspector\") or (`key`"
+  },
+  {
+    "find": "Return *[键盘调节同步保存](_merge(a=_layout_effect(left=`layout_sidebar`,right=`layout_inspector`),b=browser.store_set(key=\"qdagent.panes.v3\",value=json.stringify(value=`value`),scope=\"local\")))*.",
+    "replace": "Return *_merge(a=_merge(a=_layout_effect(left=`layout_sidebar`,right=`layout_inspector`),b=browser.store_set(key=\"qdagent.panes.v3\",value=json.stringify(value=`value`),scope=\"local\")),b=browser.after(ms=10,then=\"fixture_panes_key_done\"))*."
+  },
+  {
+    "find": "Return *[恢复设计比例](_merge(a=_layout_effect(left=267,right=496),b=_merge(a=browser.remove_class(sel=\"body\",class=\"qd-pane-dragging\"),b=browser.store_set(key=\"qdagent.panes.v3\",value=json.stringify(value=`value`),scope=\"local\"))))*.",
+    "replace": "Return *_merge(a=_merge(a=_layout_effect(left=267,right=496),b=browser.store_set(key=\"qdagent.panes.v3\",value=json.stringify(value=`value`),scope=\"local\")),b=browser.after(ms=10,then=\"fixture_panes_reset_done\"))*."
+  },
+  {
+    "find": "Return *[源码也是可读内容](browser.toggle_class(sel=\"#qd-inspector\",class=\"qd-show-source\"))*.",
+    "replace": "Return *_merge(a=browser.toggle_class(sel=\"#qd-inspector\",class=\"qd-show-source\"),b=browser.after(ms=10,then=\"fixture_panes_finish\"))*."
+  }
+]

@@ -1,0 +1,50 @@
+name: qdagent
+services:
+  qdagent:
+    image: qdagent:local
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    ports:
+      - "7964:7964"
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 2g
+    stop_grace_period: 20s
+    environment:
+      QDAGENT_OIDC_REDIRECT_ORIGINS: ${QDAGENT_OIDC_REDIRECT_ORIGINS:-https://agent.qdqc.com,http://127.0.0.1:7964,http://localhost:7964}
+      QDAGENT_OIDC_CLIENT_ID: ${QDAGENT_OIDC_CLIENT_ID:-app_e18ec1c40109417bb34b56c0c1749fe8}
+      QDAGENT_OIDC_SECRET_FILE: .secrets/oidc_client_secret
+      QDAGENT_MODEL_KEY_FILE: /app/.secrets/model_key
+      QDAGENT_OLLAMA_URL: ${QDAGENT_OLLAMA_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - qdagent-data:/app/data
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777,size=256m
+      - /app/pages/data:uid=10001,gid=10001,mode=0700,size=16m
+    secrets:
+      - source: oidc_client_secret
+        target: /app/.secrets/oidc_client_secret
+      - source: model_key
+        target: /app/.secrets/model_key
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+secrets:
+  oidc_client_secret:
+    file: .marqdo/secrets/oidc_client_secret
+  model_key:
+    file: .marqdo/secrets/model_key
+volumes:
+  qdagent-data:

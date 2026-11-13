@@ -1,0 +1,27 @@
+[
+  {
+    "find": "Return *[实际关闭并观察](_merge(a=close_panels(), b=browser.set_text(sel=\"#probe\", text=\"composer-ui-pass\")))*.",
+    "replace": "Return *[开始真实文件选择](_merge(a=close_panels(),b=browser.after(ms=20,then=\"open_files\")))*.",
+    "reason": "只替换测试调度，不复制或替代产品状态机；真实回调随后独立校验。"
+  },
+  {
+    "find": "Return *[更新真实文件列表](browser.set_html(sel=\"#qd-workspace-files\",html=json.get(value=`parsed`,key=\"files_html\")))*.",
+    "replace": "Return *[列表后选择文件](_merge(a=browser.set_html(sel=\"#qd-workspace-files\",html=json.get(value=`parsed`,key=\"files_html\")),b=browser.after(ms=20,then=\"inspect_file\")))*.",
+    "reason": "只替换测试调度，不复制或替代产品状态机；真实回调随后独立校验。"
+  },
+  {
+    "find": "Return *[标题与文稿分别更新](_merge(a=`paint`,b=browser.set_text(sel=\"#qd-preview-title\",text=json.get(value=`parsed`,key=\"title\"))))*.",
+    "replace": "Return *[预览后观察](_merge(a=_merge(a=`paint`,b=browser.set_text(sel=\"#qd-preview-title\",text=json.get(value=`parsed`,key=\"title\"))),b=browser.after(ms=20,then=\"fixture_harness_done\")))*.",
+    "reason": "只替换测试调度，不复制或替代产品状态机；真实回调随后独立校验。"
+  },
+  {
+    "find": "Return *[显示真实过程检查区](browser.add_class(sel=\"body\",class=\"qd-inspector-open qd-inspector-process qd-inspector-requested\"))*.",
+    "replace": "Return *[过程后观察](_merge(a=browser.add_class(sel=\"body\",class=\"qd-inspector-open qd-inspector-process qd-inspector-requested\"),b=browser.after(ms=20,then=\"fixture_harness_end\")))*.",
+    "reason": "只替换测试调度，不复制或替代产品状态机；真实回调随后独立校验。"
+  },
+  {
+    "find": "Return *[只改变阅读空间](table.put(in=None,at=`key`,value=table.put(in=None,at=\"body\",value=\"qd-inspector-open\")))*.",
+    "replace": "Return *[关闭后观察](_merge(a=table.put(in=None,at=`key`,value=table.put(in=None,at=\"body\",value=\"qd-inspector-open\")),b=browser.after(ms=20,then=\"fixture_harness_end\")))*.",
+    "reason": "只替换测试调度，不复制或替代产品状态机；真实回调随后独立校验。"
+  }
+]
