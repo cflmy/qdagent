@@ -92,3 +92,8 @@ old/
 # Accidental duplicate trees (space in name)
 /ext + "/
 /pages/ext + "/
+
+# Modern workspace artifacts
+/test-results/
+/server/qdagent
+/frontend/tsconfig.tsbuildinfo

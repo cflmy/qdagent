@@ -135,7 +135,14 @@ We **nodes = table.empty_list()**.
 We **entries = list()** and **deliveries = table.empty_list()**.
 - [每份文件有独立交付操作](for entries as entry)
   We **label = access(`entry`,"title")**.
-  We **meta = ui.text_node(text=(" · " + access(`entry`,"kind") + " · " + str(access(`entry`,"bytes")) + " bytes"),style="qd-artifact-meta")**.
+  We **bytes = access(`entry`,"bytes")** and **size = str(access(`entry`,"bytes")) + " B"**.
+  1. `bytes` >= 1024
+    We **size = str(math.floor(value=(`bytes` / 1024))) + " KB"**.
+  1. `bytes` >= 1048576
+    We **tenths = math.floor(value=(`bytes` / 104857.6))**.
+    We **megabytes = `tenths` / 10**.
+    We **size = str(`megabytes`) + " MB"**.
+  We **meta = ui.text_node(text=(text.to_upper(text=access(`entry`,"kind")) + " · " + `size`),style="qd-artifact-meta")**.
   We **heading = ui.text_node(text=`label`,style="qd-artifact-title")**.
   We **base = "?session=" + `session` + "&id=" + access(`entry`,"id")**.
   We **links = ui.button(text="阅读文稿",data_id=access(`entry`,"id"),style="qd-artifact-preview qd-artifact-link")**.
@@ -191,9 +198,13 @@ We **attrs = table.put(in=`attrs`,at="aria-valuemin",value=0)**.
 We **attrs = table.put(in=`attrs`,at="aria-valuemax",value=`count`)**.
 We **attrs = table.put(in=`attrs`,at="aria-valuenow",value=`completed`)**.
 We **bar = ui.region(children=ui.text_node(text="",style="qd-plan-fill"),attrs=`attrs`,style=("qd-plan-progress qd-progress-" + str(`percent`)))**.
-We **items = table.concat(a=`items`,b=ui.text_node(text=access(`plan`,"goal"),style="qd-plan-goal"))**.
-We **items = table.concat(a=`items`,b=ui.text_node(text=("验收：" + access(`plan`,"acceptance")),style="qd-workbench-acceptance"))**.
-Return *[进度与证据保持区别](ui.region(children=table.concat(a=`head`,b=table.concat(a=`bar`,b=ui.region(children=`items`,style="qd-plan-steps"))),style="qd-plan-card"))*.
+We **criteria = ui.text_node(text=access(`plan`,"goal"),style="qd-plan-goal")**.
+We **criteria = table.concat(a=`criteria`,b=ui.text_node(text=("验收：" + access(`plan`,"acceptance")),style="qd-workbench-acceptance"))**.
+We **criteria = ui.region(children=`criteria`,style="qd-plan-criteria")**.
+We **criteria_button = ui.button(text="目标与验收",style="qd-plan-criteria-toggle")**.
+We **body = table.concat(a=`head`,b=table.concat(a=`bar`,b=ui.region(children=`items`,style="qd-plan-steps")))**.
+We **body = table.concat(a=`body`,b=table.concat(a=`criteria_button`,b=`criteria`))**.
+Return *[步骤、折叠依据分别可读](ui.region(children=`body`,style="qd-plan-card"))*.
 
 
 ## register

@@ -34,6 +34,8 @@ We **links = ui.button(text="文件",id="nav-files",style="qd-nav-item qd-icon-f
 We **links = table.concat(a=`links`,b=ui.button(text="知识库",id="tab-kb",style="qd-nav-item qd-icon-book"))**.
 We **links = table.concat(a=`links`,b=ui.button(text="插件",id="tab-plugins",style="qd-nav-item qd-icon-plugin"))**.
 We **links = table.concat(a=`links`,b=ui.button(text="设置",id="nav-settings",style="qd-nav-item qd-icon-settings"))**.
+We **logout = component.element(kind="link",value="退出登录",attrs=table.put(in=None,at="href",value="/admin/logout"),style="qd-nav-item qd-logout")**.
+We **links = table.concat(a=`links`,b=`logout`)**.
 Return *[稳定导航与真实任务](ui.region(children=table.concat(a=ui.region(children=`top`,style="qd-sidebar-top"),b=ui.region(children=`links`,style="qd-sidebar-footer")),id="qd-sidebar",kind="aside",style="qd-sidebar"))*.
 
 ## header
@@ -86,7 +88,11 @@ We **bar = ui.region(children=table.concat(a=`brand`,b=ui.region(children=`tools
 We **body = ui.region(children=table.empty_list(),id="qd-preview",style="qd-preview")**.
 We **source = component.element(kind="pre",attrs=table.put(in=None,at="id",value="qd-preview-source"),style="qd-preview-source")**.
 We **read = ui.region(children=table.concat(a=`bar`,b=table.concat(a=`body`,b=`source`)),style="qd-reader-frame")**.
+The footer groups the accepted source download and source-view toggle in a single stable native row. Both retain separate accessible names and production handlers. Viewing source is reversible and does not fetch another path; downloading uses only the already accepted snapshot. The compact icons are decorative masks, while each button keeps its real text for assistive technology.
+
 We **download = ui.button(text="下载源稿",id="preview-download",style="qd-reader-download qd-icon-download")**.
+We **source_action = ui.button(text="打开源码",id="preview-source-bottom",style="qd-reader-download qd-icon-code")**.
+We **download = ui.region(children=table.concat(a=`download`,b=`source_action`),style="qd-reader-footer")**.
 We **preview = ui.region(children=table.concat(a=`title`,b=table.concat(a=`read`,b=`download`)),style="qd-preview-document")**.
 We **empty = ui.region(children=table.concat(a=ui.text_node(text="交付成果，触手可及",style="qd-inspector-empty-title"),b=ui.text_node(text="任务生成的文档和演示将在这里汇集。选择文件，即可留在对话旁阅读。",style="qd-inspector-empty-copy")),style="qd-inspector-empty")**.
 We **activity = ui.region(children=ui.text_node(text="尚无执行记录。",style="qd-empty-note"),id="qd-inspector-activity",style="qd-inspector-activity")**.

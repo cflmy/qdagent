@@ -84,7 +84,7 @@ Return *[输入与状态各有位置](ui.region(children=`composer`,style="qd-co
 
 动态区域初始为空，等待真实服务结果，不预置演示插件或伪执行进度。创建任务输入位于列表之外，因此刷新列表不会删掉正在编辑的标题。执行经过在对话内的独立区域，面板只承载选择操作。
 
-The four panels share only their layout contract. A model panel describes the next model choice. A plugin panel is filled from the installed capability registry. A workspace panel contains task creation plus a separately replaceable list. Knowledge choices list only actual installed roots. The execution timeline belongs to the conversation, between the question and the latest answer.
+The four panels share only their layout contract. A model panel describes the next model choice. A plugin panel is filled from the installed capability registry. A workspace panel contains task creation plus a separately replaceable list. Knowledge choices list only actual installed roots. The execution timeline belongs to the conversation, between the question and the latest answer.\n\nThe compact model selector is composed as a centered dialog over the same dimmed workbench as the plugin and session pickers. Its title, explanatory line, category labels, service cards and bottom action row remain separate View nodes. The selector is deliberately wider than the earlier narrow popup because provider descriptions need two readable lines and local and shared models must be compared at a glance. A fine watercolor overlay is a static decorative asset; it does not contain example conversations or model state. On small screens, the dialog narrows, cards keep their model name visible, and the two confirmation controls remain inside the scrollable paper surface.\n\nThe service list is grouped by actual purpose: shared smart service, local inference and private user profiles. Each group is introduced once while its real entries remain individually selectable. The chosen card receives a muted sage surface and a check mark. A user with no saved profile sees the empty state with add and management actions; the empty state disappears as soon as a real profile arrives. Internal ids stay in event data and never become the display title. Selecting a card previews the choice. Confirm commits it for the next task, while cancel, backdrop, Escape and the close control preserve the previous model. These details give the visual controls matching behavior instead of making the replica a static picture.
 
 The create input must remain outside panel-workspace-body. A service response may refresh the list while the user is typing another task title; replacing only the list preserves that input. The title itself is natural language, while the server assigns the opaque session identity. A selected task can continue to run while another is viewed.
 
@@ -94,17 +94,28 @@ Closing a panel only changes its visibility. It does not discard history, stop a
 
 Descriptions use simple Markdown, while inputs, labels and buttons use native elements. If a panel needs columns later, split those columns into containers first, then make each leaf simple readable content. Do not replace this organization with a large raw HTML string merely because the generated page is HTML internally.
 
-We **models = [可以不选择模型](ui.button(text="none · 暂不运行模型", id="model-none", style="mq-model-opt is-active"))**.
-We **models = [模型由账号配置枚举](table.concat(a=`models`,b=ui.text_node(text="在下方选择账号已有模型，或添加自己的模型服务。")))**.
-We **models = [当前选择的可读提示](table.concat(a=`models`, b=ui.text_node(text="none", id="chat-model-label")))**.
-We **models = table.concat(a=`models`, b=ui.region(children=table.empty_list(), id="panel-model-body"))**.
-We **models = table.concat(a=component.markdown(text="## 我的模型\n\n选择下一轮使用的模型。"), b=`models`)**.
-We **models = table.concat(a=`models`,b=ui.button(text="管理模型与连接服务",id="model-manage",style="qd-model-manage"))**.
-We **choices = ui.region(children=`models`, style="qd-model-library")**.
+We **model_list = [真实模型清单容器](ui.region(children=ui.text_node(text="正在加载模型…",style="qd-model-loading"),id="panel-model-body"))**.
+We **empty_title = ui.text_node(text="暂无自定义模型",style="qd-model-empty-title qd-model-empty-state")**.
+We **manage_title = ui.text_node(text="管理自定义模型",style="qd-model-empty-title qd-model-manage-state")**.
+We **empty_hint = ui.text_node(text="可添加团队共享或个人部署的模型服务。",style="qd-model-description qd-model-empty-state")**.
+
+We **add = ui.button(text="＋ 添加模型",id="model-add",style="qd-model-add")**.
+We **manage = ui.button(text="⚙ 管理模型",id="model-manage",style="qd-model-manage")**.
+We **empty_actions = ui.region(children=table.concat(a=`add`,b=`manage`),kind="row",style="qd-model-empty-actions")**.
+We **empty_copy = table.concat(a=table.concat(a=`empty_title`,b=`manage_title`),b=`empty_hint`)**.\nWe **empty = ui.region(children=table.concat(a=`empty_copy`,b=`empty_actions`),style="qd-model-empty")**.
+We **personal = ui.text_node(text="我的模型",style="qd-model-personal-intro")**.
+We **models = table.concat(a=`model_list`,b=table.concat(a=`personal`,b=`empty`))**.
+We **models = table.concat(a=`models`,b=ui.button(text="暂不运行模型",id="model-none",style="mq-model-opt"))**.
+We **models = table.concat(a=`models`,b=ui.text_node(text="",id="chat-model-label",style="qd-model-current"))**.
+We **intro = component.markdown(text="## 选择模型\n\n为当前任务选择合适的模型，平衡能力、响应速度与使用场景。")**.\nWe **library_content = table.concat(a=`intro`,b=`models`)**.\nWe **choices = ui.region(children=`library_content`, style="qd-model-library")**.
 We **form = table.concat(a=component.markdown(text="## 添加模型\n\n连接你的模型服务。"), b=model_form.form())**.
 We **form = ui.region(children=`form`, style="qd-model-editor")**.
 We **models = ui.region(children=table.concat(a=`choices`, b=`form`), style="qd-model-layout")**.
-We **out = [模型面板](panel(id="panel-model", title="选择模型", description="选择本机模型或配置自己的远程服务。模型决策和接口返回的思考文本在对话中展开阅读。", children=`models`))**.
+We **cancel = ui.button(text="取消",id="model-cancel",style="qd-model-cancel")**.
+We **confirm = ui.button(text="确定",id="model-confirm",style="qd-model-confirm")**.
+We **actions = ui.region(children=table.concat(a=`cancel`,b=`confirm`),kind="row",style="qd-model-actions")**.
+We **models = table.concat(a=`models`,b=`actions`)**.
+We **out = [模型选择与管理共用真实模型清单](panel(id="panel-model", title="选择模型", description="选择模型后用于下一轮任务；模型思考与执行经过会在对话中完整呈现。", children=`models`))**.
 We **plugin_body = [能力来自实际目录](ui.region(children=table.empty_list(), id="panel-plugins-body"))**.
 We **out = [能力面板](table.concat(a=`out`, b=panel(id="panel-plugins", title="插件与固有能力", description="标准库始终启用。拓展即插件，开关决定智能体下一次实际调用的授权。", children=`plugin_body`)))**.
 

@@ -106,12 +106,36 @@ Return *[实际会话面板](ui.render(nodes=`nodes`))*.
 
 Use `entries`。只展示服务端已去除密钥的字段。选择按钮携带不透明配置身份，删除按钮独立操作；模型名称可以重复，身份不会混淆。列表为空时不显示假模型或多余提示块，新增表单仍能使用。
 
-Rendering is not a provider request and never loads a credential into a browser field. The model and protocol help users identify the selected service, while an active task remains bound to the profile saved at begin. The backend checks the owner again for selection, deletion and actual inference, independently of these buttons.
+The model picker groups the fixed shared option, the administrator's local model and private profiles into distinct readable cards. A shared option explains its intended use without claiming the provider has already responded. The local option explicitly says its connection is checked when used; no green availability indicator is fabricated. Private profiles alone receive a delete button. The button's data identity remains stable while its visible label remains human readable, and the server independently resolves every selection.
 
-We **nodes = table.empty_list()**.
-- [只展示当前身份的实际配置](for entries as entry)
-  We **id = access(`entry`,"id")**.
-  We **button = ui.button(text=(access(`entry`,"label") + " · " + access(`entry`,"model")), id=("model-" + `id`), data_id=`id`, style="mq-model-opt qd-model-select")**.
-  We **remove = ui.button(text="删除", data_id=`id`, style="mq-btn qd-model-remove")**.
-  We **nodes = table.concat(a=`nodes`, b=ui.region(children=table.concat(a=`button`, b=`remove`), style="qd-custom-model"))**.
-Return *[无凭据的真实模型清单](ui.render(nodes=`nodes`))*.
+Rendering is not a provider request and never loads a credential into a browser field. The model and protocol help users identify the selected service, while an active task remains bound to the profile saved at begin. The backend checks the owner again for selection, deletion and actual inference, independently of these buttons.\n\nThe fixed display order is independent of database insertion order: shared service first, local inference second and personal profiles last. Every selectable card keeps the opaque server identity in its event data, while its visible title and help text use only approved public fields. Credentials, remote API roots and local addresses are never included in the rendered fragment.
+
+We **ordered = table.empty_list()**.
+- [共享服务优先，其次本机和个人配置](for entries as entry)
+  We **id = access(`entry`,"id")** and **rank = 2**.
+  1. `id` == "builtin-smart"
+    We **rank = 0**.
+  1. `id` == "builtin-local"
+    We **rank = 1**.
+  We **entry = table.put(in=`entry`,at="view_order",value=`rank`)**.
+  We **ordered = table.append(list=`ordered`,item=`entry`)**.
+We **entries = table.sort_by(list=`ordered`,key="view_order")**.
+We **nodes = table.empty_list()** and **last_group = ""**.
+- [排序后每组只介绍一次](for entries as entry)
+  We **id = access(`entry`,"id")** and **label = access(`entry`,"label")**.
+  We **description = "个人配置 · 仅当前账号可管理"** and **group = "我的模型"** and **group_id = "qd-model-group-personal"**.
+  1. `id` == "builtin-smart"
+    We **group = "共享智能模型"** and **group_id = "qd-model-group-shared"** and **label = "智能模型（默认）"** and **description = "平台提供 · 适合问答、分析、写作与规划"**.
+  1. `id` == "builtin-local"
+    We **group = "本机模型"** and **group_id = "qd-model-group-local"** and **label = "Qwen（本机）"** and **description = "使用本地算力 · 数据更可控"**.
+  We **heading = ui.text_node(text=`group`,id=`group_id`,style="qd-model-group")**.
+  1. `group` != `last_group`
+    We **nodes = table.concat(a=`nodes`,b=`heading`)** and **last_group = `group`**.
+  We **button = ui.button(text=`label`,id=("model-" + `id`),data_id=`id`,style="mq-model-opt qd-model-select")**.
+  We **hint = ui.text_node(text=`description`,style="qd-model-description")**.
+  We **choices = table.concat(a=`button`,b=`hint`)**.
+  1. not text.starts_with(text=`id`,prefix="builtin-")
+    We **choices = table.concat(a=`choices`,b=ui.button(text="删除",data_id=`id`,style="mq-btn qd-model-remove"))**.
+  We **card = ui.region(children=`choices`,style="qd-custom-model")**.
+  We **nodes = table.concat(a=`nodes`,b=`card`)**.
+Return *[共享、本机、个人模型按使用顺序展示且不暴露凭据](ui.render(nodes=`nodes`))*.

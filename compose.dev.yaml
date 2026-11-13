@@ -2,7 +2,7 @@ services:
   qdagent:
     read_only: false
     volumes:
-      - qdagent-code:/app
+      - qdagent-code-v4:/app
       - qdagent-data:/app/data
 volumes:
-  qdagent-code:
+  qdagent-code-v4:

@@ -71,7 +71,7 @@ We **head = [只保留 head 内部](text.replace(text=text.replace(text=`head`, 
 We **body = [工作台只保留一套应用结构](shell.canvas())**.
 We **chrome = "<style>.reader-dock{display:none}</style>"**.
 We **fragment = `head` + `chrome` + `body` + `overlay`**.
-We **composed = [官方资源与原生工作台共同装配]("<!doctype html><html><head>" + `head` + "</head><body class=\"reader-page\">" + `body` + `chrome` + `overlay` + "</body></html>")**.
+We **composed = [官方资源与原生工作台共同装配]("<!doctype html><html><head>" + `head` + "</head><body class=\"reader-page qd-inspector-open qd-inspector-initial\">" + `body` + `chrome` + `overlay` + "</body></html>")**.
 We **_ = [建立输出目录](fs.make_dirs(path="pages/public/generated/site"))**.
 We **_ = [原子写出完整页](fs.atomic_write(path="pages/public/generated/site/index.html", text=`composed`))**.
 We **_ = [原子写出宿主片段](fs.atomic_write(path="pages/public/generated/site/body.fragment.html", text=`fragment`))**.
@@ -143,7 +143,7 @@ We **app = [发现端点并挂载 public](web.prepare(root=`root`, host=`host`, 
 We **page = [取首页袋](json.get(value=`app`, key="page"))**.
 We **page = [关闭默认壳样式](table.put(in=`page`, at="shell_css", value="off"))**.
 We **page = [去掉 Web 顶栏页脚铬](table.put(in=`page`, at="layout", value="bare"))**.
-We **page = [body 加上 reader-page](table.put(in=`page`, at="body_class", value="reader-page"))**.
+We **page = [body 加上 reader-page](table.put(in=`page`, at="body_class", value="reader-page qd-inspector-open qd-inspector-initial"))**.
 We **page = [注入官方阅读 HTML](table.put(in=`page`, at="intro", value=`intro`))**.
 We **app = [写回首页袋](table.put(in=`app`, at="page", value=`page`))**.
 Return *app*.

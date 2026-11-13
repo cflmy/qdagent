@@ -24,6 +24,6 @@ import:
 
 Use `probe`=""。诊断请求只读取固定的公开客户端源码摘要，调用者不能选择文件路径。回显是 JSON 数据，不作为 HTML、SQL 或程序执行。通过同一个 probe 比对本机与域名响应，可以确认代理有没有指向另一个实例。此接口不验证登录，也不暴露任何账号或模型密钥；健康探针仍使用既有 healthz。
 
-We **out = table.put(in=None,at="revision",value="qdagent-20261113-reference-layout-v3")**.
+We **out = table.put(in=None,at="revision",value="qdagent-20261113-home-detail-v9")**.
 We **out = table.put(in=`out`,at="client_sha256",value=fs.file_hash(path="public/client.mq.md"))**.
 Return *[返回不含用户数据的实际部署指纹](table.put(in=`out`,at="probe",value=`probe`))*.

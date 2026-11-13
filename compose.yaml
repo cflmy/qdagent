@@ -19,6 +19,7 @@ services:
     mem_limit: 2g
     stop_grace_period: 20s
     environment:
+      QDAGENT_DEFAULT_MODEL: ${QDAGENT_DEFAULT_MODEL:-builtin-local}
       QDAGENT_OIDC_REDIRECT_ORIGINS: ${QDAGENT_OIDC_REDIRECT_ORIGINS:-https://agent.qdqc.com,http://127.0.0.1:7964,http://localhost:7964}
       QDAGENT_OIDC_CLIENT_ID: ${QDAGENT_OIDC_CLIENT_ID:-app_e18ec1c40109417bb34b56c0c1749fe8}
       QDAGENT_OIDC_SECRET_FILE: .secrets/oidc_client_secret

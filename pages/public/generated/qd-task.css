@@ -551,3 +551,233 @@ body.qd-inspector-initial:not(.qd-inspector-requested) .qd-inspector{display:non
 body.qd-inspector-initial:not(.qd-inspector-requested) .qd-header-files:before{background:#d6d2c8}
 body.qd-inspector-initial:not(.qd-inspector-requested) .qd-header-files:after{transform:none}
 }
+
+
+/* Dialogs share the workbench's paper, typography and restrained olive accents. */
+body.reader-page .mq-panel{background:#fbf8f3;border:1px solid #ddd6ca;border-radius:12px;box-shadow:0 24px 80px #29271d38;padding:30px 34px;color:#282a21;font:14px/1.65 "Noto Sans CJK SC",system-ui,sans-serif}
+.mq-panel .article-body h2{font:600 23px/1.35 "Noto Serif CJK SC",serif;margin:0 0 8px;color:#303424}
+.mq-panel .article-body p{font:13px/1.7 "Noto Sans CJK SC",sans-serif;color:#807a6d;margin:0 0 22px}
+body.reader-page .mq-panel>button{border:1px solid #ddd5c7;border-radius:7px;padding:7px 14px;color:#625e50;background:#fbf8f3;font:13px system-ui;cursor:pointer}
+body.reader-page .mq-panel>button:hover{background:#eeeadf}
+.qd-capability,.qd-custom-model{border:1px solid #e0d9cc;border-radius:8px;background:#fffdf9;padding:14px 16px;margin:10px 0}
+.qd-capability .qd-card-title{font-size:15px;color:#303826}
+.qd-capability .qd-card-meta{font-size:12px;color:#88806d}
+.qd-capability button,.qd-custom-model button,.qd-session-create button,.qd-kb-select{border:1px solid #dcd4c5;border-radius:7px;padding:8px 13px;background:#fbf8f3;color:#4d5d37;cursor:pointer}
+.qd-custom-model .mq-model-opt{border:0!important;background:transparent!important;padding:8px!important;margin:0!important;text-align:left}
+.qd-custom-model:has(.is-active){border-color:#87956b;background:#f2f4e9}
+.qd-model-layout h2{font-size:21px!important}
+.qd-model-library{border-color:#e4ded2}
+.qd-model-field input,.qd-model-field select,.qd-session-input{border:1px solid #ded7ca;border-radius:7px;background:#fffdf9;padding:11px 12px;color:#2d3026}
+.qd-session-create{gap:10px;margin:20px 0!important}
+.qd-session-create button,#model-save{background:#566541!important;color:#fff!important;border-color:#566541!important}
+.qd-logout{text-decoration:none;border-top:1px solid #ded8cc;margin-top:10px;padding-top:14px}
+.qd-logout:before{content:"↪";display:inline-block;width:22px;font:22px system-ui}
+.qd-logout:hover{color:#6b422f}
+@media(max-width:700px){body.reader-page .mq-panel{padding:22px 18px;max-height:85dvh}.qd-model-layout{display:block!important}.qd-model-library{padding:0 0 18px;border-right:0;border-bottom:1px solid #e4ded2}.qd-model-editor{padding-top:20px}.qd-session-create{flex-wrap:wrap}.qd-session-input{flex-basis:100%}}
+
+
+#panel-model.is-picker{max-width:680px!important;width:min(680px,calc(100vw - 32px))!important;padding:30px 34px!important}
+#panel-model.is-picker .qd-model-layout{display:block!important}
+#panel-model.is-picker .qd-model-library{border:0;padding:0}
+#panel-model .qd-model-library h2{font:600 24px/1.4 "Noto Serif CJK SC",serif!important;color:#303a26}
+.qd-model-group{display:block;margin:20px 0 8px;font:600 15px/1.4 "Noto Sans CJK SC",sans-serif;color:#303b27}
+.qd-custom-model{position:relative;display:block!important;padding:8px 14px 12px 50px!important;margin:0!important;min-height:66px}
+.qd-custom-model:before{content:"◇";position:absolute;top:14px;left:16px;color:#68784c;font:26px Georgia}
+.qd-custom-model .qd-model-select{font:600 15px/1.5 "Noto Sans CJK SC",sans-serif!important;width:100%;padding:4px 0!important;color:#2b3324}
+.qd-custom-model:has(.is-active){background:#edf0e3;border-color:#718252;box-shadow:0 0 0 1px #718252}
+.qd-custom-model:has(.is-active):after{content:"✓";position:absolute;right:15px;top:15px;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#566b38;color:white;font:13px system-ui}
+.qd-model-description{display:block;font:12px/1.5 "Noto Sans CJK SC",sans-serif;color:#7c7869}
+.qd-model-current{display:none}.qd-model-loading{display:block;padding:24px 2px;color:#8a8374;font:13px system-ui}
+#panel-model #model-none{border:0;background:transparent;color:#8b8272;font:12px system-ui;padding:12px 0;margin:10px 0 0}
+
+
+/* Reference model-picker-v1: a 820 × 734 paper dialog with one scrolling body. */
+body.reader-page #panel-model.mq-panel.is-picker{left:50%;top:calc(50% + var(--qd-top)/2);bottom:auto;transform:translate(-50%,-50%);width:min(820px,calc(100vw - 32px))!important;max-width:none!important;height:min(734px,calc(100dvh - 40px));min-height:0;max-height:none;padding:24px 36px 0!important;border:1px solid #bcb398;border-radius:18px;background:#faf7ef url("/static/generated/view-assets/qd-model-ornament.png") center/100% 100% no-repeat;box-shadow:0 24px 65px #29251f45;overflow:hidden;box-sizing:border-box}
+body.reader-page #panel-model.is-picker.is-open{display:flex;flex-direction:column}
+#panel-model.is-picker>div:nth-of-type(1){display:none}
+#panel-model.is-picker>button:first-child{position:absolute;right:20px;top:16px;width:32px;height:32px;padding:0!important;margin:0!important;float:none!important;border:0;background:transparent;font-size:0;z-index:2}
+#panel-model.is-picker>button:first-child:after{content:"×";font:30px/1 Georgia;color:#302d22}
+#panel-model.is-picker .qd-model-layout{display:block!important;flex:1;min-height:0;overflow:auto;scrollbar-width:thin}
+#panel-model.is-picker .qd-model-library{border:0;padding:0}
+#panel-model.is-picker .qd-model-editor{display:none}
+#panel-model.is-picker .qd-model-library .article-body{padding:0;margin:0;max-width:none}
+#panel-model.is-picker .qd-model-library .article-body h2{margin:0 40px 14px!important;text-align:center;font:600 34px/1.45 "Noto Serif CJK SC",serif!important;letter-spacing:.03em;color:#303b22}
+#panel-model.is-picker .qd-model-library .article-body h2:after{content:"◇";display:block;height:15px;margin:0 auto;font:15px/1 Georgia;color:#aa8a50;background:linear-gradient(90deg,transparent,#c9b38a,transparent) center/52% 1px no-repeat}
+#panel-model.is-picker .qd-model-library .article-body p{margin:0 0 26px!important;text-align:center;font:15px/1.6 "Noto Serif CJK SC",serif;color:#413c30}
+#panel-model.is-picker #panel-model-body{display:block;margin:0;min-height:0;font:14px/1.6 "Noto Sans CJK SC",sans-serif;color:#807866}
+#panel-model.is-picker .qd-model-group{display:flex;align-items:center;gap:10px;margin:0 0 20px;font:600 21px/1.35 "Noto Serif CJK SC",serif;color:#282e1e}
+#panel-model.is-picker .qd-model-group:not(:first-child){margin-top:24px}
+#panel-model.is-picker .qd-model-group:before{content:"♧";width:26px;color:#596c36;font:24px/1 Georgia}
+#panel-model.is-picker #qd-model-group-local:before{content:"▱"}
+#panel-model.is-picker #qd-model-group-personal:before{content:"♙"}
+#panel-model.is-picker .qd-model-group:after{display:inline-block;padding:3px 12px;border:1px solid #ead9b6;border-radius:20px;background:#f7edd9;color:#76603b;font:13px/1.3 "Noto Serif CJK SC",serif}
+#panel-model.is-picker #qd-model-group-shared:after{content:"平台提供 · 开箱即用"}
+#panel-model.is-picker #qd-model-group-local:after{content:"使用本地算力 · 数据更可控"}
+#panel-model.is-picker #qd-model-group-personal:after{content:"自定义与私有模型"}
+#panel-model.is-picker .qd-custom-model{position:relative;display:block!important;box-sizing:border-box;min-height:102px;margin:0!important;padding:14px 52px 14px 106px!important;border:1px solid #dbd1c0;border-radius:12px;background:#fffdf8d9;box-shadow:0 2px 6px #3a30100a}
+#panel-model.is-picker .qd-custom-model+.qd-custom-model{margin-top:10px!important}
+#panel-model.is-picker .qd-custom-model:before{content:"✦";position:absolute;left:22px;top:18px;display:grid;place-items:center;width:64px;height:64px;border-radius:14px;background:#e9eadc;color:#5b7034;font:38px/1 Georgia}
+#panel-model.is-picker .qd-custom-model:has(#model-builtin-local):before{content:"⬡";background:#f0ebdf}
+#panel-model.is-picker .qd-custom-model:has(.is-active){border-color:#54672f;background:#e9ebdce8;box-shadow:0 0 0 1px #54672f}
+#panel-model.is-picker .qd-custom-model:has(.is-active):after{content:"✓";position:absolute;right:23px;top:36px;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#566a34;color:#fff;font:16px/1 system-ui}
+#panel-model.is-picker .qd-model-select{display:block!important;width:100%;padding:0!important;margin:0!important;border:0!important;background:none!important;box-shadow:none!important;text-align:left;color:#302e24;font:600 20px/1.5 "Noto Serif CJK SC",serif!important}
+#panel-model.is-picker .qd-model-description{display:block;margin:2px 0 0;font:14px/1.55 "Noto Serif CJK SC",serif;color:#625e50}
+#panel-model.is-picker .qd-model-remove{position:absolute;right:12px;bottom:5px;border:0;background:none;font-size:11px}
+#panel-model.is-picker .qd-model-empty{position:relative;display:grid!important;grid-template-columns:minmax(0,1fr) 252px;grid-template-rows:auto auto;align-items:center;gap:2px 10px;box-sizing:border-box;min-height:84px;margin:68px 0 12px;padding:13px 16px 13px 96px;border:1px solid #dbd1c0;border-radius:12px;background:#fffdf8d9}
+#panel-model.is-picker .qd-model-empty:before{content:"◇";position:absolute;left:31px;top:23px;color:#566731;font:32px/1 Georgia}
+#panel-model.is-picker .qd-model-empty-title{display:block;grid-column:1;grid-row:1;margin:0;font:600 17px/1.5 "Noto Serif CJK SC",serif}
+#panel-model.is-picker .qd-model-empty .qd-model-description{grid-column:1;grid-row:2;font-size:12px}
+#panel-model.is-picker .qd-model-manage-state{display:none}
+#panel-model.is-picker .qd-model-empty-actions{grid-column:2;grid-row:1/3;display:flex!important;align-items:center;justify-content:flex-end;gap:10px;width:auto}
+#panel-model.is-picker .qd-model-empty-actions button{box-sizing:border-box;display:inline-flex!important;align-items:center;justify-content:center;float:none!important;position:static!important;width:auto;min-width:116px;height:40px;margin:0!important;padding:0 12px!important;border:1px solid #697a43;border-radius:8px;background:#fdfbf6;color:#506131;white-space:nowrap;font:13px/1 "Noto Serif CJK SC",serif}
+#panel-model.is-picker .qd-model-empty-actions #model-manage{border-color:#cbbfa9;color:#494b3b}
+#panel-model.is-picker #panel-model-body:has(.qd-model-select:not(#model-builtin-smart):not(#model-builtin-local))~.qd-model-empty{margin-top:22px}
+#panel-model.is-picker #panel-model-body:has(.qd-model-select:not(#model-builtin-smart):not(#model-builtin-local))~.qd-model-empty .qd-model-empty-state{display:none}
+#panel-model.is-picker #panel-model-body:has(.qd-model-select:not(#model-builtin-smart):not(#model-builtin-local))~.qd-model-empty .qd-model-manage-state{display:block}
+#panel-model.is-picker #model-none,#panel-model.is-loading .qd-model-empty{display:none!important}
+#panel-model.is-picker .qd-model-actions{flex:none;display:flex!important;align-items:center;justify-content:flex-end;gap:20px;position:static;margin:10px -36px 0;padding:17px 31px 20px;border-top:1px solid #e4d9c6;background:#faf7efc9}
+#panel-model.is-picker .qd-model-actions button{float:none!important;display:inline-flex;align-items:center;justify-content:center;min-width:124px;height:42px;margin:0!important;padding:0 18px!important;border:1px solid #baa77c;border-radius:8px;background:#fcfaf5;color:#59613d;font:16px/1 "Noto Serif CJK SC",serif}
+#panel-model.is-picker .qd-model-actions #model-confirm{background:#53652f;border-color:#53652f;color:#fff}
+.qd-model-actions{display:none}
+@media(max-width:700px){body.reader-page #panel-model.mq-panel.is-picker{top:50%;width:calc(100vw - 24px)!important;height:min(734px,calc(100dvh - 24px));padding:24px 18px 0!important}#panel-model.is-picker .qd-model-library .article-body h2{font-size:27px!important}#panel-model.is-picker .qd-model-library .article-body p{font-size:13px}#panel-model.is-picker .qd-model-group{font-size:17px;flex-wrap:wrap}#panel-model.is-picker .qd-custom-model{padding-left:79px!important}#panel-model.is-picker .qd-custom-model:before{left:14px;width:48px;height:48px}#panel-model.is-picker .qd-model-empty{grid-template-columns:1fr;padding-left:64px;margin-top:28px}#panel-model.is-picker .qd-model-empty:before{left:16px}#panel-model.is-picker .qd-model-empty-actions{grid-column:1;grid-row:3;justify-content:flex-start;margin-top:8px}#panel-model.is-picker .qd-model-actions{margin-inline:-18px;padding:14px 18px}}
+
+/* Home reference: the same grid is visible before WASM finishes mounting. */
+.qd-brand-lockup{gap:28px;transform:translateY(-5px)}
+.qd-sidebar-footer{padding-bottom:8px}
+.qd-sidebar .qd-logout{position:absolute;top:26px;right:16px;min-height:0;width:22px;height:24px;border:0;margin:0;padding:0;font-size:0;gap:0;color:#807963}
+.qd-sidebar .qd-logout:before{font-size:20px}
+.qd-sidebar .qd-logout:after{display:none}
+body.reader-page #chat-stop:disabled{display:none!important}
+.qd-inspector:has(#qd-preview:not(:empty)) #qd-workspace-files,.qd-inspector:has(#qd-preview:not(:empty)) #qd-inspector-body{display:none}
+body.reader-page .qd-model-picker:before{content:"";width:18px;height:18px;background:currentColor;mask:var(--qd-line-icon) center/contain no-repeat}
+body.reader-page .qd-model-picker{--qd-line-icon:var(--qd-file-icon)}
+#panel-model.is-picker .qd-model-personal-intro{display:flex;align-items:center;gap:12px;margin:24px 0 16px;color:#303723;font:600 21px/1.35 "Noto Serif CJK SC",serif}
+#panel-model.is-picker .qd-model-personal-intro:before{content:"♙";color:#586b34}
+#panel-model.is-picker .qd-model-personal-intro:after{content:"自定义与私有模型";border:1px solid #ead9b6;border-radius:20px;padding:3px 12px;background:#f7edd9;color:#76603b;font:13px/1.3 "Noto Serif CJK SC",serif}
+#panel-model.is-picker .qd-model-empty{margin-top:0}
+#panel-model.is-picker #panel-model-body:has(#qd-model-group-personal)~.qd-model-personal-intro,#panel-model.is-loading .qd-model-personal-intro{display:none}
+#panel-model.is-catalog-error .qd-model-empty,#panel-model.is-catalog-error .qd-model-personal-intro{display:none!important}
+#panel-model.is-catalog-error #panel-model-body{padding:22px;border:1px solid #dbc7b1;border-radius:10px;background:#fcf6eb;color:#8b5941}
+#panel-model.is-picker #model-builtin-smart:after{content:"推荐";display:inline-block;margin-left:12px;padding:2px 7px;border-radius:4px;background:#586b36;color:#fff;font:12px/1.4 "Noto Serif CJK SC",serif}
+/* Home v3: typography, native line icons and baseline alignment. */
+body.reader-page{--qd-bg:#fbf9f5;--qd-ink:#282b23;--qd-muted:#827e73;--qd-line:#e2dcd1;--qd-accent:#55643b}
+body.reader-page .reader-content{padding-top:32px!important}
+.qd-sidebar{background:linear-gradient(105deg,#f4f1eb,#f0ede6);border-right-color:#e2dcd1}
+.qd-brand{font-weight:600}.qd-brand-caption{font-size:10px;letter-spacing:.36em}
+.qd-new-task{background:linear-gradient(100deg,#4d5d33,#5e6d40);border:1px solid #56643d;box-shadow:inset 0 1px 0 #ffffff14}
+.qd-sidebar-footer{border-top:1px solid #ded8cc;padding-top:12px;padding-bottom:8px}
+.qd-nav-item{height:44px;box-sizing:border-box;font-size:15px;transition:background .12s,color .12s;border-radius:6px}
+.qd-nav-item:hover{background:#e8e6da;color:#45532f}
+.qd-sidebar .qd-session{border:0;border-left:2px solid transparent;background:none;padding-right:12px;margin-bottom:10px}
+.qd-sidebar .qd-session:has(.is-active){border-left-color:#697742;background:#e7e8d9}
+.qd-sidebar .qd-session-select{font-size:14px!important;font-weight:550;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qd-session-meta{font-size:12px;color:#817b6b}
+.qd-workspace-header{background:#fbf9f5;border-bottom-color:#e2dcd1}
+.qd-breadcrumb-scope,.qd-workspace-title{font-size:15px}
+.qd-inspector{background:#fbf9f5}
+.qd-inspector-tabs{background:#fbf9f5}
+.qd-inspector-tab{font-size:16px;font-weight:600}
+.qd-preview-file{font-size:15px!important}
+.qd-reader-toolbar{background:#f9f6f0;height:42px;padding-inline:16px}
+.qd-reader-brand{font-size:14px}
+.qd-reader-footer{display:flex!important;align-items:center;gap:0;box-sizing:border-box;min-height:44px;margin:16px 0 0;border:1px solid #ded6c8;border-radius:8px;background:#fcfaf6}
+.qd-reader-footer .qd-reader-download{position:relative;flex:1;width:auto;min-height:42px;height:42px;margin:0;border:0;border-radius:0;background:none;font-size:14px;gap:12px}
+.qd-reader-footer .qd-reader-download+.qd-reader-download:after{content:"";position:absolute;left:0;top:11px;bottom:11px;border-left:1px solid #ded6c8}
+.qd-reader-footer .qd-reader-download:hover{background:#eeeade}
+.qd-show-source #preview-source-bottom{background:#e8eadc;color:#4f6035}
+.qd-reader-tool:focus-visible,.qd-reader-download:focus-visible,.qd-nav-item:focus-visible{outline:2px solid #8f9b70;outline-offset:3px}
+.qd-message .article-body,#qd-reply .article-body{color:#272b24}
+.qd-message .article-body p,#qd-reply .article-body p{margin:0 0 12px;line-height:1.65}
+.qd-message-role{background:linear-gradient(140deg,#eddec5,#e4d0ac);box-shadow:inset 0 1px 0 #ffffff80}
+.qd-message.is-assistant .qd-message-role,#qd-reply:before{background:linear-gradient(130deg,#78834e,#53613a);box-shadow:inset 0 1px 0 #ffffff35}
+.qd-plan-card{padding:14px 20px;border-color:#dfd8cb;background:#fcfaf6;border-radius:8px}
+.qd-plan-heading{margin-bottom:8px}
+.qd-plan-card .qd-workbench-title:before{content:"";width:20px;height:20px;background:#586a38;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2011v9H4V4h11%22%2F%3E%3Cpath%20d%3D%22m9%209%203%203%209-9%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;-webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2011v9H4V4h11%22%2F%3E%3Cpath%20d%3D%22m9%209%203%203%209-9%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;vertical-align:-3px}
+.qd-plan-step{padding-top:5px!important;padding-bottom:5px!important;font-size:14px}
+.qd-plan-step:before{top:7px}
+.qd-plan-step.is-running:before{background:transparent;border-color:#9a967d}
+.qd-plan-progress{height:8px;background:#e3ddd4}
+.qd-plan-fill{background:linear-gradient(90deg,#7f8754,#65723f)}
+.qd-artifact-card{padding-top:10px;padding-bottom:10px;border-color:#ded7cb;background:#fcfaf6;border-radius:8px}
+.qd-artifact-title{font-size:14px;font-weight:600}
+.qd-artifact-meta{font:12px/1.6 "Noto Sans CJK SC",sans-serif;color:#8b8477}
+.qd-artifact-link{display:inline-flex;align-items:center;min-height:24px;font-size:11px;margin-right:12px;outline-offset:2px}
+body.reader-page #qd-chrome{background:#fcfaf6!important;border-color:#a49c84!important;border-radius:12px!important}
+body.reader-page #chat-input{color:#282c23;font-size:15px}
+.qd-composer-tools{gap:12px;align-items:center}
+body.reader-page .mq-tool-label{height:35px;box-sizing:border-box;padding:0 11px;border-color:#e0d9cb;background:#fcfaf6}
+body.reader-page .qd-model-picker{position:relative;height:35px;padding:0 11px;border-color:#ded7c9;max-width:265px;font:13px "Noto Sans CJK SC",sans-serif}
+body.reader-page .qd-model-picker:before{content:"";display:block;width:18px;height:18px;flex:0 0 18px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m12%203%209%205v9l-9%205-9-5V8l9-5Z%22%2F%3E%3Cpath%20d%3D%22m3%208%209%205%209-5M12%2013v9M7.5%205.5l9%205%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;-webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m12%203%209%205v9l-9%205-9-5V8l9-5Z%22%2F%3E%3Cpath%20d%3D%22m3%208%209%205%209-5M12%2013v9M7.5%205.5l9%205%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat}
+body.reader-page .qd-model-picker:after{content:"";width:12px;height:12px;flex:0 0 12px;margin-left:2px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;-webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat}
+body.reader-page .qd-composer-plus{width:34px;height:35px;border-color:#ded7c9;background:#fcfaf6;font:25px/1 system-ui}
+body.reader-page #chat-send{width:42px;height:42px;flex-basis:42px!important;border-radius:8px;background:#53633a}
+body.reader-page #chat-send:before{width:22px;height:22px;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m4%203%2017%209-17%209%204-9-4-9Z%22%2F%3E%3Cpath%20d%3D%22M8%2012h13%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;-webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m4%203%2017%209-17%209%204-9-4-9Z%22%2F%3E%3Cpath%20d%3D%22M8%2012h13%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat}
+body.reader-page #chat-send:disabled{display:none!important}
+body.reader-page #chat-stop:disabled{display:none!important}
+body.reader-page #chat-stop:not(:disabled){display:grid!important;place-items:center;box-sizing:border-box;width:42px;height:42px;padding:0;border:1px solid #819064;border-radius:8px;background:#edf0e3;color:#58683d;font-size:0}
+body.reader-page #chat-stop:not(:disabled):before{content:"";display:block;width:13px;height:13px;border-radius:2px;background:currentColor}
+body.reader-page .mq-action{width:42px!important;flex:0 0 42px!important}
+@media(max-width:760px){.qd-reader-footer .qd-reader-download{font-size:12px}.qd-composer-tools{gap:8px}body.reader-page .qd-model-picker{max-width:170px;font-size:11px}body.reader-page #chat-input{font-size:14px}.qd-nav-item{font-size:15px}}
+
+/* The plan, receipts and deliverables share one reading order without moving DOM nodes. */
+#qd-conversation{display:grid;grid-template-columns:minmax(0,1fr)}
+#qd-dialogue{order:0}
+#qd-workbench,#qd-workbench>.mq-view,#qd-workbench .qd-workbench-content{display:contents!important}
+#qd-workbench .qd-plan-card{order:1;margin-left:24px;margin-bottom:0}
+#qd-workbench .qd-child-task{order:1;margin-left:24px}
+#qd-execution{order:2}
+#qd-workbench .qd-deliverables{order:3;margin:0 0 0 24px}
+#qd-reply{order:4;margin-top:24px}
+@media(max-width:760px){#qd-workbench .qd-plan-card,#qd-workbench .qd-child-task,#qd-workbench .qd-deliverables{margin-left:0}}
+
+/* Reference pass 2: reduce weight and preserve evidence behind an explicit disclosure. */
+.qd-message.is-assistant{margin-bottom:18px!important}
+.qd-message .article-body,#qd-reply .article-body{font-size:15px!important;line-height:1.6!important}
+.qd-plan-criteria{display:none!important}
+.qd-plan-criteria-open .qd-plan-criteria{display:block!important}
+.qd-plan-criteria-toggle{display:block;margin:7px 0 0 44px;padding:0;border:0;background:none;color:#7d7968;font:11px/1.5 "Noto Sans CJK SC",sans-serif;cursor:pointer}
+.qd-plan-criteria-toggle:after{content:" ›";color:#92937a}
+.qd-plan-criteria-open .qd-plan-criteria-toggle:after{content:" ⌄"}
+.qd-plan-card{position:relative}
+.qd-plan-step{padding-top:4px!important;padding-bottom:4px!important}
+body.reader-page .qd-execution{margin-top:16px!important;margin-bottom:20px!important}
+.qd-artifact-card{box-sizing:border-box;min-height:66px;padding:10px 90px 10px 62px}
+.qd-artifact-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qd-artifact-meta{margin-bottom:0}
+.qd-artifact-card .qd-artifact-link{position:absolute;top:24px;right:12px;display:grid;place-items:center;width:20px;height:22px;min-height:0;margin:0;padding:0;border:0;background:none;color:#7c755f;font-size:0}
+.qd-artifact-card .qd-artifact-link:before{content:"";display:block;width:18px;height:18px;background:currentColor;mask:var(--qd-line-icon) center/contain no-repeat;-webkit-mask:var(--qd-line-icon) center/contain no-repeat}
+.qd-artifact-card button.qd-artifact-preview{right:62px;--qd-line-icon:var(--qd-file-icon)}
+.qd-artifact-card a.qd-artifact-link{right:37px;--qd-line-icon:var(--qd-download-icon)}
+.qd-artifact-card a[href*="format=source"]{right:12px;--qd-line-icon:var(--qd-file-icon)}
+.qd-artifact-card .qd-artifact-link:hover{color:#4c6330;background:#e9ecde;border-radius:3px}
+.qd-artifact-card:before{top:16px}
+@media(max-width:760px){.qd-message .article-body,#qd-reply .article-body{font-size:14px!important}.qd-artifact-card{padding-right:90px}}
+
+/* Reference pass 3: optical gutters, compact criteria control and actual asset masks. */
+body.reader-page{--qd-download-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203v12m-5-5%205%205%205-5M4%2016v5h16v-5%22%2F%3E%3C%2Fsvg%3E");--qd-code-icon:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m8%207-5%205%205%205m8-10%205%205-5%205M14%203l-4%2018%22%2F%3E%3C%2Fsvg%3E")}
+body.reader-page .reader-content,body.reader-page.qd-inspector-open .reader-content{padding-right:28px!important;scrollbar-width:none}
+.qd-inspector{scrollbar-width:none}
+.reader-content::-webkit-scrollbar,.qd-inspector::-webkit-scrollbar{display:none}
+.qd-plan-card{padding-bottom:18px}
+.qd-plan-criteria-toggle{position:absolute;top:18px;right:108px;margin:0;font-size:11px}
+#qd-workbench .qd-deliverables{margin-top:20px}
+.qd-artifact-card a[href*="format=source"]{--qd-line-icon:var(--qd-code-icon)}
+#qd-preview .qd-markdown .article-body{max-width:none!important;padding:0!important;margin:0!important}
+#qd-preview .qd-markdown .article-body h1{margin:0 0 8px!important;font:600 27px/1.35 "Noto Serif CJK SC",serif!important}
+#qd-preview .qd-markdown .article-body h2{margin:20px 0 9px!important;color:#826520;font:600 19px/1.45 "Noto Serif CJK SC",serif!important}
+#qd-preview .qd-markdown .article-body p{font:15px/1.5 "Noto Serif CJK SC",serif!important;margin:0 0 12px!important}
+#qd-preview .qd-markdown table{width:100%;font:12px/1.5 "Noto Serif CJK SC",serif}
+#qd-preview .qd-markdown th{background:#f3ead7}
+#qd-preview .qd-markdown th,#qd-preview .qd-markdown td{padding:4px 7px}
+@media(max-width:760px){body.reader-page .reader-content,body.reader-page.qd-inspector-open .reader-content{padding-right:18px!important}.qd-plan-criteria-toggle{right:88px;font-size:10px}#qd-preview .qd-markdown .article-body h1{font-size:24px!important}}
+
+/* The manuscript scrolls inside its frame; native reader actions remain reachable. */
+.qd-inspector:has(#qd-preview:not(:empty)){display:flex;flex-direction:column;overflow:hidden}
+.qd-inspector:has(#qd-preview:not(:empty)) .qd-inspector-tabs{flex:none}
+.qd-inspector:has(#qd-preview:not(:empty)) .qd-preview-document{display:flex;flex-direction:column;flex:1;min-height:0}
+.qd-preview-file{flex:none}
+.qd-inspector:has(#qd-preview:not(:empty)) .qd-reader-frame{display:flex;flex-direction:column;flex:1;min-height:0}
+.qd-reader-toolbar{flex:none}
+.qd-inspector:has(#qd-preview:not(:empty)) #qd-preview{flex:1;min-height:0;overflow:auto;scrollbar-width:thin}
+.qd-reader-footer{flex:none}
+.qd-preview-source{flex:1;min-height:0;overflow:auto}

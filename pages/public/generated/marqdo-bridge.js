@@ -1432,13 +1432,13 @@ export async function mount(rawOpts = {}) {
     throw new Error(result.error || "boot failed");
   }
 
-  if (result.value && !Array.isArray(result.value)) {
-    await applyEffects(exports, result.value, { onError });
-  }
-
   const n = wireEvents(exports, result.value, { onError });
   const srcLabel = opts.sourceUrl || "(inline)";
   markReady(opts, `marqdo-wasm ${ver} · wired ${n} handler(s)\nsource: ${srcLabel}`);
+
+  if (result.value && !Array.isArray(result.value)) {
+    await applyEffects(exports, result.value, { onError });
+  }
   return { exports, boot: result, wired: n };
 }
 

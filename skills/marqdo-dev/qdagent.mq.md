@@ -18,6 +18,9 @@ import:
   live: ../../deploy/agent-verify.mq.md
 ---
 
+> 运行入口已迁移：生产站点使用 React + Go + Python，见 README.md 与 deploy/build.sh。本文件保留为 Marqdo 工具与旧宿主的开发参考，不再用其 serve 启动生产站点。实际智能体任务仍通过登记的 marqdo call 完成。
+
+
 所有开发执行流使用 marqdo call，文件读取和写入使用原生 fs。业务、工具、提示词、控制服务与客户端均为 .mq.md；跨 HTTP 的后台进程与文件锁由已登记 ABI 插件补齐。不修改 Marqdo 源码。
 
 阅读顺序是 pages/control/plugins.mq.md、sessions.mq.md、pages/agent/runner.mq.md 与 executor.mq.md，再看 pages/public/client.mq.md 和 pages/views/shell.mq.md。参数与返回值在各函数标题下面，真实动作使用遮蔽调用。对话为普通 Markdown，实际行动必须形成 marqdo call。

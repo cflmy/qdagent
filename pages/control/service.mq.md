@@ -394,3 +394,25 @@ We **nodes = table.empty_list()** and **n = 0** and **count = table.len(xs=`rows
   1. `n` < `count`
     We **nodes = table.concat(a=`nodes`,b=ui.message(source=access(`row`,"answer"),role="assistant"))**.
 Return *[对话正文与阅读器共享原生 Markdown](table.put(in=table.put(in=None,at="html",value=ui.render(nodes=`nodes`)),at="count",value=`count`))*.
+
+## model_catalog
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| epoch | any | 0 | 当前视图序号 |
+| principal | text | "local" | 宿主认证身份 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 当前账号公开模型目录 |
+
+Use `epoch`=0 and `principal`="local"。模型选择独立读取配置目录，不等待会话锁、历史渲染或插件目录。这里只投影公开名称和不透明身份，不访问推理服务，不解密或返回凭据。没有模型与读取失败分别展示；列表返回并不证明远程服务在线。
+
+The authenticated gateway injects the owner. Opening this catalogue cannot start a task or change a running worker. The response epoch only filters stale browser observations and never selects a filesystem root. Default adoption remains a direct client decision before the user's first explicit choice.
+
+We **entries = models.list(principal=`principal`)**.
+We **out = table.put(in=None,at="ok",value=True)**.
+We **out = table.put(in=`out`,at="epoch",value=str(`epoch`))**.
+We **out = table.put(in=`out`,at="models_html",value=panels.models(entries=`entries`))**.
+We **out = table.put(in=`out`,at="default_model",value=models.preferred(principal=`principal`))**.
+Return *[只返回账号可见的目录](table.put(in=`out`,at="model_titles",value=models.titles(principal=`principal`)))*.

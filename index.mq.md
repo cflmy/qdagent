@@ -8,6 +8,9 @@ import:
   sessions: pages/control/sessions.mq.md
 ---
 
+> 运行入口已迁移：生产站点使用 React + Go + Python，见 README.md 与 deploy/build.sh。本文件保留为 Marqdo 工具与旧宿主的开发参考，不再用其 serve 启动生产站点。实际智能体任务仍通过登记的 marqdo call 完成。
+
+
 求道是使用 Marqdo 开发的工程智能体。你可以自然描述任务，阅读普通 Markdown 回答，
 再从执行面板查看它实际请求了哪个模型、调用了哪个工具、使用哪些参数、得到了什么结果。
 回答中的一句“已完成”不能代替真实操作：实际工作必须通过登记工具形成 marqdo call。

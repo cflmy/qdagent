@@ -26,7 +26,7 @@ Navigation and preview state are initialized once per tab. Backend histories and
 
 Pane widths begin at the reference dimensions and then request an optional local preference. Storage does not control login, task identity or file access. Drag state is tab-local and separate from the selected document. Source text remains a bounded accepted snapshot, so its download never requests an arbitrary server path. The inspector starts available on desktop; media rules turn it into a drawer on small screens.
 
-We **model = "none"** and **kb = "none"** and **question = ""** and **gen = 0** and **phase = "loading"** and **last_html = ""** and **last_answer = ""** and **last_workbench = ""** and **model_saving = False** and **upload_busy = False** and **upload_session = ""** and **upload_epoch = 0** and **upload_id = ""** and **upload_total = 0** and **upload_offset = 0** and **upload_read_size = 0** and **upload_phase = ""** and **ans_sel = ""** and **session_id = "default"** and **view_epoch = 1** and **trace_seen = 0** and **trace_open = ""** and **nav_open = False** and **inspector_open = True** and **inspector_initial = True** and **preview_gen = 0** and **model_titles = table.empty_map()** and **model_chosen = False** and **layout_sidebar = 267** and **layout_inspector = 496** and **drag_region = ""** and **drag_anchor = 0** and **drag_start = 0** and **preview_source = ""** and **preview_filename = "document.mq.md"**.
+We **model = "none"** and **model_pending = "none"** and **kb = "none"** and **question = ""** and **gen = 0** and **phase = "loading"** and **last_html = ""** and **last_answer = ""** and **last_workbench = ""** and **model_saving = False** and **upload_busy = False** and **upload_session = ""** and **upload_epoch = 0** and **upload_id = ""** and **upload_total = 0** and **upload_offset = 0** and **upload_read_size = 0** and **upload_phase = ""** and **ans_sel = ""** and **session_id = "default"** and **view_epoch = 1** and **trace_seen = 0** and **trace_open = ""** and **nav_open = False** and **inspector_open = True** and **inspector_initial = True** and **preview_gen = 0** and **model_titles = table.empty_map()** and **model_chosen = False** and **layout_sidebar = 267** and **layout_inspector = 496** and **drag_region = ""** and **drag_anchor = 0** and **drag_start = 0** and **preview_source = ""** and **preview_filename = "document.mq.md"**.
 We **bindings = [绑定原生委托事件](table.put(in=None, at="wire", value=_bindings()))**.
 We **ready = [恢复已有任务](browser.set_text(sel="#chat-status", text="正在恢复任务…"))**.
 We **ready = _merge(a=`ready`,b=_merge(a=browser.add_class(sel="body",class="qd-inspector-open qd-inspector-initial"),b=browser.store_get(key="qdagent.panes.v3",scope="local",then="restore_layout")))**.
@@ -82,6 +82,9 @@ Reader controls act only on the already accepted document. The source toggle can
 | 22 | #model-form | submit | save_model | | |
 | 23 | #panel-model-body | click | pick_custom_model | | .qd-model-select |
 | 24 | #panel-model-body | click | remove_model | | .qd-model-remove |
+| 45 | #model-cancel | click | cancel_model | | |
+| 46 | #model-confirm | click | confirm_model | | |
+| 47 | #model-add | click | open_model_settings | | |
 | 25 | #nav-toggle | click | toggle_navigation | | |
 | 26 | #inspector-toggle | click | toggle_inspector | | |
 | 27 | #inspector-close | click | toggle_inspector | | |
@@ -98,10 +101,11 @@ Reader controls act only on the already accepted document. The source toggle can
 | 38 | body | pointercancel | end_resize | | |
 | 39 | #resize-sidebar,#resize-inspector | keydown | resize_keyboard | | |
 | 40 | #resize-sidebar,#resize-inspector | dblclick | reset_layout | | |
-| 41 | #preview-source | click | toggle_preview_source | | |
+| 41 | #preview-source,#preview-source-bottom | click | toggle_preview_source | | |
 | 42 | #preview-expand | click | expand_preview | | |
 | 43 | #preview-download | click | download_preview | | |
 | 44 | #qd-workbench | click | toggle_plan | | .qd-plan-toggle |
+| 48 | #qd-workbench | click | toggle_plan_criteria | | .qd-plan-criteria-toggle |
 
 Return *wire*.
 
@@ -775,7 +779,13 @@ Return *[居中打开并聚焦关闭按钮](_merge(a=`opened`, b=_merge(a=table.
 
 The composer opens a compact selection list. Adding or editing a connection is an explicit management action from the sidebar or the list footer, so choosing a model does not expose a credential form unnecessarily.
 
-Return *[快捷选择下一轮模型](_merge(a=_show_panel(id="#panel-model",tab="#tab-model"),b=browser.add_class(sel="#panel-model",class="is-open is-picker")))*.
+The pending choice starts from the committed next-turn model. Merely opening the dialog neither changes that model nor starts inference. The catalogue fetch is independent of task recovery, so a locked worker or a long conversation cannot keep this list waiting. Reopening performs a fresh owner-scoped read. Loading hides the personal-model empty state until a real response distinguishes a missing profile from a failed request. The endpoint and callback are fixed source names, never values supplied by a model response.
+
+We **model_pending = `model`**.
+We **panel = _merge(a=_show_panel(id="#panel-model",tab="#tab-model"),b=browser.add_class(sel="#panel-model",class="is-open is-picker is-loading"))**.
+We **loading = browser.set_text(sel="#panel-model-body",text="正在读取可用模型…")**.
+We **request = _control_request(address=("/api/model_catalog?epoch=" + str(`view_epoch`)),epoch=`view_epoch`,callback="on_model_catalog")**.
+Return *[打开后独立读取真实目录](_merge(a=`panel`,b=_merge(a=`loading`,b=`request`)))*.
 
 ## open_plugins
 
@@ -883,17 +893,31 @@ We **labels = [更新模型角标](table.put(in=`labels`, at="#chat-model-label,
 We **labels = [合成同一文本效果](table.put(in=None, at="set_text", value=`labels`))**.
 Return *[应用模型选择外观](_merge(a=`closed`, b=_merge(a=_merge(a=`remove`, b=`add`), b=`labels`)))*.
 
+## _stage_model_choice
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | any | 仅更新弹窗中的待确认高亮 |
+
+暂存阶段只移动卡片高亮，不改输入栏的模型名称，不保存用户选择。用户点取消、关闭、遮罩或 Esc 时，原选择依旧有效。\n\n待确认身份只从本次服务端返回的公开模型列表或固定的内置 none 选项而来。客户端根据该身份找到已渲染按钮，先清除列表中旧的高亮，再为当前卡片添加选中样式。这里不执行字符串拼接成代码、不访问 API、不写浏览器存储，也不改变用户账号的模型默认值。\n\n如果服务列表尚未完成，静态的“暂不运行模型”仍可预览；模型列表一旦渲染，下一次打开会依据当前已提交模型重新初始化待选值。响应只修改弹窗内的 class，因此滚动位置、知识来源、会话切换和对话输入均保持不变。动态卡片继续使用稳定父节点委托，新的自定义服务无需增加浏览器事件监听。
+
+We **active = "#model-" + `model_pending`**.
+1. `model_pending` == "none"
+  We **active = "#model-none"**.
+We **clear = browser.remove_class(sel=".qd-model-select,#model-none",class="is-active")**.
+We **mark = browser.add_class(sel=`active`,class="is-active")**.
+Return *[呈现待确认项](_merge(a=`clear`,b=`mark`))*.
+
 ## pick_none
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
-| result | any | 选 none |
+| result | any | 暂存 none，确认后不运行模型 |
 
-在直接事件入口保存 none，下一轮不启动模型；已有对话、任务目录和能力面板仍可阅读。
+选择先保存在本次对话的待确认状态；点确定后才会把下一轮设为不运行模型，已有对话、任务目录和能力面板仍可阅读。
 
-We **model_chosen = True**.
-We **model = "none"**.
-Return *[选 none](_model_chrome(active="#model-none", label="none"))*.
+We **model_pending = "none"**.
+Return *[暂存不运行模型](_stage_model_choice())*.
 
 ## pick_qwen
 
@@ -974,6 +998,9 @@ Use `a` and `b`。官方 merge 是浅合并；状态行与执行卡片都使用 
 
 For example, set_text can update both chat-status and qd-event-4-output in one callback. The two selectors must survive together. This helper is limited to known DOM-target maps and does not concatenate asynchronous operations or change the official bridge.
 
+
+空映射也是合法更新，不能通过 truthiness 判断它是否存在。工具卡片首次追加时通常没有需要替换的 HTML 叶节点；此时空的 set_html 必须保留先前的历史、计划和回复映射。双方键都存在时始终合并内部映射，只有缺少键才采用普通外层覆盖。相同选择器仍由后者决定，不同选择器全部保留。
+
 We **out = browser.merge(a=`a`, b=`b`)**.
 
 `keys` =
@@ -990,7 +1017,7 @@ We **out = browser.merge(a=`a`, b=`b`)**.
 
 - [保留不同目标的同类效果](for keys as key)
   We **left = json.get(value=`a`, key=`key`)** and **right = json.get(value=`b`, key=`key`)**.
-  1. `left` and `right`
+  1. `left` != None and `right` != None
     We **both = browser.merge(a=`left`, b=`right`)**.
     We **out = table.put(in=`out`, at=`key`, value=`both`)**.
 Return *out*.
@@ -1194,16 +1221,50 @@ Return *[收齐后请求原子发布](_upload_request(payload=`payload`, epoch=`
 |---|---|---|
 | result | any | 保存下一轮选择并关闭面板 |
 
-Use `data_id`=""。委托事件读取业务身份，不把 DOM id 当作供应商模型名。该身份由服务端保存响应或当前用户清单提供；实际调用仍会验证拥有者。选择只影响下一轮，不改写运行中的作业，也不在浏览器读取 API Key。
+Use `data_id`=""。委托事件只暂存服务端返回的配置身份，不能把 DOM id 当成供应商模型名。实际选用发生在用户确认后；取消或关闭面板保留原模型。
 
 1. `data_id` == ""
   Return *None*.
-We **model_chosen = True**.
-We **model = `data_id`**.
+We **model_pending = `data_id`**.
+Return *[预览当前待确认选项](_stage_model_choice())*.
+
+## cancel_model
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | any | 取消暂存选择并关闭模型面板 |
+
+取消只关闭选择器。由于卡片点击暂存于 `model_pending`，当前正在使用的模型、后续发送目标和任务状态都保持不变。
+
+We **model_pending = `model`**.
+Return *[取消模型更改](_merge(a=close_panels(),b=browser.remove_class(sel="#panel-model",class="is-picker")))*.
+
+## confirm_model
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | any | 提交待选模型并关闭模型面板 |
+
+只有确认按钮会把预览选择提交为下一轮模型。活动任务仍使用其开始时绑定的模型。选项显示使用人类可读名称，内部状态保持服务端模型身份。\n\n打开选择器时会先复制当前模型到待确认状态。点击某张卡片只改变待确认身份和当前弹窗内的选中描边，聊天输入栏上的模型名称不动，任务提交也不会读到这份暂存值。按“取消”、右上角关闭、遮罩或 Escape 都只结束这次查看；下一次打开仍从已提交的模型开始。这样用户可以比较本机、共享和私有配置，最后再明确提交。\n\n确认时，客户端把待确认身份赋给下一轮模型变量，将按钮标签转为可读名称，并清除浮层状态。没有自定义标题的内置模型也有固定的中文名称，因此页面不会再把 builtin-smart 这样的内部身份直接展示给用户。正在运行的任务已由服务端绑定模型，确认不会改变其输入、结果、工具权限或工作目录。确认完成后，模型角标与本轮选择同时更新，面板才关闭；取消不会触发推理请求、插件操作或模型服务调用。该提交仅更新当前浏览器任务下一次发送将携带的 opaque 模型身份；凭据仍由服务端托管，模型内容不会写入 URL 或本地存储。当前任务的对话、运行进度和上传文件都保持在原位置。
+
+We **model = `model_pending`** and **model_chosen = True**.
 We **name = json.get(value=`model_titles`,key=`model`)**.
+1. `model` == "none"
+  We **name = "暂不运行模型"**.
+1. `model` == "builtin-smart"
+  We **name = "智能模型（默认）"**.
+1. `model` == "builtin-local"
+  We **name = "Qwen（本机）"**.
+1. `model` == "qwen3.5:4b-q4_K_M"
+  We **name = "Qwen（本机）"**.
 1. not `name`
   We **name = "自定义模型"**.
-Return *[下一轮使用该配置](_model_chrome(active=("#model-" + `model`), label=`name`))*.
+We **active = "#model-" + `model`**.
+1. `model` == "none"
+  We **active = "#model-none"**.
+1. `model` == "qwen3.5:4b-q4_K_M"
+  We **active = "#model-qwen"**.
+Return *[确认模型并为下一轮使用](_merge(a=browser.remove_class(sel="#panel-model",class="is-picker"),b=_model_chrome(active=`active`,label=`name`)))*.
 
 ## _model_request
 
@@ -1370,7 +1431,7 @@ Return *[使用本地 Web 宿主有界 ABI](table.put(in=None, at="read_file", v
 
 官方桥接按固定顺序应用效果，add_class 在 set_html 之前。新建模型的按钮若在同一效果中才被创建，高亮会丢失；因此使用独立的一次 interval 回调，在 DOM 更新后再应用选择样式。它进入后立即清除自己的定时器，不进行后台轮询，也不会与任务拉取的 after 键冲突。
 
-The callback reads the latest persisted model, so a fast user change cannot apply a stale profile's highlight. No model request or settings mutation occurs here. The modal remains in its existing state, and the separate form is preserved. This same synchronization is used after a restored public list and after save or delete, retaining consistent behavior for dynamic controls.
+The callback reads the latest persisted model, so a fast user change cannot apply a stale profile's highlight. No model request or settings mutation occurs here. The modal remains in its existing state, and the separate form is preserved. This same synchronization is used after a restored public list and after save or delete, retaining consistent behavior for dynamic controls.\n\nThe visible composer label is a user-facing name, not a provider id. Built-in aliases are translated to stable Chinese labels, including the shared default and local Qwen option. Private profile ids are resolved through the public title map, which contains no credential fields. If a legacy local model is still saved under its old full Ollama name, it highlights the compatibility selector and displays the same short local name. A `none` choice keeps its explicit no-model meaning instead of pretending a provider is configured.
 
 We **active = "#model-none"** and **label = `model`**.
 1. `model` == "none"
@@ -1379,7 +1440,11 @@ We **active = "#model-none"** and **label = `model`**.
   We **active = "#model-" + `model`**.
 1. `model` == "qwen3.5:4b-q4_K_M"
   We **active = "#model-qwen"**.
-1. text.starts_with(text=`model`, prefix="custom-")
+1. `model` == "builtin-smart"
+  We **label = "智能模型（默认）"**.
+1. `model` == "builtin-local" or `model` == "qwen3.5:4b-q4_K_M"
+  We **label = "Qwen（本机）"**.
+1. `model` != "none" and `model` != "builtin-smart" and `model` != "builtin-local" and `model` != "qwen3.5:4b-q4_K_M"
   We **label = json.get(value=`model_titles`,key=`model`)**.
   1. not `label`
     We **label = "自定义模型"**.
@@ -1574,7 +1639,7 @@ We **paint = browser.set_html(sel="#qd-preview",html=json.get(value=`parsed`,key
 We **paint = _merge(a=`paint`,b=browser.set_text(sel="#qd-preview-source",text=`preview_source`))**.
 We **paint = _merge(a=`paint`,b=browser.remove_class(sel="#qd-inspector",class="qd-show-source"))**.
 We **paint = _merge(a=`paint`,b=table.put(in=None,at="scroll_into",value="#qd-preview-title"))**.
-Return *[标题与文稿分别更新](_merge(a=`paint`,b=browser.set_text(sel="#qd-preview-title",text=json.get(value=`parsed`,key="title"))))*.
+Return *[标题与文稿分别更新](_merge(a=`paint`,b=browser.set_text(sel="#qd-preview-title",text=`preview_filename`)))*.
 
 ## show_activity
 
@@ -1620,7 +1685,11 @@ Return *[只展开原生侧注](table.put(in=None,at="set_attr",value=table.put(
 
 配置和选择是不同操作。输入区打开紧凑的已有模型列表，侧栏和管理按钮打开完整表单；同一份真实模型清单持续复用，避免出现两套选择状态。进入配置不启动推理，不清空当前对话或输入，关闭后回到任务。
 
-Return *[管理入口显示完整配置](_merge(a=_show_panel(id="#panel-model",tab="#nav-settings"),b=browser.remove_class(sel="#panel-model",class="is-picker")))*.
+The settings view reuses the same authenticated catalogue and public names as the composer. It keeps the credential form outside the replaced list, preserving a partially entered service configuration while a read is pending. Switching between selection and management changes presentation only; it does not save a provider, reveal a stored key or alter an active worker. Actual writes remain explicit same-origin form submissions and retain the existing encryption boundary.
+
+We **panel = _merge(a=_show_panel(id="#panel-model",tab="#nav-settings"),b=browser.remove_class(sel="#panel-model",class="is-picker"))**.
+We **request = _control_request(address=("/api/model_catalog?epoch=" + str(`view_epoch`)),epoch=`view_epoch`,callback="on_model_catalog")**.
+Return *[管理页同样读取账号目录](_merge(a=`panel`,b=`request`))*.
 
 
 ## toggle_plan
@@ -1852,3 +1921,44 @@ The handler runs as a direct browser entry so its state persists in the official
 1. `preview_source` == ""
   Return *None*.
 Return *[保存当前源稿](browser.download(body=`preview_source`,filename=`preview_filename`,mime="text/markdown;charset=utf-8"))*.
+
+## on_model_catalog
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| results | list | 当前目录请求的真实响应 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 列表、错误和选择高亮 |
+
+Use `results`。过期视图的响应不改界面；当前请求失败显示可读的重试提示，不伪装为空目录。只在首次还没有选择时采用服务端默认模型。手动选择、取消和确认保持独立；读取目录不会启动推理、改动工作区或关闭浮层。
+
+The callback is a direct browser entry, so adopted model state survives later clicks. HTML comes from the trusted native component renderer; credentials never enter this projection. Highlighting is scheduled after the new nodes exist. A failed request removes loading presentation and keeps the explicit error visible; reopening the picker retries the actual authenticated endpoint.
+
+A failed observation leaves the diagnostic in the list region and hides the personal empty card, because an unread catalogue cannot establish that the user has no profiles. A later successful read clears that presentation error. The callback returns HTML and selection synchronization as separate effects: insertion happens before the one-shot highlight callback, following the official bridge's execution order. It does not rebuild the form, conversation, trace or workspace navigation.
+
+We **parsed = _control_result(results=`results`,epoch=`view_epoch`)**.
+1. not `parsed`
+  Return *None*.
+We **paint = browser.remove_class(sel="#panel-model",class="is-loading")**.
+1. json.get(value=`parsed`,key="ok") != True
+  We **paint = _merge(a=`paint`,b=browser.add_class(sel="#panel-model",class="is-catalog-error"))**.
+  Return *[失败可重试](_merge(a=`paint`,b=browser.set_text(sel="#panel-model-body",text="模型目录读取失败，请关闭后重试。")))*.
+We **paint = _merge(a=`paint`,b=browser.remove_class(sel="#panel-model",class="is-catalog-error"))**.
+We **model_titles = json.get(value=`parsed`,key="model_titles")**.
+We **preferred = json.get(value=`parsed`,key="default_model")**.
+1. not `model_chosen` and `preferred` and `preferred` != "none"
+  We **model = `preferred`** and **model_pending = `preferred`** and **model_chosen = True**.
+We **paint = _merge(a=`paint`,b=browser.set_html(sel="#panel-model-body",html=json.get(value=`parsed`,key="models_html")))**.
+Return *[列表建立后再选中](_merge(a=`paint`,b=browser.interval(ms=25,then="sync_model_choice",id="model-choice")))*.
+
+## toggle_plan_criteria
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 目标与验收说明的可逆展开 |
+
+计划的步骤清单保持独立，目标与验收通过卡片底部的明确按钮展开。这里仅控制阅读，不更新计划、不改变完成数，也不触发任何工具。材料仍在同一原生 DOM 节点内，普通任务轮询不会因为该按钮而重复执行操作。按钮位于稳定的工作台父节点之内，通过已登记的委托事件触发，不要求新增 JavaScript。用户可以反复查看完成依据；隐藏正文不会把尚未满足的验收变为成功。
+
+Return *[只改变依据的阅读空间](browser.toggle_class(sel="body",class="qd-plan-criteria-open"))*.
