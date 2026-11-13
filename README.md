@@ -20,6 +20,23 @@ Go 服务不嵌入 Marqdo VM。工具和读取器使用独立 CLI 子进程，�
 
 子任务和 Office 能力本轮复用既有 Marqdo 适配器，没有重复开发第二套插件。后续可逐个替换其内部实现，稳定的调用合同和真实收据保持一致。原来的 `pages/public/client.mq.md`、Web 启动器和开发技能保留作迁移参考，**已经不是生产站点入口**。
 
+## 根 SKILL：必须经过的四阶段工程流程
+
+每个新目标先意图拆解，再基本方案、并行细化、方案落地。已注册的 `root-skill` 插件以 [ext/root-skill/index.mq.md](ext/root-skill/index.mq.md) 为入口；它是实际执行程序，按阶段加载 guides/ 中的工程文档。模型的工具参数来自该入口的官方 MLSP 契约，宿主只投影协议，不另写一套语言或阶段规则。
+
+1. 模型调用 `skill_intent` 提问，用户可选择、自由输入、多轮澄清，确认意图才前进。
+2. `skill_outline` 创建 `solution/plan.mq.md` 的真实函数骨架，右侧通过官方 View 阅读。用户确认这份确切源码，同时选择并发数和子模型。
+3. 每个子智能体只处理一个登记单元，通过 `author_unit` 生成候选，再由 `trial_unit` 实际校验与运行案例。可以选 `literal` 写有来源的固定结构、`select` 通过键路径读取真实输入，或 `code` 写业务逻辑。不熟悉语法时也可先使用模板。失败保留实际诊断和可继续修复的进度。
+4. `skill_integrate` 将已验证单元、叙述、用户交流合成 `solution/index.mq.md`，再次检查和冒烟执行。最终用户审阅并验收；未接通项必须可见、明确接受后仍标为部分完成。
+
+主模型未能提供阶段调用时，宿主会明确提示并通过同一 Marqdo 函数创建基础提问、待确认框架或据实整合；不会生成业务假结果。整合阶段连续六轮没有成功的业务操作时也会执行这项有界整合，避免无限重复读取或验证，最终仍须用户审阅。
+
+四个阶段不能用提示词或一个“已完成”跨过。用户确认接口不向模型注册；阶段门禁在实际执行器开启副作用之前再次校验。私有版本状态位于会话根，普通任务文件不能覆盖它。原子版本提交合并并发结果，旧确认、被修改的框架、失效源码摘要均会被拒绝。`solution/decisions.mq.md` 保留最终验收与后续补充，同时保持已审阅入口的摘要稳定。
+
+框架当前允许最多八个单元，子任务并发一到八，可分别选择已有可用模型或继承主模型；不会静默换模型。服务全局按所选并发预留最多八份容量。子智能体不能再递归派生，单元依赖只能引用已声明的前置单元，最终入口按依赖顺序传递实际返回。并发是代码创作与独立案例验证，不能借此提前执行未获确认的外部副作用。
+
+编译通过、声明案例通过、整合冒烟、业务验收分别保留，前几项并不证明所有输入或外部事实正确。试运行只有隔离目录内的文件效果，不含网络、进程和插件执行；需要外部业务操作的任务须在方案落地阶段通过既有登记工具完成。停用根插件会阻止新运行，不能把它当作跳过工程流程的开关。运行中显示真实阶段、子模型、工具参数、实际诊断与提供方实际返回的解释。
+
 ## Docker 启动
 
 保持唯一对外端口 **7964**。镜像内仍提供 Marqdo、Python、Node、SQLite、Git 和 Office 转换环境；以 UID 10001、只读代码目录、最小能力运行，不挂载 Docker socket 或宿主工作区。
@@ -30,14 +47,14 @@ Go 服务不嵌入 Marqdo VM。工具和读取器使用独立 CLI 子进程，�
 - `.marqdo/secrets/model_key`：原有 32 字节 AES 主密钥的十六进制文本；已有数据库必须保留原密钥。
 
 ```sh
-# 构建入口需要宿主 Go、Docker Compose，以及已安装的 Marqdo。
+# 构建入口需要宿主 Go、Rust、Docker Compose，以及已安装的 Marqdo 和本地 Rust 依赖缓存。
 ./deploy/build.sh
 docker compose up -d --no-build qdagent
 docker compose ps
 curl http://127.0.0.1:7964/healthz
 ```
 
-构建入口将当前 CLI 和经过 `go.sum` 校验的 Go 依赖准备到专用目录，避免容器内下载依赖成为启动前提；React 在 Node 阶段构建，Go 在 Go 阶段编译。密钥与用户数据不进入构建上下文。
+构建入口先离线编译本仓库的 ABI 适配器（SDK 读取相邻 Marqdo 安装，不改其源码），再将当前 CLI 和经过 `go.sum` 校验的 Go 依赖准备到专用目录，避免容器内下载依赖成为启动前提；React 在 Node 阶段构建，Go 在 Go 阶段编译。密钥与用户数据不进入构建上下文。
 
 `qdagent-data` 数据卷和既有 SQLite 保留。新增表与旧 `qd_tasks / qd_messages / qd_model_profiles / qd_plugins` 共存；模型 AES-GCM 密文格式与主体验证范围兼容原实现。切换认证实现后需要重新登录一次，账号主体仍为 `issuer + 换行 + sub`，所以同一身份仍能读取原任务、文件与个人配置。
 
@@ -61,7 +78,7 @@ curl http://127.0.0.1:7964/healthz
 
 模型配置只投影公开名称与模型标识，凭据以原有 AES-256-GCM 格式加密。明确的预算故障作为可读提示保留，故障配置仍能选择重试；模型成功返回后清除此诊断。清单中的“已配置”不等于服务一定在线。
 
-Python 直接消费供应商 SSE 或 Ollama NDJSON；首段文本一到达就发出，其余增量小批合并以避免高频渲染。OpenAI 与 Ollama 的工具参数、`tool_name` 和数组 schema 分别转换，执行器的权限合同不会随供应商格式改变。
+本机 Ollama 明确使用 32768 上下文，避免默认 4096 将阶段手册、契约和真实工具诊断截掉；服务端需要为所选模型预留相应内存。Python 直接消费供应商 SSE 或 Ollama NDJSON；首段文本一到达就发出，其余增量小批合并以避免高频渲染。OpenAI 与 Ollama 的工具参数、`tool_name` 和数组 schema 分别转换，执行器的权限合同不会随供应商格式改变。
 
 Go 将增量、工具阶段和终态写入 SQLite，SSE 支持 `Last-Event-ID` 与去重恢复。浏览器断开不停止任务，切换任务不会让旧响应覆盖新任务。重新打开可以读取已有结果；服务重启将未完成的新运行标记为 interrupted，不自动重做可能产生副作用的操作。
 
@@ -109,3 +126,16 @@ Go 检查覆盖账号隔离、同源限制、加密范围、越界路径与符�
 
 
 首页设计稿、实现截图和测量基准见 [首页对齐记录](doc/design/landing-v1-alignment.md)。QD 标识由 Marqdo 折面标识延伸为 SVG，中文字体按首页文案子集化并随前端部署，减少跨设备字体替换引起的偏移。修改文案后可以用 `deploy/subset-fonts.py` 更新字体子集；字体许可在 `frontend/public/fonts/LICENSE-Noto.txt`。
+
+
+## 根流程验证
+
+```sh
+python3 -m unittest discover -s tests -p test_root_skill.py
+python3 -m unittest discover -s worker -p 'test*.py'
+(cd server && go test -race ./...)
+cargo test --offline --locked --manifest-path ext/qdagent/native/Cargo.toml --target-dir .marqdo/native-target
+npm run build --prefix frontend
+```
+
+协议测试使用实际 CLI 和 ABI，验证不能跳步、旧确认、源码变更、无效代码、错误案例、并发合并和部分验收。受控模型测试只替代供应商响应，单元发表与试运行仍真实执行。浏览器测试中的 `real local model follows the mandatory root skill and human gates` 另行调用实际本机 Qwen，经过真实界面确认、并发和最终验收；需要已安装浏览器和在线 Ollama，不把受控供应商测试当成真实模型验收。开发身份只允许隔离的本机测试，生产仍使用统一身份认证。

@@ -67,6 +67,7 @@ We **standard = [标准库清单](table.empty_list())**.
 | 7 | "linalg" | "线性代数" | "liblinalg.so" | "ext/linalg/index.mq.md" | "solve_example" |
 | 8 | "engineering" | "工程工具" | "libengineering.so" | "ext/engineering/index.mq.md" | "" |
 | 9 | "qdagent" | "任务运行与持久流" | "libqdagent_transport.so" | "ext/qdagent/index.mq.md" | "" |
+| 11 | "root-skill" | "根 SKILL · 文档驱动流程" | "libqdagent_transport.so" | "ext/root-skill/index.mq.md" | "" |
 | 10 | "office" | "办公文档与演示" | "" | "ext/office/index.mq.md" | "" |
 
 We **version = [读取已安装拓展版本](text.str_trim(s=fs.read_text(path="ext/VERSION")))**.
@@ -77,9 +78,9 @@ We **out = [固有能力先展示](table.append(list=table.empty_list(), item=`c
     We **enabled = False**.
   1. fs.exists(path="ext/" + `id` + "/VERSION")
     We **entry_version = [读取拓展自身版本](text.str_trim(s=fs.read_text(path="ext/" + `id` + "/VERSION")))**.
-  1. `id` == "qdagent"
-    We **entry_version = "0.3.0"**.
   We **available = [核验实际 ABI 产物](fs.exists(path="ext/native/" + access(`item`, "abi")))**.
+  1. `id` == "root-skill"
+    We **available = `available` and fs.exists(path=access(`item`,"entry"))**.
   1. access(`item`,"abi") == ""
     We **available = [组合插件复用内建文件与 ZIP 能力](fs.exists(path=access(`item`,"entry")))**.
 

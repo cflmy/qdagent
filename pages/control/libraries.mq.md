@@ -39,7 +39,7 @@ We **principal = "local"**.
   We **principal = access(`context`,"owner")**.
 We **path = "lib/" + `module` + ".mq.md"**.
 1. `module` == "guide"
-  We **path = "skills/marqdo-dev/qdagent.mq.md"**.
+  We **path = "ext/root-skill/guides/library-development.mq.md"**.
 2. not fs.exists(path=`path`)
   We **allowed = [阅读拓展也尊重开关](plugins.require(id=`module`, principal=`principal`))**.
   1. not access(`allowed`, "ok")

@@ -31,6 +31,7 @@ func testServer(t *testing.T) *Server {
 	if e != nil {
 		t.Fatal(e)
 	}
+	s.supervisor.workflow = nil // Generic transport tests use a minimal installed runtime. Root protocol has dedicated real-CLI tests.
 	t.Cleanup(s.Close)
 	return s
 }

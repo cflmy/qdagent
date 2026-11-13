@@ -1,0 +1,94 @@
+"""Real Marqdo/ABI contract tests; no model text is accepted as execution."""
+import concurrent.futures
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import time
+import unittest
+
+PROJECT=Path(__file__).resolve().parents[1]
+NARRATIVE=('本单元处理开发验收中明确给出的输入，输出有来源的固定结果，用于核验可执行文稿工程链路。'
+ '这不是外部研究或实际业务结论，不能宣称联网或读取了不存在的资料。函数接收 request 与 dependencies，'
+ '案例明确对照实际返回。修改源稿后应重新检查与试运行；最终业务验收仍由用户完成。')
+
+class RootTests(unittest.TestCase):
+ def setUp(self):
+  self.temp=tempfile.TemporaryDirectory(prefix='qdagent-root-test-');self.root=Path(self.temp.name)
+  (self.root/'runtime').mkdir();(self.root/'work').mkdir()
+  self.context={'project':str(PROJECT),'root':str(self.root/'runtime'),'workspace':str(self.root/'work'),'owner':'root-test','id':'root-test'}
+  self.call('begin',user_input='为内部团队形成可复用的文稿，引用真实材料。',message_id='message-1')
+ def tearDown(self):self.temp.cleanup()
+ def raw(self,member,context=None,**args):
+  env={**os.environ,'MARQDO_LIB':str(PROJECT/'lib'),'MARQDO_EXT':str(PROJECT/'ext')}
+  proc=subprocess.run(['marqdo','call',str(PROJECT/'ext/root-skill/index.mq.md'),member,'--args-json','-','--effects','plugin,fs.read,fs.write,process.exec,environment.read','--fs-root',str(self.root/'work'),'--json'],input=json.dumps({**args,'context':context or self.context}),text=True,capture_output=True,env=env,timeout=90,cwd=self.root/'work')
+  outer=json.loads(proc.stdout)
+  if not outer.get('ok'):return {'ok':False,'error':outer.get('error')}
+  return outer['result']
+ def call(self,member,**args):
+  for attempt in range(8):
+   result=self.raw(member,**args)
+   if result.get('ok'):return result['value']
+   if 'root_skill.conflict' not in json.dumps(result) or attempt==7:break
+   time.sleep(.02*(attempt+1))
+  self.fail(json.dumps(result,ensure_ascii=False))
+ def intent(self):
+  state=self.call('clarify_intent',summary='面向内部团队的文稿工程',question='需要怎样的交付？',choices=['可复用文稿','补充背景'])
+  return self.call('respond',revision=state['revision'],action='confirm_intent',choice='可复用文稿',answer='正文需保留事实来源和限制。')
+ def framework(self,count=1):
+  self.intent();units=[{'id':'u'+str(i),'title':'单元'+str(i),'purpose':'处理已提供的开发验收材料','depends_on':[]} for i in range(count)]
+  state=self.call('outline',title='开发验收工程',goal='文稿与调用链真实可复用',acceptance='入口可调用，案例能验证，未接通项明确披露',units=units)
+  return self.call('respond',revision=state['revision'],action='confirm_outline')
+ def author(self,identifier,value,expected=None,body='',mode='literal'):
+  context={**self.context,'unit_id':identifier}
+  return self.call('author_unit',context=context,unit_id=identifier,narrative=NARRATIVE,mode=mode,body=body,value=value,cases=[{'input':{'request':'验收','dependencies':{}},'expected':value if expected is None else expected}])
+ def trial(self,identifier):return self.call('trial_unit',context={**self.context,'unit_id':identifier},unit_id=identifier)
+ def integrate(self):return self.call('integrate',narrative=(NARRATIVE+'本入口按已确认的顺序调用独立单元，用户原话与确认逐项保留。依赖只来自已声明的前置结果，不从模型记忆猜测数据。整合冒烟证明程序能运行，不能替代事实核对和业务验收。'*2)*4)
+ def test_steps_and_human_confirmation_cannot_be_skipped(self):
+  self.assertFalse(self.raw('gate',name='write_file')['ok']);self.assertFalse(self.raw('integrate',narrative='跳过')['ok'])
+  state=self.call('clarify_intent',summary='先对齐目标',question='谁使用？',choices=['内部','外部'])
+  self.assertFalse(self.raw('respond',revision=state['revision']-1,action='confirm_intent',choice='内部')['ok'])
+  state=self.call('respond',revision=state['revision'],action='answer',answer='先补充一些背景')
+  self.assertEqual(state['phase'],'intent')
+  self.call('clarify_intent',summary='根据补充继续确认',question='是否按内部用途推进？',choices=['内部','外部'])
+  state=self.call('status');self.call('respond',revision=state['revision'],action='confirm_intent',choice='内部')
+  self.assertFalse(self.raw('refine')['ok'])
+  state=self.call('outline',title='工程',goal='目标',acceptance='真实结果',units=[{'id':'u0','title':'处理','purpose':'形成文稿'}])
+  path=self.root/'work/solution/plan.mq.md';path.write_text(path.read_text()+'\n用户修改了框架。\n')
+  self.assertFalse(self.raw('respond',revision=state['revision'],action='confirm_outline')['ok'])
+ def test_compiler_cases_and_source_digest_are_real_gates(self):
+  self.framework()
+  bad=self.raw('author_unit',context={**self.context,'unit_id':'u0'},unit_id='u0',narrative=NARRATIVE,mode='code',body='We **amount = (1 + )**.\nReturn *amount*.',value=None,cases=[{'input':{},'expected':1}])
+  self.assertFalse(bad['ok']);self.assertFalse((self.root/'work/solution/units/u0.mq.md').exists())
+  self.author('u0',{'text':'含有 `变量`、**标记**、\n换行和|分隔符'},expected='wrong');state=self.trial('u0');self.assertEqual(state['units'][0]['status'],'failed')
+  self.assertEqual(self.call('refine')['phase'],'refine')
+  self.author('u0','真实结果');self.trial('u0')
+  path=self.root/'work/solution/units/u0.mq.md';path.write_text(path.read_text()+'\n源码已经变化。\n')
+  self.assertEqual(self.call('refine')['phase'],'refine')
+  self.assertFalse(self.raw('author_unit',context={**self.context,'unit_id':'other'},unit_id='u0',narrative=NARRATIVE,mode='literal',body='',value=1,cases=[{'input':{},'expected':1}])['ok'])
+ def test_concurrent_units_merge_and_final_acceptance_is_version_bound(self):
+  self.framework(2)
+  def work(identifier):self.author(identifier,{'text':'`变量` **标记**\n换行'});self.trial(identifier)
+  with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:list(pool.map(work,['u0','u1']))
+  state=self.call('status');self.assertEqual([u['status'] for u in state['units']],['ready','ready'])
+  self.assertEqual(self.call('refine')['phase'],'implement')
+  state=self.integrate();self.assertEqual(state['phase'],'review')
+  path=self.root/'work/solution/index.mq.md';source=path.read_text();self.assertIn('用户交流记录',source);self.assertIn('正文需保留事实来源和限制',source)
+  path.write_text(source+'\n审阅期间改动。\n');self.assertFalse(self.raw('respond',revision=state['revision'],action='accept')['ok'])
+  path.write_text(source);state=self.call('respond',revision=state['revision'],action='accept');self.assertEqual(state['phase'],'complete');self.assertIn('accept',(self.root/'work/solution/decisions.mq.md').read_text());subprocess.run(['marqdo','check',str(self.root/'work/solution/decisions.mq.md'),'--narrative-ratio','--json'],check=True,capture_output=True)
+ def test_select_template_reads_actual_inputs(self):
+  self.framework();context={**self.context,'unit_id':'u0'}
+  self.call('author_select',context=context,unit_id='u0',narrative=NARRATIVE,path=['request','text'],cases=[{'input':{'request':{'text':'甲'}},'expected':'甲'},{'input':{'request':{'text':'乙'}},'expected':'乙'}])
+  self.assertEqual(self.trial('u0')['units'][0]['status'],'ready')
+  self.call('author_text',context=context,unit_id='u0',narrative=NARRATIVE,content='材料甲',cases=[{'input':{},'expected':'材料甲'}])
+  self.assertEqual(self.trial('u0')['units'][0]['status'],'ready')
+ def test_unconnected_work_requires_explicit_partial_acceptance(self):
+  self.framework();context={**self.context,'unit_id':'u0'}
+  self.call('author_unit',context=context,unit_id='u0',narrative=NARRATIVE+'本例故意保留尚未接通的接口，绝不能宣称完整业务可用。',mode='code',body='Return *[接口尚未接通](None)*.',value=None,cases=[{'input':{},'expected':None}])
+  self.trial('u0');self.call('refine');state=self.integrate()
+  self.assertTrue(state['pending']['stubs'])
+  self.assertFalse(self.raw('respond',revision=state['revision'],action='accept')['ok'])
+  state=self.call('respond',revision=state['revision'],action='accept',accept_stubs=True);self.assertEqual(state['delivery_status'],'partial')
+
+if __name__=='__main__':unittest.main()

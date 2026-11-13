@@ -23,7 +23,7 @@ class AgentTests(unittest.TestCase):
                 length=int(self.headers['Content-Length']);body=json.loads(self.rfile.read(length))
                 self.server.payload=body
                 self.send_response(200);self.send_header('Content-Type','application/x-ndjson');self.end_headers()
-                for part in ({'message':{'content':'第一段'}},{'message':{'content':'第二段','tool_calls':[{'function':{'name':'read_file','arguments':{'path':'a.md'}}}]}}):
+                for part in ({'message':{'content':'第一段'}},{'message':{'content':'第二段','tool_calls':[{'function':{'name':'read_file','arguments':{'path':'a.md'}}}]}},{'message':{'tool_calls':[{'function':{'name':'skill_status','arguments':{}}}]}},{'message':{'tool_calls':[{'function':{'name':'unknown','arguments':None}}]}}):
                     self.wfile.write((json.dumps(part)+'\n').encode());self.wfile.flush();time.sleep(.08)
             def log_message(self,*args): pass
         server=http.server.HTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start();events=[]
@@ -32,7 +32,8 @@ class AgentTests(unittest.TestCase):
                 result=agent.stream_model({'protocol':'ollama','model':'fixture','builtin':True,'endpoint':f'http://127.0.0.1:{server.server_port}'},[{'role':'user','content':'hi'}],[])
             self.assertEqual(result[0],'第一段第二段');self.assertEqual(result[2][0]['function']['name'],'read_file')
             self.assertEqual(json.loads(result[2][0]['function']['arguments']),{'path':'a.md'})
-            self.assertTrue(server.payload['stream']);self.assertGreaterEqual(len([x for x in events if x[0]=='text_delta']),2)
+            self.assertEqual([x['function']['name'] for x in result[2]],['read_file','skill_status','unknown']);
+            self.assertEqual(server.payload['options']['num_ctx'],32768);self.assertTrue(server.payload['stream']);self.assertGreaterEqual(len([x for x in events if x[0]=='text_delta']),2)
         finally: server.shutdown();server.server_close();thread.join()
 
 
@@ -44,6 +45,9 @@ class ProviderProjectionTests(unittest.TestCase):
         self.assertEqual(wire[0]['tool_calls'][0]['function']['arguments'],{'path':'a.md'})
         self.assertEqual(wire[1]['tool_name'],'read_file')
         self.assertIsInstance(original[0]['tool_calls'][0]['function']['arguments'],str)
+    def test_rejected_malformed_call_can_be_sent_back_for_repair(self):
+        wire=agent.provider_messages('ollama',[{'role':'assistant','tool_calls':[{'function':{'name':'bad','arguments':'null'}}]}])
+        self.assertEqual(wire[0]['tool_calls'][0]['function']['arguments'],{})
     def test_provider_array_items_do_not_modify_executor_contract(self):
         spec={'id':'plan_task','description':'plan','input_schema':{'type':'object','properties':{'steps':{'type':'array'}}}}
         projection=agent.tool_descriptors([spec])

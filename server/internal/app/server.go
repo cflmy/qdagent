@@ -38,7 +38,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{s, a, newSupervisor(s), frontend, "qdagent-react-go-0.4.1"}, nil
+	return &Server{s, a, newSupervisor(s), frontend, "qdagent-root-skill-0.5.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -69,6 +69,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/plugins", s.auth.protect(s.plugins))
 	m.HandleFunc("PATCH /api/plugins/{id}", s.auth.protect(s.togglePlugin))
 	m.HandleFunc("GET /api/knowledge", s.auth.protect(s.knowledge))
+	m.HandleFunc("GET /api/tasks/{id}/workflow", s.auth.protect(s.workflow))
+	m.HandleFunc("POST /api/tasks/{id}/workflow/respond", s.auth.protect(s.respondWorkflow))
 	m.HandleFunc("GET /api/tasks/{id}/files", s.auth.protect(s.files))
 	m.HandleFunc("GET /api/tasks/{id}/preview", s.auth.protect(s.preview))
 	m.HandleFunc("GET /api/tasks/{id}/download", s.auth.protect(s.download))
@@ -360,7 +362,7 @@ func (s *Server) pluginCatalog(owner string) []map[string]any {
 		}
 	}
 	out := []map[string]any{{"id": "stdlib", "name": "标准库", "description": "文件、数组、文本、数据与 Marqdo 运行基础能力", "version": "CLI 内建", "builtin": true, "enabled": true, "available": true, "modules": standard}}
-	defs := [][4]string{{"ai", "模型与智能体", "模型决策、子任务与可追溯执行", "libagent.so"}, {"web", "网页与阅读渲染", "官方 View 与文档组件", "libweb.so"}, {"net", "网络与实时连接", "HTTP 读取与网络能力", "libweb.so"}, {"data", "数据与存储", "SQLite 与数据处理", "libweb.so"}, {"security", "身份与权限", "身份与安全工具", "libweb.so"}, {"quantum", "量子计算", "量子线路与模拟", "libquantum.so"}, {"linalg", "线性代数", "矩阵与线性运算", "liblinalg.so"}, {"engineering", "工程工具", "构建与工程能力", "libengineering.so"}, {"qdagent", "任务运行与持久流", "工具收据与进程适配", "libqdagent_transport.so"}, {"office", "办公文档与演示", "生成可编辑文档、PPT 与源稿", ""}}
+	defs := [][4]string{{"ai", "模型与智能体", "模型决策、子任务与可追溯执行", "libagent.so"}, {"web", "网页与阅读渲染", "官方 View 与文档组件", "libweb.so"}, {"net", "网络与实时连接", "HTTP 读取与网络能力", "libweb.so"}, {"data", "数据与存储", "SQLite 与数据处理", "libweb.so"}, {"security", "身份与权限", "身份与安全工具", "libweb.so"}, {"quantum", "量子计算", "量子线路与模拟", "libquantum.so"}, {"linalg", "线性代数", "矩阵与线性运算", "liblinalg.so"}, {"engineering", "工程工具", "构建与工程能力", "libengineering.so"}, {"qdagent", "任务运行与持久流", "工具收据与进程适配", "libqdagent_transport.so"}, {"office", "办公文档与演示", "生成可编辑文档、PPT 与源稿", ""}, {"root-skill", "根 SKILL · 文档驱动流程", "意图澄清、方案确认、并行细化与可验收交付；停用后不能执行任务", "libqdagent_transport.so"}}
 	vb, _ := os.ReadFile(filepath.Join(s.store.root, "ext/VERSION"))
 	version := strings.TrimSpace(string(vb))
 	for _, d := range defs {
@@ -369,6 +371,9 @@ func (s *Server) pluginCatalog(owner string) []map[string]any {
 			path = filepath.Join(s.store.root, "ext", d[0], "index.mq.md")
 		}
 		_, err := os.Stat(path)
+		if d[0] == "root-skill" && err == nil {
+			_, err = os.Stat(filepath.Join(s.store.root, "ext/root-skill/index.mq.md"))
+		}
 		v := version
 		if b, e := os.ReadFile(filepath.Join(s.store.root, "ext", d[0], "VERSION")); e == nil {
 			v = strings.TrimSpace(string(b))
@@ -461,7 +466,11 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 	readBoundedJSON(filepath.Join(root, ".agent/children.json"), &children)
 	readBoundedJSON(filepath.Join(root, ".agent/plan.json"), &plan)
 	readBoundedJSON(filepath.Join(root, ".agent/artifacts.json"), &artifacts)
-	writeJSON(w, 200, map[string]any{"files": out, "plan": plan, "artifacts": artifacts, "children": children})
+	var workflow map[string]any
+	if s.supervisor.workflow != nil {
+		workflow, _ = s.supervisor.workflow.snapshot(t.ID)
+	}
+	writeJSON(w, 200, map[string]any{"files": out, "plan": plan, "artifacts": artifacts, "children": children, "workflow": workflow})
 }
 func readBoundedJSON(path string, v any) {
 	f, e := os.Open(path)

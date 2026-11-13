@@ -23,7 +23,10 @@ export interface RunEvent {seq:number;run_id:string;kind:string;data:Record<stri
 export interface Plan {goal:string;acceptance:string;steps:{id:number;title:string;status:string;evidence?:string}[]}
 export interface WorkspaceFile {path:string;name:string;size:number;modified_ms:number}
 export interface Artifact {id:string;title:string;kind:string;path:string;source:string;bytes:number}
-export interface Files {files:WorkspaceFile[];plan?:Plan;artifacts?:Artifact[];children?:{id:string;role:string;goal:string;status:string}[]}
+export interface RootUnit {id:string;title:string;purpose:string;depends_on?:string[];status:string;path?:string;sha256?:string}
+export interface RootState {revision:number;phase:string;goal:string;title?:string;acceptance?:string;summary?:string;units:RootUnit[];settings:{concurrency:number;child_model:string;unit_models:Record<string,string>};pending?:{kind:string;question?:string;summary?:string;choices?:string[];path?:string;stubs?:unknown[]};delivery?:{path:string};delivery_status?:string}
+export interface RootResponse {revision:number;action:string;answer:string;choice:string;concurrency:number;child_model:string;unit_models:Record<string,string>;accept_stubs:boolean}
+export interface Files {workflow?:RootState;files:WorkspaceFile[];plan?:Plan;artifacts?:Artifact[];children?:{id:string;role:string;goal:string;status:string}[]}
 export interface Preview {kind:string;filename:string;title:string;source?:string;html?:string}
 export function useRun(id:string,onDone:()=>void){
  const [state,setState]=useState<{id:string;events:RunEvent[];answer:string;status:string;connection:string}>({id:'',events:[],answer:'',status:'',connection:''});const done=useRef(onDone);done.current=onDone;
@@ -35,5 +38,5 @@ export function useRun(id:string,onDone:()=>void){
  source.onerror=()=>{if(alive)setState(s=>({...s,connection:'reconnecting'}))};return()=>{alive=false;source.close()};
  },[id]);return state.id===id?state:{id,events:[],answer:'',status:'',connection:''};
 }
-export const statusText:Record<string,string>={running:'进行中',succeeded:'已完成',failed:'未完成',cancelled:'已停止',interrupted:'已中断',incomplete:'待继续',answer_only:'已回复',idle:'未开始',ready:'未开始',completed:'已完成',pending:'待开始'};
+export const statusText:Record<string,string>={waiting_user:'等待你的回应',written:'已校验',running:'进行中',succeeded:'已完成',failed:'未完成',cancelled:'已停止',interrupted:'已中断',incomplete:'待继续',answer_only:'已回复',idle:'未开始',ready:'未开始',completed:'已完成',pending:'待开始'};
 export function sizeLabel(n:number){return n>=1048576?`${(n/1048576).toFixed(1)} MB`:n>=1024?`${Math.ceil(n/1024)} KB`:`${n} B`}

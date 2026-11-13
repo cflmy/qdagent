@@ -61,6 +61,12 @@ Return *spec*.
 
 Use `principal`="local"。身份只能来自宿主认证上下文。
 
+根流程的工具也是已安装插件中的函数，而非浏览器里的静态按钮。skill_intent 只产生一个真实待答问题，不授予基本方案权限；skill_outline 生成可用 View 阅读的函数骨架，等待用户确认。skill_refine 汇总已授权的独立单元与案例，具体并发数和子模型来自用户设置，主模型不能临时扩大。skill_integrate 必须检查源码与试运行证据才产生待验收入口。skill_status 只恢复状态，读取它不会替用户点击确认。
+
+这些模型工具的参数以根入口的官方契约为准，宿主投影移除可信 context 后交给提供方。可信任务根和身份仍由执行器注入；用户输入、历史工具参数、模型声称的阶段都不能覆盖它们。普通文件工具与根流程共享工作区，但无权编辑会话私有阶段记录。模型即使记住上一阶段的工具名，执行前门禁仍按当前真实状态检查。停用根插件会保留现有资料，并阻止继续执行，不能把停用当作绕过必经步骤的方式。
+
+实际案例与工程验收也有不同含义。工具返回一个合法值，只能说明这次调用得到了该结果；语法校验不能证明文稿内容可信，单元案例不能覆盖所有业务输入。根流程把这些证据分别保存，最终让用户在右侧阅读完整实现和说明，再作出验收决定。对于空实现，描述中应直接写明尚未接通，不能用一个正常返回值暗示外部功能已经完成。继续开发时先检查真实资料与既有诊断，再决定是修复自己的单元还是请求用户调整已确认的边界，不能通过重复执行掩盖不确定的副作用。
+
 这个目录说清“可以做什么”，实际工作由各自源码完成。文件工具只得到当前任务工作根，
 手册与纯函数控制器使用工程根，但不开放任意服务器路径。网络工具属于可关闭的 net，
 不是借标准库不可关闭这一点绕过用户开关。所有目标最终都通过 marqdo call 运行。
@@ -125,6 +131,11 @@ These definitions are shared by discovery and execution, so adding a public tool
 | 15 | "update_plan" | "更新 step 序号和 status（running、blocked、completed），完成需 evidence 指向真实文件。" | "step:number,status:string,evidence:string" | "step,status" | "pages/agent/plan.mq.md" | "update" | "fs.read,fs.write" | "write" | "stdlib" | "workspace" |
 | 16 | "create_office" | "生成真实可编辑 docx 报告或 pptx 演示；title 题目，sections 为 heading、body 记录数组。每节 PPT 最多八行、七百字，会自动加封面。保留 Markdown 源稿和 SHA256。" | "kind:string,title:string,sections:array,render_pdf:boolean" | "kind,title,sections" | "ext/office/index.mq.md" | "create" | "plugin,fs.read,fs.write,process.exec,environment.read" | "write" | "office" | "project" |
 | 17 | "delegate_task" | "委托 researcher、writer 或 reviewer 子智能体；goal 小目标与 inputs 交接文字。继承模型，每轮最多三次、每个子任务八轮，不再派生。" | "role:string,goal:string,inputs:string" | "role,goal" | "pages/agent/delegate.mq.md" | "invoke" | "plugin,fs.read,fs.write,process.exec,time.read,random.read,environment.read,network.write" | "execute" | "ai" | "workspace" |
+| 18 | "skill_status" | "恢复根 SKILL 的阶段、用户待确认内容和真实证据。" | "" | "" | "ext/root-skill/index.mq.md" | "status" | "plugin,fs.read,fs.write,environment.read" | "read" | "root-skill" | "workspace" |
+| 19 | "skill_intent" | "意图拆解：summary 当前理解，question 向用户提问，choices 二到六个文字选项；用户可以自由输入和多轮澄清。" | "summary:string,question:string,choices:array" | "summary,question,choices" | "ext/root-skill/index.mq.md" | "clarify_intent" | "plugin,fs.read,fs.write,environment.read" | "write" | "root-skill" | "workspace" |
+| 20 | "skill_outline" | "基本方案：先形成函数骨架供用户在 View 确认。units 是 id、title、purpose、depends_on 记录数组，依赖须出现在前面。" | "title:string,goal:string,acceptance:string,units:array" | "title,goal,acceptance,units" | "ext/root-skill/index.mq.md" | "outline" | "plugin,fs.read,fs.write,environment.read" | "write" | "root-skill" | "workspace" |
+| 21 | "skill_refine" | "用户确认框架之后，按配置请求受限并行细化；必须实际创作、编译校验和试运行才可进入整合。" | "" | "" | "ext/root-skill/index.mq.md" | "refine" | "plugin,fs.read,fs.write,environment.read" | "execute" | "root-skill" | "workspace" |
+| 22 | "skill_integrate" | "完整方案：narrative 写明设计、来源、限制、调用和验收。合并已验证单元为 index.mq.md，保留真实交流，独立检查后等待用户验收。" | "narrative:string" | "narrative" | "ext/root-skill/index.mq.md" | "integrate" | "plugin,fs.read,fs.write,environment.read" | "write" | "root-skill" | "workspace" |
 
 The generic call_plugin adapter remains a registered environment tool, but it does not keep optional permissions alive. Its controller reloads the chosen extension's switch, checks the operation against the installed public list and receives context only from the host after schema validation. The actual extension child uses the task workspace root. An unavailable ABI or unregistered entry fails visibly rather than falling back to arbitrary reflection.
 We **out = [没有演示工具](table.empty_list())**.

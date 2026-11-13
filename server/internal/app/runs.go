@@ -35,15 +35,17 @@ type Event struct {
 	Created int64           `json:"created_ms"`
 }
 type supervisor struct {
-	store   *Store
-	mu      sync.Mutex
-	active  map[string]context.CancelFunc
-	closing bool
-	wg      sync.WaitGroup
+	store    *Store
+	mu       sync.Mutex
+	active   map[string]context.CancelFunc
+	closing  bool
+	wg       sync.WaitGroup
+	workflow *rootRuntime
+	weights  map[string]int
 }
 
 func newSupervisor(s *Store) *supervisor {
-	return &supervisor{store: s, active: map[string]context.CancelFunc{}}
+	return &supervisor{store: s, active: map[string]context.CancelFunc{}, workflow: &rootRuntime{store: s}, weights: map[string]int{}}
 }
 func (s *Store) run(owner, id string) (Run, error) {
 	var r Run
@@ -77,6 +79,9 @@ func (s *Store) appendEvent(run, kind string, data any) error {
 	return err
 }
 func (s *supervisor) start(owner, task, model, question, knowledge string) (Run, error) {
+	return s.startInternal(owner, task, model, question, knowledge, false)
+}
+func (s *supervisor) startInternal(owner, task, model, question, knowledge string, resume bool) (Run, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closing || len(s.active) >= 8 {
@@ -92,6 +97,46 @@ func (s *supervisor) start(owner, task, model, question, knowledge string) (Run,
 	config, err := s.store.resolveModel(owner, model)
 	if err != nil {
 		return Run{}, err
+	}
+	weight := 1
+	if s.workflow != nil {
+		if !s.store.pluginEnabled(owner, "root-skill") {
+			return Run{}, errors.New("根 SKILL 已停用，请启用后执行任务")
+		}
+		var running int
+		s.store.db.QueryRow(`SELECT count(*) FROM qd_runs WHERE task_id=? AND status='running'`, task).Scan(&running)
+		if running != 0 {
+			return Run{}, errors.New("此任务正在执行，请先停止或等待")
+		}
+		if !resume {
+			ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+			_, err = s.workflow.invoke(ctx, "begin", ctxMap, map[string]any{"user_input": question, "message_id": randomID()})
+			cancel()
+			if err != nil {
+				return Run{}, err
+			}
+		}
+		state, readErr := s.workflow.snapshot(task)
+		if readErr != nil {
+			return Run{}, readErr
+		}
+		if state["phase"] == "refine" {
+			if settings, ok := state["settings"].(map[string]any); ok {
+				if n, ok := settings["concurrency"].(float64); ok {
+					weight = int(n)
+				}
+			}
+		}
+		if weight < 1 || weight > 8 {
+			return Run{}, errors.New("根流程并发配置无效")
+		}
+	}
+	used := 0
+	for _, n := range s.weights {
+		used += n
+	}
+	if used+weight > 8 {
+		return Run{}, errors.New("并发资源暂满，确认已保留，可稍后继续")
 	}
 	tx, err := s.store.db.Begin()
 	if err != nil {
@@ -117,6 +162,7 @@ func (s *supervisor) start(owner, task, model, question, knowledge string) (Run,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	s.active[r.ID] = cancel
+	s.weights[r.ID] = weight
 	s.wg.Add(1)
 	go s.execute(ctx, cancel, r, owner, turn, ctxMap, config, knowledge)
 	return r, nil
@@ -124,7 +170,7 @@ func (s *supervisor) start(owner, task, model, question, knowledge string) (Run,
 func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r Run, owner string, turn int, c map[string]any, config map[string]any, knowledge string) {
 	defer s.wg.Done()
 	defer cancel()
-	defer func() { s.mu.Lock(); delete(s.active, r.ID); s.mu.Unlock() }()
+	defer func() { s.mu.Lock(); delete(s.active, r.ID); delete(s.weights, r.ID); s.mu.Unlock() }()
 	_ = s.store.appendEvent(r.ID, "status", map[string]string{"status": "running", "message": "已建立独立任务进程"})
 	history := []map[string]string{}
 	rows, err := s.store.db.Query(`SELECT question,answer FROM qd_messages WHERE task_id=? AND turn<? ORDER BY turn DESC LIMIT 20`, r.Task, turn)
@@ -141,6 +187,39 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 	c["model"] = r.Model
 	c["run_id"] = r.ID
 	payload := map[string]any{"run_id": r.ID, "task_id": r.Task, "question": r.Question, "owner": owner, "context": c, "model": config, "history": history, "knowledge": knowledge}
+	if s.workflow != nil {
+		payload["root_skill"] = true
+		state, stateErr := s.workflow.snapshot(r.Task)
+		if stateErr != nil {
+			s.finish(r, turn, "failed", "根流程读取失败")
+			return
+		}
+		selected := map[string]bool{}
+		if settings, ok := state["settings"].(map[string]any); ok {
+			if id, ok := settings["child_model"].(string); ok {
+				selected[id] = true
+			}
+			if ids, ok := settings["unit_models"].(map[string]any); ok {
+				for _, raw := range ids {
+					if id, ok := raw.(string); ok {
+						selected[id] = true
+					}
+				}
+			}
+		}
+		children := map[string]any{}
+		for id := range selected {
+			if id != "" && id != "inherit" {
+				cfg, e := s.store.resolveModel(owner, id)
+				if e != nil {
+					s.finish(r, turn, "failed", "子模型配置不可用")
+					return
+				}
+				children[id] = cfg
+			}
+		}
+		payload["child_models"] = children
+	}
 	b, _ := json.Marshal(payload)
 	cmd := exec.CommandContext(ctx, env("QDAGENT_PYTHON", "python3"), filepath.Join(s.store.root, "worker/agent.py"))
 	cmd.Dir = s.store.root
@@ -194,7 +273,7 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 			if a, ok := e.Data["answer"].(string); ok {
 				answer = a
 			}
-			if st, ok := e.Data["status"].(string); ok && (st == "succeeded" || st == "answer_only" || st == "incomplete" || st == "failed") {
+			if st, ok := e.Data["status"].(string); ok && (st == "succeeded" || st == "answer_only" || st == "incomplete" || st == "failed" || st == "waiting_user") {
 				status = st
 				seenFinal = true
 			}

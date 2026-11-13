@@ -60,6 +60,10 @@ Return *filtered*.
 | result | map | 实际工具 Result，拒绝时没有执行 |
 
 Use `name`, `arguments`, `context`, `run_id` and `step`。
+根插件启用与当前阶段检查先于工具账本和业务副作用。模型曾经看到某个工具，不代表本轮仍可调用；等待真实用户回应时只能读状态。拒绝会保留原有资料，不会启动目标函数。细化子智能体的单元身份来自宿主上下文，模型参数不能选择其他子任务。完成后的新目标由宿主重新开启意图流程，而非由模型把自己的总结当作确认。这一层与前端共同使用根文稿的真实规则，页面刷新、重复点击或旧请求均不能扩大授权。
+
+工具调用失败后应保留原始诊断、输入及已经产生的文件，让下一轮能据此修复。原子状态比较防止并行作者覆盖彼此的结果，源码摘要则防止旧试运行被新代码继承。用户确认与完成证据始终单独记录，执行器不会用另一句模型说明替代这些事实。
+
 先注册真实目录，再由原生工具契约执行白名单和参数检查，最后重新确认插件开关。
 Schema 失败和插件拒绝不会启动工具。真正进入执行之后才创建工具 span，并保存实际 CLI
 参数向量；模型的公开说明不是证据，更不是替换目标函数或文件根的机会。
@@ -81,6 +85,13 @@ An event span begins only when a real tool is about to run. Its input is the act
 
 Cancellation stops the workflow process group rather than just a polling request. Calls made through this boundary inherit that group, including a workspace program invoked through run_marqdo. A cancelled mutation keeps its ledger and filesystem evidence for inspection. Restarting the UI, disabling a plugin or asking a follow-up question must not erase uncertainty by rewriting an old receipt as committed.
 
+We **root_permission = call.invoke(file=(access(`context`,"project") + "/pages/control/plugins.mq.md"),function="require",arguments=table.put(in=table.put(in=None,at="id",value="root-skill"),at="principal",value=access(`context`,"owner")),root=access(`context`,"project"),effects="plugin,fs.read,fs.write,environment.read")**.
+1. not access(`root_permission`,"ok")
+  Return *root_permission*.
+We **gate_args = table.put(in=table.put(in=None,at="context",value=`context`),at="name",value=`name`)**.
+We **root_guard = call.invoke(file=(access(`context`,"project") + "/ext/root-skill/index.mq.md"),function="gate",arguments=`gate_args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,environment.read")**.
+1. not access(`root_guard`,"ok")
+  Return *root_guard*.
 We **specs = [本次重新读取授权](available(context=`context`))**.
 We **_ = [复用原生工具注册器](agent.tools_register(specs=`specs`))**.
 We **names = [白名单只传登记身份](table.empty_list())**.
@@ -114,7 +125,7 @@ We **root = access(`context`, "workspace")**.
 1. access(`spec`, "root_kind") == "project"
   We **root = `project`**.
 We **effective = `arguments`**.
-1. `name` == "call_plugin" or `name` == "read_library" or `name` == "create_office" or `name` == "delegate_task"
+1. `name` == "call_plugin" or `name` == "read_library" or `name` == "create_office" or `name` == "delegate_task" or text.starts_with(text=`name`,prefix="skill_")
   We **effective = [执行上下文只由可信宿主注入](table.put(in=`arguments`, at="context", value=`context`))**.
 We **span = [工具阶段真实开始](events.append(kind="tool", title=("调用 " + `name`), details=`effective`))**.
 We **evidence = [真实调用与真实退出](call.observed(file=(`project` + "/" + access(`spec`, "file")), function=access(`spec`, "function"), arguments=`effective`, root=`root`, effects=access(`spec`, "cli_effects")))**.
