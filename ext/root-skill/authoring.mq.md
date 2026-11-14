@@ -3,6 +3,7 @@ markup: occlusion
 title: 根 SKILL · authoring
 import:
   core: state.mq.md
+  proof: proof.mq.md
   fs: lib/fs.mq.md
   sys: lib/sys.mq.md
   json: lib/json.mq.md
@@ -63,17 +64,7 @@ Use `context`, `unit`。
 
 这次更新仅归并本单元的观测事实，不批准下一个阶段；另一个子任务的进度和用户确认必须原样保留。
 
-We **state = access(core.status(context=`context`),"value")**.
-1. access(`state`,"phase") != "refine" or access(`unit`,"id") != json.get(value=`context`,key="unit_id")
-  Return *result.error(code="root.unit_scope",message="只能在细化阶段发表自己的单元",operation="publish_unit")*.
-We **updated = table.empty_list()**.
-We **units = access(`state`,"units")**.
-- [合并当前记录而不覆盖其他单元](for units as item)
-  1. access(`item`,"id") == access(`unit`,"id")
-    We **item = `unit`**.
-  We **updated = table.append(list=`updated`,item=`item`)**.
-Return *core.save(context=`context`,state=table.put(in=`state`,at="units",value=`updated`))*.
-
+Return *proof.save_unit(context=`context`,item=`unit`)*.
 
 
 ## author_unit
@@ -86,17 +77,16 @@ Return *core.save(context=`context`,state=table.put(in=`state`,at="units",value=
 | mode | text | "literal" | literal 返回结构化值；select 按 value 键路径读取输入；code 写函数体 |
 | body | text | "" | code 模式的函数体，其他模式留空 |
 | value | any | None | literal 的原始结构化值，勿先 JSON 编码；select 的字符串键路径数组 |
-| cases | list | required | 一到六个 input、expected 案例，必须实际试运行 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 合法候选源码及校验摘要；未校验不能替换工程文件。 |
 
-Use `context`, `unit_id`, `narrative`, `mode`="literal", `body`="", `value`=None, `cases`。
+Use `context`, `unit_id`, `narrative`, `mode`="literal", `body`="", `value`=None。
 
 不熟悉语法的模型可以选择 literal，仅填写原始结构化结果、叙述和案例；不要自行 JSON 编码。
 读取输入时选择 select，value 例如 ["request","text"]，工具生成逐层取值语句；空数组返回整个输入。
-select 不执行键名中的代码，缺失字段返回 None，并仍须通过所有实际案例。工具生成全部声明。
+select 不执行键名中的代码，缺失字段返回 None，并仍须通过所有实际案例。工具生成全部声明。独立案例由测试者冻结，实现者不提供预期。
 需要业务计算时再选择 code，函数体可使用 input 和已导入的 math、table、text、json、fs、
 re、hash。参数与返回表、明确的 input 读取、前置信息和文件组织由模板保证。
 候选先写入隔离位置，经官方 MLSP、契约检查和每个函数叙述比例检查通过，才发表到工程。
@@ -108,7 +98,7 @@ it is not a license to substitute invented data for required research. The narra
 its content came from and which business assumptions remain. Code mode retains the same stable input
 contract while allowing actual calculations. The compiler is the syntax authority, not a second Python
 implementation of Marqdo. An invalid candidate stays outside the published unit, and the previous
-source remains available for inspection. The accepted source digest is recorded with the declared
+source remains available for inspection. The accepted source digest is bound to independently frozen
 cases, so a later edit cannot inherit an earlier successful trial. The child owns one identifier and
 cannot author the shared entry point or another child's file. Cases include explicit input and expected
 values, including null when it is meaningful. Passing a case establishes that observed example only;
@@ -125,8 +115,8 @@ We **state = access(core.status(context=`context`),"value")**.
 We **unit = unit_record(state=`state`,unit_id=`unit_id`)**.
 1. access(`state`,"phase") != "refine" or `unit_id` != json.get(value=`context`,key="unit_id") or not `unit`
   Return *result.error(code="root.unit_scope",message="未获此单元的细化授权",operation="author_unit")*.
-1. table.len(xs=`cases`) < 1 or table.len(xs=`cases`) > 6 or `narrative` == ""
-  Return *result.error(code="root.cases",message="必须写明逻辑并提供一到六个真实案例",operation="author_unit")*.
+1. `narrative` == ""
+  Return *result.error(code="root.cases",message="必须写明真实业务逻辑",operation="author_unit")*.
 1. `mode` == "literal"
   We **body = "Return *[返回本单元明确声明的结构化结果](json.parse(text=" + literal(value=`value`) + "))*."**.
 2. `mode` == "select"
@@ -155,9 +145,9 @@ We **details = access(`checked`,"value")**.
 
 `patch` =
 
-| path | fragment | sha256 | cases | check | status |
-|---|---|---|---|---|---|
-| `path` | `fragment` | `details`[^sha256] | `cases` | `details` | "written" |
+| path | fragment | sha256 | check | status |
+|---|---|---|---|---|
+| `path` | `fragment` | `details`[^sha256] | `details` | "written" |
 
 Return *publish_unit(context=`context`,unit=table.merge(a=`unit`,b=`patch`))*.
 
@@ -196,30 +186,39 @@ Use `context`, `unit_id`。
 
 先核对当前单元的作者身份与阶段，再用保存的哈希确认源码没有变化。ABI 在独立试运行
 目录中调用 unit_身份，只有文件读写效果，不允许模型从案例中指定另一个可执行文件。
-每个案例都保留实际返回、期望值与退出；全部匹配才成为 ready。失败仍保存诊断，
+作者自检不授予就绪。这里只使用另一受限测试角色根据冻结规格提供的独立案例。
+每个独立案例都保留实际返回、期望值与退出；全部匹配才成为 ready。失败仍保存诊断，
 子智能体可以据此修改自己的单元，再重新校验和试运行，不能只改状态文字。
 候选语法通过与试运行通过是两种证据，不能互相替代。最终整合会再次确认摘要，
 因此用户或另一个进程改动了文件之后，原来的成功不会悄悄沿用。
 
 The process output is an observation, not a request for another tool. A child cannot broaden effects by writing instructions into stdout. Each case runs the fixed generated function against its explicit input; the adapter records the actual exit and decoded return before comparison. A timeout remains a failure, even if a partial file exists. The final record belongs to this source version only, which makes independent retries inspectable and prevents stale evidence from promoting the next stage.
 
+独立测试的摘要随这次试运行保留，整合时还会再次比对。同样的函数名和相同返回类型不能证明沿用的是同一套预期；规格或测试被改动之后，原有通过记录必须失效。实现者自检仅能帮助定位问题，不再授予阶段推进的资格。
+
 We **state = access(core.status(context=`context`),"value")**.
 We **unit = unit_record(state=`state`,unit_id=`unit_id`)**.
 1. access(`state`,"phase") != "refine" or `unit_id` != json.get(value=`context`,key="unit_id") or not json.get(value=`unit`,key="sha256")
   Return *result.error(code="root.unit_scope",message="先在当前单元完成源码校验",operation="trial_unit")*.
 
+We **suite = proof.cases(context=`context`)**.
+1. not access(`suite`,"ok")
+  Return *suite*.
+We **independent_cases = access(access(`suite`,"value"),"cases")**.
 We **member = "unit_" + `unit_id`**.
 
 `payload` =
 
 | path | function | cases | sha256 |
 |---|---|---|---|
-| `unit`[^path] | `member` | `unit`[^cases] | `unit`[^sha256] |
+| `unit`[^path] | `member` | `independent_cases` | `unit`[^sha256] |
 
 We **observed = core.native(context=`context`,operation="root_trial",payload=`payload`)**.
 1. not access(`observed`,"ok")
   Return *observed*.
 We **trial = access(`observed`,"value")**.
+We **trial = table.put(in=`trial`,at="suite_sha256",value=access(access(`unit`,"tests"),"sha256"))**.
+We **trial = table.put(in=`trial`,at="assurance",value="independent_cases")**.
 We **next = "failed"**.
 1. access(`trial`,"passed")
   We **next = "ready"**.
@@ -262,9 +261,8 @@ We **state = access(core.status(context=`context`),"value")**.
 We **ready = True**.
 We **units = access(`state`,"units")**.
 - [逐个核对真实源码和试运行](for units as unit)
-  1. access(`unit`,"status") != "ready" or not json.get(value=json.get(value=`unit`,key="trial"),key="passed")
-    We **ready = False**.
-  2. hash.sha256(text=fs.read_text(path=access(`unit`,"path"))) != access(`unit`,"sha256")
+  We **own = table.put(in=`context`,at="unit_id",value=access(`unit`,"id"))**.
+  1. not proof.ready(context=`own`,item=`unit`)
     We **ready = False**.
 1. `ready`
   We **state = table.put(in=`state`,at="phase",value="implement")**.
@@ -301,13 +299,12 @@ Return *[按字面保留材料而不提前插值](text.replace(text=json.stringi
 | unit_id | text | required | 当前已确认框架中的单元身份 |
 | narrative | text | required | 解释来源、业务规则、输入假设和限制 |
 | content | text | required | 用户明确提供或依据真实材料形成的正文，原样返回，不是字段名 |
-| cases | list | required | 一到六个真实 input、expected 案例 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 真实作者结果，仍需实际试运行，不代表业务验收 |
 
-Use `context`, `unit_id`, `narrative`, `content`, `cases`。
+Use `context`, `unit_id`, `narrative`, `content`。
 
 这是给不熟悉语言语法的模型使用的专用作者函数。只填写已经明确的业务材料，无需撰写
 源码、编码 JSON、选择生成模式或拼接返回语法。工具负责生成参数表、返回表和自然叙述，
@@ -324,7 +321,7 @@ code 模式，先阅读对应库源码再写函数体。内容与假设需根据
 时，只归并本单元的新状态，不能用自己的快照覆盖他人的结果。最终工程仍由主流程整合，
 并由用户在实际 View 中审阅。不能把模板便利当成省略阶段或替用户接受交付的理由。
 
-Return *[通过已校验的模板发表本单元](author_unit(context=`context`,unit_id=`unit_id`,narrative=`narrative`,mode="literal",body="",value=`content`,cases=`cases`))*.
+Return *[通过已校验的模板发表本单元](author_unit(context=`context`,unit_id=`unit_id`,narrative=`narrative`,mode="literal",body="",value=`content`))*.
 
 
 ## author_select
@@ -335,13 +332,12 @@ Return *[通过已校验的模板发表本单元](author_unit(context=`context`,
 | unit_id | text | required | 当前已确认框架中的单元身份 |
 | narrative | text | required | 解释来源、业务规则、输入假设和限制 |
 | path | list | required | 从 input 开始的字符串键路径，例如 request、text 两层 |
-| cases | list | required | 一到六个真实 input、expected 案例 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 真实作者结果，仍需实际试运行，不代表业务验收 |
 
-Use `context`, `unit_id`, `narrative`, `path`, `cases`。
+Use `context`, `unit_id`, `narrative`, `path`。
 
 这是给不熟悉语言语法的模型使用的专用作者函数。只填写已经明确的业务材料，无需撰写
 源码、编码 JSON、选择生成模式或拼接返回语法。工具负责生成参数表、返回表和自然叙述，
@@ -358,4 +354,4 @@ code 模式，先阅读对应库源码再写函数体。内容与假设需根据
 时，只归并本单元的新状态，不能用自己的快照覆盖他人的结果。最终工程仍由主流程整合，
 并由用户在实际 View 中审阅。不能把模板便利当成省略阶段或替用户接受交付的理由。
 
-Return *[通过已校验的模板发表本单元](author_unit(context=`context`,unit_id=`unit_id`,narrative=`narrative`,mode="select",body="",value=`path`,cases=`cases`))*.
+Return *[通过已校验的模板发表本单元](author_unit(context=`context`,unit_id=`unit_id`,narrative=`narrative`,mode="select",body="",value=`path`))*.

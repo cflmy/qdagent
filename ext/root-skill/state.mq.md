@@ -113,7 +113,7 @@ A received message is evidence of what the user actually supplied, not an instru
 We **snapshot = status(context=`context`)**.
 We **state = access(`snapshot`,"value")**.
 1. not json.get(value=`state`,key="phase") or access(`state`,"phase") == "complete"
-  We **settings = json.parse(text="{\"concurrency\":2,\"child_model\":\"inherit\",\"unit_models\":{}}")**.
+  We **settings = json.parse(text="{\"concurrency\":2,\"child_model\":\"inherit\",\"test_model\":\"inherit\",\"unit_models\":{}}")**.
 
   We **empty = table.empty_list()**.
   We **previous = json.get(value=`state`,key="delivery")**.
@@ -126,6 +126,8 @@ We **state = access(`snapshot`,"value")**.
 
   We **state = `fresh`**.
 We **history = access(`state`,"history")**.
+1. json.get(value=`context`,key="knowledge_reference")
+  We **state = table.put(in=`state`,at="knowledge_reference",value=access(`context`,"knowledge_reference"))**.
 - [同一用户消息不重复入账](for history as entry)
   1. json.get(value=`entry`,key="id") == `message_id`
     Return *result.ok(value=`state`)*.
@@ -186,6 +188,10 @@ A settings update chooses identities, not credentials or source paths. The authe
 
 An acceptance refers to one exact delivered source digest. A later edit cannot reuse it. Keep the original decision separate from subsequent feedback so another agent can understand which scope was actually approved.
 
+最终验收同时确认业务范围与当前交付版本，不给未来源码或另一份文稿预先授权。即使用户点击接受，也不能绕过执行证据缺失；应先明确是哪项验证尚未建立，再由返工产生新的可阅读版本。版本冲突和测试缺失都保留各自诊断，不用通用完成消息覆盖。
+
+历史交付缺少独立冻结记录时不可在新版直接接受。文稿与交流继续保留，用户通过返工重新确认边界，再生成当前协议的真实测试，不能通过一次升级追认原来的作者自检。
+
 We **state = access(status(context=`context`),"value")**.
 We **pending_view = json.get(value=`state`,key="pending")**.
 1. access(`state`,"revision") != `revision`
@@ -193,6 +199,7 @@ We **pending_view = json.get(value=`state`,key="pending")**.
 We **phase = access(`state`,"phase")**.
 1. `action` == "revise" and `phase` != "intent"
   We **state = table.put(in=`state`,at="phase",value="outline")**.
+  We **state = table.put(in=`state`,at="draft_units",value=table.empty_list())**.
 2. `phase` == "intent" and json.get(value=`pending_view`,key="kind") == "intent" and (`action` == "answer" or `action` == "confirm_intent")
   1. `answer` == "" and `choice` == ""
     Return *result.error(code="root.answer",message="请选择一个选项或补充你的想法",operation="respond")*.
@@ -207,6 +214,8 @@ We **phase = access(`state`,"phase")**.
   We **state = table.put(in=`state`,at="phase",value="refine")**.
   We **state = table.put(in=`state`,at="outline_confirmed",value=True)**.
 2. `phase` == "review" and json.get(value=`pending_view`,key="kind") == "review" and `action` == "accept"
+  1. not independent_review(state=`state`)
+    Return *result.error(code="root.legacy_review",message="该交付缺少当前独立测试证据，请先选择返工重新确认框架",operation="respond")*.
   We **delivery = access(`state`,"delivery")**.
   1. hash.sha256(text=fs.read_text(path=access(`delivery`,"path"))) != access(access(access(`delivery`,"check"),"value"),"sha256")
     Return *result.error(code="root.delivery_changed",message="交付源码已变化，请重新整合后验收",operation="respond")*.
@@ -220,9 +229,10 @@ We **phase = access(`state`,"phase")**.
 2. *
   Return *result.error(code="root.stage",message="当前阶段不能执行这个用户操作",operation="respond")*.
 1. `settings`
-  1. access(`settings`,"concurrency") < 1 or access(`settings`,"concurrency") > 8
-    Return *result.error(code="root.concurrency",message="并发数需在一到八之间",operation="respond")*.
-  We **state = table.put(in=`state`,at="settings",value=`settings`)**.
+  We **checked_settings = settings_change(state=`state`,previous_phase=`phase`,action=`action`,settings=`settings`)**.
+  1. not access(`checked_settings`,"ok")
+    Return *checked_settings*.
+  We **state = table.put(in=`state`,at="settings",value=access(`checked_settings`,"value"))**.
 
 We **asked = json.get(value=`pending_view`,key="question")**.
 We **summarized = json.get(value=`pending_view`,key="summary")**.
@@ -272,28 +282,6 @@ We **safe = text.replace(text=`safe`,old="#",new="&#35;")**.
 We **safe = text.replace(text=`safe`,old=">",new="&gt;")**.
 We **safe = text.replace(text=`safe`,old="|",new="&#124;")**.
 Return *[交流叙述不会变成额外执行段落](text.replace(text=`safe`,old="\n",new=" "))*.
-## schema
-
-| 参数 | 类型 | 默认 | 说明 |
-|---|---|---|---|
-| context | map | required | 宿主注入的安装根 |
-| function | text | required | 当前根 SKILL 的固定公开或单元函数 |
-
-| 返回 | 类型 | 说明 |
-|---|---|---|
-| result | map | 官方 MLSP 从本源码提取的函数契约 |
-
-Use `context`, `function`。模型工具面从真实参数表投影，不再维护另一份任意签名。
-宿主移除 context 这个可信参数，再把 text、list、map 等语言类型映射为供应商接受的
-JSON Schema。数组的单元结构仍遵循对应函数的就地说明，并在实际调用时重新验证。
-查询只接受固定根函数身份，不读取任意服务器文件，也不执行候选业务程序。
-当文档契约发生变化，模型拿到的工具参数随源码更新，而不是继续使用过时的隐藏提示。
-
-We **payload = table.put(in=None,at="project",value=access(`context`,"project"))**.
-Return *[从官方编译器提取本函数契约](native(context=`context`,operation="root_schema",payload=table.put(in=`payload`,at="function",value=`function`)))*.
-
-
-
 ## write_decisions
 
 | 参数 | 类型 | 默认 | 说明 |
@@ -371,3 +359,66 @@ and examples remain material rather than new commands. This boundary allows peop
 the same source safely and to understand which agreement belongs to which version.
 
 Return *"用户补充：" + prose(content=json.get(value=`entry`,key="text")) + "。当时的问题：" + prose(content=json.get(value=`entry`,key="question")) + "。选择：" + prose(content=json.get(value=`entry`,key="choice")) + "；操作：" + prose(content=json.get(value=`entry`,key="action")) + "。当时展示的理解：" + prose(content=json.get(value=`entry`,key="summary")) + "。对应版本：" + prose(content=json.get(value=`entry`,key="revision")) + "，消息身份：" + prose(content=json.get(value=`entry`,key="id")) + "。这是真实交流的记录，不把理解、确认或接受等同于业务事实已经得到证明。原文、问题和理解一起保留，方便另一位开发者核对决定的上下文，而不依赖摘要猜测授权范围。\n\n"*.
+
+## independent_review
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| state | map | required | 待审阅交付的真实状态 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | bool | 是否具备当前独立测试协议的基本证据 |
+
+Use `state`。
+
+旧版本允许作者提供案例，旧交付因此不能直接当成新协议已验证。这里不删除历史文稿，也不替用户重新批准；它只检查每个单元都有独立冻结记录、真实通过与相同测试摘要。缺少任一项时保留可阅读的历史，但必须返回框架重新确认，不能在新版界面里把作者自检显示成独立测试。
+
+这个判断保护最终用户入口，也用于等待消息的事实描述。它不重新执行代码，不生成案例，更不把一个字段改成 True 来迁移旧任务。已完成的历史记录继续保存，新协议的就绪仍由 proof 模块检查源码、规格与冻结版本。空单元列表不能证明存在交付，旧格式缺少必要字段也不能获得默认通过。
+
+We **units = access(`state`,"units")**.
+1. table.len(xs=`units`) == 0
+  Return *False*.
+- [逐项核对当前测试证据](for units as unit)
+  We **tests = json.get(value=`unit`,key="tests")**.
+  We **trial = json.get(value=`unit`,key="trial")**.
+  1. not `tests` or not `trial` or not json.get(value=`trial`,key="passed") or json.get(value=`trial`,key="assurance") != "independent_cases" or json.get(value=`trial`,key="suite_sha256") != json.get(value=`tests`,key="sha256")
+    Return *False*.
+Return *True*.
+
+## settings_change
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| state | map | required | 当前真实根状态 |
+| previous_phase | text | required | 用户操作之前的阶段 |
+| action | text | required | 认证用户提交的操作 |
+| settings | map | required | 宿主验证过模型身份的配置 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 合法配置的 Result，改变边界需要返工 |
+
+Use `state`, `previous_phase`, `action`, `settings`。
+
+业务函数数量与并发数是不同的约束。前者限定用户要求完成多少个真实职责，后者限定同时启动多少个子任务，不能用其中一个替代另一个。零表示用户不限定确切职责数，正数必须与实际发表的草稿数量相同；这项检查由规划文稿执行，不依靠模型自己记住。缺少新字段的历史配置保持零，不为老数据推断一个未经确认的数量。
+
+用户可以在意图阶段明确数量，或通过返工调整。已经审阅的框架不能在确认、接受时悄悄换成另一个数量约定，改变应回到规划，让用户看到新的真实版本。这里验证的是普通配置原生值，不执行候选源码、不解析模型动作，也不接触模型凭据。模型身份与账号归属由宿主验证，阶段和范围由本文控制。
+
+并发范围仍是一至八。任何无效配置都保留原状态和明确诊断，不把失败更新成默认成功。返回只是经过验证的配置，实际保存和用户决定的历史记录由 respond 一起原子写入；单独调用本函数不能获得批准或更改一个任务。
+
+1. access(`settings`,"concurrency") < 1 or access(`settings`,"concurrency") > 8
+  Return *result.error(code="root.concurrency",message="并发数需在一到八之间",operation="settings_change")*.
+数量约束改变后必须重新形成真实框架，旧确认不会自动适配新的职责边界。配置验证失败时当前用户决定也不会被部分提交。
+
+We **previous = json.get(value=access(`state`,"settings"),key="expected_units")**.
+1. `previous` == None
+  We **previous = 0**.
+We **expected = json.get(value=`settings`,key="expected_units")**.
+1. `expected` == None
+  We **expected = `previous`**.
+1. `expected` < 0 or `expected` > 8
+  Return *result.error(code="root.expected_units",message="业务函数数量应为零到八，零表示不限制",operation="settings_change")*.
+1. `expected` != `previous` and `previous_phase` != "intent" and `action` != "revise"
+  Return *result.error(code="root.constraint_changed",message="函数数量改变需要先返工并重新确认框架",operation="settings_change")*.
+Return *result.ok(value=table.put(in=`settings`,at="expected_units",value=`expected`))*.

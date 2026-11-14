@@ -7,7 +7,7 @@ import:
   call: ../../pages/control/call.mq.md
 ---
 
-先用 plan_task 写明目标与验收，再用 create_office 交付真实报告和幻灯片。入口负责工程目录与可信模板，package.mq.md 负责受限工作根内的纯 Marqdo 生成。每个版本保留可读源稿，失败不伪造文件。
+先在根文稿中确认目标与验收，再直接调用本文件 create 函数交付真实报告和幻灯片。入口负责工程目录与可信模板，package.mq.md 负责受限工作根内的纯 Marqdo 生成。每个版本保留可读源稿，失败不伪造文件。
 
 ## create
 
@@ -23,7 +23,7 @@ import:
 |---|---|---|
 | result | any | 真实文件路径、源稿、大小、摘要和验证范围 |
 
-Use `kind`, `title`, `sections`, `render_pdf`=False and `context`。模型使用 create_office 工具，只提供前三项；context 不在模型参数中，由可信执行器注入。先读实际材料和验收标准，再组织内容。每个 section 的 heading 是章节或页标题，body 用换行区分段落。PPTX 会自动添加封面，后续每节一页，单页最多八行、七百字符；过长应先拆页。
+Use `kind`, `title`, `sections`, `render_pdf`=False and `context`。当前交付文稿通过普通函数调用本入口，只提供业务内容；context 不在模型参数中，由可信执行器注入。先读实际材料和验收标准，再组织内容。每个 section 的 heading 是章节或页标题，body 用换行区分段落。PPTX 会自动添加封面，后续每节一页，单页最多八行、七百字符；过长应先拆页。
 
 | 任务 | kind | sections 示例 |
 |---|---|---|

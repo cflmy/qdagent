@@ -4,6 +4,7 @@ use std::{ffi::c_char, fs, path::{Path,PathBuf},process::{Command,Stdio},time::{
 use serde_json::{json,Value};
 use marqdo_plugin_sdk::*;
 mod root_skill;
+mod runtime;
 fn root(args:&Value)->Result<PathBuf,String>{
  let r=PathBuf::from(args["root"].as_str().ok_or("root required")?).canonicalize().map_err(|e|e.to_string())?;
  fs::create_dir_all(r.join("data/dialogue/proj")).map_err(|e|e.to_string())?;Ok(r)
@@ -97,6 +98,7 @@ fn invocation(v:&Value)->Result<Value,String>{
 }
 
 fn dispatch(v:&Value)->Result<Value,String>{
+ if v["operation"].as_str().is_some_and(|op|op.starts_with("runtime_")){return runtime::dispatch(v)}
  if v["operation"].as_str().is_some_and(|op|op.starts_with("root_")){return root_skill::dispatch(v)}
  if v["operation"]=="call"{return invocation(v)}
  let r=root(v)?;

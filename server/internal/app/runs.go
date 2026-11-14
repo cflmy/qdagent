@@ -94,6 +94,7 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 	if err != nil {
 		return Run{}, err
 	}
+	ctxMap["knowledge_reference"] = knowledge
 	config, err := s.store.resolveModel(owner, model)
 	if err != nil {
 		return Run{}, err
@@ -172,21 +173,10 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 	defer cancel()
 	defer func() { s.mu.Lock(); delete(s.active, r.ID); delete(s.weights, r.ID); s.mu.Unlock() }()
 	_ = s.store.appendEvent(r.ID, "status", map[string]string{"status": "running", "message": "已建立独立任务进程"})
-	history := []map[string]string{}
-	rows, err := s.store.db.Query(`SELECT question,answer FROM qd_messages WHERE task_id=? AND turn<? ORDER BY turn DESC LIMIT 20`, r.Task, turn)
-	if err == nil {
-		for rows.Next() {
-			var q, a string
-			if rows.Scan(&q, &a) == nil {
-				history = append(history, map[string]string{"question": q, "answer": a})
-			}
-		}
-		rows.Close()
-	}
 	c["model_selection"] = r.Model
 	c["model"] = r.Model
 	c["run_id"] = r.ID
-	payload := map[string]any{"run_id": r.ID, "task_id": r.Task, "question": r.Question, "owner": owner, "context": c, "model": config, "history": history, "knowledge": knowledge}
+	payload := map[string]any{"run_id": r.ID, "task_id": r.Task, "question": r.Question, "owner": owner, "context": c, "model": config, "knowledge": knowledge}
 	if s.workflow != nil {
 		payload["root_skill"] = true
 		state, stateErr := s.workflow.snapshot(r.Task)
@@ -196,6 +186,9 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 		}
 		selected := map[string]bool{}
 		if settings, ok := state["settings"].(map[string]any); ok {
+			if id, ok := settings["test_model"].(string); ok {
+				selected[id] = true
+			}
 			if id, ok := settings["child_model"].(string); ok {
 				selected[id] = true
 			}

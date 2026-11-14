@@ -49,15 +49,6 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   let raw=state.to_string();if raw.len()>2*1024*1024{return Err("root skill state exceeds two MiB".into())}
   super::atomic(&path,&raw)?;return Ok(state)
  }
- if operation=="root_schema"{
-  let project=PathBuf::from(v["project"].as_str().ok_or("project required")?).canonicalize().map_err(|e|e.to_string())?;
-  let member=v["function"].as_str().ok_or("function required")?;
-  if !["clarify_intent","outline","refine","integrate","status","author_unit","author_text","author_select","trial_unit"].contains(&member){return Err("unknown root skill contract".into())}
-  let file=project.join("ext/root-skill/index.mq.md");
-  let output=run(&["mlsp".into()],&(json!({"id":1,"method":"schema","params":{"path":file,"unit":member}}).to_string()+"\n"),&project)?;
-  let parsed:Value=serde_json::from_str(output["stdout"].as_str().unwrap_or("").lines().next().unwrap_or("")).map_err(|e|e.to_string())?;
-  if parsed["ok"]!=true{return Err(parsed.to_string())}return Ok(parsed["result"].clone())
- }
  let root=workspace(v)?;let path=source(&root,v["path"].as_str().ok_or("path required")?)?;
  let checked=validate(&root,&path)?;
  if operation=="root_check"{return Ok(checked)}

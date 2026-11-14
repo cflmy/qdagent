@@ -1,76 +1,80 @@
-import io
+"""Wire substitute only; all agent policy, source generation and execution are real Marqdo."""
+import concurrent.futures
+import http.server
 import json
 import os
 from pathlib import Path
-import re
-import shutil
+import subprocess
 import sys
 import threading
+import time
 import unittest
-from unittest.mock import patch
-import agent
-from root_skill import RootSkill
+import uuid
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tests'))
 import test_root_skill as protocol
 
 class RuntimeTests(unittest.TestCase):
  def setUp(self):
-  self.fixture=protocol.RootTests(methodName='runTest');self.fixture.setUp()
-  self.environment=patch.dict(os.environ,{'MARQDO_LIB':str(protocol.PROJECT/'lib'),'MARQDO_EXT':str(protocol.PROJECT/'ext')});self.environment.start()
- def tearDown(self):self.environment.stop();self.fixture.tearDown()
- def test_selected_child_models_execute_in_parallel_through_real_marqdo(self):
-  self.fixture.intent()
-  state=self.fixture.call('outline',title='并发验收',goal='真实验证两个独立单元',acceptance='实际代码与案例通过',units=[{'id':'u0','title':'单元0','purpose':'输出来源明确的验收值'},{'id':'u1','title':'单元1','purpose':'输出来源明确的验收值'}])
-  self.fixture.call('respond',revision=state['revision'],action='confirm_outline',settings={'concurrency':2,'child_model':'inherit','unit_models':{'u0':'model-a','u1':'model-b'}})
-  events=[];seen=[];lock=threading.Lock();barrier=threading.Barrier(2);active=0;peak=0
-  def model(config,messages,specs,emit_event=None):
-   nonlocal active,peak
-   identifier=re.search(r'unit_id 必须为 (u[01])',messages[1]['content']).group(1)
-   with lock:active+=1;peak=max(peak,active);seen.append(config['model'])
-   barrier.wait(timeout=10)
-   with lock:active-=1
-   value={'fixture':identifier,'model':config['model']}
-   args={'unit_id':identifier,'narrative':protocol.NARRATIVE,'mode':'literal','body':'','value':value,'cases':[{'input':{'request':'验收','dependencies':{}},'expected':value}]}
-   return '', '', [{'id':'call-'+identifier,'type':'function','function':{'name':'author_unit','arguments':json.dumps(args)}}]
-  request={'owner':'root-test','run_id':'parallel-fixture','context':self.fixture.context,'model':{'protocol':'ollama','model':'parent'},'child_models':{'model-a':{'protocol':'ollama','model':'selected-a'},'model-b':{'protocol':'ollama','model':'selected-b'}}}
-  root=RootSkill(request,agent.cli,model,lambda kind,**data:events.append((kind,data)),lambda *_:True)
-  try:state=root.refine()
-  except RuntimeError:
-   print("child diagnostics",[(kind,data) for kind,data in events if kind=="child_end"])
-   raise
-  self.assertEqual(state['phase'],'implement');self.assertEqual(peak,2);self.assertEqual(sorted(seen),['selected-a','selected-b'])
-  self.assertTrue(all(unit['trial']['passed'] for unit in state['units']))
-  self.assertEqual(len([e for e in events if e[0]=='child_start']),2)
-  self.assertEqual(len([e for e in events if e[0]=='child_end' and e[1]['status']=='succeeded']),2)
-  review=root.fallback(state);self.assertEqual(review['phase'],'review');self.assertEqual(review['pending']['kind'],'review')
- def test_repetitive_read_loop_uses_real_integration_instead_of_fake_completion(self):
-  self.fixture.framework();self.fixture.author('u0','已给定正文');self.fixture.trial('u0');self.fixture.call('refine')
-  native=self.fixture.root/'runtime/ext/native';native.mkdir(parents=True)
-  for name in ['libagent.so','libweb.so','libqdagent_transport.so']:
-   try:os.link(protocol.PROJECT/'ext/native'/name,native/name)
-   except OSError:shutil.copyfile(protocol.PROJECT/'ext/native'/name,native/name)
-  events=[];count=0
-  def model(config,messages,specs,**kwargs):
-   nonlocal count
-   count+=1
-   self.assertNotIn('多步骤工作先 plan_task',messages[0]['content'])
-   return '', '', [{'id':'read-'+str(count),'type':'function','function':{'name':'read_file','arguments':json.dumps({'path':'solution/units/u0.mq.md'})}}]
-  request={'root_skill':True,'owner':'root-test','run_id':'stall-fixture','context':self.fixture.context,'question':'继续整合','model':{'protocol':'ollama','model':'controlled'}}
-  with patch.object(sys,'stdin',io.StringIO(json.dumps(request))),patch.object(agent,'stream_model',side_effect=model),patch.object(agent,'emit',side_effect=lambda kind,**data:events.append((kind,data))),patch.object(agent,'plugin_enabled',return_value=True):
-   agent.main()
-  self.assertEqual(count,6);self.assertEqual(self.fixture.call('status')['phase'],'review')
-  reads=[data for kind,data in events if kind=='tool_end' and data['name']=='read_file']
-  self.assertEqual(len(reads),6);self.assertTrue(all(data['status']=='succeeded' for data in reads),reads)
-  self.assertEqual(events[-1][1]['status'],'waiting_user')
- def test_current_stage_filters_write_tools_and_schema_is_from_source(self):
-  request={'owner':'root-test','run_id':'schema-fixture','context':self.fixture.context,'model':{}}
-  root=RootSkill(request,agent.cli,None,lambda *a,**k:None,lambda *_:True)
-  specs=[{'id':name,'input_schema':{}} for name in ['write_file','skill_intent','skill_integrate','skill_status','read_file']]
-  filtered=root.filter_specs(specs);self.assertEqual({s['id'] for s in filtered},{'skill_intent','skill_status','read_file'})
-  schema=next(s for s in filtered if s['id']=='skill_intent')['input_schema']
-  self.assertEqual(set(schema['properties']),{'summary','question','choices'});self.assertNotIn('context',schema['properties'])
-  self.assertEqual(schema['properties']['choices']['items'],{'type':'string'})
-  self.assertEqual(root.schema('author_text')['properties']['content']['type'],'string')
-  self.assertEqual(root.schema('author_select')['properties']['path']['type'],'array')
+  self.fixture=protocol.RootTests(methodName='runTest');self.fixture.setUp();self.requests=[];self.repairs={};self.test_attempts={};self.outline_attempts=0;self.lock=threading.Lock();self.active=0;self.peak=0
+  self.responses={}
+  for name in ['intent','outline','test','bad','good','deliver','forbidden_test_read','outline_first','outline_second','outline_publish']:
+   p=subprocess.run(['marqdo','call',str(protocol.PROJECT/'tests/fixtures/document-agent/responses.mq.md'),name,'--json'],capture_output=True,text=True,check=True)
+   self.responses[name]=json.loads(p.stdout)['result']
+  outer=self
+  class Handler(http.server.BaseHTTPRequestHandler):
+   def do_POST(self):
+    request=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+    assert 'tools' not in request
+    standing=request['messages'][0]['content']
+    role='intent' if '## ask\n' in standing else 'outline' if ('## text_unit\n' in standing or '## publish\n' in standing) else 'test' if ('## sample\n' in standing or '## verify_constant\n' in standing) else 'implement' if '## write_text\n' in standing else 'deliver'
+    with outer.lock:outer.requests.append((role,request));outer.active+=1;outer.peak=max(outer.peak,outer.active)
+    if role=='outline':
+     with outer.lock:count=outer.outline_attempts;outer.outline_attempts+=1
+     response=outer.responses[['outline_first','outline_second','outline_publish'][min(count,2)]]
+    elif role=='implement':
+     with outer.lock:
+      facts=request['messages'][1]['content'];key='u0' if 'unit_u0' in facts else 'u1';count=outer.repairs.get(key,0);outer.repairs[key]=count+1
+     response=outer.responses['bad' if count==0 else 'good']
+    elif role=='test':
+     with outer.lock:
+      facts=request['messages'][1]['content'];key='u0' if 'unit_u0' in facts else 'u1';count=outer.test_attempts.get(key,0);outer.test_attempts[key]=count+1
+     response=outer.responses['forbidden_test_read' if count==0 else 'test']
+    else:response=outer.responses[role]
+    self.send_response(200);self.send_header('Content-Type','application/x-ndjson');self.end_headers()
+    midpoint=len(response)//2
+    for text in [response[:midpoint],response[midpoint:]]:
+     self.wfile.write((json.dumps({'message':{'content':text}})+'\n').encode());self.wfile.flush();time.sleep(.04)
+    with outer.lock:outer.active-=1
+   def log_message(self,*args):pass
+  self.server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler);self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
+ def tearDown(self):self.server.shutdown();self.server.server_close();self.thread.join();self.fixture.tearDown()
+ def run_worker(self):
+  context={**self.fixture.context,'run_id':uuid.uuid4().hex,'model_selection':'fixture-parent'}
+  config={'protocol':'ollama','builtin':True,'endpoint':f'http://127.0.0.1:{self.server.server_port}','model':'fixture-parent'}
+  payload={'root_skill':True,'run_id':context['run_id'],'owner':'root-test','question':'继续当前真实阶段','context':context,'model':config,'child_models':{'fixture-test':{**config,'model':'isolated-test'}}}
+  proc=subprocess.run([sys.executable,str(protocol.PROJECT/'worker/agent.py')],input=json.dumps(payload),capture_output=True,text=True,timeout=120,cwd=protocol.PROJECT)
+  events=[json.loads(line) for line in proc.stdout.splitlines()]
+  self.assertTrue(events,proc.stderr);self.assertEqual(events[-1]['kind'],'final',events[-4:]);self.assertEqual(events[-1]['data']['status'],'waiting_user',events[-5:]);self.assertEqual(proc.returncode,0,proc.stderr)
+  return events,context
+ def test_document_native_flow_has_blind_testers_and_repairs_real_defects(self):
+  self.run_worker();state=self.fixture.call('status');self.fixture.call('respond',revision=state['revision'],action='confirm_intent',choice=state['pending']['choices'][0],settings={'concurrency':2,'child_model':'inherit','test_model':'inherit','unit_models':{},'expected_units':2})
+  self.run_worker();state=self.fixture.call('status');self.assertEqual(len(state['draft_units']),2);self.assertEqual(self.outline_attempts,3);self.fixture.call('respond',revision=state['revision'],action='confirm_outline',settings={'concurrency':2,'child_model':'inherit','test_model':'fixture-test','unit_models':{}})
+  planning=[request for role,request in self.requests if role=='outline']
+  for request in planning[1:]:
+   self.assertIn('上一步实际调用成功',request['messages'][-1]['content']);self.assertNotIn('上一次调用尚未取得',request['messages'][-1]['content']);self.assertNotIn('own_previous_program',request['messages'][-1]['content'])
+  self.assertNotIn('## text_unit\n',planning[-1]['messages'][0]['content']);self.assertIn('## publish\n',planning[-1]['messages'][0]['content'])
+  events,context=self.run_worker();state=self.fixture.call('status');self.assertEqual(state['phase'],'review');self.assertGreaterEqual(self.peak,2)
+  self.assertEqual(len([e for e in events if e['kind']=='child_start']),2)
+  failed=[e for e in events if e['kind']=='child_tool_end' and e['data']['status']=='failed'];self.assertTrue(failed,'injected defect bypassed independent tests')
+  self.assertTrue(all(unit['trial']['passed'] and unit['trial']['assurance']=='independent_cases' for unit in state['units']))
+  tests=[request for role,request in self.requests if role=='test'];self.assertEqual(len(tests),4);self.assertEqual(len([e for e in events if e['kind']=='call_rejected' and e['data']['role']=='test']),2)
+  for request in tests:
+   serialized=json.dumps(request,ensure_ascii=False);self.assertEqual(request['model'],'isolated-test');self.assertNotIn('故意植入的错误',serialized);self.assertNotIn('unit_record',serialized);self.assertNotIn('source_header',serialized);self.assertNotIn('We **',request['messages'][1]['content']);self.assertNotIn('Return *',request['messages'][1]['content'].split('上一次调用尚未取得')[0])
+  for role,request in self.requests:self.assertNotIn('tools',request)
+  for unit in state['units']:
+   self.assertEqual(unit['specification']['executable_statements'],0);self.assertEqual(unit['tests']['sha256'],unit['trial']['suite_sha256'])
+  self.fixture.call('respond',revision=state['revision'],action='accept');self.assertEqual(self.fixture.call('status')['phase'],'complete')
+  source=self.fixture.root/'work/solution/index.mq.md';p=subprocess.run(['marqdo','call',str(source),'run','--args-json','-','--json','--effects','fs.read,fs.write','--fs-root',str(self.fixture.root/'work')],input='{"input":null}',capture_output=True,text=True,env={**os.environ,'MARQDO_LIB':str(protocol.PROJECT/'lib')},check=True)
+  self.assertEqual(json.loads(p.stdout)['result'],{'u0':'材料甲','u1':'材料甲'})
 
 if __name__=='__main__':unittest.main()

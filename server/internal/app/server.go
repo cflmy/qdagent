@@ -38,7 +38,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{s, a, newSupervisor(s), frontend, "qdagent-root-skill-0.5.0"}, nil
+	return &Server{s, a, newSupervisor(s), frontend, "qdagent-document-runtime-0.6.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -47,7 +47,7 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, 200, map[string]any{"ok": true, "runtime": "go", "worker": "python", "tools": "marqdo-call"})
 	})
 	m.HandleFunc("GET /build-info", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]string{"revision": s.revision, "frontend": "react-typescript", "server": "go", "agent": "python"})
+		writeJSON(w, 200, map[string]string{"revision": s.revision, "frontend": "react-typescript", "server": "go", "agent": "marqdo-document", "transport": "python"})
 	})
 	m.HandleFunc("GET /login", s.auth.login)
 	m.HandleFunc("GET /oidc/callback", s.auth.callback)

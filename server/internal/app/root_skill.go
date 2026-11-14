@@ -87,15 +87,17 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
 		return
 	}
 	var input struct {
-		Revision    int64             `json:"revision"`
-		Action      string            `json:"action"`
-		Answer      string            `json:"answer"`
-		Choice      string            `json:"choice"`
-		Concurrency *int              `json:"concurrency"`
-		ChildModel  string            `json:"child_model"`
-		UnitModels  map[string]string `json:"unit_models"`
-		AcceptStubs bool              `json:"accept_stubs"`
-		Model       string            `json:"model"`
+		Revision      int64             `json:"revision"`
+		Action        string            `json:"action"`
+		Answer        string            `json:"answer"`
+		Choice        string            `json:"choice"`
+		Concurrency   *int              `json:"concurrency"`
+		ExpectedUnits *int              `json:"expected_units"`
+		ChildModel    string            `json:"child_model"`
+		TestModel     string            `json:"test_model"`
+		UnitModels    map[string]string `json:"unit_models"`
+		AcceptStubs   bool              `json:"accept_stubs"`
+		Model         string            `json:"model"`
 	}
 	if !decode(w, r, &input) {
 		return
@@ -120,8 +122,18 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
 		}
 		settings["concurrency"] = *input.Concurrency
 	}
+	if input.ExpectedUnits != nil {
+		if *input.ExpectedUnits < 0 || *input.ExpectedUnits > 8 {
+			writeError(w, 400, "expected_units", "业务函数数量需在 1–8 之间，0 表示不限制")
+			return
+		}
+		settings["expected_units"] = *input.ExpectedUnits
+	}
 	if input.ChildModel != "" {
 		settings["child_model"] = input.ChildModel
+	}
+	if input.TestModel != "" {
+		settings["test_model"] = input.TestModel
 	}
 	if input.UnitModels != nil {
 		known := map[string]bool{}
@@ -143,6 +155,9 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
 		settings["unit_models"] = input.UnitModels
 	}
 	models := []string{}
+	if id, ok := settings["test_model"].(string); ok {
+		models = append(models, id)
+	}
 	if id, ok := settings["child_model"].(string); ok {
 		models = append(models, id)
 	}

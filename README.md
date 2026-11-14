@@ -1,6 +1,6 @@
 # 求道 · 让目标成为成果
 
-求道是以 Marqdo 为工具语言的智能体工作台。当前运行架构采用 **React + TypeScript + Vite / Go / Python**，先提供稳定成品，再把经过实际验证的能力逐步迁回 Marqdo 插件。
+求道由 **Marqdo 可执行文稿驱动**。根流程、角色规则、提示和任务函数由 `.mq.md` 执行；React + TypeScript + Vite 提供工作台，Go 提供认证、存储与服务，Python 仅承担模型网络传输和固定 CLI 桥。
 
 公共首页为 `/`，工作台为 `/app`，登录成功后进入工作台。首页不请求用户模型、会话或插件 API，身份站临时不可用不会阻塞产品介绍。
 
@@ -18,24 +18,21 @@
 
 Go 服务不嵌入 Marqdo VM。工具和读取器使用独立 CLI 子进程，编译或插件失败不能终止 Web 服务。每个运行有独立进程组，停止任务会终止该组；已经发生的写入不被回滚或伪装成没有发生。
 
-子任务和 Office 能力本轮复用既有 Marqdo 适配器，没有重复开发第二套插件。后续可逐个替换其内部实现，稳定的调用合同和真实收据保持一致。原来的 `pages/public/client.mq.md`、Web 启动器和开发技能保留作迁移参考，**已经不是生产站点入口**。
+子任务调度复用 Marqdo 标准库，Office 复用既有 Marqdo 插件。后续可逐个替换其内部实现，稳定的调用合同和真实收据保持一致。原来的 `pages/public/client.mq.md`、Web 启动器和开发技能保留作迁移参考，**已经不是生产站点入口**。
 
-## 根 SKILL：必须经过的四阶段工程流程
+## 文稿驱动的根流程
 
-每个新目标先意图拆解，再基本方案、并行细化、方案落地。已注册的 `root-skill` 插件以 [ext/root-skill/index.mq.md](ext/root-skill/index.mq.md) 为入口；它是实际执行程序，按阶段加载 guides/ 中的工程文档。模型的工具参数来自该入口的官方 MLSP 契约，宿主只投影协议，不另写一套语言或阶段规则。
+架构与验收依据见 [docs/document-driven-agent.mq.md](docs/document-driven-agent.mq.md)，后续开发必须遵守仓库的 [AGENTS.md](AGENTS.md)。生产入口实际执行 `marqdo call ext/root-skill/index.mq.md run`。普通 `.mq.md` 的函数就是能力，不另设 SKILL 注册器、业务工具别名表或 JSON 动作路由。
 
-1. 模型调用 `skill_intent` 提问，用户可选择、自由输入、多轮澄清，确认意图才前进。
-2. `skill_outline` 创建 `solution/plan.mq.md` 的真实函数骨架，右侧通过官方 View 阅读。用户确认这份确切源码，同时选择并发数和子模型。
-3. 每个子智能体只处理一个登记单元，通过 `author_unit` 生成候选，再由 `trial_unit` 实际校验与运行案例。可以选 `literal` 写有来源的固定结构、`select` 通过键路径读取真实输入，或 `code` 写业务逻辑。不熟悉语法时也可先使用模板。失败保留实际诊断和可继续修复的进度。
-4. `skill_integrate` 将已验证单元、叙述、用户交流合成 `solution/index.mq.md`，再次检查和冒烟执行。最终用户审阅并验收；未接通项必须可见、明确接受后仍标为部分完成。
+意图拆解先向用户提问，确认后才形成可在官方 View 阅读的函数框架。框架确认后冻结无执行语义的公开规格，每个单元进入独立的测试与实现上下文；多个单元通过标准库 `subtask.run_many` 按用户设置并行。独立测试者只能看公开规格和自己的调用接口，不能读取实现、开发对话或调用实现来取得 expected。实现者可以修复代码，但不能提交或改变冻结的测试。真实执行器核对源码、规格和案例摘要后，才能整合入口并请求用户验收。
 
-主模型未能提供阶段调用时，宿主会明确提示并通过同一 Marqdo 函数创建基础提问、待确认框架或据实整合；不会生成业务假结果。整合阶段连续六轮没有成功的业务操作时也会执行这项有界整合，避免无限重复读取或验证，最终仍须用户审阅。
+所有模型指令、角色要求、上下文排版与修复规则都位于 [ext/root-skill/runtime/instructions.mq.md](ext/root-skill/runtime/instructions.mq.md) 及相应阶段文稿。Python 仅保留 `agent.py` 的固定 CLI/事件转发和 `provider.py` 的网络协议适配。供应商请求没有业务工具 Schema；响应是普通 Marqdo 调用正文，经官方解析器校验后，在空的角色文件根内通过真实 `marqdo call` 执行。身份、阶段与权限不属于模型参数，未经授权的导入、宿主调用、控制流和函数目标会被拒绝。
 
-四个阶段不能用提示词或一个“已完成”跨过。用户确认接口不向模型注册；阶段门禁在实际执行器开启副作用之前再次校验。私有版本状态位于会话根，普通任务文件不能覆盖它。原子版本提交合并并发结果，旧确认、被修改的框架、失效源码摘要均会被拒绝。`solution/decisions.mq.md` 保留最终验收与后续补充，同时保持已审阅入口的摘要稳定。
+调用接口由 [ext/root-skill/calls/](ext/root-skill/calls/) 的普通函数直接给出。新增公开能力应修改当前文稿的实现、参数与返回表，不往中央注册表增加记录。`pages/agent/catalog.mq.md` 与 `executor.mq.md` 已关闭旧路由；它们只返回明确的退役诊断。ABI 安装登记和插件开关仍保留，安装一个动态库不代表允许模型调用所有内部函数。
 
-框架当前允许最多八个单元，子任务并发一到八，可分别选择已有可用模型或继承主模型；不会静默换模型。服务全局按所选并发预留最多八份容量。子智能体不能再递归派生，单元依赖只能引用已声明的前置单元，最终入口按依赖顺序传递实际返回。并发是代码创作与独立案例验证，不能借此提前执行未获确认的外部副作用。
+实现可用固定正文、原生结构值、输入取值模板或真实函数体，不需要先学会复杂转义。案例由测试者独立冻结，随私有根状态原子提交；实现者自检不再授予就绪。`solution/plan.mq.md` 保存框架，`solution/specifications/*.intent.md` 是经过官方 AST 检查、零执行语句的意图投影，`solution/index.mq.md` 保存可调用交付，`solution/decisions.mq.md` 保留最终用户决定。未接通功能明确披露，接受有限范围仍记录部分完成。
 
-编译通过、声明案例通过、整合冒烟、业务验收分别保留，前几项并不证明所有输入或外部事实正确。试运行只有隔离目录内的文件效果，不含网络、进程和插件执行；需要外部业务操作的任务须在方案落地阶段通过既有登记工具完成。停用根插件会阻止新运行，不能把它当作跳过工程流程的开关。运行中显示真实阶段、子模型、工具参数、实际诊断与提供方实际返回的解释。
+每次模型请求保存实际可见消息、指令源位置和源码摘要，前端展示真实模型、调用文稿、子任务与运行证据。每轮只保留当前角色材料和上一条必要诊断，不回放全局工具对话。默认最多八个单元，并发一到八，可分别选择实现与测试模型；测试模型继承配置时也不继承开发上下文。模型未给出有效调用、独立测试失败或源码变更时保留未完成，不生成兜底业务结果。
 
 ## Docker 启动
 
@@ -120,7 +117,7 @@ npm run build --prefix frontend
 QDAGENT_START_TEST_SERVER=1 QDAGENT_BROWSER=/path/to/chrome npm exec --prefix frontend playwright test -- --config frontend/playwright.config.ts
 ```
 
-Go 检查覆盖账号隔离、同源限制、加密范围、越界路径与符号链接、真实首段 SSE、持久化和登记交付边界。Python 检查覆盖参数、原生增量协议与供应商 schema 转换。浏览器检查直接操作真实 Go API，包含任务、模型、插件、上传、文稿、调宽和手机布局。
+Go 检查覆盖账号隔离、同源限制、加密范围、越界路径与符号链接、真实首段 SSE、持久化和登记交付边界。Python 检查覆盖消息原样传输、增量协议，以及真实 Marqdo 根流程的隔离与修复。浏览器检查直接操作真实 Go API，包含任务、模型、插件、上传、文稿、调宽和手机布局。
 
 迁移说明与下一步见 [技术栈渐进迁移](doc/next/技术栈渐进迁移.md)。Marqdo 工具开发仍可阅读原有 `.mq.md` 手册；新增库继续遵循代码即文档、文档即可调用能力的规范。
 
@@ -131,11 +128,14 @@ Go 检查覆盖账号隔离、同源限制、加密范围、越界路径与符�
 ## 根流程验证
 
 ```sh
+bash deploy/check-document-runtime.sh
 python3 -m unittest discover -s tests -p test_root_skill.py
+python3 -m unittest discover -s tests -p test_runtime_io.py
+python3 -m unittest discover -s tests -p test_architecture.py
 python3 -m unittest discover -s worker -p 'test*.py'
 (cd server && go test -race ./...)
 cargo test --offline --locked --manifest-path ext/qdagent/native/Cargo.toml --target-dir .marqdo/native-target
 npm run build --prefix frontend
 ```
 
-协议测试使用实际 CLI 和 ABI，验证不能跳步、旧确认、源码变更、无效代码、错误案例、并发合并和部分验收。受控模型测试只替代供应商响应，单元发表与试运行仍真实执行。浏览器测试中的 `real local model follows the mandatory root skill and human gates` 另行调用实际本机 Qwen，经过真实界面确认、并发和最终验收；需要已安装浏览器和在线 Ollama，不把受控供应商测试当成真实模型验收。开发身份只允许隔离的本机测试，生产仍使用统一身份认证。
+协议测试使用实际 CLI 和 ABI，验证不能跳步、旧确认、源码变更、无效代码、独立案例、并发合并和部分验收。网络替身的模型响应也定义在可执行 `.mq.md` 中，只替代供应商生成内容；测试实际经过网络传输、根状态机、官方解析、子任务和冻结案例，故意植入的错误必须失败，修复后使用原案例通过。浏览器用例另行调用本机 Qwen，覆盖真实交互与官方 View。不能把受控网络测试当成真实模型验收，也不能把编译通过当作业务事实正确。
