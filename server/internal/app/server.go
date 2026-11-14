@@ -17,11 +17,12 @@ import (
 )
 
 type Server struct {
-	store      *Store
-	auth       *auth
-	supervisor *supervisor
-	frontend   string
-	revision   string
+	store        *Store
+	auth         *auth
+	supervisor   *supervisor
+	frontend     string
+	revision     string
+	pluginsCache pluginManifestCache
 }
 
 func New(root, frontend string) (*Server, error) {
@@ -38,16 +39,16 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{s, a, newSupervisor(s), frontend, "qdagent-document-runtime-0.6.0"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-workbook-runtime-0.7.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{"ok": true, "runtime": "go", "worker": "python", "tools": "marqdo-call"})
+		writeJSON(w, 200, map[string]any{"ok": true, "runtime": "go", "worker": "marqdo-document", "tools": "marqdo-call", "transport": "python-wire"})
 	})
 	m.HandleFunc("GET /build-info", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]string{"revision": s.revision, "frontend": "react-typescript", "server": "go", "agent": "marqdo-document", "transport": "python"})
+		writeJSON(w, 200, map[string]string{"revision": s.revision, "frontend": "react-typescript", "server": "go", "agent": "marqdo-document", "transport": "python-wire", "execution": "marqdo-call", "browser": "chromium-isolated"})
 	})
 	m.HandleFunc("GET /login", s.auth.login)
 	m.HandleFunc("GET /oidc/callback", s.auth.callback)
@@ -352,7 +353,7 @@ func (s *Server) deleteModel(w http.ResponseWriter, r *http.Request, i identity)
 	}
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
-func (s *Server) pluginCatalog(owner string) []map[string]any {
+func (s *Server) pluginCatalog(owner string) ([]map[string]any, error) {
 	standard := []string{}
 	if entries, e := os.ReadDir(filepath.Join(s.store.root, "lib")); e == nil {
 		for _, f := range entries {
@@ -362,28 +363,36 @@ func (s *Server) pluginCatalog(owner string) []map[string]any {
 		}
 	}
 	out := []map[string]any{{"id": "stdlib", "name": "标准库", "description": "文件、数组、文本、数据与 Marqdo 运行基础能力", "version": "CLI 内建", "builtin": true, "enabled": true, "available": true, "modules": standard}}
-	defs := [][4]string{{"ai", "模型与智能体", "模型决策、子任务与可追溯执行", "libagent.so"}, {"web", "网页与阅读渲染", "官方 View 与文档组件", "libweb.so"}, {"net", "网络与实时连接", "HTTP 读取与网络能力", "libweb.so"}, {"data", "数据与存储", "SQLite 与数据处理", "libweb.so"}, {"security", "身份与权限", "身份与安全工具", "libweb.so"}, {"quantum", "量子计算", "量子线路与模拟", "libquantum.so"}, {"linalg", "线性代数", "矩阵与线性运算", "liblinalg.so"}, {"engineering", "工程工具", "构建与工程能力", "libengineering.so"}, {"qdagent", "任务运行与持久流", "工具收据与进程适配", "libqdagent_transport.so"}, {"office", "办公文档与演示", "生成可编辑文档、PPT 与源稿", ""}, {"root-skill", "根 SKILL · 文档驱动流程", "意图澄清、方案确认、并行细化与可验收交付；停用后不能执行任务", "libqdagent_transport.so"}}
+	defs, e := s.installedPlugins()
+	if e != nil {
+		return nil, e
+	}
 	vb, _ := os.ReadFile(filepath.Join(s.store.root, "ext/VERSION"))
 	version := strings.TrimSpace(string(vb))
 	for _, d := range defs {
-		path := filepath.Join(s.store.root, "ext/native", d[3])
-		if d[3] == "" {
-			path = filepath.Join(s.store.root, "ext", d[0], "index.mq.md")
+		path := filepath.Join(s.store.root, "ext/native", d.ABI)
+		if d.ABI == "" {
+			path = filepath.Join(s.store.root, d.Entry)
 		}
 		_, err := os.Stat(path)
-		if d[0] == "root-skill" && err == nil {
-			_, err = os.Stat(filepath.Join(s.store.root, "ext/root-skill/index.mq.md"))
+		if err == nil {
+			_, err = os.Stat(filepath.Join(s.store.root, d.Entry))
 		}
 		v := version
-		if b, e := os.ReadFile(filepath.Join(s.store.root, "ext", d[0], "VERSION")); e == nil {
+		if b, e := os.ReadFile(filepath.Join(s.store.root, "ext", d.ID, "VERSION")); e == nil {
 			v = strings.TrimSpace(string(b))
 		}
-		out = append(out, map[string]any{"id": d[0], "name": d[1], "description": d[2], "version": v, "builtin": false, "enabled": s.store.pluginEnabled(owner, d[0]), "available": err == nil})
+		out = append(out, map[string]any{"id": d.ID, "name": d.Name, "description": d.Description, "version": v, "builtin": false, "enabled": s.store.pluginEnabled(owner, d.ID), "available": err == nil})
 	}
-	return out
+	return out, nil
 }
 func (s *Server) plugins(w http.ResponseWriter, r *http.Request, i identity) {
-	writeJSON(w, 200, map[string]any{"plugins": s.pluginCatalog(i.Principal)})
+	items, err := s.pluginCatalog(i.Principal)
+	if err != nil {
+		writeError(w, 503, "plugin_manifest_unavailable", "插件安装文稿暂时无法读取，请重试")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"plugins": items})
 }
 func (s *Server) togglePlugin(w http.ResponseWriter, r *http.Request, i identity) {
 	id := r.PathValue("id")
@@ -393,8 +402,17 @@ func (s *Server) togglePlugin(w http.ResponseWriter, r *http.Request, i identity
 	if !decode(w, r, &v) {
 		return
 	}
+	if id == "stdlib" {
+		writeError(w, 400, "builtin_required", "标准库始终启用")
+		return
+	}
+	items, err := s.pluginCatalog(i.Principal)
+	if err != nil {
+		writeError(w, 503, "plugin_manifest_unavailable", "插件安装文稿暂时无法读取，请重试")
+		return
+	}
 	found := false
-	for _, p := range s.pluginCatalog(i.Principal) {
+	for _, p := range items {
 		if p["id"] == id {
 			if p["builtin"] == true {
 				writeError(w, 400, "builtin_required", "标准库始终启用")
@@ -590,6 +608,17 @@ func (s *Server) download(w http.ResponseWriter, r *http.Request, i identity) {
 	info, _ := f.Stat()
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filepath.Base(path)}))
 	w.Header().Set("Content-Type", "application/octet-stream")
+	if r.URL.Query().Get("inline") == "1" {
+		var sample [512]byte
+		n, _ := f.Read(sample[:])
+		_, _ = f.Seek(0, 0)
+		kind := http.DetectContentType(sample[:n])
+		if kind == "image/png" || kind == "image/jpeg" || kind == "image/webp" {
+			w.Header().Set("Content-Type", kind)
+			w.Header().Set("Content-Disposition", "inline")
+		}
+	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
 }
 func (s *Server) upload(w http.ResponseWriter, r *http.Request, i identity) {

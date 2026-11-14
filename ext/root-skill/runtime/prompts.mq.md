@@ -13,6 +13,7 @@ import:
   document: lib/document.mq.md
   result: lib/result.mq.md
   knowledge: knowledge.mq.md
+  materials: materials.mq.md
 ---
 
 提示词与有界上下文的唯一组装位置。指令来自文稿，动态材料标记来源，角色之间不共享聊天。
@@ -51,6 +52,10 @@ Return *document.section(text=access(access(`read`,"value"),"source"),title=`sec
 
 Use `context`。
 
+当前角色不能通过结果文字更换职责。实现、测试、来源观察与最终验收分别保留自己的证据；只有同一版本下实际执行过的检查，才能用于后续恢复和审阅。
+
+浏览观察只交给实现角色。每次重新读取真实来源与已就绪依赖，避免成功反馈被清空后丢失材料；测试角色仍立即返回公开规格，不进入材料交接分支。
+
 测试者只取得冻结规格和公开接口，不取得实现、现有运行结果或开发对话；实现者也只看自己的规格。主流程意图阶段可以看最近几次真实用户回应，规划阶段据此建立边界。所有材料先转义为叙述，不能因为用户包含代码符号就变成额外执行。
 
 这份文稿是此操作的唯一行为说明和可执行实现。参数表与返回表放在标题下面，调用者应先确认输入来自哪里，再读取实际返回；一个说明句或模型声称成功都不是执行证据。身份和文件根只从宿主可信上下文取得，用户材料和模型输出只作为数据，不能选择更大的权限。失败保留明确诊断，不另写一个猜测结果替代真实操作。
@@ -71,7 +76,10 @@ We **state = access(core.status(context=`context`),"value")**.
 We **role = access(`context`,"role")**.
 1. `role` == "test" or `role` == "implement"
   We **item = proof.unit(state=`state`,unit_id=access(`context`,"unit_id"))**.
-  Return *access(access(`item`,"specification"),"text")*.
+  We **specification = access(access(`item`,"specification"),"text")**.
+  1. `role` == "implement"
+    We **specification = `specification` + materials.reference(context=`context`,item=`item`)**.
+  Return *specification*.
 We **facts = "已确认目标：" + core.prose(content=access(`state`,"goal")) + "。\n"**.
 1. `role` == "intent" or `role` == "outline"
   We **facts = `facts` + knowledge.reference(context=`context`,state=`state`) + "\n"**.
@@ -129,6 +137,8 @@ We **api = io.api_path(context=`context`)**.
 We **material = instructions(context=`context`,section="facts") + "\n\n" + facts(context=`context`)**.
 1. `feedback` != None
   We **followup = "repair"**.
+  1. access(`context`,"role") == "implement" and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
+    We **followup = "repair_document"**.
   1. json.get(value=`feedback`,key="succeeded") == True
     We **followup = "progress"**.
   We **material = `material` + "\n\n" + instructions(context=`context`,section=`followup`) + "\n" + json.stringify(value=`feedback`)**.
@@ -182,6 +192,12 @@ Return *sources*.
 
 Use `context`。
 
+每份规范都指向当前实际阶段，不向模型同时展示已经关闭的上一阶段入口。
+
+规范来源也加入本次模型请求的摘要清单，用户可以核对实际使用的版本。
+
+研究与文档需要单独的细化、测试规范。一般程序的输入预期样例不能指导尚未创作的全文，否则模型可能尝试运行被测目标，或编造一篇固定预期文章。专用规范只指导当前可调用的规则冻结与原生正文操作，仍不包含实现。
+
 意图和框架各读自己的规范，独立测试有单独的意图测试规范，实现读细化规范，交付读整合规范。这里选择的是安装文稿的位置，不是模型可传入的任意路径，也不是业务函数注册表。实际内容会随当前公开函数一起发送，来源摘要进入私有审计，缺失文件明确失败。阶段规范更新必须同步真实调用契约，不能保留已经删除的工具参数或旧 JSON 动作示例误导模型。
 
 We **name = access(`context`,"role")**.
@@ -191,6 +207,8 @@ We **name = access(`context`,"role")**.
   We **name = "refinement"**.
 2. `name` == "deliver"
   We **name = "integration"**.
+1. (access(`context`,"role") == "test" or access(`context`,"role") == "implement") and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
+  We **name = `name` + "-document"**.
 Return *(access(`context`,"project") + "/ext/root-skill/guides/" + `name` + ".mq.md")*.
 
 ## standing
@@ -204,6 +222,16 @@ Return *(access(`context`,"project") + "/ext/root-skill/guides/" + `name` + ".mq
 | result | map | 本角色固定规则与手册的 Result |
 
 Use `context`。
+
+工程规范和公开函数同时更新，模型不会在一个消息中收到文档模式与旧固定全文测试两套冲突说明；实际执行仍独立复核当前入口。
+
+来源不足时同时收窄公开手册与固定说明，仅剩真实浏览函数。取得页面之后重新构造当前现场，不把前一次工具清单当成永久授权，也不让旧的错误方案在上下文里反复覆盖真实进展。
+
+当前函数手册不是供应商工具 Schema，用户能够在源码中核对这些可调用签名及其行为。
+
+当前角色不能通过结果文字更换职责。实现、测试、来源观察与最终验收分别保留自己的证据；只有同一版本下实际执行过的检查，才能用于后续恢复和审阅。
+
+研究和写作使用专门的文稿现场，独立测试读取文档契约说明，实现者读取原生围栏写作说明。选择来自根状态里的已确认模式，模型无法用自己的参数切换到另一个角色或取得私有实现。
 
 固定上下文由三个部分组成：共同调用规则、当前角色说明和当前公开函数手册。阶段工程规范放在角色说明之后，接口之前。这样模型同时知道要达到什么条件以及有哪些真实函数可以调用，不必了解整个智能体框架的实现，也不需要根据一个外部工具目录猜测如何生成程序。
 
@@ -224,6 +252,10 @@ We **manual = io.native(context=`context`,operation="runtime_handbook",payload=t
 We **section = access(`context`,"role")**.
 1. (`section` == "implement" or `section` == "test") and json.get(value=`context`,key="variant") == "text"
   We **section = `section` + "-text"**.
+1. (`section` == "implement" or `section` == "test") and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
+  We **section = `section` + "_document"**.
+1. access(`context`,"role") == "implement" and json.get(value=`context`,key="scene") == "browse"
+  We **section = "implement_browse"**.
 1. `section` == "outline" and json.get(value=`context`,key="variant") == "publish"
   We **section = "outline-publish"**.
 We **guide = io.native(context=`context`,operation="runtime_document",payload=table.put(in=None,at="path",value=guide_path(context=`context`)))**.

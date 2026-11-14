@@ -4,6 +4,7 @@ title: 拓展即插件的能力注册表
 import:
   store: ../../ext/qdagent/store.mq.md
   fs: lib/fs.mq.md
+  document: lib/document.mq.md
   table: lib/table.mq.md
   text: lib/text.mq.md
   re: lib/re.mq.md
@@ -54,21 +55,7 @@ We **standard = [标准库清单](table.empty_list())**.
 |---|---|---|---|---|---|---|---|---|
 | "stdlib" | "标准库 · 固有能力" | "CLI 内建" | True | True | True | "lib/" | `standard` | "" |
 
-`installed` =
-
-| @ | id | name | abi | entry | operations |
-|---|---|---|---|---|---|
-| 1 | "ai" | "模型与智能体" | "libagent.so" | "ext/ai/index.mq.md" | "collect_events,offline_example" |
-| 2 | "web" | "网页与阅读渲染" | "libweb.so" | "ext/web/index.mq.md" | "site_playbook,layout_rules,preview_markdown,preview_nodes" |
-| 3 | "net" | "网络与实时连接" | "libweb.so" | "ext/net/index.mq.md" | "client_get" |
-| 4 | "data" | "数据与存储" | "libweb.so" | "ext/data/index.mq.md" | "memory_cache,transaction_roundtrip" |
-| 5 | "security" | "身份与权限" | "libweb.so" | "ext/security/index.mq.md" | "check_permission" |
-| 6 | "quantum" | "量子计算" | "libquantum.so" | "ext/quantum/index.mq.md" | "bell_circuit,bell_phi_plus,bell_analysis" |
-| 7 | "linalg" | "线性代数" | "liblinalg.so" | "ext/linalg/index.mq.md" | "solve_example" |
-| 8 | "engineering" | "工程工具" | "libengineering.so" | "ext/engineering/index.mq.md" | "" |
-| 9 | "qdagent" | "任务运行与持久流" | "libqdagent_transport.so" | "ext/qdagent/index.mq.md" | "" |
-| 11 | "root-skill" | "根 SKILL · 文档驱动流程" | "libqdagent_transport.so" | "ext/root-skill/index.mq.md" | "" |
-| 10 | "office" | "办公文档与演示" | "" | "ext/office/index.mq.md" | "" |
+We **installed = [读取与界面共用的真实安装清单](document.read_table(path="ext/plugins.mq.md",title="installed"))**.
 
 We **version = [读取已安装拓展版本](text.str_trim(s=fs.read_text(path="ext/VERSION")))**.
 We **out = [固有能力先展示](table.append(list=table.empty_list(), item=`core`))**.

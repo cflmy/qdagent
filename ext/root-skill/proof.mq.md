@@ -116,7 +116,7 @@ Return *core.save(context=`context`,state=table.put(in=`state`,at="units",value=
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | context | map | required | 宿主提供的身份、任务根与当前调用现场 |
-| cases | list | required | 独立测试者提供的一到六个输入预期 |
+| cases | any | required | 独立测试者提供的输入预期或文档契约 |
 | rationale | text | required | 业务规则、边界和预期来源 |
 
 | 返回 | 类型 | 说明 |
@@ -124,6 +124,8 @@ Return *core.save(context=`context`,state=table.put(in=`state`,at="units",value=
 | result | map | 冻结测试元数据，不能沿用实现者自检 |
 
 Use `context`, `cases`, `rationale`。
+
+Document rules are frozen before the author runs. They describe observable properties of the eventual output, not a guessed answer. The native boundary validates their numeric limits and retains the test-only role check. The same atomic root revision carries the rules and their digest; implementation retries cannot replace either. If the public specification changes, return to framework confirmation instead of accepting a convenient new rule.
 
 只有测试角色可提交自己的案例。相同规格的测试一旦冻结就不能被替换，实现者只能修复代码。测试随根状态以同一个版本原子保存，角色工作根里没有实现，也没有修改其他记录的入口。修改需求必须重新确认框架。
 
@@ -143,6 +145,10 @@ We **item = unit(state=`state`,unit_id=access(`context`,"unit_id"))**.
   Return *result.error(code="root.tests_frozen",message="同一公开规格的测试已经冻结，不能改写预期",operation="submit")*.
 We **specification = access(`item`,"specification")**.
 We **suite = suite_value(state=`state`,item=`item`,cases=`cases`,rationale=`rationale`)**.
+1. json.get(value=`item`,key="mode") == "research" or json.get(value=`item`,key="mode") == "document"
+  We **suite = table.put(in=`suite`,at="kind",value="document")**.
+  We **suite = table.put(in=`suite`,at="rules",value=`cases`)**.
+  We **suite = table.put(in=`suite`,at="cases",value=table.empty_list())**.
 We **stored = io.native(context=`context`,operation="runtime_suite",payload=table.put(in=None,at="suite",value=`suite`))**.
 1. not access(`stored`,"ok")
   Return *stored*.
@@ -190,6 +196,12 @@ Return *io.native(context=`context`,operation="runtime_suite_verify",payload=tab
 
 Use `context`, `item`。
 
+试运行摘要必须与当前单元源码摘要相同，不能把别的版本的通过结果归到当前文件。
+
+当前角色不能通过结果文字更换职责。实现、测试、来源观察与最终验收分别保留自己的证据；只有同一版本下实际执行过的检查，才能用于后续恢复和审阅。
+
+就绪还核对正文材料摘要；源码未变而正文被替换，同样不能使用旧测试。文章的引用检查属于本次运行版本，最终人工审阅不能跳过这些版本核验。
+
 就绪必须同时满足源码摘要、真实案例结果、独立测试版本和规格绑定。一个 ready 字段不能替代这些事实。刷新、继续或另一个模型不能把被改动的程序或测试冒充旧版本。
 
 这份文稿是此操作的唯一行为说明和可执行实现。参数表与返回表放在标题下面，调用者应先确认输入来自哪里，再读取实际返回；一个说明句或模型声称成功都不是执行证据。身份和文件根只从宿主可信上下文取得，用户材料和模型输出只作为数据，不能选择更大的权限。失败保留明确诊断，不另写一个猜测结果替代真实操作。
@@ -198,10 +210,14 @@ Use `context`, `item`。
 
 We **trial = json.get(value=`item`,key="trial")**.
 We **tests = json.get(value=`item`,key="tests")**.
-1. not `tests` or not `trial` or json.get(value=`item`,key="status") != "ready" or not access(`trial`,"passed") or json.get(value=`trial`,key="suite_sha256") != access(`tests`,"sha256")
+1. not `tests` or not `trial` or json.get(value=`item`,key="status") != "ready" or not access(`trial`,"passed") or json.get(value=`trial`,key="sha256") != json.get(value=`item`,key="sha256") or json.get(value=`trial`,key="suite_sha256") != access(`tests`,"sha256")
   Return *False*.
 1. not fs.exists(path=access(`item`,"path")) or hash.sha256(text=fs.read_text(path=access(`item`,"path"))) != access(`item`,"sha256")
   Return *False*.
+We **artifact = json.get(value=`item`,key="artifact")**.
+1. `artifact`
+  1. not fs.exists(path=access(`artifact`,"path")) or hash.sha256(text=fs.read_text(path=access(`artifact`,"path"))) != access(`artifact`,"sha256")
+    Return *False*.
 We **read = cases(context=`context`)**.
 Return *access(`read`,"ok")*.
 
@@ -234,7 +250,7 @@ Return *"## unit_" + access(`item`,"id") + "\n\n| 参数 | 类型 | 说明 |\n|-
 |---|---|---|---|
 | state | map | required | 已确认根状态 |
 | item | map | required | 包含冻结规格的单元 |
-| cases | list | required | 独立案例 |
+| cases | any | required | 独立案例列表或已声明的文档契约 |
 | rationale | text | required | 预期结果的规则依据 |
 
 | 返回 | 类型 | 说明 |

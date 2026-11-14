@@ -34,7 +34,7 @@ fn expression(e:&Expr,names:&HashSet<String>,locals:&HashSet<String>,calls:&mut 
   Expr::Call(call)=>{
    if call.receiver.is_some()||!call.pre_modifiers.is_empty(){return Err("dynamic calls are not available in this call site".into())}
    let path=call.path.as_deref().unwrap_or(&[]);
-   if path.len()!=2||path[0]!="api"||!names.contains(&path[1]){return Err("call is outside the supplied document".into())}
+   if path.len()!=2||path[0]!="api"||!names.contains(&path[1]){return Err(format!("call {} is outside the supplied document; callable functions: {}",path.join("."),{let mut actual=names.iter().cloned().collect::<Vec<_>>();actual.sort();actual.join(", ")}))}
    calls.push(path.join("."));for arg in &call.args{match arg{Arg::Named{value,..}|Arg::Positional(value)=>expression(value,names,locals,calls)?}}Ok(())
   },
   Expr::Occluded{payload:Some(value),..}=>expression(value,names,locals,calls),
@@ -45,8 +45,33 @@ fn expression(e:&Expr,names:&HashSet<String>,locals:&HashSet<String>,calls:&mut 
   _=>Err("unsupported expression in a restricted call document".into())
  }
 }
-fn validate(source:&str,api:&Path)->Result<Value,String>{
- let module=parser(source)?;let allowed=parser(&fs::read_to_string(api).map_err(|e|e.to_string())?)?;
+// Normalize only inert fenced data through the official Markdown parser.
+// The official MQ parser remains the authority for bindings and all executable syntax.
+fn call_source(source:&str)->Result<(String,Vec<(String,String)>),String>{
+ use marqdo::{host::{call_host,HostContext,HostFn},value::Value as M};
+ let mut args=std::collections::HashMap::new();args.insert("text".into(),M::Text(source.into()));
+ let blocks=call_host(&mut HostContext::default(),HostFn::DocumentCodeBlocks,&args)?;
+ let M::List(blocks)=blocks else{return Err("official Markdown blocks unavailable".into())};
+ let mut replacements=vec![];let mut cells=vec![];
+ for block in blocks{
+  let M::Map(entries)=block else{continue};let fields:std::collections::HashMap<_,_>=entries.into_iter().collect();
+  let Some(M::Text(language))=fields.get("language") else{continue};
+  if !matches!(language.as_str(),"markdown"|"text"|"mq"|"marqdo"){continue}
+  let (Some(M::Int(start)),Some(M::Int(end)),Some(M::Text(body)))=(fields.get("start"),fields.get("end"),fields.get("text")) else{return Err("invalid official Markdown span".into())};
+  let range=source.get(*start as usize..*end as usize).ok_or("Markdown span out of range")?;
+  let token=format!("QD_NATIVE_CELL_{}_{}",cells.len(),digest(source.as_bytes()));
+  let lines=range.bytes().filter(|b|*b==b'\n').count();
+  let ending=if range.ends_with('\n'){"\n"}else{""};
+  let replacement=format!("```{language}\n{token}\n{}```{ending}", "\n".repeat(lines.saturating_sub(2+usize::from(!ending.is_empty()))));
+  replacements.push((*start as usize,*end as usize,replacement));
+  cells.push((token,body.strip_suffix('\n').unwrap_or(body).to_string()));
+ }
+ let mut normalized=source.to_string();for (start,end,replacement) in replacements.into_iter().rev(){normalized.replace_range(start..end,&replacement)}
+ Ok((normalized,cells))
+}
+fn prepare_call(source:&str,api:&Path)->Result<(Value,String),String>{
+ let (normalized,cells)=call_source(source)?;
+ let module=parser(&normalized)?;let allowed=parser(&fs::read_to_string(api).map_err(|e|e.to_string())?)?;
  let names:HashSet<_>=allowed.functions.iter().map(|f|f.name.clone()).collect();
  if module.imports.len()!=1||module.imports[0].bind!="api"||Path::new(&module.imports[0].path)!=api||!module.uses.is_empty(){return Err("call imports do not match the supplied document".into())}
  if module.functions.len()!=1{return Err("one call entry required".into())}
@@ -55,23 +80,40 @@ fn validate(source:&str,api:&Path)->Result<Value,String>{
  for stmt in &fun.body{
   if returned{return Err("executable statement after return".into())}
   match stmt{
-   Stmt::Assign{name,value,..}=>{if name=="api"{return Err("document bind is immutable".into())}expression(value,&names,&locals,&mut calls)?;locals.insert(name.clone());},
+   Stmt::Assign{name,value,..}=>{if name=="api"{return Err("document bind is immutable".into())}if name.is_empty()||!name.chars().all(|c|c.is_alphanumeric()||c=='_'){return Err("unsupported data binding name".into())}expression(value,&names,&locals,&mut calls)?;locals.insert(name.clone());},
    Stmt::Return{value,..}=>{expression(value,&names,&locals,&mut calls)?;returned=true},
    Stmt::Expr{value,..}=>expression(value,&names,&locals,&mut calls)?,
    Stmt::Call{..}|Stmt::Branch{..}|Stmt::While{..}|Stmt::ForEach{..}=>return Err("call-site control flow belongs to the root document".into()),
   }
  }
  if !returned||calls.is_empty(){return Err("an actual document function call and return are required".into())}
- Ok(json!({"calls":calls,"sha256":digest(source.as_bytes()),"parser":"marqdo::load::parse_source_auto"}))
+ let mut lines=normalized.split_inclusive('\n').map(str::to_string).collect::<Vec<_>>();
+ // Re-emit only AST-bound data assignments; executable expressions are untouched.
+ for stmt in fun.body.iter().rev(){
+  if let Stmt::Assign{name,value:Expr::Code(code),span,end_line}=stmt{
+   if let Some((_,body))=cells.iter().find(|(token,_)|code.source.trim()==token){
+    let literal=serde_json::to_string(body).map_err(|e|e.to_string())?.replace('`',"\\x60");
+    let start=span.line.saturating_sub(1) as usize;let end=*end_line as usize;
+    if end>lines.len()||start>=end{return Err("official cell assignment span invalid".into())}
+    lines.splice(start..end,[format!("We **{name} = {literal}**.\n")]);
+   }
+  }
+ }
+ let executable=lines.concat();
+ // Parse the generated transport form too: it cannot widen the supplied role.
+ parser(&executable)?;
+ Ok((json!({"calls":calls,"sha256":digest(source.as_bytes()),"execution_sha256":digest(executable.as_bytes()),"parser":"marqdo::load::parse_source_auto","cells":"host_document_code_blocks"}),executable))
 }
+fn validate(source:&str,api:&Path)->Result<Value,String>{prepare_call(source,api).map(|(metadata,_)|metadata)}
 fn execute(v:&Value)->Result<Value,String>{
  let c=context(v)?;private_request(c)?;let project=PathBuf::from(text(c,"project")?);
  let api=descendants(Path::new(text(v,"api")?),&project.join("ext/root-skill/calls"))?;
  let source=text(v,"source")?;if source.len()>128*1024{return Err("call document exceeds bound".into())}
  let dir=directory(c)?;let unit=id(c["unit_id"].as_str().unwrap_or("root"))?;let role=id(text(c,"role")?)?;let step=v["step"].as_u64().ok_or("step required")?;
  let own=dir.join("actors").join(unit).join(role);fs::create_dir_all(&own).map_err(|e|e.to_string())?;
- let entry=own.join(format!("turn-{step}.mq.md"));super::atomic(&entry,source)?;
- let checked=match validate(source,&api){Ok(value)=>value,Err(message)=>{event(c,"call_rejected",json!({"id":unit,"role":role,"step":step,"message":message,"source_sha256":digest(source.as_bytes())}))?;return Err(message)}};
+ let entry=own.join(format!("turn-{step}.mq.md"));super::atomic(&own.join(format!("turn-{step}.source.mq.md")),source)?;
+ let (checked,executable)=match prepare_call(source,&api){Ok(value)=>value,Err(message)=>{event(c,"call_rejected",json!({"id":unit,"role":role,"step":step,"message":message,"source_sha256":digest(source.as_bytes())}))?;return Err(message)}};
+ super::atomic(&entry,&executable)?;
  let actor=own.join("context.json");super::atomic(&actor,&c.to_string())?;
  let scratch=own.join("work");fs::create_dir_all(&scratch).map_err(|e|e.to_string())?;
  let argv=vec!["call".to_string(),entry.to_string_lossy().into_owned(),"act".into(),"--args-json".into(),"-".into(),"--fs-root".into(),scratch.to_string_lossy().into_owned(),"--effects".into(),"plugin,fs.read,fs.write,process.exec,environment.read".into(),"--session".into(),format!("{}-{unit}-{role}",text(c,"run_id")?),"--json".into()];
@@ -81,9 +123,9 @@ fn execute(v:&Value)->Result<Value,String>{
  let mut process=command.spawn().map_err(|e|e.to_string())?;process.stdin.take().unwrap().write_all(b"{}").map_err(|e|e.to_string())?;
  let output=bounded_wait(process,Duration::from_secs(90))?;
  let outer:Value=serde_json::from_slice(&output.0).unwrap_or(Value::Null);
- let ok=output.2==0&&outer["ok"]==true;let result=if ok{outer["result"].clone()}else{json!({"ok":false,"error":{"message":outer["error"].as_object().and_then(|x|x.get("message")).and_then(Value::as_str).unwrap_or("Marqdo execution failed")}})};
+ let ok=output.2==0&&outer["ok"]==true;let result=if ok{outer["result"].clone()}else{json!({"ok":false,"error":if outer["error"].is_object(){outer["error"].clone()}else{json!({"code":"runtime.execution","message":"Marqdo execution failed"})}})};
  let success=ok&&result["ok"]!=false;
- data["status"]=json!(if success{"succeeded"}else{"failed"});data["result"]=result.clone();data["elapsed_ms"]=json!(started.elapsed().as_millis());data["evidence"]=json!({"call":argv,"exit_code":output.2,"source_sha256":checked["sha256"]});data.as_object_mut().unwrap().remove("arguments");
+ data["status"]=json!(if success{"succeeded"}else{"failed"});data["result"]=result.clone();data["elapsed_ms"]=json!(started.elapsed().as_millis());data["evidence"]=json!({"call":argv,"exit_code":output.2,"source_sha256":checked["sha256"],"execution_sha256":checked["execution_sha256"],"parameter_adapter":checked["cells"]});data.as_object_mut().unwrap().remove("arguments");
  event(c,if child{"child_tool_end"}else{"tool_end"},data)?;Ok(result)
 }
 fn bounded_wait(mut child:std::process::Child,timeout:Duration)->Result<(Vec<u8>,Vec<u8>,i32),String>{
@@ -131,6 +173,16 @@ fn model(v:&Value)->Result<Value,String>{
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
  match v["operation"].as_str().unwrap_or(""){
+  "runtime_browser_open"=>{
+   let c=context(v)?;private_request(c)?;
+   if !matches!(c["role"].as_str(),Some("implement"|"research")){return Err("browser is outside this role's context".into())}
+   crate::browser::open(text(v,"url")?)
+  },
+  "runtime_fence"=>{
+   let value=text(v,"content")?;let mut maximum=0;let mut current=0;
+   for c in value.chars(){if c=='`'{current+=1;maximum=maximum.max(current)}else{current=0}}
+   let fence="`".repeat((maximum+1).max(3));Ok(json!(format!("{fence}markdown\n{value}\n{fence}")))
+  },
   "runtime_context"=>{let p=std::env::var("QDAGENT_ACTOR_FILE").map_err(|_|"actor context unavailable")?;serde_json::from_slice(&fs::read(p).map_err(|e|e.to_string())?).map_err(|e|e.to_string())},
   "runtime_event"=>{event(context(v)?,text(v,"kind")?,v["data"].clone())?;Ok(json!(true))},
   "runtime_model"=>model(v),
@@ -140,9 +192,14 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   "runtime_suite"=>{
    let c=context(v)?;id(text(c,"unit_id")?)?;if c["role"]!="test"{return Err("only test actor can freeze a suite".into())}
    let suite=&v["suite"];let cases=suite["cases"].as_array().ok_or("case list required")?;
-   if cases.is_empty()||cases.len()>6||cases.iter().any(|case|!case.is_object()||case.get("input").is_none()||case.get("expected").is_none()){return Err("one to six explicit input/expected cases required".into())}
+   if suite["kind"]=="document" {
+    let rules=&suite["rules"];
+    let chars=rules["minimum_chars"].as_u64().ok_or("minimum_chars required")?;
+    let sources=rules["minimum_sources"].as_u64().ok_or("minimum_sources required")?;
+    if !(20..=24000).contains(&chars)||sources>8||!cases.is_empty(){return Err("invalid document contract bounds".into())}
+   } else if cases.is_empty()||cases.len()>6||cases.iter().any(|case|!case.is_object()||case.get("input").is_none()||case.get("expected").is_none()){return Err("one to six explicit input/expected cases required".into())}
    let raw=suite.to_string();if raw.len()>128*1024{return Err("test suite exceeds bound".into())}
-   Ok(json!({"sha256":digest(raw.as_bytes()),"count":cases.len(),"spec_sha256":suite["spec_sha256"],"outline_sha256":suite["outline_sha256"],"suite":suite}))
+   Ok(json!({"sha256":digest(raw.as_bytes()),"count":if suite["kind"]=="document"{2}else{cases.len()},"kind":if suite["kind"]=="document"{"document"}else{"cases"},"spec_sha256":suite["spec_sha256"],"outline_sha256":suite["outline_sha256"],"suite":suite}))
   },
   "runtime_suite_verify"=>{let suite=&v["tests"]["suite"];let raw=suite.to_string();if digest(raw.as_bytes())!=text(&v["tests"],"sha256")?{return Err("frozen tests digest mismatch".into())}Ok(suite.clone())},
   "runtime_document"=>{let c=context(v)?;let requested=Path::new(text(v,"path")?);let base=Path::new(text(c,"project")?).join("ext/root-skill");let path=descendants(requested,&base.join("runtime")).or_else(|_|descendants(requested,&base.join("guides")))?;if !path.to_string_lossy().ends_with(".mq.md"){return Err("Marqdo instruction source required".into())}let source=fs::read_to_string(path).map_err(|e|e.to_string())?;Ok(json!({"source":source}))},
@@ -172,5 +229,10 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
 #[cfg(test)]mod tests{
  use super::*;
  #[test]fn official_ast_rejects_host_calls_and_control_flow(){let dir=std::env::temp_dir().join(format!("qd-parser-{}",std::process::id()));fs::create_dir_all(&dir).unwrap();let api=dir.join("api.mq.md");fs::write(&api,"---\nmarkup: occlusion\n---\n## ask\n\nReturn *None*.\n").unwrap();let header=format!("---\nmarkup: occlusion\nimport:\n  api: {}\n---\n\n## act\n\n",api.display());assert!(validate(&(header.clone()+"Return *api.ask()* ."),&api).is_ok());for body in ["Return *sys.env_get(name=\"HOME\")*.","Return *api.respond()*.","1. True\n  Return *api.ask()*."]{assert!(validate(&(header.clone()+body),&api).is_err(),"{body}")}fs::remove_dir_all(dir).unwrap();}
+ #[test]fn fenced_markdown_is_inert_and_nested_fences_keep_original_text(){
+  let dir=std::env::temp_dir().join(format!("qd-native-cell-{}",std::process::id()));fs::create_dir_all(&dir).unwrap();let api=dir.join("api.mq.md");fs::write(&api,"## write_document\n\nUse `content`, `narrative`。\nReturn *True*.\n").unwrap();
+  let source=format!("---\nmarkup: occlusion\nimport:\n  api: {}\n---\n\n## act\n\n`article` =\n````markdown\n# 原生正文\n\n```mq\nReturn *sys.env_get(name=\"SECRET\")*.\n```\n\n保持 \"引号\" 与 `变量`。\n````\nReturn *api.write_document(content=`article`,narrative=\"来源\")*.\n",api.display());
+  let (metadata,executable)=prepare_call(&source,&api).unwrap();assert_eq!(metadata["calls"],json!(["api.write_document"]));assert!(executable.contains("\\x60变量\\x60"));assert!(!executable.contains("````markdown"));assert!(executable.contains("Return *sys.env_get"));assert!(validate(&source.replace("Return *api.write_document", "We **leak = sys.env_get(name=\"SECRET\")**.\nReturn *api.write_document"),&api).is_err());fs::remove_dir_all(dir).unwrap();
+ }
  #[test]fn intent_cannot_carry_hidden_executable_statements(){assert!(dispatch(&json!({"operation":"runtime_intent","source":"## scope\n\n公开业务意图。\n"})).is_ok());assert!(dispatch(&json!({"operation":"runtime_intent","source":"## scope\n\nWe **secret = 8**.\n"})).is_err());}
 }

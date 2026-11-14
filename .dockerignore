@@ -18,6 +18,8 @@ test-results
 !.marqdo/docker-context
 .marqdo/docker-context/*
 !.marqdo/docker-context/bin
+!.marqdo/docker-context/browser
+!.marqdo/docker-context/browser/**
 old
 evidence
 ext + *

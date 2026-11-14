@@ -20,6 +20,12 @@ func TestRootHTTPHumanAuthorityModelsAndPluginGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := testServer(t)
+	realMarqdo, _ := exec.LookPath("marqdo")
+	quoted, _ := json.Marshal(realMarqdo)
+	fixture := filepath.Join(s.store.root, "native-root-fixture")
+	program := "#!/usr/bin/env python3\nimport json,os,sys\nif len(sys.argv)>3 and sys.argv[3]=='run':\n json.load(sys.stdin)\n print(json.dumps({'ok':True,'result':{'answer':'测试专用等待状态','status':'waiting_user'}}),flush=True)\nelse: os.execv(" + string(quoted) + ",[" + string(quoted) + "]+sys.argv[1:])\n"
+	os.WriteFile(fixture, []byte(program), 0700)
+	t.Setenv("MARQDO_BIN", fixture)
 	if err = os.RemoveAll(filepath.Join(s.store.root, "ext")); err != nil {
 		t.Fatal(err)
 	}
@@ -29,9 +35,6 @@ func TestRootHTTPHumanAuthorityModelsAndPluginGate(t *testing.T) {
 		}
 	}
 	s.supervisor.workflow = &rootRuntime{store: s.store}
-	worker := filepath.Join(s.store.root, "worker")
-	os.MkdirAll(worker, 0700)
-	os.WriteFile(filepath.Join(worker, "agent.py"), []byte("import json,sys\njson.load(sys.stdin)\nprint(json.dumps({'kind':'final','data':{'answer':'测试专用等待状态','status':'waiting_user'}}),flush=True)\n"), 0600)
 	task, err := s.store.createTask("test-owner", "根 SKILL HTTP 验收")
 	if err != nil {
 		t.Fatal(err)

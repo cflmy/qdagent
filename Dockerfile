@@ -22,7 +22,7 @@ COPY --from=frontend-build --chown=10001:10001 /build/frontend/dist /app/fronten
 COPY --chown=10001:10001 lib/ /app/lib/
 COPY --chown=10001:10001 ext/ /app/ext/
 COPY --chown=10001:10001 pages/ /app/pages/
-COPY --chown=10001:10001 worker/ /app/worker/
+COPY --chown=10001:10001 worker/provider.py /app/worker/provider.py
 COPY --chown=10001:10001 kb/ /app/kb/
 RUN mkdir -p /app/data /app/.secrets && chown 10001:10001 /app /app/data /app/.secrets && chmod 0755 /usr/local/bin/marqdo /usr/local/bin/qdagent
 ENV HOME=/home/qdagent QDAGENT_ROOT=/app QDAGENT_FRONTEND=/app/frontend/dist MARQDO_LIB=/app/lib MARQDO_EXT=/app/ext MARQDO_EXT_NO_DOWNLOAD=1 PYTHONDONTWRITEBYTECODE=1 XDG_CACHE_HOME=/app/data/cache PIP_CACHE_DIR=/app/data/cache/pip npm_config_cache=/app/data/cache/npm

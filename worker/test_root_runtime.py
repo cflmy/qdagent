@@ -52,8 +52,16 @@ class RuntimeTests(unittest.TestCase):
   context={**self.fixture.context,'run_id':uuid.uuid4().hex,'model_selection':'fixture-parent'}
   config={'protocol':'ollama','builtin':True,'endpoint':f'http://127.0.0.1:{self.server.server_port}','model':'fixture-parent'}
   payload={'root_skill':True,'run_id':context['run_id'],'owner':'root-test','question':'继续当前真实阶段','context':context,'model':config,'child_models':{'fixture-test':{**config,'model':'isolated-test'}}}
-  proc=subprocess.run([sys.executable,str(protocol.PROJECT/'worker/agent.py')],input=json.dumps(payload),capture_output=True,text=True,timeout=120,cwd=protocol.PROJECT)
-  events=[json.loads(line) for line in proc.stdout.splitlines()]
+  directory=Path(context['root'])/'data/dialogue/proj/runtime'/context['run_id'];directory.mkdir(parents=True,mode=0o700)
+  private=directory/'request.json';private.write_text(json.dumps(payload));private.chmod(0o600)
+  actor=directory/'actor.json';actor.write_text(json.dumps(context));actor.chmod(0o600)
+  environment={**os.environ,'QDAGENT_RUN_REQUEST_FILE':str(private),'QDAGENT_ACTOR_FILE':str(actor),'MARQDO_LIB':str(protocol.PROJECT/'lib'),'MARQDO_EXT':str(protocol.PROJECT/'ext')}
+  command=['marqdo','call',str(protocol.PROJECT/'ext/root-skill/index.mq.md'),'run','--args-json','-','--json','--fs-root',context['workspace'],'--effects','plugin,fs.read,fs.write,process.exec,environment.read,time.read,random.read']
+  proc=subprocess.run(command,input=json.dumps({'context':context}),capture_output=True,text=True,timeout=120,cwd=context['workspace'],env=environment)
+  self.assertEqual(proc.returncode,0,proc.stdout[:1500]+proc.stderr[:500])
+  final=json.loads(proc.stdout);self.assertTrue(final['ok'],final)
+  events=[json.loads(line) for line in (directory/'events.ndjson').read_text().splitlines()]
+  events.append({'kind':'final','data':final['result']})
   self.assertTrue(events,proc.stderr);self.assertEqual(events[-1]['kind'],'final',events[-4:]);self.assertEqual(events[-1]['data']['status'],'waiting_user',events[-5:]);self.assertEqual(proc.returncode,0,proc.stderr)
   return events,context
  def test_document_native_flow_has_blind_testers_and_repairs_real_defects(self):

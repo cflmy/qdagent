@@ -5,6 +5,7 @@ import:
   io: io.mq.md
   core: ../state.mq.md
   proof: ../proof.mq.md
+  materials: materials.mq.md
   table: lib/table.mq.md
   text: lib/text.mq.md
   json: lib/json.mq.md
@@ -113,6 +114,8 @@ Return *result.error(code="root.role_incomplete",message=("本阶段未取得必
 
 Use `context`。
 
+The next callable document comes from persisted facts. Planning with a fixed approved unit count narrows to publication once those drafts exist. Research with an unsatisfied source contract narrows to browsing. These are actual program branches, not requests that a model politely remember a sequence. Every turn recomputes the scene; a model cannot preserve an obsolete broader interface through its own output.
+
 当用户明确限定职责数，且实际草稿已达到这个数量，规划的下一步就是发表框架。本函数此时只提供发表文稿，不再提供重复定义职责的函数，减少无意义重试和上下文。数量尚未满足时仍提供职责定义接口；用户没有限定数量则保留普通规划现场，不猜测业务边界。
 
 这项选择由根状态和真实用户配置决定，不来自模型自述。它不发表文稿、不代确认，也不把数量满足等同于职责正确。实际发表仍会检查完整依赖、契约和叙述，再交用户审阅确切版本。其他角色保持自己的测试、实现或办公范围，不因一次调用成功而扩大权限。
@@ -120,6 +123,8 @@ Use `context`。
 数量只是约束的一部分，下一份发表文稿仍将职责原文和验收完整呈现给用户，不替用户判断这些业务内容是否正确。
 
 We **role = access(`context`,"role")**.
+1. `role` == "implement" and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
+  Return *document_scene(context=`context`)*.
 1. `role` != "outline"
   Return *context*.
 We **state = access(core.status(context=`context`),"value")**.
@@ -128,3 +133,28 @@ We **drafts = json.get(value=`state`,key="draft_units")**.
 1. `expected` != None and `expected` > 0 and `drafts` and table.len(xs=`drafts`) == `expected`
   Return *table.put(in=`context`,at="variant",value="publish")*.
 Return *table.put(in=`context`,at="variant",value="")*.
+
+## document_scene
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | required | 当前研究或文章作者 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | document_scene 的真实结果，失败保留诊断 |
+
+Use `context`。
+
+Source readiness is measured before exposing publication. The writer may reuse observed materials from verified dependencies, so this restriction does not force unnecessary network requests. The selected scene does not freeze new rules, adjust the minimum or mark the unit ready. Publication still has to satisfy its immutable independent contract and later human review.
+
+研究没有来源时不能先发表一篇猜测文章。根文稿从测试者冻结的要求和真实浏览记录决定当前现场：来源不足只提供 browse；满足实际来源数量后才提供文档发表函数。已验证依赖交回的来源同样可用，无需重复抓取。这个选择不放宽独立契约，不代替用户审阅，也不把一次成功抓取当作研究质量合格。模型无法通过给自己的参数设置 scene 跳过检查，每轮都会重新读取真实状态。
+
+We **state = access(core.status(context=`context`),"value")**.
+We **item = proof.unit(state=`state`,unit_id=access(`context`,"unit_id"))**.
+We **rules = json.get(value=json.get(value=access(`item`,"tests"),key="suite"),key="rules")**.
+We **observed = materials.sources(context=`context`,item=`item`)**.
+We **scene = ""**.
+1. `rules` and table.len(xs=`observed`) < access(`rules`,"minimum_sources")
+  We **scene = "browse"**.
+Return *table.put(in=`context`,at="scene",value=`scene`)*.

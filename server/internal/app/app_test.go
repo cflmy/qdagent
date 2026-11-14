@@ -130,9 +130,10 @@ func TestModelSaveDoesNotExposeCredential(t *testing.T) {
 }
 func TestStreamEmitsBeforeWorkerCompletesAndPersists(t *testing.T) {
 	s := testServer(t)
-	path := filepath.Join(s.store.root, "worker")
-	os.MkdirAll(path, 0700)
-	os.WriteFile(filepath.Join(path, "agent.py"), []byte("import json,sys,time\njson.load(sys.stdin)\nprint(json.dumps({'kind':'text_delta','data':{'text':'第一段'}}),flush=True)\ntime.sleep(1.2)\nprint(json.dumps({'kind':'final','data':{'answer':'第一段完成','status':'answer_only'}}),flush=True)\n"), 0600)
+	installNativeFixture(t, s.store.root, `journal.write(json.dumps({'kind':'text_delta','data':{'text':'第一段'}})+'\n');journal.flush()
+time.sleep(1.2)
+print(json.dumps({'ok':True,'result':{'answer':'第一段完成','status':'answer_only'}}),flush=True)
+`)
 	task, e := s.store.createTask("test-owner", "stream-test")
 	if e != nil {
 		t.Fatal(e)
@@ -240,15 +241,12 @@ func TestBudgetDiagnosticKeepsSharedModelVisibleButChoosesHealthyDefault(t *test
 
 func TestCancellationStopsWorkerDescendants(t *testing.T) {
 	s := testServer(t)
-	os.MkdirAll(filepath.Join(s.store.root, "worker"), 0700)
-	script := `import json,sys,subprocess,time,os
-r=json.load(sys.stdin)
-path=os.path.join(r['context']['workspace'],'unexpected-child.txt')
+	installNativeFixture(t, s.store.root, `import subprocess
+path=os.path.join(c['workspace'],'unexpected-child.txt')
 subprocess.Popen([sys.executable,'-c','import time,pathlib,sys;time.sleep(1);pathlib.Path(sys.argv[1]).write_text("survived")',path])
-print(json.dumps({'kind':'tool_start','data':{'id':'fixture','name':'fake-child'}}),flush=True)
+journal.write(json.dumps({'kind':'tool_start','data':{'id':'fixture','name':'fake-child'}})+'\n');journal.flush()
 time.sleep(20)
-`
-	os.WriteFile(filepath.Join(s.store.root, "worker/agent.py"), []byte(script), 0600)
+`)
 	task, e := s.store.createTask("test-owner", "cancel-test")
 	if e != nil {
 		t.Fatal(e)
@@ -290,4 +288,18 @@ time.sleep(20)
 	if _, e = os.Stat(filepath.Join(s.workspace(task), "unexpected-child.txt")); e == nil {
 		t.Fatal("worker descendant survived group cancellation")
 	}
+}
+
+func installNativeFixture(t *testing.T, root, body string) {
+	t.Helper()
+	program := `#!/usr/bin/env python3
+import os,json,sys,time
+c=json.load(sys.stdin)['context']
+journal=open(os.path.join(os.path.dirname(os.environ['QDAGENT_RUN_REQUEST_FILE']),'events.ndjson'),'a')
+` + body
+	path := filepath.Join(root, "native-cli-fixture")
+	if err := os.WriteFile(path, []byte(program), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MARQDO_BIN", path)
 }

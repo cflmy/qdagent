@@ -61,7 +61,7 @@ We **phase = access(`state`,"phase")**.
 1. `phase` == "refine"
   We **observed = parallel(context=`context`)**.
   1. not access(`observed`,"ok")
-    Return *io.outcome(answer=("单元尚未通过独立验证，已有文稿与诊断保留。" + json.stringify(value=json.get(value=`observed`,key="error"))),status="incomplete")*.
+    Return *io.outcome(answer="单元尚未通过独立验证，已有文稿与诊断保留。请展开对应执行步骤查看具体问题。",status="incomplete")*.
   We **state = access(core.status(context=`context`),"value")**.
   We **phase = access(`state`,"phase")**.
 We **role = `phase`**.
@@ -76,7 +76,7 @@ We **acted = turn.run(context=`own`)**.
 We **state = access(core.status(context=`context`),"value")**.
 1. json.get(value=`state`,key="pending")
   Return *waiting(state=`state`)*.
-Return *io.outcome(answer=("当前阶段仍未完成，不能跳过所需程序或用户确认。" + json.stringify(value=json.get(value=`acted`,key="error"))),status="incomplete")*.
+Return *io.outcome(answer="当前阶段仍未完成，不能跳过所需程序或用户确认。请查看对应步骤的实际诊断。",status="incomplete")*.
 
 ## parallel
 
@@ -89,6 +89,8 @@ Return *io.outcome(answer=("当前阶段仍未完成，不能跳过所需程序�
 | result | map | 实际子任务执行与聚合验证结果 |
 
 Use `context`。
+
+Execution proceeds in at most eight dependency waves because the approved framework contains at most eight units. Unrelated ready jobs still run concurrently under the user's limit. A failed research job blocks its downstream writer; it does not trigger a speculative article. The attempted set prevents repeated model spending on the same failed unit during one root invocation. A later explicit continuation can retry while preserving successful independent units.
 
 父文稿先为每个单元冻结无执行语义的公开规格，再用标准库 subtask.run_many 按用户配置并行执行子文稿。作业文件只含可信调用与任务上下文，不放模型凭据。所有子进程继承取消范围；返回时重新核对每个单元的源码和独立测试摘要，不能仅凭零退出前进。
 
@@ -103,12 +105,22 @@ Use `context`。
 每次聚合都会重读当前版本，因此恢复期间产生的新事实也必须满足同一套验收要求。
 
 We **state = access(core.status(context=`context`),"value")**.
-We **jobs = jobs(context=`context`)**.
-1. not access(`jobs`,"ok")
-  Return *jobs*.
-We **jobs = access(`jobs`,"value")**.
-We **_ = io.event(context=`context`,kind="parallel_start",data=table.put(in=None,at="count",value=table.len(xs=`jobs`)))**.
-We **ran = subtask.run_many(tasks=`jobs`,limit=access(access(`state`,"settings"),"concurrency"),timeout_ms=900000)**.
+We **attempted = table.empty_list()**.
+We **waves = table.range(start=0,end=8)**.
+We **ran = table.empty_list()**.
+We **_ = io.event(context=`context`,kind="parallel_start",data=table.put(in=None,at="count",value=table.len(xs=access(`state`,"units"))))**.
+- [按依赖就绪情况执行有界的并行波次](for waves as wave)
+  We **jobs = jobs(context=`context`,attempted=`attempted`)**.
+  1. not access(`jobs`,"ok")
+    Return *jobs*.
+  We **jobs = access(`jobs`,"value")**.
+  1. table.len(xs=`jobs`) > 0
+    We **batch = table.empty_list()**.
+    - [本次运行中同一单元最多启动一次](for jobs as job)
+      We **attempted = table.append(list=`attempted`,item=access(`job`,"id"))**.
+      We **batch = table.append(list=`batch`,item=table.put(in=None,at="path",value=access(`job`,"path")))**.
+    We **observed = subtask.run_many(tasks=`batch`,limit=access(access(`state`,"settings"),"concurrency"),timeout_ms=900000)**.
+    We **ran = table.append(list=`ran`,item=`observed`)**.
 We **aggregated = author.refine(context=`context`)**.
 1. access(`aggregated`,"ok") and access(access(`aggregated`,"value"),"phase") == "implement"
   We **_ = io.event(context=`context`,kind="parallel_end",data=table.put(in=None,at="status",value="succeeded"))**.
@@ -150,12 +162,17 @@ Return *io.outcome(answer="完整方案已写入 solution/index.mq.md。独立�
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | context | map | required | 宿主提供的当前调用现场 |
+| attempted | any | None | 本次根运行已启动过的单元身份 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 需要运行的子文稿列表 |
 
-Use `context`。
+Use `context`, `attempted`=None。
+
+当前角色不能通过结果文字更换职责。实现、测试、来源观察与最终验收分别保留自己的证据；只有同一版本下实际执行过的检查，才能用于后续恢复和审阅。
+
+每次只创建当前依赖已经就绪且尚未尝试的作业；依赖不满足时保留等待，不把缺失材料替换为空数据。
 
 先准备无执行语义规格，再检查每个现有实现是否仍通过独立验证。已经有效的单元不会重复调用模型；失效单元只创建自己的作业，其他单元和用户确认保持不变。作业列表是普通原生值，交给标准子任务库运行，不是模型动作 JSON 或另一套业务调度语言。
 
@@ -168,14 +185,18 @@ We **units = access(`state`,"units")**.
 We **jobs = table.empty_list()**.
 We **_ = fs.make_dirs(path=".agent/root-jobs")**.
 - [为每个业务单元建立独立调用现场](for units as item)
-  We **own = table.put(in=`context`,at="unit_id",value=access(`item`,"id"))**.
-  We **prepared = proof.prepare(context=`own`)**.
-  1. not access(`prepared`,"ok")
-    Return *prepared*.
-  We **fresh = proof.unit(state=access(core.status(context=`context`),"value"),unit_id=access(`item`,"id"))**.
-  1. not proof.ready(context=`own`,item=`fresh`)
-    We **path = job(context=`own`)**.
-    We **jobs = table.append(list=`jobs`,item=table.put(in=None,at="path",value=`path`))**.
+  We **eligible = dependencies_ready(context=`context`,state=`state`,item=`item`)**.
+  1. `attempted` and table.contains(list=`attempted`,item=access(`item`,"id"))
+    We **eligible = False**.
+  1. `eligible`
+    We **own = table.put(in=`context`,at="unit_id",value=access(`item`,"id"))**.
+    We **prepared = proof.prepare(context=`own`)**.
+    1. not access(`prepared`,"ok")
+      Return *prepared*.
+    We **fresh = proof.unit(state=access(core.status(context=`context`),"value"),unit_id=access(`item`,"id"))**.
+    1. not proof.ready(context=`own`,item=`fresh`)
+      We **path = job(context=`own`)**.
+      We **jobs = table.append(list=`jobs`,item=table.put(in=table.put(in=None,at="path",value=`path`),at="id",value=access(`item`,"id")))**.
 Return *result.ok(value=`jobs`)*.
 
 ## job
@@ -201,3 +222,27 @@ We **literal = text.replace(text=json.stringify(value=json.stringify(value=`cont
 We **source = "---\nmarkup: occlusion\nimport:\n  child: " + access(`context`,"project") + "/ext/root-skill/runtime/child.mq.md\n  json: lib/json.mq.md\n---\n\n## main\n\n此作业只恢复自己的可信上下文并执行一个独立单元。模型凭据不在源文件中；阶段与角色仍由所调用的文稿定义。源码不能代替真实调用证据。\n\nWe **context = json.parse(text=" + `literal` + ")**.\nReturn *[执行自己的测试与实现](child.run(context=\x60context\x60))*.\n"**.
 We **_ = fs.atomic_write(path=`path`,text=`source`)**.
 Return *path*.
+
+## dependencies_ready
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | required | 可信根现场 |
+| state | map | required | 刚读取的实际状态 |
+| item | map | required | 本单元 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | bool | dependencies_ready 的真实结果，失败保留诊断 |
+
+Use `context`, `state`, `item`。
+
+同一波只运行依赖已经通过验证的职责。研究和报告不是两个同时猜测材料的作者：研究失败时，依赖它的报告保持等待，不消耗模型请求，也不编造缺失资料。无依赖的职责仍可并行，所有依赖关系来自用户批准的框架，不能临时扩大。恢复后重新核对前置源码、正文与独立测试摘要；一个旧 ready 标签不能授权交接。失败职责在本次根运行不会无限重试，新的继续请求才开始新的有界尝试。
+
+We **dependencies = json.get(value=`item`,key="depends_on")**.
+- [每个前置单元必须仍有有效证据](for dependencies as dependency)
+  We **prior = proof.unit(state=`state`,unit_id=`dependency`)**.
+  We **own = table.put(in=`context`,at="unit_id",value=`dependency`)**.
+  1. not proof.ready(context=`own`,item=`prior`)
+    Return *False*.
+Return *True*.

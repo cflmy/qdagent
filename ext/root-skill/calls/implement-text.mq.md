@@ -12,8 +12,8 @@ import:
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| content | text | required | 函数实际返回的字符串本身，不填程序源码或 map 包装 |
-| narrative | text | required | 来源、忽略输入的行为、返回内容与限制 |
+| content | any | required | 函数实际返回的字符串本身，不填程序源码或 map 包装 |
+| narrative | any | required | 来源、忽略输入的行为、返回内容与限制 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|

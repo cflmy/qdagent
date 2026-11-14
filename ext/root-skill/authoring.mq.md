@@ -4,6 +4,8 @@ title: 根 SKILL · authoring
 import:
   core: state.mq.md
   proof: proof.mq.md
+  trial_engine: runtime/trial.mq.md
+  contract: runtime/document-contract.mq.md
   fs: lib/fs.mq.md
   sys: lib/sys.mq.md
   json: lib/json.mq.md
@@ -84,6 +86,12 @@ Return *proof.save_unit(context=`context`,item=`unit`)*.
 
 Use `context`, `unit_id`, `narrative`, `mode`="literal", `body`="", `value`=None。
 
+来源记录与正文文件分开管理。只有实际浏览或已就绪依赖交回的观察才可成为文章依据；作者没有手动登记一个“已访问”网址的权限。模板保存正文时不替作者添加未声明结论，也不会把猜测文章改成一份固定原文契约。
+
+研究与文档职责只接受原生正文文本，不把结构化状态或一个返回文件名的对象当作文章。模板通过检查后仍须面对测试者冻结的文档契约，缺少真实来源无法就绪。
+
+Text manuscripts have a separate source of truth: the raw Markdown artifact. The generated function reads that exact file and checks its digest, rather than decoding an escaped representation of the article. The executable explanation and the article remain separately readable. A compiler receipt cannot substitute for missing research, and the existence of a file cannot substitute for a successful independent trial. A model changing its narration does not update a frozen contract. Revisions must go through the same authoring and verification boundary.
+
 不熟悉语法的模型可以选择 literal，仅填写原始结构化结果、叙述和案例；不要自行 JSON 编码。
 读取输入时选择 select，value 例如 ["request","text"]，工具生成逐层取值语句；空数组返回整个输入。
 select 不执行键名中的代码，缺失字段返回 None，并仍须通过所有实际案例。工具生成全部声明。独立案例由测试者冻结，实现者不提供预期。
@@ -115,10 +123,21 @@ We **state = access(core.status(context=`context`),"value")**.
 We **unit = unit_record(state=`state`,unit_id=`unit_id`)**.
 1. access(`state`,"phase") != "refine" or `unit_id` != json.get(value=`context`,key="unit_id") or not `unit`
   Return *result.error(code="root.unit_scope",message="未获此单元的细化授权",operation="author_unit")*.
+1. (json.get(value=`unit`,key="mode") == "research" or json.get(value=`unit`,key="mode") == "document") and type(`value`) != "text"
+  Return *result.error(code="root.document_body",message="研究与文章必须提供原生 Markdown 正文",operation="author_unit")*.
 1. `narrative` == ""
   Return *result.error(code="root.cases",message="必须写明真实业务逻辑",operation="author_unit")*.
+We **document_path = None**.
+We **document_sha = None**.
 1. `mode` == "literal"
-  We **body = "Return *[返回本单元明确声明的结构化结果](json.parse(text=" + literal(value=`value`) + "))*."**.
+  1. type(`value`) == "text"
+    We **document_path = "solution/documents/" + `unit_id` + ".md"**.
+    We **_ = fs.make_dirs(path="solution/documents")**.
+    We **_ = fs.atomic_write(path=`document_path`,text=`value`)**.
+    We **document_sha = hash.sha256(text=`value`)**.
+    We **body = document_body(unit_id=`unit_id`,path=`document_path`,sha256=`document_sha`)**.
+  2. *
+    We **body = "Return *[返回本单元明确声明的结构化结果](json.parse(text=" + literal(value=`value`) + "))*."**.
 2. `mode` == "select"
   We **body = "We **selected = \x60input\x60**.\n"**.
   1. type(`value`) != "list" or table.len(xs=`value`) > 8
@@ -149,6 +168,9 @@ We **details = access(`checked`,"value")**.
 |---|---|---|---|---|
 | `path` | `fragment` | `details`[^sha256] | `details` | "written" |
 
+1. `mode` == "literal" and type(`value`) == "text"
+  We **artifact = table.put(in=table.put(in=None,at="path",value=`document_path`),at="sha256",value=`document_sha`)**.
+  We **patch = table.put(in=`patch`,at="artifact",value=`artifact`)**.
 Return *publish_unit(context=`context`,unit=table.merge(a=`unit`,b=`patch`))*.
 
 
@@ -184,6 +206,8 @@ Return *"---\nmarkup: occlusion\ntitle: 求道可执行文稿\nimport:\n  math: 
 
 Use `context`, `unit_id`。
 
+The suite can describe either exact input/output cases or a document contract. Exact cases compare native values; document contracts check the actual returned text and citations against observations obtained through the browser. Neither kind is created by the implementation role. The selected kind is frozen with the approved specification, so an author cannot downgrade an exact-return task into a length check. Both run the actual generated function in the official CoW sandbox before inspecting results. Source and artifact digests are checked again when the parent considers integration. A contract passing means its stated structural assertions passed; it is not a claim that the article is scientifically correct, comprehensive, or approved by the user. These limits stay visible in the receipt, and the final review gate still requires authenticated user input.
+
 先核对当前单元的作者身份与阶段，再用保存的哈希确认源码没有变化。ABI 在独立试运行
 目录中调用 unit_身份，只有文件读写效果，不允许模型从案例中指定另一个可执行文件。
 作者自检不授予就绪。这里只使用另一受限测试角色根据冻结规格提供的独立案例。
@@ -213,12 +237,24 @@ We **member = "unit_" + `unit_id`**.
 |---|---|---|---|
 | `unit`[^path] | `member` | `independent_cases` | `unit`[^sha256] |
 
-We **observed = core.native(context=`context`,operation="root_trial",payload=`payload`)**.
+We **frozen = access(`suite`,"value")**.
+We **document_contract = json.get(value=`frozen`,key="kind") == "document"**.
+1. `document_contract`
+  We **independent_cases = table.append(list=table.empty_list(),item=table.put(in=None,at="input",value=None))**.
+We **artifacts = table.empty_list()**.
+1. json.get(value=`unit`,key="artifact")
+  We **artifacts = table.append(list=`artifacts`,item=access(`unit`,"artifact"))**.
+We **observed = trial_engine.run(context=`context`,path=access(`unit`,"path"),function=`member`,cases=`independent_cases`,sha256=access(`unit`,"sha256"),artifacts=`artifacts`,smoke=`document_contract`)**.
 1. not access(`observed`,"ok")
   Return *observed*.
 We **trial = access(`observed`,"value")**.
+1. `document_contract`
+  We **trial = contract.check(context=`context`,item=`unit`,rules=access(`frozen`,"rules"),trial=`trial`)**.
 We **trial = table.put(in=`trial`,at="suite_sha256",value=access(access(`unit`,"tests"),"sha256"))**.
-We **trial = table.put(in=`trial`,at="assurance",value="independent_cases")**.
+We **assurance = "independent_cases"**.
+1. `document_contract`
+  We **assurance = "independent_contract"**.
+We **trial = table.put(in=`trial`,at="assurance",value=`assurance`)**.
 We **next = "failed"**.
 1. access(`trial`,"passed")
   We **next = "ready"**.
@@ -355,3 +391,25 @@ code 模式，先阅读对应库源码再写函数体。内容与假设需根据
 并由用户在实际 View 中审阅。不能把模板便利当成省略阶段或替用户接受交付的理由。
 
 Return *[通过已校验的模板发表本单元](author_unit(context=`context`,unit_id=`unit_id`,narrative=`narrative`,mode="select",body="",value=`path`))*.
+
+## document_body
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| unit_id | text | required | 已检查单元身份 |
+| path | text | required | 真实正文相对路径 |
+| sha256 | text | required | 发表时正文摘要 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | text | document_body 的真实结果，失败保留诊断 |
+
+Use `unit_id`, `path`, `sha256`。
+
+生成一个读者能够直接理解的文档函数体。正文是独立数据文件，文章中的引号、反引号、原生 Markdown 表格和嵌套代码示例都保持原样，不需要作者手工转义。可执行文稿解释来源与版本，调用时真正读取正文，再比较发表时的内容摘要；它不是把聊天回答包装成一句“已完成”。
+
+文件路径来自已确认的稳定身份，不能用网页标题或模型给出的任意路径替代。相对路径从任务执行根解释；独立试运行会将同一正文按摘要写入官方 CoW 上层，所以测试读取的材料和实际调用读取的材料属于同一个版本。修改正文必须重新发表与试运行，旧源码也不会悄悄返回新数据。返回 None 明确表示版本保护拒绝，不是假装获得空白的有效文章。
+
+这个纯生成器不写文件、不执行正文、不作事实断言；保存与编译是作者入口的责任。链接供人类寻找完整材料，函数中的 fs.read_text 才是实际取值。正文虽作为 Markdown 数据保存，业务调用仍由 Marqdo 函数定义；不把一个长 JSON 字符串当作可阅读源稿，也不伪称文章自然语言本身会执行。
+
+Return *"完整正文位于任务路径 solution/documents/" + `unit_id` + ".md，引号、换行与示例围栏保持原样。调用时实际读取这份材料并核对内容摘要，不从嵌套 JSON 字符串还原正文。正文变化后需要重新发表与验证，不能沿用旧证据。\nWe **content = [读取本单元的真实正文](fs.read_text(path=" + json.stringify(value=`path`) + "))**.\n1. hash.sha256(text=\x60content\x60) != " + json.stringify(value=`sha256`) + "\n  Return *[正文版本已变化，拒绝沿用旧验证](None)*.\n在读取并确认当前版本之后，我们得到了所需的正文，此时直接返回原始内容。\nReturn *\x60content\x60*."*.

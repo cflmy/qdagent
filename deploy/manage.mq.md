@@ -1,140 +1,66 @@
 ---
 markup: occlusion
-title: 构建、启动和检查容器
+title: 当前工作台构建与部署手册
 import:
-  fs: lib/fs.mq.md
-  sys: lib/sys.mq.md
-  table: lib/table.mq.md
-  result: lib/result.mq.md
   engineering: ext/engineering/index.mq.md
-  call: ../pages/control/call.mq.md
-  site: ../pages/index.mq.md
-  model_key: model-key.mq.md
-  browser_files: ../ext/web/browser-files.adapter.mq.md
-  keyboard: ../ext/web/keyboard.adapter.mq.md
-  pointer: ../ext/web/pointer.adapter.mq.md
+  result: lib/result.mq.md
 ---
 
-所有工程执行入口仍是 marqdo call。Dockerfile 和 Compose 只声明环境，不承载业务脚本。prepare 生成严格白名单构建上下文，secret 单独挂载；重新构建不会删除持久数据卷。
+这是当前 React、Go 与 Marqdo 文稿运行时的部署入口。它不再重建旧浏览器示例或挂载旧源码卷。普通函数通过受限工程拓展调用现有构建程序，模型提示与业务阶段不在构建脚本中定义。
 
 ## prepare
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
-| result | any | 真实构建上下文；没有打包用户数据或密钥 |
+| result | map | prepare 的真实结果，失败保留诊断 |
 
-先重新生成当前 View 与组件产物，再复制可信源码和已经安装的 Linux ABI。只清理专用构建目录，源仓库与工作目录保持原样。CLI 从本机已安装路径复制，文件读写使用原生 fs。密钥、.env、运行数据库、用户历史、旧归档和构建缓存不进入上下文。
+Use 。
 
-The context is an explicit allowlist, not a copy of the whole workspace. Each image receives the same checked Marqdo executable and locally registered extension artifacts. Docker's own build context filter excludes the separate secret directory. A clean rebuild prevents stale files from an earlier context from being packaged accidentally. Source assembly is distinct from building the image and from starting a service; none of these steps grants a model access to the Docker socket.
+准备与当前 Playwright 相符的 Chromium、浏览服务的私有凭据和构建目录。浏览器服务凭据只用于本地容器通信，不能当作模型 API key。现有凭据保留，缺失才创建，文件只对指定容器组可读。程序代码与数据卷不在这一步替换，准备成功也不代表镜像已经构建或网站访问成功。已有兼容浏览器可以通过 QDAGENT_CHROMIUM_SOURCE 指定其安装目录，避免重复下载。
 
-
-Directory exclusions must be relative to the folder being copied. In particular, ext/data is an installed library and must be included, whereas pages/data is runtime state and must be omitted. Keep these two meanings distinct. The only source directories selected are the declared application, libraries, tests and callable manuals; root environment files, private secret mounts, old archives and user workspaces are not selected. Every rebuild begins from a fresh dedicated context so previously copied runtime material cannot survive by accident.
-
-Source exclusions are checked against the actual package layout. A folder named data inside an extension is code; a runtime data folder under pages is not. The context must preserve that distinction before it can be considered buildable.
-
-Prepare the independent model secret and compatible browser file-range ABI before hashing and packaging the page; existing keys are retained.
-
-We **key = [已有密钥保留，只在首次安装生成](model_key.ensure())**.
-1. not access(`key`,"ok")
-  Return *key*.
-We **adapter = [安装当前浏览器有界文件 ABI](browser_files.install())**.
-1. not access(`adapter`,"ok")
-  Return *adapter*.
-We **keys = [键盘修饰键和输入法事件 ABI](keyboard.install())**.
-1. not access(`keys`,"ok")
-  Return *keys*.
-We **pointer_host = [指针元数据与捕获 ABI](pointer.install())**.
-1. not access(`pointer_host`,"ok")
-  Return *pointer_host*.
-We **rendered = [生成当前只读阅读面](site.compose())**.
-1. not access(`rendered`,"ok")
-  Return *rendered*.
-1. fs.exists(path=".marqdo/docker-context")
-  We **_ = [只清理可重建上下文](fs.remove_tree(path=".marqdo/docker-context"))**.
-We **_ = fs.make_dirs(path=".marqdo/docker-context/app")**.
-We **_ = fs.make_dirs(path=".marqdo/docker-context/bin")**.
-
-`folders` =
-
-| folder |
-|---|
-| "lib" |
-| "ext" |
-| "pages" |
-| "skills" |
-| "deploy" |
-| "tests" |
-| "doc" |
-
-`exclude` =
-
-| pattern |
-|---|
-| "data/**" |
-| "qdagent/native/target/**" |
-| "node_modules/**" |
-
-- [只装入真实应用源码](for folders as folder)
-  1. fs.exists(path=`folder`)
-    We **skip = table.empty_list()**.
-    1. `folder` == "pages"
-      We **skip = table.append(list=`skip`, item="data/**")**.
-    We **skip = table.append(list=`skip`, item="qdagent/native/target/**")**.
-    We **skip = table.append(list=`skip`, item="node_modules/**")**.
-    We **_ = fs.copy_tree(src=`folder`, dest=(".marqdo/docker-context/app/" + `folder`), overwrite=True, exclude=`skip`)**.
-We **_ = fs.copy_file(src="index.mq.md", dest=".marqdo/docker-context/app/index.mq.md")**.
-We **_ = fs.copy_file(src="README.md", dest=".marqdo/docker-context/app/README.md")**.
-We **_ = fs.make_dirs(path=".marqdo/docker-context/app/data")**.
-We **_ = fs.make_dirs(path=".marqdo/docker-context/app/pages/data")**.
-
-`args` =
-
-| src | dest |
-|---|---|
-| "/usr/local/bin/marqdo" | sys.cwd() + "/.marqdo/docker-context/bin/marqdo" |
-
-We **dest = sys.cwd() + "/.marqdo/docker-context/bin/marqdo"**.
-We **args = table.put(in=`args`, at="dest", value=`dest`)**.
-We **file = sys.cwd() + "/lib/fs.mq.md"**.
-We **_ = [原生复制已安装 CLI，不下载其他实现](call.invoke(file=`file`, function="copy_file", arguments=`args`, root="/", effects="fs.read,fs.write"))**.
-Return *[构建输入已准备](result.ok(value=".marqdo/docker-context"))*.
-
-
-## build
-
-| 返回 | 类型 | 说明 |
-|---|---|---|
-| result | any | 实际镜像构建结果 |
-
-先 prepare，再通过已登记工程拓展运行 Docker。镜像基于现有 Python 发行镜像安装 Node、SQLite、Git 和基础网络工具。客户端秘密只在启动时挂载，不能作为 build argument。构建失败保留实际输出，不继续启动不存在的新镜像。
-
-
-Docker build uses only the prepared context and declaration file. A build failure never triggers a container replacement.
-
-We **prepared = prepare()**.
-1. not access(`prepared`,"ok")
-  Return *prepared*.
+模型配置加密主密钥和供应商 API key 是不同资源，不能互换，也不能把前者发到供应商。生产加密密钥轮换需要单独的管理员批准、数据库备份和离线迁移，prepare 不会执行这些操作。
 
 `argv` =
 
 | argument |
 |---|
-| "docker" |
-| "compose" |
-| "build" |
-| "qdagent" |
+| "bash" |
+| "deploy/prepare-browser.sh" |
 
-Return *[真正构建本工程镜像](engineering.checked(argv=`argv`, timeout_ms=600000, max_output=12000))*.
+Return *engineering.checked(argv=`argv`,timeout_ms=600000,max_output=16000)*.
 
+## build
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | build 的真实结果，失败保留诊断 |
+
+Use 。
+
+构建前运行当前文稿检查，然后离线编译求道 ABI，准备同版本 Marqdo CLI 和浏览器资源，再构建主服务及隔离浏览器镜像。React 前端和 Go 服务由各自官方构建工具编译，业务状态机仍是普通 Marqdo 文稿。任何一步失败就停止，不更新正在运行的服务，不把旧构建产物当作这次成功。
+
+Docker 上下文排除密钥、用户数据、环境配置和私有运行记录。部署脚本只提供基础设施操作，没有模型指令、角色提示或工具 JSON 分派。构建完成后应核对实际检查结果，再由已经授权的部署操作替换服务。
+
+`argv` =
+
+| argument |
+|---|
+| "bash" |
+| "deploy/build.sh" |
+
+Return *engineering.checked(argv=`argv`,timeout_ms=600000,max_output=16000)*.
 
 ## up
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
-| result | any | 启动结果，健康状态另查 status |
+| result | map | up 的真实结果，失败保留诊断 |
 
-只启动本工程声明的服务，不停止其他容器、不清理其他镜像或卷。Compose 使用非 root、只读程序目录、最小能力和独立数据卷。启动成功只说明进程已创建，随后应检查 healthz 与 OIDC 跳转，不能把它说成用户已经登录。
+Use 。
 
+用已验证镜像启动本工程声明的主服务和隔离浏览器，不重建镜像、不删除数据卷，也不接触其他容器。唯一外部端口仍是 7964，浏览器服务没有宿主端口映射。主服务依赖浏览器健康检查，程序目录只读，以不同非 root 用户运行。任务、模型配置、统一身份与历史数据继续使用原有卷。
+
+这项操作会替换本工程服务，必须有实际部署授权；密钥轮换不包含在其中。启动成功只说明容器已创建，仍须检查健康接口、版本、数据完整性与已授权业务路径。不能因为容器启动就声称真实用户已经登录或任务已经完成。
 
 `argv` =
 
@@ -146,18 +72,19 @@ Return *[真正构建本工程镜像](engineering.checked(argv=`argv`, timeout_m
 | "-d" |
 | "--no-build" |
 | "qdagent" |
+| "browser-sandbox" |
 
-Return *[实际启动唯一服务](engineering.checked(argv=`argv`, timeout_ms=120000, max_output=4000))*.
-
+Return *engineering.checked(argv=`argv`,timeout_ms=120000,max_output=16000)*.
 
 ## status
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
-| result | any | Compose 实际运行与健康状态 |
+| result | map | status 的真实结果，失败保留诊断 |
 
-只读取本工程服务状态。它不打印环境变量或 secret 文件，健康检查也不建立认证用户。身份站回调尚未登记时，容器可以健康并正确重定向登录，但真实用户授权回调仍需在身份站完成配置。
+Use 。
 
+读取当前工程的真实容器与端口状态。它不会启动、停止或更新任何服务，也不会读取密钥或用户模型凭据。状态来源是 Docker，而不是源码中的版本声明；构建完成但尚未部署时，旧容器仍会显示旧运行事实。需要核对 HTTP 行为时再访问 healthz 与版本接口，不能用一条绿色终端输出代替完整业务验收。
 
 `argv` =
 
@@ -167,37 +94,38 @@ Return *[实际启动唯一服务](engineering.checked(argv=`argv`, timeout_ms=1
 | "compose" |
 | "ps" |
 
-Return *[读取真实服务状态](engineering.checked(argv=`argv`, timeout_ms=30000, max_output=4000))*.
-
-
-
-
+Return *engineering.checked(argv=`argv`,timeout_ms=30000,max_output=16000)*.
 
 ## dev_up
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
-| result | any | 独立代码卷中的开发服务 |
+| result | map | dev_up 的真实结果，失败保留诊断 |
 
-开发模式仅放开容器自己的代码卷，仍以非 root 用户运行并保留独立数据卷，不挂载主机仓库或 Docker socket。源码可通过容器终端的 marqdo call 原生文件能力修改，Python 依赖放在数据卷中的 venv，Node 包可写入开发代码卷。回到 up 会使用只读镜像，已有开发代码卷不会被删除。
+Use 。
 
-Use this explicit mode only when changing code inside the container. It does not give an agent control of the host Docker daemon. Rebuilding an image does not overwrite an existing development volume; retain or export its work before intentionally replacing that volume. Production startup remains the default up function.
+旧开发模式会把历史整份应用挂在固定源码卷上，容易覆盖新镜像中的 React、Go 与文稿运行时，因此这个入口明确停用。已有卷不在这里删除，用户数据也不受影响。当前开发使用各自的前端与 Go 开发服务；交付通过 build 和已授权的 up 执行，避免因为复用旧卷而出现“构建完成但页面没有变化”。
 
+Return *result.error(code="deploy.legacy_volume",message="旧源码卷启动入口已停用，请使用当前构建与部署入口",operation="dev_up")*.
+
+
+## probe_browser
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | probe_browser 的真实结果，失败保留诊断 |
+
+Use 。
+
+在专用容器中验证真正的 Chromium 沙盒、只读网络、重定向检查、会话隔离和取消后的资源释放，再通过真实 Marqdo ABI 验证快照、截图、依赖交接和引用契约。临时资料站只存在于验收容器，不能在生产配置中开放回环来源例外；容器没有宿主端口或用户数据挂载，结束后清理。本函数不替换正在运行的生产服务，不接触生产模型凭据，也不把网络替身返回当作浏览成功。
+
+检查依赖当前已构建的浏览镜像和求道 ABI。镜像缺失时应先 build，任何用例失败都返回实际非零结果。CoW 用例还确认宿主没有候选写入，未访问的引用不能通过，用户审阅后的正文变化会使验收失效。
 
 `argv` =
 
 | argument |
 |---|
-| "docker" |
-| "compose" |
-| "-f" |
-| "compose.yaml" |
-| "-f" |
-| "compose.dev.yaml" |
-| "up" |
-| "-d" |
-| "--no-build" |
-| "qdagent" |
+| "bash" |
+| "deploy/test-browser.sh" |
 
-Return *[显式开启隔离代码卷](engineering.checked(argv=`argv`, timeout_ms=120000, max_output=4000))*.
-
+Return *engineering.checked(argv=`argv`,timeout_ms=180000,max_output=16000)*.

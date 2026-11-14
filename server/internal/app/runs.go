@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -213,29 +212,12 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 		}
 		payload["child_models"] = children
 	}
-	b, _ := json.Marshal(payload)
-	cmd := exec.CommandContext(ctx, env("QDAGENT_PYTHON", "python3"), filepath.Join(s.store.root, "worker/agent.py"))
-	cmd.Dir = s.store.root
-	cmd.Stdin = bytes.NewReader(b)
-	cmd.Env = append(os.Environ(), "PYTHONUNBUFFERED=1", "MARQDO_LIB="+filepath.Join(s.store.root, "lib"), "MARQDO_EXT="+filepath.Join(s.store.root, "ext"))
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		if cmd.Process != nil {
-			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		return nil
-	}
-	cmd.WaitDelay = 3 * time.Second
-	stdout, err := cmd.StdoutPipe()
+	stdout, wait, err := nativeEntry(ctx, s.store.root, c, payload)
 	if err != nil {
-		s.finish(r, turn, "failed", "无法启动执行进程")
+		s.finish(r, turn, "failed", "无法启动 Marqdo 文稿入口")
 		return
 	}
-	cmd.Stderr = &boundedLog{}
-	if err = cmd.Start(); err != nil {
-		s.finish(r, turn, "failed", "Python 执行环境暂不可用")
-		return
-	}
+	defer stdout.Close()
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 4096), 2<<20)
 	answer, status := "", "failed"
@@ -277,7 +259,7 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 		}
 	}
 	scanErr := scanner.Err()
-	waitErr := cmd.Wait()
+	waitErr := wait()
 	if ctx.Err() != nil {
 		status = "cancelled"
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {

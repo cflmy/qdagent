@@ -161,6 +161,8 @@ Return *save(context=`context`,state=`state`)*.
 
 Use `context`, `revision`, `action`, `answer`="", `choice`="", `settings`=None, `accept_stubs`=False。
 
+The final confirmation binds every separately stored artifact as well as the assembled entry. An article can change without changing the function that reads it, so checking only index.mq.md would let an old review authorize new text. This boundary now rereads each current unit and document digest before recording acceptance. A missing file or altered manuscript returns a precise changed-delivery error. The user must request a revision and repeat verification; the service does not silently approve the new bytes. This protects real user decisions while keeping old readable files and previous discussion available.
+
 只有认证后的用户入口调用本函数。模型目录没有它；普通工具上下文也不能选择 actor。
 版本必须与用户看到的卡片一致，避免确认一个已经被替换的方案。意图卡片允许选择、自由
 输入或二者一起使用，answer 表示继续澄清，confirm_intent 才表示进入基本方案。
@@ -216,6 +218,14 @@ We **phase = access(`state`,"phase")**.
 2. `phase` == "review" and json.get(value=`pending_view`,key="kind") == "review" and `action` == "accept"
   1. not independent_review(state=`state`)
     Return *result.error(code="root.legacy_review",message="该交付缺少当前独立测试证据，请先选择返工重新确认框架",operation="respond")*.
+  We **units = access(`state`,"units")**.
+  - [用户确认也绑定每份真实源码与正文版本](for units as unit)
+    1. not fs.exists(path=access(`unit`,"path")) or hash.sha256(text=fs.read_text(path=access(`unit`,"path"))) != access(`unit`,"sha256")
+      Return *result.error(code="root.delivery_changed",message="单元源码已变化，需要重新验证",operation="respond")*.
+    We **artifact = json.get(value=`unit`,key="artifact")**.
+    1. `artifact`
+      1. not fs.exists(path=access(`artifact`,"path")) or hash.sha256(text=fs.read_text(path=access(`artifact`,"path"))) != access(`artifact`,"sha256")
+        Return *result.error(code="root.delivery_changed",message="正文已变化，需要重新发表与验证",operation="respond")*.
   We **delivery = access(`state`,"delivery")**.
   1. hash.sha256(text=fs.read_text(path=access(`delivery`,"path"))) != access(access(access(`delivery`,"check"),"value"),"sha256")
     Return *result.error(code="root.delivery_changed",message="交付源码已变化，请重新整合后验收",operation="respond")*.
@@ -382,7 +392,7 @@ We **units = access(`state`,"units")**.
 - [逐项核对当前测试证据](for units as unit)
   We **tests = json.get(value=`unit`,key="tests")**.
   We **trial = json.get(value=`unit`,key="trial")**.
-  1. not `tests` or not `trial` or not json.get(value=`trial`,key="passed") or json.get(value=`trial`,key="assurance") != "independent_cases" or json.get(value=`trial`,key="suite_sha256") != json.get(value=`tests`,key="sha256")
+  1. not `tests` or not `trial` or not json.get(value=`trial`,key="passed") or (json.get(value=`trial`,key="assurance") != "independent_cases" and json.get(value=`trial`,key="assurance") != "independent_contract") or json.get(value=`trial`,key="suite_sha256") != json.get(value=`tests`,key="sha256")
     Return *False*.
 Return *True*.
 

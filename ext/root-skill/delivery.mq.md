@@ -3,6 +3,7 @@ markup: occlusion
 title: 根 SKILL · delivery
 import:
   author: authoring.mq.md
+  trial_engine: runtime/trial.mq.md
   core: state.mq.md
   proof: proof.mq.md
   fs: lib/fs.mq.md
@@ -98,7 +99,11 @@ We **cases = table.append(list=table.empty_list(),item=`case`)**.
 We **trial_args = table.put(in=None,at="path",value="solution/index.mq.md")**.
 We **trial_args = table.put(in=`trial_args`,at="function",value="run")**.
 We **trial_args = table.put(in=`trial_args`,at="sha256",value=access(access(`checked`,"value"),"sha256"))**.
-We **observed = core.native(context=`context`,operation="root_smoke",payload=table.put(in=`trial_args`,at="cases",value=`cases`))**.
+We **artifacts = table.empty_list()**.
+- [整合只携带已验证的正文数据](for units as item)
+  1. json.get(value=`item`,key="artifact")
+    We **artifacts = table.append(list=`artifacts`,item=access(`item`,"artifact"))**.
+We **observed = trial_engine.run(context=`context`,path="solution/index.mq.md",function="run",cases=`cases`,sha256=access(access(`checked`,"value"),"sha256"),artifacts=`artifacts`,smoke=True)**.
 1. not access(`observed`,"ok") or not json.get(value=access(`observed`,"value"),key="passed")
   Return *result.error(code="root.integration_trial",message=json.stringify(value=`observed`),operation="integrate")*.
 

@@ -31,6 +31,8 @@ import:
 
 Use `context`, `mode`, `value`, `body`, `narrative`。
 
+文档失败还返回冻结的最小正文与来源要求、实际正文长度和引用检查结果；这些是修复所需的运行观测，不向作者授予修改契约的入口。
+
 先检查当前角色和阶段，再发表合法单元并运行独立案例。返回只包含当前单元的源码路径、检查诊断和通过事实，不把其他单元、私有测试文稿、完整聊天或框架状态塞回模型上下文。需要修复时依据真实失败继续，不用自报预期来覆盖独立测试。
 
 这份文稿是此操作的唯一行为说明和可执行实现。参数表与返回表放在标题下面，调用者应先确认输入来自哪里，再读取实际返回；一个说明句或模型声称成功都不是执行证据。身份和文件根只从宿主可信上下文取得，用户材料和模型输出只作为数据，不能选择更大的权限。失败保留明确诊断，不另写一个猜测结果替代真实操作。
@@ -63,6 +65,7 @@ We **cases = access(`trial`,"cases")**.
   1. not access(`test`,"passed")
     We **failures = table.append(list=`failures`,item=`test`)**.
 We **diagnostic = table.put(in=`diagnostic`,at="failures",value=`failures`)**.
+We **diagnostic = table.put(in=`diagnostic`,at="contract",value=json.get(value=`trial`,key="contract"))**.
 1. not access(`trial`,"passed")
   Return *result.error(code="root.independent_test_failed",message=json.stringify(value=`diagnostic`),operation="publish")*.
 Return *result.ok(value=`diagnostic`)*.

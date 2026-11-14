@@ -85,7 +85,7 @@ Return *"以真实 CLI、隔离负例、独立测试和浏览器链路验证；�
 | runtime/child.mq.md、turn.mq.md | 单元内先测试后实现，有界重试、独立模型和真实交接 |
 | runtime/knowledge.mq.md | 明确选择的知识材料与官方 knowledge preflight 复用检索 |
 | ext/qdagent/native/src/runtime.rs | 官方 AST、受限文件与子进程、传输、事件、资源上限 |
-| worker/agent.py、provider.py | 固定 CLI 桥及原样模型网络传输 |
+| server/internal/app/native_entry.go、worker/provider.py | Go 直接执行根文稿及原样模型网络传输 |
 | server/internal/app、frontend/src | 认证、存储、SSE、用户操作与官方 View |
 
 独立规格只含当前单元的完整职责及公开契约，不附整个工程中其他单元的预期。规划者须把适用于该单元的约束写完整，并在 plan.mq.md 中交用户确认。已有验收不充分时返回规划，不能从实现补规则。固定正文以用户确认的原文作为公开契约，由独立角色调用确定性模板建立不同输入案例；原文中的真实引号和换行保持不变，预期不来自实现。其他业务由独立测试者明确填写输入与预期。案例、规则版本与摘要随同一份私有根状态原子保存，实现者没有更换案例的公开入口；原生边界也保留测试角色权限复核。

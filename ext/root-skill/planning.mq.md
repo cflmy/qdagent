@@ -33,6 +33,8 @@ import:
 
 Use `context`, `title`, `goal`, `acceptance`, `units`, `artifact_kind`=""。
 
+研究与写作模式保留同样的框架确认边界，前置来源未就绪时不会同时启动写作。模式属于用户审阅内容，作者不能临时改成较宽的权限。
+
 基本方案只设计边界、函数单位和验收，不提前实施业务。每个单元是一个具名函数，默认
 接收 input，返回 result。框架用叙述说明职责与协作关系，空实现明确写“尚未接通”。
 这份骨架保存为 solution/plan.mq.md 并立即交给官方 View 展示，不把一段聊天摘要当成文件。
@@ -83,7 +85,7 @@ We **document = "---\nmarkup: occlusion\ntitle: 求道基本方案\n---\n\n# 基
   We **mode = json.get(value=`unit`,key="mode")**.
   1. not `mode`
     We **mode = "code"**.
-  1. `mode` != "text" and `mode` != "code" and `mode` != "select"
+  1. `mode` != "text" and `mode` != "code" and `mode` != "select" and `mode` != "research" and `mode` != "document"
     Return *result.error(code="root.unit_mode",message="单元方式应为 text、select 或 code",operation="outline")*.
   We **unit = table.put(in=`unit`,at="mode",value=`mode`)**.
   We **unit = table.put(in=`unit`,at="depends_on",value=`dependencies`)**.
@@ -158,6 +160,8 @@ Return *"## unit_" + `id` + "\n\n| 参数 | 类型 | 说明 |\n|---|---|---|\n| 
 
 Use `context`, `unit`。
 
+研究职责和文档职责也只是在此保存公开边界，不会在规划阶段访问页面或创作文章。
+
 规划者可以一次只填写一个职责。草稿随真实根状态保存，下一轮仍能读取，所以无需把多个长调用挤进一次回复，也不依赖模型记住上一次的临时变量。它仍不是已确认框架：只有发表实际 plan.mq.md 并由用户确认后，才允许测试与实现。单元身份和模式在保存前检查，避免错误的正文被悄悄解释成更宽的默认能力。
 
 相同身份表示修订同一职责，保留其他草稿的顺序；不同身份追加，最多八项。用户要求改变框架时清空旧草稿重新规划，不能用隐藏记录把已经删除的职责加回去。草稿仅记录业务边界，不写源码、不冻结案例，也不增加任何文件权限。模型调用一次成功后，下轮上下文会明确给出所有已保存职责，可以继续补充或发表，不必重复声明相同单元。
@@ -177,7 +181,7 @@ We **state = access(core.status(context=`context`),"value")**.
   Return *result.error(code="root.draft_scope",message="只可在规划阶段保存自己的职责草稿",operation="draft")*.
 We **id = json.get(value=`unit`,key="id")**.
 We **mode = json.get(value=`unit`,key="mode")**.
-1. not re.is_match(text=`id`,pattern="^[a-z][a-z0-9_]{0,31}$") or (`mode` != "text" and `mode` != "select" and `mode` != "code") or not json.get(value=`unit`,key="purpose")
+1. not re.is_match(text=`id`,pattern="^[a-z][a-z0-9_]{0,31}$") or (`mode` != "text" and `mode` != "select" and `mode` != "code" and `mode` != "research" and `mode` != "document") or not json.get(value=`unit`,key="purpose")
   Return *result.error(code="root.draft_contract",message="草稿需要合法身份、明确职责和独立的模式参数",operation="draft")*.
 We **old = json.get(value=`state`,key="draft_units")**.
 We **updated = table.empty_list()**.

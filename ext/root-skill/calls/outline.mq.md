@@ -128,3 +128,59 @@ We **planned = call.invoke(file=(access(`context`,"project") + "/ext/root-skill/
 1. not access(`planned`,"ok")
   Return *planned*.
 Return *result.ok(value=table.put(in=None,at="path",value="solution/plan.mq.md"))*.
+
+## research_unit
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| id | text | required | 稳定单元身份 |
+| title | text | required | 可读标题 |
+| purpose | text | required | 完整公开职责、输入返回与验收 |
+| depends_on | any | None | 前置身份的原生列表 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | research_unit 的真实结果，失败保留诊断 |
+
+Use `id`, `title`, `purpose`, `depends_on`=None。
+
+这项职责用于真实来源研究，不是用户给出精确原文的常量函数。purpose 写明研究问题、读者、资料范围、引用要求与产物边界，测试者只依据这些已确认规则冻结文档契约，不预测尚未创作的全文。需要先研究后写作时，先定义研究职责，再把其身份放入写作职责的 depends_on；只有依赖通过独立验证，作者才获得获准的材料交接。父文稿负责有界并发，模型不得用猜测来源替代实际浏览。此时只保存草稿，仍须发表框架并等待用户确认。
+
+Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="research",depends_on=`depends_on`)*.
+
+
+## document_unit
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| id | text | required | 稳定单元身份 |
+| title | text | required | 可读标题 |
+| purpose | text | required | 完整公开职责、输入返回与验收 |
+| depends_on | any | None | 前置身份的原生列表 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | document_unit 的真实结果，失败保留诊断 |
+
+Use `id`, `title`, `purpose`, `depends_on`=None。
+
+这项职责用于基于材料撰文，不是用户给出精确原文的常量函数。purpose 写明研究问题、读者、资料范围、引用要求与产物边界，测试者只依据这些已确认规则冻结文档契约，不预测尚未创作的全文。需要先研究后写作时，先定义研究职责，再把其身份放入写作职责的 depends_on；只有依赖通过独立验证，作者才获得获准的材料交接。父文稿负责有界并发，模型不得用猜测来源替代实际浏览。此时只保存草稿，仍须发表框架并等待用户确认。
+
+Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="document",depends_on=`depends_on`)*.
+
+
+## one
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| value | any | required | 一个前置单元身份 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | list | one 的真实结果，失败保留诊断 |
+
+Use `value`。
+
+依赖必须是原生列表。这个纯函数只把明确身份放进一个列表，供 document_unit 的 depends_on 参数使用；它不会启动子任务或读取材料，真实依赖关系仍由框架检查，并在用户批准后才决定执行顺序。
+
+Return *table.append(list=table.empty_list(),item=`value`)*.
