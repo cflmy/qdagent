@@ -25,3 +25,5 @@ title: 已安装插件的共同清单
 | 11 | "root-skill" | "根 SKILL · 文档驱动流程" | "libqdagent_transport.so" | "ext/root-skill/index.mq.md" | "意图澄清、框架确认、受限并行与用户验收" | "" |
 | 12 | "browser" | "隔离浏览器与真实来源" | "libqdagent_transport.so" | "ext/browser/index.mq.md" | "只读浏览公开页面，保存真实来源、正文快照与截图" | "" |
 | 10 | "office" | "办公文档与演示" | "" | "ext/office/index.mq.md" | "生成可编辑文档、演示与源稿" | "" |
+| 13 | "search" | "联网搜索" | "libqdagent_transport.so" | "ext/search/index.mq.md" | "自部署 SearXNG 搜索，保留候选来源及上游故障" | "" |
+| 14 | "ocr" | "PaddleOCR 文字识别" | "libqdagent_transport.so" | "ext/ocr/index.mq.md" | "识别授权上传的图片与 PDF，保存原件依据与真实文字" | "" |

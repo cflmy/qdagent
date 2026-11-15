@@ -89,6 +89,16 @@ Go 将增量、工具阶段和终态写入 SQLite，SSE 支持 `Last-Event-ID` �
 
 `.mq.md` 通过现有官方只读预览入口生成 sanitized HTML，前端在限制脚本执行的独立阅读框里展示；普通 Markdown 不允许原生 HTML 脚本。源码展开和下载只作用于当前文件，不运行文稿。
 
+## 搜索、OCR 与多格式阅读
+
+普通 `ext/search/index.mq.md query` 和 `ext/ocr/index.mq.md recognize` 函数就是智能体工具，调用现场直接提供给意图、规划和普通实现角色；独立测试者无法使用。搜索服务采用固定版本自部署 [SearXNG](https://docs.searxng.org/dev/search_api.html)，仅 Docker 内网可见，仍由 7964 统一对外。当前使用 Bing、百度、搜狗和 Wikipedia；引擎封禁或超时会保留在实际结果中，搜索摘要不会增加已阅读来源。
+
+OCR 按 [官方异步任务协议](https://ai.baidu.com/ai-doc/AISTUDIO/Mml7n69e7) 上传当前任务的 PDF 或图片；令牌单独放在 `.marqdo/secrets/paddleocr_token`，通过 Docker secret 注入，不能提交到仓库。`deploy/prepare-services.sh` 准备只读权限与搜索配置。首次识别提交任务，再次使用同一路径恢复查询，done 后保存文字和原始 JSONL。输入上限 50 MiB，单次结果上限 1 MiB；长任务可能需要继续调用。这里只将指定材料发给已配置 OCR 服务，不接收任意远程文件地址。
+
+右侧通过 [Open File Viewer](https://github.com/xushanpei/open-file-viewer) 预览 PDF、Office、图片及音视频。它也是 [AnyFileViewer](https://github.com/wpf008/AnyFileViewer) 使用的 MIT 预览引擎；未复制未授权的桌面应用源码。浏览器读取当前账号已认证的 File 后交给无账号权限的隔离 iframe，不使用外部 Office 转换站；Marqdo 文件仍保持官方 View。复杂排版和未支持格式可能需要下载原件。输入上限 50 MiB，预览依赖本地静态资源，首次打开对应格式时才加载解析器。
+
+工程边界与验收记录见 [search-ocr-preview.mq.md](docs/search-ocr-preview.mq.md)。
+
 ## 本地开发
 
 ```sh

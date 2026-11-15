@@ -14,4 +14,5 @@ mkdir -p .marqdo/docker-context/bin
 install -m 0755 "${MARQDO_BIN:-/usr/local/bin/marqdo}" .marqdo/docker-context/bin/marqdo
 (cd server && go mod vendor -o ../.marqdo/go-vendor)
 bash deploy/prepare-browser.sh
+bash deploy/prepare-services.sh
 docker compose build qdagent browser-sandbox

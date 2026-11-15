@@ -3,13 +3,13 @@ test('execution receipts show native source and decoded diagnostics with protoco
  const task={id:'receipt-task',title:'执行文稿可读性验收',status:'incomplete',created_ms:Date.now()};
  const source='`article` =\n````markdown\n# 真实正文\n\n这里保留 "引号" 与原生换行。\n````\nReturn *[发表文章](api.write_document(content=`article`,narrative="真实材料依据"))*.\n';
  const messages=[{turn:0,question:'阅读执行记录',answer:'本次验证尚未完成，请核对实际诊断。',run_id:'receipt-run',status:'incomplete'}];
- const events=[{kind:'tool_start',data:{id:'call-1',name:'api.write_document',arguments:{source}}},{kind:'tool_end',data:{id:'call-1',status:'failed',result:{ok:false,error:{code:'root.invalid_source',message:JSON.stringify({syntax:{error:{code:'syntax.unexpected',message:'缺少右括号，请核对当前函数。',span:{file:'article.mq.md',line:14}}}})}}}},{kind:'browser_start',data:{id:'research',url:'https://example.com/'}},{kind:'browser_end',data:{id:'research',status:'succeeded',url:'https://example.com/',title:'实际网页来源',fetched_at:'2026-11-15T00:00:00Z',snapshot:'evidence/browser/research/page.md',screenshot:'evidence/browser/research/page.png',excerpt:'这里只展示实际观察的摘录。'}}].map((e,index)=>({...e,seq:index+1,run_id:'receipt-run',created_ms:Date.now()}));
+ const events=[{kind:'tool_start',data:{id:'call-1',name:'api.write_document',arguments:{source}}},{kind:'tool_end',data:{id:'call-1',status:'failed',result:{ok:false,error:{code:'root.invalid_source',message:JSON.stringify({syntax:{error:{code:'syntax.unexpected',message:'缺少右括号，请核对当前函数。',span:{file:'article.mq.md',line:14}}}})}}}},{kind:'browser_start',data:{id:'research',url:'https://example.com/'}},{kind:'browser_end',data:{id:'research',status:'succeeded',url:'https://example.com/',title:'实际网页来源',fetched_at:'2026-11-15T00:00:00Z',snapshot:'evidence/browser/research/page.md',screenshot:'evidence/browser/research/page.png',excerpt:'这里只展示实际观察的摘录。'}},{kind:'search_start',data:{id:'research',query:'真实查询'}},{kind:'search_end',data:{id:'research',status:'succeeded',query:'真实查询',results:[{url:'https://example.com/source',title:'候选页面',excerpt:'这条摘要尚未打开。'}],unresponsive_engines:[['example-engine','timeout']]}},{kind:'ocr_start',data:{id:'research',file:'uploads/material.pdf'}},{kind:'ocr_end',data:{id:'research',file:'uploads/material.pdf',state:'pending',status:'pending'}}].map((e,index)=>({...e,seq:index+1,run_id:'receipt-run',created_ms:Date.now()}));
  await page.addInitScript(()=>localStorage.setItem('qd.task.v4','receipt-task'));
  await page.route('**/api/tasks',route=>route.fulfill({json:{tasks:[task]}}));
  await page.route('**/api/tasks/receipt-task',route=>route.fulfill({json:{task,messages}}));
  await page.route('**/api/tasks/receipt-task/files',route=>route.fulfill({json:{files:[]}}));
  await page.route('**/api/runs/receipt-run/events',route=>route.fulfill({contentType:'text/event-stream',body:events.map(e=>'event: update\ndata: '+JSON.stringify(e)+'\n\n').join('')+'event: complete\ndata: {"status":"incomplete"}\n\n'}));
- await page.goto('/app');await expect(page.locator('.trace-step')).toHaveCount(2);
+ await page.goto('/app');await expect(page.locator('.trace-step')).toHaveCount(4);
  await page.locator('.trace-step').first().locator(':scope>summary').click();
  await expect(page.locator('.receipt-source pre')).toHaveText(source);
  await expect(page.getByText('缺少右括号，请核对当前函数。',{exact:true})).toBeVisible();
@@ -18,6 +18,12 @@ test('execution receipts show native source and decoded diagnostics with protoco
  await page.locator('.trace-step').nth(1).locator(':scope>summary').click();
  await expect(page.locator('.browser-observation').getByRole('link',{name:'https://example.com/',exact:true})).toHaveAttribute('href','https://example.com/');
  await expect(page.getByRole('button',{name:'查看实际截图',exact:true})).toBeEnabled();
+ await page.locator('.trace-step').nth(2).locator(':scope>summary').click();
+ await expect(page.locator('.search-observation')).toContainText('搜索摘要 · 尚未打开网页');
+ await expect(page.locator('.search-observation').getByRole('link',{name:'候选页面'})).toHaveAttribute('href','https://example.com/source');
+ await page.locator('.trace-step').nth(3).locator(':scope>summary').click();
+ await expect(page.locator('.trace-step').nth(3).locator('.trace-state')).toContainText('等待文字识别');
+ await expect(page.locator('.ocr-observation')).toContainText('已提交，等待识别');
  await page.screenshot({path:'test-results/native-execution-receipts.png',fullPage:true});
 });
 test('authenticated image upload previews real PNG with safe inline headers',async({page})=>{

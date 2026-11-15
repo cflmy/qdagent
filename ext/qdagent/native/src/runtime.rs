@@ -173,6 +173,31 @@ fn model(v:&Value)->Result<Value,String>{
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
  match v["operation"].as_str().unwrap_or(""){
+  "runtime_search"|"runtime_ocr_submit"|"runtime_ocr_poll"=>{
+   let c=context(v)?;private_request(c)?;
+   if !matches!(c["role"].as_str(),Some("implement"|"research"|"outline"|"intent")){return Err("service is outside this role's context".into())}
+   let operation=text(v,"operation")?.trim_start_matches("runtime_");
+   let mut payload=json!({"operation":operation});
+   match operation{
+    "search"=>{payload["query"]=json!(text(v,"query")?);},
+    "ocr_submit"=>{
+     let rel=text(v,"path")?;if !rel.starts_with("uploads/"){return Err("OCR accepts only supplied uploads".into())}
+     let workspace=Path::new(text(c,"workspace")?);
+     let path=descendants(&workspace.join(rel),&workspace.join("uploads"))?;
+     if fs::metadata(&path).map_err(|e|e.to_string())?.len()>50*1024*1024{return Err("OCR file exceeds 50 MB".into())}
+     payload["file"]=json!(path);
+    },
+    "ocr_poll"=>{payload["job_id"]=json!(id(text(v,"job_id")?)?);},
+    _=>return Err("unknown service transport".into())
+   }
+   let mut command=Command::new("python3");command.arg(Path::new(text(c,"project")?).join("worker/services.py")).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+   let mut child=command.spawn().map_err(|e|e.to_string())?;child.stdin.take().unwrap().write_all(payload.to_string().as_bytes()).map_err(|e|e.to_string())?;
+   let (out,_,status)=bounded_wait(child,Duration::from_secs(50))?;
+   if status!=0{return Err("service transport process failed".into())}
+   let response:Value=serde_json::from_slice(&out).map_err(|_|"invalid service transport response")?;
+   if response["ok"]!=true{return Err(response["message"].as_str().unwrap_or("service transport failed").into())}
+   Ok(response["value"].clone())
+  },
   "runtime_browser_open"=>{
    let c=context(v)?;private_request(c)?;
    if !matches!(c["role"].as_str(),Some("implement"|"research")){return Err("browser is outside this role's context".into())}

@@ -38,5 +38,5 @@ export function useRun(id:string,onDone:()=>void){
  source.onerror=()=>{if(alive)setState(s=>({...s,connection:'reconnecting'}))};return()=>{alive=false;source.close()};
  },[id]);return state.id===id?state:{id,events:[],answer:'',status:'',connection:''};
 }
-export const statusText:Record<string,string>={waiting_user:'等待你的回应',written:'已校验',running:'进行中',succeeded:'已完成',failed:'未完成',cancelled:'已停止',interrupted:'已中断',incomplete:'待继续',answer_only:'已回复',idle:'未开始',ready:'未开始',completed:'已完成',pending:'待开始'};
+export const statusText:Record<string,string>={waiting_service:'等待文字识别',waiting_user:'等待你的回应',written:'已校验',running:'进行中',succeeded:'已完成',failed:'未完成',cancelled:'已停止',interrupted:'已中断',incomplete:'待继续',answer_only:'已回复',idle:'未开始',ready:'未开始',completed:'已完成',pending:'待开始'};
 export function sizeLabel(n:number){return n>=1048576?`${(n/1048576).toFixed(1)} MB`:n>=1024?`${Math.ceil(n/1024)} KB`:`${n} B`}

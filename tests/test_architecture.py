@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ArchitectureTests(unittest.TestCase):
     def test_transport_cannot_define_roles_or_business_actions(self):
-        for name in ('provider.py',):
+        for name in ('provider.py', 'services.py'):
             tree = ast.parse((ROOT / 'worker' / name).read_text())
             strings = {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
             self.assertFalse(strings.intersection({'system', 'intent', 'outline', 'refine', 'implement', 'deliver', 'test', 'tools'}), name)

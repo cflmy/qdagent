@@ -73,6 +73,7 @@ Use 。
 | "--no-build" |
 | "qdagent" |
 | "browser-sandbox" |
+| "search" |
 
 Return *engineering.checked(argv=`argv`,timeout_ms=120000,max_output=16000)*.
 

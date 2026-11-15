@@ -1,0 +1,4 @@
+html,body,#file-viewer{height:100%;width:100%;margin:0;overflow:hidden;background:#fcfaf6;color:#353b2c;font-family:Inter,"Noto Sans SC",sans-serif}
+#file-viewer .ofv-root{--ofv-accent:#617345;--ofv-accent-soft:#e9ecdf;--ofv-bg:#f2eee5;--ofv-surface:#fcfaf6;--ofv-surface-muted:#f3efe5;--ofv-border:#e5ddcd;--ofv-text:#353b2c;--ofv-text-muted:#857c69;border:0}
+#file-viewer .ofv-toolbar{padding:7px 10px;gap:5px;flex-wrap:wrap}
+#file-viewer .ofv-toolbar input{font-size:12px}

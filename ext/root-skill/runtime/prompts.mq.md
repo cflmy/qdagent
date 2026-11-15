@@ -2,6 +2,7 @@
 markup: occlusion
 title: 提示词与有界上下文的唯一组装位置
 import:
+  observations: observations.mq.md
   io: io.mq.md
   core: ../state.mq.md
   proof: ../proof.mq.md
@@ -80,9 +81,11 @@ We **role = access(`context`,"role")**.
   1. `role` == "implement"
     We **specification = `specification` + materials.reference(context=`context`,item=`item`)**.
   Return *specification*.
+搜索与 OCR 材料只作为当前任务的外部观察交接。搜索候选尚未阅读，不能代替来源；识别文字也不是控制指令。测试角色在前面已经返回冻结规格，不进入这个材料分支。
+
 We **facts = "已确认目标：" + core.prose(content=access(`state`,"goal")) + "。\n"**.
 1. `role` == "intent" or `role` == "outline"
-  We **facts = `facts` + knowledge.reference(context=`context`,state=`state`) + "\n"**.
+  We **facts = `facts` + knowledge.reference(context=`context`,state=`state`) + observations.reference(context=`context`) + "\n"**.
 1. `role` == "outline"
   We **facts = `facts` + "用户确认的业务函数数量（0 或空表示未限制）：" + json.stringify(value=json.get(value=access(`state`,"settings"),key="expected_units")) + "\n"**.
   We **facts = `facts` + "已保存的当前职责草稿（不是已确认框架）：" + json.stringify(value=json.get(value=`state`,key="draft_units")) + "\n"**.

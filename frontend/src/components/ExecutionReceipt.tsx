@@ -41,9 +41,11 @@ export function ExecutionReceipt({value,onPreview}:{value:unknown;onPreview?:(pa
  const resultValue=returned.value&&typeof returned.value==='object'?returned.value as RecordValue:returned;
  const path=typeof resultValue.path==='string'?resultValue.path:undefined;
  const browser=typeof resultValue.url==='string'&&/^https?:\/\//.test(resultValue.url)&&typeof resultValue.snapshot==='string'?resultValue:undefined;
+ const search=typeof resultValue.query==='string'&&Array.isArray(resultValue.results)?resultValue:undefined;
+ const ocr=typeof resultValue.file==='string'&&typeof resultValue.state==='string'?resultValue:undefined;
  const failed=record.status==='failed'||record.ok===false||returned.ok===false||diagnostics.length>0;
  const requestedURL=typeof argumentsValue.url==='string'&&/^https?:\/\//.test(argumentsValue.url)?argumentsValue.url:undefined;
- const empty=!source&&!diagnostics.length&&!command&&!path&&!requestedURL;
+ const empty=!source&&!diagnostics.length&&!command&&!path&&!requestedURL&&!browser&&!search&&!ocr;
  return <div className={'execution-receipt '+(failed?'has-error':'')}>
   {requestedURL&&<a className="receipt-request-url" href={requestedURL} target="_blank" rel="noopener noreferrer">{requestedURL}</a>}
   {command&&<div className="receipt-command"><Terminal size={14}/><code>{command}</code></div>}
@@ -51,6 +53,8 @@ export function ExecutionReceipt({value,onPreview}:{value:unknown;onPreview?:(pa
   {diagnostics.map((diagnostic,index)=><article className="receipt-diagnostic" key={index}><AlertCircle size={15}/><div><strong>{diagnostic.code&&codeLabels[diagnostic.code]||'执行诊断'}</strong><p>{diagnostic.message}</p>{diagnostic.file&&<code>{diagnostic.file.split('/').pop()}{diagnostic.line?`:${diagnostic.line}`:''}</code>}</div></article>)}
   {browser&&<article className="browser-observation"><strong>{String(browser.title||'网页观察')}</strong><a href={String(browser.url)} target="_blank" rel="noopener noreferrer">{String(browser.url)}</a><small>{String(browser.fetched_at||'')} · Chromium 隔离会话</small>{typeof browser.excerpt==='string'&&<p>{browser.excerpt.slice(0,480)}</p>}<div><button className="text-button" disabled={!onPreview} onClick={()=>onPreview?.(String(browser.snapshot))}>阅读网页快照</button>{typeof browser.screenshot==='string'&&<button className="text-button" disabled={!onPreview} onClick={()=>onPreview?.(String(browser.screenshot))}>查看实际截图</button>}</div></article>}
   {path&&<button className="text-button receipt-artifact" onClick={()=>onPreview?.(path)} disabled={!onPreview}><FileCode2 size={14}/>{path}</button>}
+  {search&&<article className="search-observation"><strong>搜索：{String(search.query)}</strong><small>搜索摘要 · 尚未打开网页</small>{(search.results as RecordValue[]).map((item,index)=><div key={index}><a href={String(item.url)} target="_blank" rel="noopener noreferrer">{String(item.title||item.url)}</a><p>{String(item.excerpt||'')}</p></div>)}{!(search.results as unknown[]).length&&<p>本次查询没有返回结果。</p>}{Array.isArray(search.unresponsive_engines)&&search.unresponsive_engines.length>0&&<small>部分引擎未响应：{search.unresponsive_engines.map(item=>Array.isArray(item)?item.join(' · '):String(item)).join('；')}</small>}</article>}
+  {ocr&&<article className="ocr-observation"><strong>{String(ocr.file).split('/').pop()}</strong><small>{({'pending':'已提交，等待识别','running':'正在识别','done':'识别完成，请对照原件核对','failed':'识别失败'} as Record<string,string>)[String(ocr.state)]||String(ocr.state)}</small>{typeof ocr.excerpt==='string'&&<p>{ocr.excerpt.slice(0,800)}</p>}</article>}
   {empty&&<p className="receipt-observation">{failed?<AlertCircle size={14}/>:<CheckCircle2 size={14}/>}<span>{failed?'本次调用未完成，查看下方详细记录。':record.status==='running'||record.status===undefined?'已记录实际调用；成功与否以完成后的验证为准。':'本次调用已完成，结果已保存。'}</span></p>}
   <details className="receipt-debug"><summary>原始协议（调试）</summary><pre>{JSON.stringify(normalized??value,null,2)}</pre></details>
  </div>;

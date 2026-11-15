@@ -15,6 +15,8 @@ services:
     depends_on:
       browser-sandbox:
         condition: service_healthy
+      search:
+        condition: service_healthy
     read_only: true
     cap_drop: [ALL]
     security_opt:
@@ -25,6 +27,7 @@ services:
     environment:
       QDAGENT_BROWSER_URL: http://browser-sandbox:7318
       QDAGENT_BROWSER_KEY_FILE: /run/browser_token
+      QDAGENT_OCR_TOKEN_FILE: /run/paddleocr_token
       QDAGENT_DEFAULT_MODEL: ${QDAGENT_DEFAULT_MODEL:-builtin-local}
       QDAGENT_OIDC_REDIRECT_ORIGINS: ${QDAGENT_OIDC_REDIRECT_ORIGINS:-https://agent.qdqc.com,http://127.0.0.1:7964,http://localhost:7964}
       QDAGENT_OIDC_CLIENT_ID: ${QDAGENT_OIDC_CLIENT_ID:-app_e18ec1c40109417bb34b56c0c1749fe8}
@@ -39,6 +42,8 @@ services:
       - /tmp:uid=10001,gid=10001,mode=1777,size=256m
       - /app/pages/data:uid=10001,gid=10001,mode=0700,size=16m
     secrets:
+      - source: paddleocr_token
+        target: /run/paddleocr_token
       - source: browser_token
         target: /run/browser_token
       - source: oidc_client_secret
@@ -86,7 +91,42 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+  search:
+    image: searxng/searxng@sha256:932f69dca010db9880bddebb2171f05d8e1a25d04a59149ff65409993d680024
+    restart: unless-stopped
+    init: true
+    user: "977:977"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+    environment:
+      GRANIAN_HOST: 0.0.0.0
+      GRANIAN_PORT: "8080"
+      FORCE_OWNERSHIP: "false"
+    secrets:
+      - source: search_settings
+        target: /etc/searxng/settings.yml
+    tmpfs:
+      - /tmp:uid=977,gid=977,mode=1777,size=64m
+      - /var/cache/searxng:uid=977,gid=977,mode=0700,size=64m
+    healthcheck:
+      test: [CMD, /usr/local/searxng/.venv/bin/python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
 secrets:
+  paddleocr_token:
+    file: .marqdo/secrets/paddleocr_token
+  search_settings:
+    file: .marqdo/secrets/search_settings.yml
   browser_token:
     file: .marqdo/secrets/browser_token
   oidc_client_secret:
