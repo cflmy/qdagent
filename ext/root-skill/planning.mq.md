@@ -81,6 +81,10 @@ A framework is accepted as an exact artifact, not as an inferred intention. Reta
 用户回看已经确认过的方案时，应继续取得原版本的职责和路由。新的基本方案只能产生新的确认请求，不能覆盖那次真实决定。该约束同样适用于网络研究失败后改变资料范围的情况：改变业务约束应再次审阅，单纯重试现有来源则仍依据原来的公开契约继续执行。
 每个实际段落都同时呈现用户意图与所选方法，用户不需要打开内部运行目录寻找这层对应。机器使用稳定身份作关联，人使用标题和完整叙述审阅边界，两者来自同一次真实发表。
 
+办公格式来自已经确认的意图；规划者没有重复填写时沿用这一决定，填写冲突则先返回澄清。实际 Word 或 PPT 手册的位置写入可阅读方案，不能只在界面显示一个插件名称。内容职责仍按函数段规划，允许并行编写，完成独立验证后才把正文组装成文件。
+
+格式与正文方法分别进入实际方案，用户可以看到本轮会使用 Word 还是 PPT 手册。只有确认这个源码版本后才开始独立实现；生成一个框架文件本身不产生办公交付。
+
 We **state = access(core.status(context=`context`),"value")**.
 1. access(`state`,"phase") != "outline" or json.get(value=`state`,key="pending")
   Return *result.error(code="root.stage",message="需要真实用户先确认意图",operation="outline")*.
@@ -89,11 +93,19 @@ We **state = access(core.status(context=`context`),"value")**.
 We **expected = json.get(value=access(`state`,"settings"),key="expected_units")**.
 1. `expected` != None and `expected` > 0 and table.len(xs=`units`) != `expected`
   Return *result.error(code="root.unit_count",message=("用户确认的业务函数数量为 " + json.stringify(value=`expected`) + "，当前草稿数量为 " + json.stringify(value=table.len(xs=`units`))),operation="outline")*.
+We **format = routing.office_format(intents=json.get(value=`state`,key="intent_tasks"),requested=`artifact_kind`)**.
+1. not access(`format`,"ok")
+  Return *format*.
+We **artifact_kind = access(`format`,"value")**.
 1. `artifact_kind` != "" and `artifact_kind` != "docx" and `artifact_kind` != "pptx"
   Return *result.error(code="root.artifact_kind",message="办公产物只支持明确的 docx 或 pptx",operation="outline")*.
 We **intents = json.get(value=`state`,key="intent_tasks")**.
 We **prepared = table.empty_list()** and **ids = table.empty_list()**.
 We **document = "---\nmarkup: occlusion\ntitle: 求道基本方案\n---\n\n# 基本方案\n\n标题：" + core.prose(content=`title`) + "\n\n目标：" + core.prose(content=`goal`) + "\n\n验收：" + core.prose(content=`acceptance`) + "\n\n办公产物：" + core.prose(content=`artifact_kind`) + "\n\n本阶段只约定框架，所有业务逻辑均尚未接通。用户确认后才进入并行细化。\n\n"**.
+We **office_route = None**.
+1. `artifact_kind` != ""
+  We **office_route = access(routing.office(kind=`artifact_kind`),"value")**.
+  We **document = `document` + "办公 SKILL：" + access(`office_route`,"label") + "，手册为 " + access(`office_route`,"document") + "。正文由各函数段独立完成并验证后再组装。\n\n"**.
 - [每个单元都有独立边界](for units as unit)
   We **id = json.get(value=`unit`,key="id")**.
   1. not re.is_match(text=`id`,pattern="^[a-z][a-z0-9_]{0,31}$") or table.contains(list=`ids`,item=`id`)
@@ -141,6 +153,7 @@ We **verified_outline = core.native(context=`context`,operation="root_check",pay
 1. not access(`verified_outline`,"ok") or not json.get(value=access(`verified_outline`,"value"),key="valid")
   Return *result.error(code="root.outline_check",message=json.stringify(value=`verified_outline`),operation="outline")*.
 We **state = table.put(in=`state`,at="artifact_kind",value=`artifact_kind`)**.
+We **state = table.put(in=`state`,at="office_route",value=`office_route`)**.
 We **outline_digest = hash.sha256(text=`document`)**.
 
 `patch` =

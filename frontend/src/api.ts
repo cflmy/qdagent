@@ -24,7 +24,7 @@ export interface Plan {goal:string;acceptance:string;steps:{id:number;title:stri
 export interface WorkspaceFile {path:string;name:string;size:number;modified_ms:number}
 export interface Artifact {id:string;title:string;kind:string;path:string;source:string;bytes:number}
 export interface SkillRoute {mode:string;document:string;function:string;label:string}
-export interface IntentTask {id:string;title:string;purpose:string;mode:string;route:SkillRoute}
+export interface IntentTask {id:string;title:string;purpose:string;mode:string;route:SkillRoute;artifact_kind?:string;office_route?:Pick<SkillRoute,'label'|'document'|'function'>}
 export interface Decision {actor?:string;action?:string;text?:string;choice?:string;question?:string;summary?:string;revision?:number}
 export interface StageRecord {phase:string;revision:number;goal?:string;title?:string;summary?:string;acceptance?:string;pending?:RootState["pending"];units?:RootUnit[];intent_tasks?:IntentTask[];settings?:RootState["settings"];history?:Decision[];decision?:Decision;document?:{path:string;sha256:string}}
 export interface RootUnit {intent_id?:string;route?:SkillRoute;function?:string;artifact?:{path:string;sha256:string};tests?:{count:number;sha256:string;kind?:string};trial?:{passed:boolean;assurance:string;suite_sha256?:string};specification?:{path:string;executable_statements:number};id:string;title:string;purpose:string;mode?:string;depends_on?:string[];status:string;path?:string;sha256?:string}

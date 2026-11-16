@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-recovery-0.11.0"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-office-skills-0.12.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -473,6 +473,9 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 	}
 	root := s.workspace(t)
 	out := []map[string]any{}
+	var artifacts any
+	readBoundedJSON(filepath.Join(root, ".agent/artifacts.json"), &artifacts)
+	visibleOffice, officeRoots := officeFileVisibility(artifacts)
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, e error) error {
 		if e != nil {
 			return nil
@@ -480,6 +483,12 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 		rel, _ := filepath.Rel(root, path)
 		if rel != "." && d.IsDir() && strings.HasPrefix(d.Name(), ".") {
 			return fs.SkipDir
+		}
+		if hiddenOfficePart(filepath.ToSlash(rel), d.IsDir(), visibleOffice, officeRoots) {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
 		}
 		if len(out) >= 500 {
 			return fs.SkipAll
@@ -493,11 +502,9 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 		return nil
 	})
 	var plan any
-	var artifacts any
 	var children []map[string]any
 	readBoundedJSON(filepath.Join(root, ".agent/children.json"), &children)
 	readBoundedJSON(filepath.Join(root, ".agent/plan.json"), &plan)
-	readBoundedJSON(filepath.Join(root, ".agent/artifacts.json"), &artifacts)
 	var workflow map[string]any
 	if s.supervisor.workflow != nil {
 		workflow, _ = s.supervisor.workflow.snapshot(t.ID)

@@ -168,3 +168,5 @@ npm run build --prefix frontend
 浏览器与原生文稿链路可通过 `marqdo call deploy/manage.mq.md probe_browser --effects plugin,fs.read,fs.write,process.exec,environment.read --fs-root . --json` 重跑，验收只创建临时容器，不更新生产服务。
 
 任务支持归档、只读回看与恢复；永久删除仅对已归档任务开放，并需再次确认。普通 Marqdo 调用先经官方解析和参数绑定检查，再执行实际工具。失败向同一角色交接有限、同版本的真实错误经验，执行区展示参数、诊断与后续修订。边界见 [任务生命周期与恢复规范](docs/task-lifecycle-and-recovery.mq.md)。
+
+Word/PPT SKILL 现支持真实文件创建、按章/页替换插入删除、分页读取上传文件文字，以及从已验证函数段组装可编辑文件和 PDF。手册入口：[办公 SKILL](ext/office/index.mq.md)、[Word](ext/office/word.mq.md)、[PPT](ext/office/presentation.mq.md)。开发与能力限制见 [办公规范](docs/office-skills.mq.md)。

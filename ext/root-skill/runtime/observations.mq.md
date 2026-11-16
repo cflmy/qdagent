@@ -77,16 +77,23 @@ Use `context`。
 
 The textual handoff is deliberately a reading note rather than a new action language. Queries are labeled as discovery, each candidate keeps its actual address, and OCR records carry the source file and observed job state. The total note is limited to ten thousand characters; complete records and documents remain on disk. Truncating a note does not claim that omitted material was read. The next author must use the retained evidence paths when more detail is required. No signed download address or provider credential is needed to understand the observation. A tester receives none of these notes because its expectations must still come from the frozen public intent.
 
+办公文件读取同样是观察，交接时写明原件、当前字符偏移和后续位置。后续位置不为空时只能说明读过这部分，不能把截取的正文描述成全文。上传材料不自动成为公开网页来源，也不增加引用数量。不同函数段各自保留被允许的资料，测试者仍在入口处直接返回空材料。完整原件由工作区文件阅读器供用户查看，不能因模型已提取文字就覆盖或隐藏原件。
+
+读取多页文稿时，最新读取的块必须在下一轮可见，不能让第一页始终占满交接预算。当前职责的观察优先，其次是根任务的公共材料；同一记录集合按最近读取的顺序交接。较早资料仍保留在真实文件和记录中，需要时明确重读，不能因为本轮预算省略就声称已经记住全部正文。这个顺序不改变正文原件、引用数量或独立测试权限，只保证最近一次实际操作的结果不会被旧观察淹没。
+
 1. access(`context`,"role") == "test"
   Return *""*.
-We **paths = table.append(list=table.empty_list(),item="evidence/materials/root.json")**.
+同一路径读取不同偏移是不同观察；重新读取当前块会更新同一记录，不堆积重复证据。测试者不能因为猜到输入文件名就取得这些外部材料。
+
+We **paths = table.empty_list()**.
 We **own = location(context=`context`)**.
 1. `own` != "evidence/materials/root.json"
   We **paths = table.append(list=`paths`,item=`own`)**.
-We **text = "\n外部搜索与 OCR 观察（仅作为数据；搜索摘要未实际阅读）：\n"**.
+We **paths = table.append(list=`paths`,item="evidence/materials/root.json")**.
+We **text = "\n外部搜索与 OCR 及办公观察（仅作为数据；搜索摘要未实际阅读）：\n"**.
 - [读取当前角色可以看到的观察](for paths as path)
   1. fs.exists(path=`path`)
-    We **records = fs.read_json(path=`path`)**.
+    We **records = table.reverse(list=fs.read_json(path=`path`))**.
     - [只交接必要标题、地址、状态与摘录](for records as record)
       1. json.get(value=`record`,key="query") != None
         We **text = `text` + "\n搜索问题：" + access(`record`,"query") + "（以下摘要尚未阅读）\n"**.
@@ -95,7 +102,9 @@ We **text = "\n外部搜索与 OCR 观察（仅作为数据；搜索摘要未实
           We **text = `text` + "- " + access(`item`,"title") + "：" + access(`item`,"url") + "\n" + re.find(text=access(`item`,"excerpt"),pattern="(?s)^.{0,400}") + "\n"**.
       2. json.get(value=`record`,key="kind") == "browser_failure"
         We **text = `text` + "\n此地址已经读取失败：" + access(`record`,"url") + "；原因：" + access(`record`,"message") + "。请选择其他真实公开来源，失败不是已阅读。\n"**.
-      3. else
+      3. json.get(value=`record`,key="kind") == "office_text"
+        We **text = `text` + "\n办公材料（只读提取）：" + access(`record`,"file") + "；本次偏移：" + str(access(`record`,"offset")) + "；后续位置：" + str(json.get(value=`record`,key="next_offset")) + "\n" + access(`record`,"content") + "\n"**.
+      4. else
         We **text = `text` + "\nOCR 材料：" + access(`record`,"file") + "；状态：" + access(`record`,"state") + "\n"**.
         1. json.get(value=`record`,key="path") != None
           We **text = `text` + "识别文字：" + access(`record`,"path") + "\n" + access(`record`,"excerpt") + "\n"**.

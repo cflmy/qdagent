@@ -2,6 +2,7 @@
 markup: occlusion
 title: 办公产物：可读源稿、真实文件与内容核验
 import:
+  records: records.mq.md
   fs: lib/fs.mq.md
   archive: lib/archive.mq.md
   html: lib/html.mq.md
@@ -78,6 +79,8 @@ For a presentation, keep each section focused on one claim and use short body li
 
 A successful return includes paths relative to the task workspace. Use those paths for plan evidence, later reading and actual delivery. The UI resolves an opaque artifact id through the owner-checked service; a model must not publish a server absolute path as if it were a download URL. If validation fails after some parts were written, inspect the dedicated UUID directory rather than retrying a mutation blindly. A new corrected request creates a new version.
 
+生成完成后还保存结构源稿，并把真实摘要写入当前版本登记。后续局部编辑只读取与二进制和 Markdown 都一致的源稿，不根据相同标题猜测版本。新文件不覆盖旧文件，生成失败的目录也不会被当成已经核对的交付。
+
 1. `kind` != "docx" and `kind` != "pptx"
   Return *[只接受真实支持格式](result.error(code="office.kind",message=`kind`,operation="generate"))*.
 1. table.len(xs=`sections`) < 1 or table.len(xs=`sections`) > 20 or table.len(xs=`title`) > 100 or `title` == ""
@@ -139,6 +142,7 @@ We **main = `directory` + "/verified/word/document.xml"**.
 1. not fs.exists(path=`main`)
   Return *[缺少主部件不能交付](result.error(code="office.package",message=`main`,operation="generate"))*.
 We **artifact = [统一登记真实交付](artifacts.register(id=`id`,title=`title`,kind=`kind`,path=`path`,source=(`directory` + "/source.md")))**.
+We **artifact = [绑定真实源稿与文件版本](records.save(artifact=`artifact`,kind=`kind`,title=`title`,sections=`sections`))**.
 1. `render_pdf`
   We **pdf = [只转换本次刚生成的受信任包](export.pdf(id=`id`))**.
   1. not access(`pdf`,"ok")

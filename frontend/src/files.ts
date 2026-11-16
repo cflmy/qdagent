@@ -4,7 +4,7 @@ export function readableFileName(path:string,name?:string){
  return path.startsWith('uploads/')?stored.replace(/^[a-f0-9]{12}-/i,''):stored;
 }
 export function readableFilePath(path:string){
- const parts=path.split('/');return parts.map((part,i)=>i===parts.length-1?readableFileName(path,part):/^[a-f0-9]{24,}$/i.test(part)?'资料目录':part).join('/');
+ const parts=path.split('/');return parts.map((part,i)=>i===parts.length-1?readableFileName(path,part):/^[a-f0-9-]{24,}$/i.test(part)?'资料目录':part).join('/');
 }
 
 export function readableQuestion(text:string){

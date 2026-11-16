@@ -58,6 +58,11 @@ func recordedFileNames(workflow map[string]any, artifacts any) map[string]string
 				title, _ := item["title"].(string)
 				if path != "" && title != "" {
 					names[path] = titledFileName(path, title)
+					if kind, _ := item["kind"].(string); kind == "docx" || kind == "pptx" {
+						if source, ok := item["source"].(string); ok && source != "" {
+							names[source] = titledFileName(source, title+"·源稿")
+						}
+					}
 				}
 			}
 		}

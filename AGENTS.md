@@ -12,3 +12,4 @@
 
 - 阶段回看、文件名展示与复合意图路由遵循 `docs/task-journey-and-routing.mq.md`；只读回看不得触发执行，方案必须覆盖全部已确认待办，展示名称不得替代存储身份。
 - 任务归档、删除、参数预检、错误经验和可读执行详情遵循 `docs/task-lifecycle-and-recovery.mq.md`；经验按角色与真实接口版本隔离，不能自动重放工具或借修复改变冻结测试。
+- Word/PPT 与后续办公格式遵循 `docs/office-skills.mq.md`；正文来自已验证函数段，编辑保留旧版，不把任意上传 Office 包交给排版引擎，不用复杂版式的宣传代替实际能力。

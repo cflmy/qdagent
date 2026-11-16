@@ -84,6 +84,8 @@ Use `context`。
 
 根任务另行取得已确认的意图清单与实际路由，便于核对每个意图都进入框架。这个清单不会交给独立测试者，测试者仍在前面的分支只读取属于自己的冻结规格。多意图可以对应多个函数段，每个段落在公开职责中写明必要业务约束，不能依赖模型从其他任务的内部过程补全。
 
+办公交付角色会取得当前已保存的实际文件登记，包括可读题目、文件与源稿路径、摘要和附带 PDF。它不会取得作者的模型对话或测试者的案例生成过程。这些登记用于判断已经做过什么，不能让模型自己设置完成状态；finish 仍核对实际文件和当前方案的联系。没有登记时保持尚未交付，不能凭一次聊天回复填写一个文件名。
+
 We **state = access(core.status(context=`context`),"value")**.
 We **role = access(`context`,"role")**.
 1. `role` == "test" or `role` == "implement"
@@ -112,6 +114,9 @@ We **facts = "已确认目标：" + core.prose(content=access(`state`,"goal")) +
   We **units = access(`state`,"units")**.
   - [只交接公开接口与实际通过事实](for units as item)
     We **facts = `facts` + "单元 " + access(`item`,"id") + "：" + core.prose(content=access(`item`,"purpose")) + "；状态为 " + access(`item`,"status") + "。\n"**.
+  We **office_delivery = json.get(value=`state`,key="office_delivery")**.
+  1. `office_delivery`
+    We **facts = `facts` + "当前已保存的真实办公交付：" + json.stringify(value=access(`office_delivery`,"artifact")) + "。该版本仍需在 finish 时核对；不要重复生成。\n"**.
   Return *facts*.
 We **history = access(`state`,"history")**.
 We **start = 0**.
@@ -243,6 +248,8 @@ We **name = access(`context`,"role")**.
   We **name = "refinement"**.
 2. `name` == "deliver"
   We **name = "integration"**.
+  1. json.get(value=`context`,key="variant") == "office"
+    We **name = "integration-office"**.
 1. (access(`context`,"role") == "test" or access(`context`,"role") == "implement") and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
   We **name = `name` + "-document"**.
 Return *(access(`context`,"project") + "/ext/root-skill/guides/" + `name` + ".mq.md")*.
@@ -283,6 +290,12 @@ Use `context`。
 
 当前框架段的专用指令和实际手册一起发送。专用现场不会同时附上可任意声明身份的旧规划入口，模型只能读取并调用这份本轮文稿，后续切换由根程序根据实际保存状态决定。
 
+公开函数是否存在来自官方解析后的手册元数据，不扫描模型文字或根据标题猜测能力。只有本轮确实包含 read_office 时才加入办公材料说明，不能向没有该接口的框架槽位或独立测试者提示一个不可调用的函数。办公交付另用专门整合规范，说明从已验证正文组装真实文件、再提交用户审阅的顺序。
+
+当前状态中的真实办公登记也会交给交付角色，使它知道上次生成已经成功，不再因为阶段尚未结束就反复创建相同文件。这些路径属于当前任务产物，不包含凭据与其他角色的内部过程；是否有效仍由实际门禁判断。
+
+读取说明只在官方手册实际列出函数时加入；生成文件所用的真实手册同样记录到当前方案中。指令和文稿同步变化，旧接口不会因历史提示继续授权。
+
 We **api = io.api_path(context=`context`)**.
 We **manual = io.native(context=`context`,operation="runtime_handbook",payload=table.put(in=None,at="path",value=`api`))**.
 1. not access(`manual`,"ok")
@@ -298,8 +311,12 @@ We **section = access(`context`,"role")**.
   We **section = "outline_slot"**.
 1. `section` == "outline" and json.get(value=`context`,key="variant") == "publish"
   We **section = "outline-publish"**.
+1. `section` == "deliver" and json.get(value=`context`,key="variant") == "office"
+  We **section = "deliver_office"**.
 We **guide = io.native(context=`context`,operation="runtime_document",payload=table.put(in=None,at="path",value=guide_path(context=`context`)))**.
 1. not access(`guide`,"ok")
   Return *guide*.
 We **standing = instructions(context=`context`,section="common") + "\n\n" + instructions(context=`context`,section=`section`) + "\n\n" + document.section(text=access(access(`guide`,"value"),"source"),title="handbook") + "\n\n当前公开函数文稿：\n" + access(access(`manual`,"value"),"source")**.
+1. table.contains(list=access(access(`manual`,"value"),"functions"),item="read_office")
+  We **standing = `standing` + "\n\n" + instructions(context=`context`,section="office_material")**.
 Return *result.ok(value=`standing`)*.

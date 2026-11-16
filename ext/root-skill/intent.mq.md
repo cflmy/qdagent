@@ -66,13 +66,14 @@ Return *core.save(context=`context`,state=table.merge(a=`state`,b=`patch`))*.
 | id | text | required | 稳定、唯一的小写字母数字下划线或短横线身份 |
 | title | text | required | 用户可读的待办名称 |
 | purpose | text | required | 这一项意图、交付物与验收边界 |
+| artifact_kind | text | "" | 用户明确需要 docx 或 pptx 时填写，其他任务留空 |
 | mode | text | required | 使用哪种已接入的工作方式 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 已保存的待办与真实 SKILL 路由，仍等待用户确认 |
 
-Use `context`, `id`, `title`, `purpose`, `mode`。
+Use `context`, `id`, `title`, `purpose`, `mode`, `artifact_kind`=""。
 
 一条用户消息可以包含多个意图。主任务先逐项保存它们，再提问让用户核对遗漏、范围和交付；不要把多个独立产物塞进一个模糊的待办。职责是可读意图，不是业务源码。路由调用普通 Marqdo 函数，由其选择真实文稿与受限入口。用户能在确认前看到任务清单和工作方式，不需要认识内部函数或路径。
 
@@ -85,6 +86,11 @@ Use `context`, `id`, `title`, `purpose`, `mode`。
 用户确认前，页面上的待办只显示待确认。规划完成也只表示存在职责边界，试运行通过才显示已验证，最后仍由用户验收。每个状态都对应真实文件或记录，不接受模型传入一个完成百分比。已经生成的清单在后续轮次作为根任务材料交接，子任务不会为理解自己的工作而接收全部清单。这样拆分既便于人审阅，也减少子智能体上下文耦合。
 
 如果用户的最新补充改变了某项意图，使用同一身份修订它，再重新提问；任务进入下一阶段之后需要认证用户选择重新对齐意图。以前的记录保留为只读材料，旧批准不继续授权新任务。接口不接受任意路径、源代码或新效果，选择一种工作方式也不代表其内部调用的外部插件已经启用。
+办公文件的格式属于用户意图，应在这里明确记录。用户要求 Word 时填写 docx，要求演示时填写 pptx，正文仍按 document、research 或固定 text 的实际方法规划。框架会沿用已经确认的格式，不能结束时忘记交付文件；未知格式明确失败。当前一份框架只交付一种主办公格式，多格式需求应先与用户约定分批完成。
+
+
+格式只描述用户期待的交付，不会启用插件或跳过确认。正文方法与文件格式分别保存，研究仍需要实际来源，文字内容也仍需独立规则验证。
+
 We **state = access(core.status(context=`context`),"value")**.
 1. access(`state`,"phase") != "intent" or json.get(value=`state`,key="pending") or json.get(value=`context`,key="role") != "intent"
   Return *result.error(code="root.intent_scope",message="只有根任务能在提问前拆分意图",operation="task")*.
@@ -92,6 +98,11 @@ We **state = access(core.status(context=`context`),"value")**.
   Return *result.error(code="root.intent_task",message="意图 id 必须以小写字母开头，后接字母、数字、下划线或短横线，最多三十二字符，例如 report_draft",operation="task")*.
 1. `title` == "" or `purpose` == ""
   Return *result.error(code="root.intent_description",message="请填写非空 title 可读标题与 purpose 交付边界",operation="task")*.
+We **format = None**.
+1. `artifact_kind` != ""
+  We **format = routing.office(kind=`artifact_kind`)**.
+  1. not access(`format`,"ok")
+    Return *format*.
 We **id = text.replace(text=`id`,old="-",new="_")**.
 We **resolved = routing.resolve(mode=`mode`)**.
 1. not access(`resolved`,"ok")
@@ -104,6 +115,9 @@ We **resolved = routing.resolve(mode=`mode`)**.
 | `id` | `title` | `purpose` | `mode` |
 
 We **item = table.put(in=`item`,at="route",value=access(`resolved`,"value"))**.
+We **item = table.put(in=`item`,at="artifact_kind",value=`artifact_kind`)**.
+1. `artifact_kind` != ""
+  We **item = table.put(in=`item`,at="office_route",value=access(`format`,"value"))**.
 We **old = json.get(value=`state`,key="intent_tasks")**.
 We **tasks = table.empty_list()** and **found = False**.
 1. `old`

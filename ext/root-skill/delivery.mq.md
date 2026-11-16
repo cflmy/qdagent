@@ -2,6 +2,7 @@
 markup: occlusion
 title: 根 SKILL · delivery
 import:
+  office: runtime/office.mq.md
   workbook: runtime/workbook.mq.md
   author: authoring.mq.md
   trial_engine: runtime/trial.mq.md
@@ -69,6 +70,10 @@ This function writes one concrete index so another agent can read the engineerin
 We **state = access(core.status(context=`context`),"value")**.
 1. access(`state`,"phase") != "implement"
   Return *result.error(code="root.stage",message="所有单元校验和试运行后才能整合",operation="integrate")*.
+1. json.get(value=`state`,key="artifact_kind") == "docx" or json.get(value=`state`,key="artifact_kind") == "pptx"
+  We **office_ready = office.ready(context=`context`,state=`state`)**.
+  1. not access(`office_ready`,"ok")
+    Return *office_ready*.
 We **units = access(`state`,"units")**.
 We **source = author.source_header()**.
 We **source = `source` + "后续用户补充与最终验收保留在 [用户交流与验收记录](decisions.mq.md)，不改变已审阅入口的摘要。\n\n本文是已确认方案的可执行交付。每个单元分别保留输入、返回与真实业务说明；run 是统一入口，用户交流与验收条件在入口正文中可读。\n\n"**.

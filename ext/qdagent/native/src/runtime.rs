@@ -2,6 +2,7 @@
 use std::{collections::HashSet,fs,io::{BufRead,BufReader,Read,Write},path::{Path,PathBuf},process::{Command,Stdio},time::{Duration,Instant}};
 use marqdo::ast::{Arg,Expr,Stmt};
 #[path="call_preflight.rs"] mod call_preflight;
+#[path="office_read.rs"] mod office_read;
 use serde_json::{json,Value};
 use sha2::{Digest,Sha256};
 fn digest(raw:&[u8])->String{format!("{:x}",Sha256::digest(raw))}
@@ -179,6 +180,7 @@ fn model(v:&Value)->Result<Value,String>{
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
  match v["operation"].as_str().unwrap_or(""){
+  "runtime_office_read"=>office_read::read(v),
   "runtime_search"|"runtime_ocr_submit"|"runtime_ocr_poll"=>{
    let c=context(v)?;private_request(c)?;
    if !matches!(c["role"].as_str(),Some("implement"|"research"|"outline"|"intent")){return Err("service is outside this role's context".into())}
@@ -241,7 +243,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   },
   "runtime_suite_verify"=>{let suite=&v["tests"]["suite"];let raw=suite.to_string();if digest(raw.as_bytes())!=text(&v["tests"],"sha256")?{return Err("frozen tests digest mismatch".into())}Ok(suite.clone())},
   "runtime_document"=>{let c=context(v)?;let requested=Path::new(text(v,"path")?);let base=Path::new(text(c,"project")?).join("ext/root-skill");let path=descendants(requested,&base.join("runtime")).or_else(|_|descendants(requested,&base.join("guides")))?;if !path.to_string_lossy().ends_with(".mq.md"){return Err("Marqdo instruction source required".into())}let source=fs::read_to_string(path).map_err(|e|e.to_string())?;Ok(json!({"source":source}))},
-  "runtime_handbook"=>{let c=context(v)?;let path=descendants(Path::new(text(v,"path")?),&Path::new(text(c,"project")?).join("ext/root-skill/calls"))?;let source=fs::read_to_string(path).map_err(|e|e.to_string())?;let module=parser(&source)?;let mut excerpts=vec![];for function in &module.functions{let start=function.span.line.saturating_sub(1)as usize;let end=function.body.iter().map(marqdo::ast::stmt_line).min().unwrap_or(function.span.line).saturating_sub(1)as usize;excerpts.push(source.lines().skip(start).take(end-start).collect::<Vec<_>>().join("\n"))}Ok(json!({"source":excerpts.join("\n\n"),"api_sha256":digest(source.as_bytes())}))},
+  "runtime_handbook"=>{let c=context(v)?;let path=descendants(Path::new(text(v,"path")?),&Path::new(text(c,"project")?).join("ext/root-skill/calls"))?;let source=fs::read_to_string(path).map_err(|e|e.to_string())?;let module=parser(&source)?;let mut excerpts=vec![];for function in &module.functions{let start=function.span.line.saturating_sub(1)as usize;let end=function.body.iter().map(marqdo::ast::stmt_line).min().unwrap_or(function.span.line).saturating_sub(1)as usize;excerpts.push(source.lines().skip(start).take(end-start).collect::<Vec<_>>().join("\n"))}Ok(json!({"source":excerpts.join("\n\n"),"functions":module.functions.iter().map(|f|f.name.clone()).collect::<Vec<_>>(),"api_sha256":digest(source.as_bytes())}))},
   "runtime_library"=>{let c=context(v)?;let module=text(v,"module")?;if module.is_empty()||!module.bytes().all(|b|b.is_ascii_lowercase()||b==b'_'){return Err("invalid standard module".into())}let p=Path::new(text(c,"project")?).join(format!("lib/{module}.mq.md"));let source=fs::read_to_string(p).map_err(|e|e.to_string())?;let section=text(v,"section")?;let doc=if section.is_empty(){source}else{let m=parser(&source)?;let function=m.functions.iter().find(|f|f.name==section).ok_or("unknown library function")?;let start=function.span.line.saturating_sub(1) as usize;let next=m.functions.iter().filter(|f|f.span.line>function.span.line).map(|f|f.span.line.saturating_sub(1)as usize).min().unwrap_or(source.lines().count());source.lines().skip(start).take(next-start).collect::<Vec<_>>().join("\n")};Ok(json!({"source":doc.chars().take(12000).collect::<String>()}))},
   "runtime_material"=>{let c=context(v)?;let rel=text(v,"path")?;if !rel.starts_with("uploads/"){return Err("only supplied material is visible at this call site".into())}let root=Path::new(text(c,"workspace")?);let p=descendants(&root.join(rel),&root.join("uploads"))?;let bytes=fs::read(p).map_err(|e|e.to_string())?;if bytes.len()>64*1024{return Err("material exceeds text context bound".into())}let source=String::from_utf8(bytes).map_err(|_|"binary material requires a document plugin")?;Ok(json!({"source":source}))},
   "runtime_reference"=>{

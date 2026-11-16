@@ -120,3 +120,60 @@ Use `intents`, `units`。
   1. not `found`
     Return *task*.
 Return *None*.
+
+## office
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| kind | text | required | 已确认的 docx 或 pptx |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | office 的实际结果，失败保留明确诊断 |
+
+Use `kind`。
+
+根据已经确认的办公格式选择实际手册，Word 使用 word.mq.md，PPT 使用 presentation.mq.md。返回的是源码位置与真实函数，并不建立另一份工具注册表或参数 Schema。每份文稿仍独立描述自己的参数、返回、编辑规则与权限，根流程只进行普通函数组合。
+
+路由不安装组件、不启用插件、不生成内容、不替用户确认。未知格式明确失败，不让模型猜测路径或动态库。需要增加新的办公格式时，先实现可用的函数文稿与验证，再修改本组合函数；不得只增加显示名称或工具别名。上传读取使用相同办公插件的只读文稿，二进制解析不能获得宏执行与网络权限。
+
+This route identifies a real ordinary function in an installed handbook. It is not a tool schema, an alias for a hidden host procedure or evidence that a file already exists. The downstream function remains responsible for content checks, bounded file generation, optional rendering and truthful diagnostics.
+
+We **document = "ext/office/word.mq.md"** and **parameter = "chapters"** and **label = "Word 文档"**.
+1. `kind` == "pptx"
+  We **document = "ext/office/presentation.mq.md"** and **parameter = "slides"** and **label = "PPT 演示"**.
+2. `kind` != "docx"
+  Return *result.error(code="root.office_format",message="当前办公 SKILL 支持 docx 与 pptx",operation="office")*.
+We **route = table.put(in=None,at="document",value=`document`)**.
+We **route = table.put(in=`route`,at="function",value="create")**.
+We **route = table.put(in=`route`,at="parameter",value=`parameter`)**.
+Return *result.ok(value=table.put(in=`route`,at="label",value=`label`))*.
+
+## office_format
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| intents | any | required | 已确认意图；旧任务允许没有清单 |
+| requested | text | required | 规划者填写的格式，允许空字符串 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | office_format 的实际结果，失败保留明确诊断 |
+
+Use `intents`, `requested`。
+
+办公格式应在意图澄清时记录，框架阶段不能悄悄遗忘或改成另一个格式。规划者没有重复填写时沿用用户已确认的意图；重复填写必须与已确认格式一致。旧任务尚无该字段则仍由规划中的明确值约定，再交用户确认实际框架。
+
+当前框架只选择一种主办公格式。若同一任务的已确认意图包含不同格式，明确返回需要分批制作的诊断，不能只留下其中一种，也不能伪造另一份交付。后续支持多格式时应一并升级主方案、交付门禁与用户审阅，不能简单把字符串拼在一起。
+
+这个函数只核对真实字段，不根据自然语言文件名或标题猜测。未知扩展名不能进入工具路径，格式确认也不代表正文已完成、插件已启用或文件已存在。最终交付仍需要当前单元的独立证据和真实文件检查。
+
+We **selected = `requested`**.
+1. `intents`
+  - [保留已确认的格式决定](for intents as task)
+    We **kind = json.get(value=`task`,key="artifact_kind")**.
+    1. `kind` != None and `kind` != ""
+      1. `selected` != "" and `selected` != `kind`
+        Return *result.error(code="root.office_format_conflict",message="已确认格式与框架不同，或一次要求了多种格式；请与用户确认并按独立任务分别制作",operation="office_format")*.
+      We **selected = `kind`**.
+Return *result.ok(value=`selected`)*.

@@ -33,3 +33,14 @@ test('editable DOCX previews text inside the same contained file reader',async({
  await expect(page.frameLocator('iframe[title="多格式文件预览"]').getByText('求道真实文档预览 123456',{exact:true})).toBeVisible({timeout:30000});
  await page.screenshot({path:'test-results/file-preview-docx.png'});
 });
+test('actual Marqdo-generated presentation previews in the isolated Office reader',async({page})=>{
+ const {mkdtempSync,readFileSync,rmSync}=await import('node:fs');const {tmpdir}=await import('node:os');const {join}=await import('node:path');const {spawnSync}=await import('node:child_process');const {fileURLToPath}=await import('node:url');
+ const project=fileURLToPath(new URL('../../',import.meta.url));const workspace=mkdtempSync(join(tmpdir(),'qd-ppt-preview-'));
+ try{
+  const result=spawnSync('marqdo',['call',join(project,'ext/office/presentation.mq.md'),'create','--args-json','-','--fs-root',project,'--effects','plugin,fs.read,fs.write,process.exec,environment.read,random.read','--json'],{cwd:project,input:JSON.stringify({title:'演示预览验收',slides:[{heading:'真实演示页',body:'这里是 Marqdo 实际生成的可编辑演示文字。'}],context:{project,workspace}}),encoding:'utf8',env:{...process.env,MARQDO_LIB:join(project,'lib'),MARQDO_EXT:join(project,'ext')}});
+  const outer=JSON.parse(result.stdout);expect(outer.ok,JSON.stringify(outer.error)).toBe(true);expect(outer.result.ok,JSON.stringify(outer.result.error)).toBe(true);
+  await createTask(page);await openUpload(page,'演示预览验收.pptx','application/vnd.openxmlformats-officedocument.presentationml.presentation',readFileSync(join(workspace,outer.result.value.path)));
+  const frame=page.frameLocator('iframe[title="多格式文件预览"]');await expect(frame.locator('#file-viewer')).toContainText('演示预览验收',{timeout:30000});
+  await expect(page.locator('.file-preview-error')).toHaveCount(0);await page.screenshot({path:'test-results/file-preview-marqdo-pptx.png'});
+ }finally{rmSync(workspace,{recursive:true,force:true})}
+});
