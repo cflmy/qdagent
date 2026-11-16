@@ -2,6 +2,7 @@
 markup: occlusion
 title: 系统边界与 Marqdo 调用现场
 import:
+  routing: ../routing.mq.md
   core: ../state.mq.md
   fs: lib/fs.mq.md
   sys: lib/sys.mq.md
@@ -207,10 +208,27 @@ Use `context`。
 
 本函数只承担下文描述的局部责任。它不会替用户确认，不会替另一个角色修改文稿，也不会把源码检查、案例通过和业务验收混为一谈。调试时依据实际调用现场、源版本和运行结果继续处理；刷新页面或切换模型不能沿用已经失效的批准。需要增加能力时优先组合已有 Marqdo 函数，缺少的系统边界才通过 ABI 补齐。
 
+实现者的实际文稿通过根路由函数取得，与已确认待办所显示的位置相同。研究现场来源不足时收窄为浏览文稿，获得有效材料后才恢复写作；这个临时收窄不会改变原意图或授权其他职责。精确正文始终使用单独的窄文稿，测试者始终取得独立测试入口。模型无权通过自己的输出更换这些路由。
+
+文稿路由的结果属于当前调用现场，不是模型提交的目标地址。前端可以据此展示分工，但不能据此扩大效果或调用尚未授权的模块。
+基本方案也可以使用根任务分配的窄入口。它仅接受本轮业务内容，不要求模型重复传意图身份、模式或路径；当前身份来自真实已确认清单。全部职责保存并满足数量后再切换为发表文稿，不能让一个实现角色通过请求同名函数重新得到规划权限。
+
+调用现场中的分配结果随私有角色文件传递，不放进用户可编辑的业务文稿作为授权。读取同一份手册不等于获得另一个任务的身份，换模型也不会重新计算更宽的权限。实际调用与源码检查继续由原来的官方解析和受限执行边界完成。
+
 We **name = access(`context`,"role")**.
-1. (`name` == "implement" or `name` == "test") and json.get(value=`context`,key="variant") == "text"
+1. `name` == "outline" and json.get(value=`context`,key="variant") == "intent-slot"
+  Return *(access(`context`,"project") + "/ext/root-skill/calls/outline-slot.mq.md")*.
+1. `name` == "implement" and json.get(value=`context`,key="scene") != "browse"
+  We **mode = json.get(value=`context`,key="variant")**.
+  1. not `mode`
+    We **mode = "code"**.
+  We **route = routing.resolve(mode=`mode`)**.
+  1. access(`route`,"ok")
+    Return *(access(`context`,"project") + "/" + access(access(`route`,"value"),"document"))*.
+
+1. `name` == "test" and json.get(value=`context`,key="variant") == "text"
   We **name = `name` + "-text"**.
-1. (`name` == "implement" or `name` == "test") and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
+1. `name` == "test" and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
   We **name = `name` + "-document"**.
 1. access(`context`,"role") == "implement" and json.get(value=`context`,key="scene") == "browse"
   We **name = "implement-browse"**.

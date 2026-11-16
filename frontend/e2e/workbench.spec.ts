@@ -56,6 +56,29 @@ test('real local model follows the mandatory root skill and human gates',async({
  expect(state.workflow.phase).toBe('complete');expect(state.workflow.units.every((unit:any)=>unit.trial.passed)).toBe(true);
  expect(state.workflow.units.every((unit:any)=>unit.path==='solution/index.mq.md'&&unit.function===`unit_${unit.id}`)).toBe(true);
  const titled=await(await page.request.get(`/api/tasks/${taskId}`)).json();expect(titled.task.title).not.toBe('新任务');
+ expect(state.workflow.intent_tasks.length).toBeGreaterThan(0);expect(state.workflow.units.every((unit:any)=>unit.intent_id&&unit.route?.document)).toBe(true);
+ const listed=await(await page.request.get(`/api/tasks/${taskId}/files`)).json();
+ for(const unit of state.workflow.units){if(!unit.artifact)continue;
+  const file=listed.files.find((file:any)=>file.path===unit.artifact.path);expect(file).toBeTruthy();expect(file.name).not.toMatch(/^u\d+\.md$/);
+  await page.locator(`.tree-file[data-file-path="${file.path}"]`).click();await expect(page.locator('.reader-file strong')).toHaveText(file.name);await expect(page.locator('.document-markdown')).toContainText(unit.constant_text);
+  const download=await page.request.get(`/api/tasks/${taskId}/download?path=${encodeURIComponent(file.path)}`);expect(download.headers()['content-disposition']).not.toMatch(/filename=u\d+\.md/);
+ }
+
+ let writes=0;page.on('request',request=>{if(request.method()==='POST'&&/\/(runs|workflow\/respond)$/.test(new URL(request.url()).pathname))writes++});
+ for(const title of ['意图拆解','基本方案','按函数段并行','方案落地']){
+  await flow.getByRole('button',{name:`查看${title}`,exact:true}).click();
+  const history=flow.getByRole('region',{name:'阶段回看'});await expect(history).toBeVisible();await expect(history).toContainText('只读回看');
+  await expect(history.getByRole('button',{name:/确认/})).toHaveCount(0);
+  if(title==='意图拆解')await expect(history).toContainText('材料甲');
+  if(title==='基本方案'){
+   await history.getByRole('button',{name:'阅读当时的实际文稿',exact:false}).click();
+   await expect(page.frameLocator('.native-view').locator('body')).toContainText('尚未接通',{timeout:35000});
+  }
+ }
+ expect(writes).toBe(0);await page.reload();await page.getByRole('button',{name:'查看意图拆解',exact:true}).click();await expect(page.getByRole('region',{name:'阶段回看'})).toContainText('材料甲');
+ const preserved=await(await page.request.get(`/api/tasks/${taskId}/workflow`)).json();expect(preserved.workflow.phase).toBe('complete');
+ await page.screenshot({path:'test-results/completed-intent-history.png',fullPage:true});
+
 });
 
 test('uploaded Marqdo source uses official read-only View',async({page})=>{
@@ -73,4 +96,31 @@ test('uploaded Marqdo source uses official read-only View',async({page})=>{
   const {writeFile}=await import('node:fs/promises');const {fileURLToPath}=await import('node:url');await writeFile(fileURLToPath(new URL(`../../data/workspaces/${taskId}/${uploaded.path}`,import.meta.url)),content.replace('这里是一份通过官方 View 阅读的文稿','文稿更新已生效'));
   await page.locator('input[type=file]').setInputFiles({name:'refresh-evidence.md',mimeType:'text/markdown',buffer:Buffer.from('触发真实文件清单刷新。')});await expect(page.locator('.attachment-chips')).toContainText('refresh-evidence.md');await expect(page.locator('.document-source')).toContainText('文稿更新已生效',{timeout:35000});
   await page.locator('.document-toolbar').getByRole('button',{name:'阅读文稿',exact:true}).click();await expect(frame.locator('body')).toContainText('文稿更新已生效');
+});
+
+test('workspace tree keeps duplicate readable filenames and exact download identity',async({page})=>{
+ await page.goto('/app');await page.getByRole('button',{name:'新建任务',exact:true}).click();
+ for(const content of ['第一份上传材料','第二份上传材料']){
+  await page.locator('input[type=file]').setInputFiles({name:'项目说明.md',mimeType:'text/markdown',buffer:Buffer.from(content)});
+  await expect(page.locator('.attachment-chips')).toContainText('项目说明.md');
+  await expect(page.locator('.attachment-chips>span')).toHaveCount(content.startsWith('第一')?1:2);
+ }
+ const taskId=await page.evaluate(()=>localStorage.getItem('qd.task.v4'));
+ const listing=await(await page.request.get(`/api/tasks/${taskId}/files`)).json();
+ expect(listing.files).toHaveLength(2);expect(listing.files.every((file:any)=>file.name==='项目说明.md')).toBe(true);
+ const {mkdir,writeFile}=await import('node:fs/promises');const {fileURLToPath}=await import('node:url');
+ const nested=fileURLToPath(new URL(`../../data/workspaces/${taskId}/solution/chapters`,import.meta.url));await mkdir(nested,{recursive:true});await writeFile(`${nested}/概述.md`,'工程中的可读概述');
+ await page.reload();await page.getByRole('button',{name:'文件',exact:true}).click();
+ const tree=page.getByRole('tree',{name:'工作区文件树'});await expect(tree.getByRole('treeitem',{name:'solution',exact:true})).toBeVisible();
+ const rows=tree.locator('.tree-file').filter({hasText:'项目说明.md'});await expect(rows).toHaveCount(2);await expect(rows.nth(0)).toContainText('同名文件 1');await expect(rows.nth(1)).toContainText('同名文件 2');
+ for(let i=0;i<2;i++){
+  await rows.nth(i).click();await expect(page.locator('.reader-file strong')).toHaveText('项目说明.md');
+  const stored=await page.locator('.reader-footer a').getAttribute('href');expect(stored).toContain(encodeURIComponent('uploads/'));
+  const expected=await(await page.request.get(stored!)).text();await expect(page.locator('.document-markdown')).toHaveText(expected);
+  const download=await page.request.get(stored!);expect(download.headers()['content-disposition']).toContain(encodeURIComponent('项目说明.md'));expect(download.headers()['content-disposition']).not.toMatch(/[a-f0-9]{12}-/);
+ }
+ await expect(tree).not.toContainText(/[a-f0-9]{12}-/);
+ const folder=tree.getByRole('treeitem',{name:'solution',exact:true});await folder.getByRole('button',{name:'solution',exact:false}).first().click();await expect(tree.getByRole('treeitem').filter({hasText:'概述.md'}).last()).not.toBeVisible();
+ await folder.getByRole('button').first().click();await tree.locator('.tree-file').filter({hasText:'概述.md'}).click();await expect(page.locator('.document-markdown')).toContainText('工程中的可读概述');
+ await page.screenshot({path:'test-results/workspace-readable-tree.png',fullPage:true});
 });

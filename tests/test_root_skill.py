@@ -23,8 +23,8 @@ class RootTests(unittest.TestCase):
  def raw(self,member,context=None,**args):
   env={**os.environ,'MARQDO_LIB':str(PROJECT/'lib'),'MARQDO_EXT':str(PROJECT/'ext')}
   source=PROJECT/'ext/root-skill/index.mq.md'
-  if member.startswith('proof.'):
-   member=member.split('.',1)[1];source=PROJECT/'ext/root-skill/proof.mq.md'
+  if '.' in member:
+   module,member=member.split('.',1);source=PROJECT/f'ext/root-skill/{module}.mq.md'
   proc=subprocess.run(['marqdo','call',str(source),member,'--args-json','-','--effects','plugin,fs.read,fs.write,process.exec,environment.read','--fs-root',str(self.root/'work'),'--json'],input=json.dumps({**args,'context':context or self.context}),text=True,capture_output=True,env=env,timeout=90,cwd=self.root/'work')
   outer=json.loads(proc.stdout)
   if not outer.get('ok'):return {'ok':False,'error':outer.get('error')}
@@ -53,6 +53,55 @@ class RootTests(unittest.TestCase):
  def freeze(self,identifier,cases):return self.call('proof.submit',context={**self.context,'unit_id':identifier,'role':'test'},cases=cases,rationale='预期来自测试声明的公开业务规则，独立固定后不跟随实现修改。')
  def trial(self,identifier):return self.call('trial_unit',context={**self.context,'unit_id':identifier},unit_id=identifier)
  def integrate(self):return self.call('integrate',narrative=(NARRATIVE+'本入口按已确认的顺序调用独立单元，用户原话与确认逐项保留。依赖只来自已声明的前置结果，不从模型记忆猜测数据。整合冒烟证明程序能运行，不能替代事实核对和业务验收。'*2)*4)
+ def test_intent_todos_are_routed_and_every_confirmed_intent_must_be_covered(self):
+  own={**self.context,'role':'intent'}
+  first=self.call('intent.task',context=own,id='gather-work',title='研究资料',purpose='阅读真实公开来源并列明出处',mode='research')
+  state=self.call('intent.task',context=own,id='write',title='撰写报告',purpose='使用研究材料形成有据可查的报告',mode='document')
+  self.assertEqual(len(state['intent_tasks']),2)
+  self.assertEqual(first['intent_tasks'][0]['route']['document'],'ext/root-skill/calls/implement-document.mq.md')
+  self.assertEqual(state['intent_tasks'][1]['route']['function'],'write_document')
+  self.assertFalse(self.raw('intent.task',context=own,id='escape',title='越界',purpose='不应允许任意路径',mode='../../private')['ok'])
+  self.assertFalse(self.raw('intent.task',context={**own,'role':'test'},id='bad',title='越界',purpose='不应由子任务拆意图',mode='code')['ok'])
+  state=self.call('clarify_intent',summary='研究后形成报告',question='这两项任务是否完整？',choices=['按清单推进','调整清单'])
+  self.assertFalse(self.raw('intent.task',context=own,id='late',title='覆盖问题',purpose='问题待回答时不能改任务',mode='code')['ok'])
+  state=self.call('respond',revision=state['revision'],action='confirm_intent',choice='按清单推进')
+  self.assertEqual(state['history'][-1]['tasks'][0]['id'],'gather_work')
+  invalid=self.raw('planning.define',context={**self.context,'role':'outline'},id='sources',title='遗漏关联',purpose='不能猜测归属',mode='research')
+  self.assertEqual(invalid['error']['code'],'root.intent_binding');self.assertFalse(self.call('status').get('draft_units'))
+  saved=self.raw('planning.define',context={**self.context,'role':'outline'},id='sources-segment',title='来源段',purpose='形成真实来源的公开材料',mode='research',intent_id='gather-work')
+  self.assertEqual(saved['id'],'sources_segment');self.assertEqual(saved['intent_id'],'gather_work')
+  scoped=self.raw('runtime/planning.scene',context={**self.context,'role':'outline'})
+  self.assertEqual(scoped['outline_intent']['id'],'write');self.assertEqual(scoped['outline_intent']['mode'],'document');self.assertEqual(scoped['variant'],'intent-slot')
+
+  units=[{'id':'sources','title':'资料','purpose':'列出真实来源','mode':'research','intent_id':'gather_work'}]
+  missing=self.raw('outline',title='复合意图',goal='先研究再写作',acceptance='两项均有交付',units=units)
+  self.assertEqual(missing['error']['code'],'root.intent_coverage')
+  self.assertFalse((self.root/'work/solution/plan.mq.md').exists())
+  units.append({'id':'report','title':'报告','purpose':'使用来源写作','mode':'document','intent_id':'write','depends_on':['sources']})
+  state=self.call('outline',title='复合意图',goal='先研究再写作',acceptance='两项均有交付',units=units)
+  self.assertEqual([u['intent_id'] for u in state['units']],['gather_work','write'])
+  self.assertEqual(state['units'][1]['route']['mode'],'document')
+  source=(self.root/'work/solution/plan.mq.md').read_text();self.assertIn('所属意图',source);self.assertIn('implement-document.mq.md',source)
+  state=self.call('respond',revision=state['revision'],action='confirm_outline')
+  snapshot=next(item for item in state['stage_history'] if item['phase']=='outline')
+  old=(self.root/'work'/snapshot['document']['path']).read_text();self.assertEqual(old,source)
+  state=self.call('respond',revision=state['revision'],action='revise_intent',answer='用户要求重新拆解')
+  self.assertEqual(state['phase'],'intent');self.assertFalse(state['intent_confirmed']);self.assertEqual(state['intent_tasks'],[])
+  self.assertEqual((self.root/'work'/snapshot['document']['path']).read_text(),source)
+  self.assertTrue(any(item['phase']=='intent' for item in state['stage_history']))
+
+ def test_completed_stage_records_survive_a_new_goal_without_granting_approval(self):
+  self.framework();self.author('u0','真实结果');self.trial('u0');self.call('refine');state=self.integrate()
+  state=self.call('respond',revision=state['revision'],action='accept')
+  records=state['stage_history'];self.assertEqual([item['phase'] for item in records],['intent','outline','refine','implement','review'])
+  review=records[-1];self.assertEqual(review['decision']['action'],'accept')
+  delivered=(self.root/'work'/review['document']['path']).read_text()
+  self.assertNotIn('suite',records[2]['units'][0]);self.assertNotIn('specification',records[2]['units'][0]);self.assertTrue(records[2]['units'][0]['trial']['passed'])
+  state=self.call('begin',user_input='新的目标必须重新确认',message_id='message-new-cycle')
+  self.assertEqual(state['phase'],'intent');self.assertFalse(state.get('intent_confirmed'))
+  self.assertEqual(state['stage_history'],records)
+  self.assertEqual((self.root/'work'/review['document']['path']).read_text(),delivered)
+
  def test_steps_and_human_confirmation_cannot_be_skipped(self):
   self.assertFalse(self.raw('gate',name='write_file')['ok']);self.assertFalse(self.raw('integrate',narrative='跳过')['ok'])
   state=self.call('clarify_intent',summary='先对齐目标',question='谁使用？',choices=['内部','外部'])

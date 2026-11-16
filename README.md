@@ -22,6 +22,8 @@ Go 服务不嵌入 Marqdo VM。工具和读取器使用独立 CLI 子进程，�
 
 ## 文稿驱动的根流程
 
+本轮加入完成后可回看的四阶段导航、常驻工作区文件树与可读文件名。根任务通过普通 Marqdo 函数拆分意图待办并选择实际 SKILL，基本方案必须覆盖全部已确认意图；具体约束见 [docs/task-journey-and-routing.mq.md](docs/task-journey-and-routing.mq.md)。
+
 架构与验收依据见 [docs/document-driven-agent.mq.md](docs/document-driven-agent.mq.md)，后续开发必须遵守仓库的 [AGENTS.md](AGENTS.md)。生产入口实际执行 `marqdo call ext/root-skill/index.mq.md run`。普通 `.mq.md` 的函数就是能力，不另设 SKILL 注册器、业务工具别名表或 JSON 动作路由。
 
 意图拆解先向用户提问，确认后才形成可在官方 View 阅读的函数框架。框架确认后冻结无执行语义的公开规格，每个单元进入独立的测试与实现上下文；多个单元通过标准库 `subtask.run_many` 按用户设置并行。独立测试者只能看公开规格和自己的调用接口，不能读取实现、开发对话或调用实现来取得 expected。实现者可以修复代码，但不能提交或改变冻结的测试。真实执行器核对源码、规格和案例摘要后，才能整合入口并请求用户验收。

@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-function-sections-0.9.0"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-task-journey-0.10.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -479,7 +479,7 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 		if !d.IsDir() && d.Type()&os.ModeSymlink == 0 {
 			info, e := d.Info()
 			if e == nil {
-				out = append(out, map[string]any{"path": filepath.ToSlash(rel), "name": d.Name(), "size": info.Size(), "modified_ms": info.ModTime().UnixMilli()})
+				out = append(out, map[string]any{"path": filepath.ToSlash(rel), "name": readableFileName(filepath.ToSlash(rel)), "size": info.Size(), "modified_ms": info.ModTime().UnixMilli()})
 			}
 		}
 		return nil
@@ -493,6 +493,14 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 	var workflow map[string]any
 	if s.supervisor.workflow != nil {
 		workflow, _ = s.supervisor.workflow.snapshot(t.ID)
+	}
+	names := recordedFileNames(workflow, artifacts)
+	for _, file := range out {
+		if path, ok := file["path"].(string); ok {
+			if name := names[path]; name != "" {
+				file["name"] = name
+			}
+		}
 	}
 	writeJSON(w, 200, map[string]any{"files": out, "plan": plan, "artifacts": artifacts, "children": children, "workflow": workflow})
 }
@@ -621,7 +629,7 @@ func (s *Server) download(w http.ResponseWriter, r *http.Request, i identity) {
 	}
 	defer f.Close()
 	info, _ := f.Stat()
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filepath.Base(path)}))
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": s.downloadFileName(t, path)}))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	if r.URL.Query().Get("inline") == "1" {
 		var sample [512]byte

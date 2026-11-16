@@ -26,7 +26,7 @@ class RuntimeTests(unittest.TestCase):
     request=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
     assert 'tools' not in request
     standing=request['messages'][0]['content']
-    role='intent' if '## ask\n' in standing else 'outline' if ('## text_unit\n' in standing or '## publish\n' in standing) else 'test' if ('## sample\n' in standing or '## verify_constant\n' in standing) else 'implement' if '## write_text\n' in standing else 'deliver'
+    role='intent' if '## ask\n' in standing else 'outline' if ('## text_unit\n' in standing or '## define\n' in standing or '## publish\n' in standing) else 'test' if ('## sample\n' in standing or '## verify_constant\n' in standing) else 'implement' if '## write_text\n' in standing else 'deliver'
     with outer.lock:outer.requests.append((role,request));outer.active+=1;outer.peak=max(outer.peak,outer.active)
     if role=='outline':
      with outer.lock:count=outer.outline_attempts;outer.outline_attempts+=1

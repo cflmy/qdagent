@@ -40,18 +40,19 @@ Return *[查找可以复用的真实文稿](knowledge.reuse(context=io.current()
 | id | text | required | 小写字母数字下划线组成的唯一身份 |
 | title | text | required | 单元的可读名称 |
 | content | text | required | 用户明确要求返回的精确字符串本身 |
+| intent_id | text | "" | 对应已确认的意图身份；多意图时必须指定 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 已保存的固定正文职责草稿 |
 
-Use `id`, `title`, `content`。
+Use `id`, `title`, `content`, `intent_id`=""。
 
 把精确正文直接放进 content，不再用一句带引号的叙述猜测字符串的边界。这个契约定义函数忽略所有输入，逐字返回原文，不包成 map、不做转换。正文随实际方案显示，用户确认后才成为独立测试依据；它不是现有实现的返回，也不来自作者自检。
 
 每次只保存一个真实职责，后续轮次会看到已保存的草稿。用户要求一个函数就只保存一项，不额外建立占位或工程管理职责。全部所需职责保存完，再调用 publish。固定返回的测试模板仅依据确认的原文构造不同输入案例，不读取实现来产生预期，正文中的引号如果是实际内容也必须原样保留。
 
-Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=("忽略任何输入，逐字返回下列用户指定的固定正文。下列正文是返回值本体，不附加引号、标签或结构包装：\n\n" + core.prose(content=`content`)),mode="text",constant_text=`content`)*.
+Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=("忽略任何输入，逐字返回下列用户指定的固定正文。下列正文是返回值本体，不附加引号、标签或结构包装：\n\n" + core.prose(content=`content`)),mode="text",constant_text=`content`,intent_id=`intent_id`)*.
 
 ## select_unit
 
@@ -61,16 +62,17 @@ Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=("忽略�
 | title | text | required | 单元的可读名称 |
 | purpose | text | required | 本单元完整的输入、返回、业务规则与限制 |
 | depends_on | any | None | 前面已声明的依赖身份 |
+| intent_id | text | "" | 对应已确认的意图身份；多意图时必须指定 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 已保存的实际取值职责草稿 |
 
-Use `id`, `title`, `purpose`, `depends_on`=None。
+Use `id`, `title`, `purpose`, `depends_on`=None, `intent_id`=""。
 
 职责说明实际输入的结构、取值路径与缺失字段行为，不能把字段名称当成固定返回。本函数直接保存一个职责，后续轮次仍能看到；相同身份修订已有草稿。一次只定义当前职责，尚未实现也未经用户批准。用户只需要一个函数就只保存一项，不额外建立占位或工程管理职责。全部职责定义完以后，再调用 publish 发表实际框架。
 
-Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="select",depends_on=`depends_on`)*.
+Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="select",depends_on=`depends_on`,intent_id=`intent_id`)*.
 
 ## code_unit
 
@@ -80,16 +82,17 @@ Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`
 | title | text | required | 单元的可读名称 |
 | purpose | text | required | 本单元完整的输入、返回、业务规则与限制 |
 | depends_on | any | None | 前面已声明的依赖身份 |
+| intent_id | text | "" | 对应已确认的意图身份；多意图时必须指定 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 已保存的业务运算职责草稿 |
 
-Use `id`, `title`, `purpose`, `depends_on`=None。
+Use `id`, `title`, `purpose`, `depends_on`=None, `intent_id`=""。
 
 职责完整说明输入、业务运算、边界与返回。内部实现留到用户确认后，不在规划阶段执行。本函数直接保存一个职责，后续轮次仍能看到；相同身份修订已有草稿。一次只定义当前职责，尚未实现也未经用户批准。用户只需要一个函数就只保存一项，不额外建立占位或工程管理职责。全部职责定义完以后，再调用 publish 发表实际框架。
 
-Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="code",depends_on=`depends_on`)*.
+Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="code",depends_on=`depends_on`,intent_id=`intent_id`)*.
 
 ## publish
 
@@ -139,16 +142,17 @@ Return *result.ok(value=table.put(in=None,at="path",value="solution/plan.mq.md")
 | title | text | required | 可读标题 |
 | purpose | text | required | 完整公开职责、输入返回与验收 |
 | depends_on | any | None | 前置身份的原生列表 |
+| intent_id | text | "" | 对应已确认的意图身份；多意图时必须指定 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | research_unit 的真实结果，失败保留诊断 |
 
-Use `id`, `title`, `purpose`, `depends_on`=None。
+Use `id`, `title`, `purpose`, `depends_on`=None, `intent_id`=""。
 
 这项职责用于真实来源研究，不是用户给出精确原文的常量函数。purpose 写明研究问题、读者、资料范围、引用要求与产物边界，测试者只依据这些已确认规则冻结文档契约，不预测尚未创作的全文。需要先研究后写作时，先定义研究职责，再把其身份放入写作职责的 depends_on；只有依赖通过独立验证，作者才获得获准的材料交接。父文稿负责有界并发，模型不得用猜测来源替代实际浏览。此时只保存草稿，仍须发表框架并等待用户确认。
 
-Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="research",depends_on=`depends_on`)*.
+Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="research",depends_on=`depends_on`,intent_id=`intent_id`)*.
 
 
 ## document_unit
@@ -159,16 +163,17 @@ Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`
 | title | text | required | 可读标题 |
 | purpose | text | required | 完整公开职责、输入返回与验收 |
 | depends_on | any | None | 前置身份的原生列表 |
+| intent_id | text | "" | 对应已确认的意图身份；多意图时必须指定 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | document_unit 的真实结果，失败保留诊断 |
 
-Use `id`, `title`, `purpose`, `depends_on`=None。
+Use `id`, `title`, `purpose`, `depends_on`=None, `intent_id`=""。
 
 这项职责用于基于材料撰文，不是用户给出精确原文的常量函数。purpose 写明研究问题、读者、资料范围、引用要求与产物边界，测试者只依据这些已确认规则冻结文档契约，不预测尚未创作的全文。需要先研究后写作时，先定义研究职责，再把其身份放入写作职责的 depends_on；只有依赖通过独立验证，作者才获得获准的材料交接。父文稿负责有界并发，模型不得用猜测来源替代实际浏览。此时只保存草稿，仍须发表框架并等待用户确认。
 
-Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="document",depends_on=`depends_on`)*.
+Return *plan.define(context=io.current(),id=`id`,title=`title`,purpose=`purpose`,mode="document",depends_on=`depends_on`,intent_id=`intent_id`)*.
 
 
 ## one

@@ -73,6 +73,16 @@ Use `context`。
 
 用户确认的函数数量属于业务范围，草稿数量属于当前进度，二者分别标记，不能用并发数推断交付数量。当前角色根据这些真实值继续填写缺少的职责或发表完整框架；如果需求发生变化，必须回到用户确认，不悄悄更改约定。交付角色只取得实际单元职责和结果状态，不接收规划过程中的临时草稿。
 
+意图身份和函数身份分开交接。只有一项意图时，多个实际函数可以共同承担它，模型不应为第二个函数临时发明第二项已确认任务；有多项意图时则必须逐项明确归属。当前材料直接列出保存后的规范身份，前一轮未保存的临时拼写和模型自称成功都不能覆盖这些事实。需要改变意图清单时仍由用户重新确认，不从一条发表失败诊断推导出更大的授权。
+
+回看阶段记录只服务于用户审阅，不自动加入模型上下文。记录中可能包含其他职责的验证摘要与开发交流，当前角色不因用户点开了一张历史卡片而取得这些材料。每次构造请求仍重新选择本角色需要的公开规格、当前职责、获准来源和自己的上一条诊断。这样前端体验的改善不会让上下文随着阶段历史不断增长，也不会破坏独立测试的隔离边界。
+
+意图清单属于主任务的组织材料，函数规格属于子任务的公开边界，二者按角色分别交接。保存职责的成功回执来自真实状态；若模型口头说保存了另一项而实际不存在，下一轮仍会明确展示缺口，不能根据那句话自动发表。
+
+分配框架段时另行列出根程序选择的当前意图、受限方式与函数身份。这些值来自已保存状态，不由模型复制后再当作可信参数。模型只填写这一段的真实业务，下一次请求再依据新增草稿选择现场；完整清单用于主任务核对覆盖，不会随着这次展示而变成测试者的额外上下文。
+
+根任务另行取得已确认的意图清单与实际路由，便于核对每个意图都进入框架。这个清单不会交给独立测试者，测试者仍在前面的分支只读取属于自己的冻结规格。多意图可以对应多个函数段，每个段落在公开职责中写明必要业务约束，不能依赖模型从其他任务的内部过程补全。
+
 We **state = access(core.status(context=`context`),"value")**.
 We **role = access(`context`,"role")**.
 1. `role` == "test" or `role` == "implement"
@@ -86,6 +96,14 @@ We **role = access(`context`,"role")**.
 We **facts = "已确认目标：" + core.prose(content=access(`state`,"goal")) + "。\n"**.
 1. `role` == "intent" or `role` == "outline"
   We **facts = `facts` + knowledge.reference(context=`context`,state=`state`) + observations.reference(context=`context`) + "\n"**.
+1. `role` == "intent" or `role` == "outline"
+  We **facts = `facts` + "根任务已保存的意图待办与 SKILL 路由：" + json.stringify(value=json.get(value=`state`,key="intent_tasks")) + "\n"**.
+1. `role` == "outline" and json.get(value=`context`,key="variant") == "intent-slot"
+  We **facts = `facts` + "根任务本轮分配的意图：" + json.stringify(value=access(`context`,"outline_intent")) + "。身份与关联已经由根程序处理，只通过 define 填写此段业务，不传 id、intent_id 或 mode，也不在正文引用身份。\n"**.
+1. `role` == "outline"
+  We **intents = json.get(value=`state`,key="intent_tasks")**.
+  1. `intents` and table.len(xs=`intents`) == 1
+    We **facts = `facts` + "当前只有一项已确认意图。所有业务函数都归属同一个 intent_id：" + access(table.first(list=`intents`),"id") + "；不论定义几个函数，都不能临时发明另一个意图身份。\n"**.
 1. `role` == "outline"
   We **facts = `facts` + "用户确认的业务函数数量（0 或空表示未限制）：" + json.stringify(value=json.get(value=access(`state`,"settings"),key="expected_units")) + "\n"**.
   We **facts = `facts` + "已保存的当前职责草稿（不是已确认框架）：" + json.stringify(value=json.get(value=`state`,key="draft_units")) + "\n"**.
@@ -203,7 +221,13 @@ Use `context`。
 
 意图和框架各读自己的规范，独立测试有单独的意图测试规范，实现读细化规范，交付读整合规范。这里选择的是安装文稿的位置，不是模型可传入的任意路径，也不是业务函数注册表。实际内容会随当前公开函数一起发送，来源摘要进入私有审计，缺失文件明确失败。阶段规范更新必须同步真实调用契约，不能保留已经删除的工具参数或旧 JSON 动作示例误导模型。
 
+同一阶段也可能有不同的受限调用现场：先填写职责，再发表框架。指南与真实手册一起变化，避免旧示例给模型造成仍可调用其他阶段函数的错觉。变更规范时要同步参数和实际验证，而不是单独修改一份不可执行的提示副本。
+
+根程序已分配当前框架段时使用专门的填写规范。该规范不要求模型再声明身份或选择工作方式，减少接口之间的重复参数，也明确禁止提前实现或代替用户批准。
+
 We **name = access(`context`,"role")**.
+1. `name` == "outline" and json.get(value=`context`,key="variant") == "intent-slot"
+  We **name = "outline-slot"**.
 1. `name` == "test"
   We **name = "testing"**.
 2. `name` == "implement"
@@ -248,6 +272,8 @@ Use `context`。
 
 框架草稿完整后会切换到只含发表函数的文稿，减少前一阶段接口造成的误用。
 
+当前框架段的专用指令和实际手册一起发送。专用现场不会同时附上可任意声明身份的旧规划入口，模型只能读取并调用这份本轮文稿，后续切换由根程序根据实际保存状态决定。
+
 We **api = io.api_path(context=`context`)**.
 We **manual = io.native(context=`context`,operation="runtime_handbook",payload=table.put(in=None,at="path",value=`api`))**.
 1. not access(`manual`,"ok")
@@ -259,6 +285,8 @@ We **section = access(`context`,"role")**.
   We **section = `section` + "_document"**.
 1. access(`context`,"role") == "implement" and json.get(value=`context`,key="scene") == "browse"
   We **section = "implement_browse"**.
+1. `section` == "outline" and json.get(value=`context`,key="variant") == "intent-slot"
+  We **section = "outline_slot"**.
 1. `section` == "outline" and json.get(value=`context`,key="variant") == "publish"
   We **section = "outline-publish"**.
 We **guide = io.native(context=`context`,operation="runtime_document",payload=table.put(in=None,at="path",value=guide_path(context=`context`)))**.

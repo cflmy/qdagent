@@ -2,6 +2,7 @@
 markup: occlusion
 title: 根 SKILL · planning
 import:
+  routing: routing.mq.md
   workbook: runtime/workbook.mq.md
   core: state.mq.md
   fs: lib/fs.mq.md
@@ -45,7 +46,7 @@ Use `context`, `title`, `goal`, `acceptance`, `units`, `artifact_kind`=""。
 参数表和返回表放在函数标题下面，正文解释责任与下一步；函数级骨架让并行实现可分工。
 源码与状态最后按版本提交，后续阶段始终核对保存文件而不是从答文猜测目标位置。
 
-The outline is a reviewable engineering boundary. Each named unit must have one responsibility and a stable interface, so independent agents can implement different files without editing a shared buffer. The framework remains deliberately incomplete at this point: a runnable placeholder is an honest representation of missing logic, not permission to claim that the business task succeeded. The user reads the actual saved document through the official View, then confirms that exact source version. A changed outline must be reviewed again. Concurrency and model choices are recorded with that decision, so a parent cannot silently raise parallelism or replace a selected child model. A unit name is an identifier rather than a path; validating it prevents accidental overwriting of another unit or access outside the workspace. Later stages keep the accepted responsibilities and explain any limitation in the final source. The artifact, its digest and its pending confirmation form one agreement; a model-written sentence alone cannot supply any of those receipts.
+The outline is a reviewable engineering boundary. Each named unit must have one responsibility and a stable interface, so independent agents can implement different owned functions in one shared manuscript without replacing neighboring sections. The framework remains deliberately incomplete at this point: a runnable placeholder is an honest representation of missing logic, not permission to claim that the business task succeeded. The user reads the actual saved document through the official View, then confirms that exact source version. A changed outline must be reviewed again. Concurrency and model choices are recorded with that decision, so a parent cannot silently raise parallelism or replace a selected child model. A unit name is an identifier rather than a path; validating it prevents accidental overwriting of another unit or access outside the workspace. Later stages keep the accepted responsibilities and explain any limitation in the final source. The artifact, its digest and its pending confirmation form one agreement; a model-written sentence alone cannot supply any of those receipts.
 
 框架的文件摘要必须来自真实文本计算，而非把函数写法当成普通表格数据。确认前先验证这份可阅读骨架，确认时再次比较同一摘要。这样用户看到的职责和实际进入细化的职责保持一致；刷新、并发点击或手动改动不能借用旧确认。每个依赖都只指向前面声明的身份，既方便独立实现，也让最终的执行顺序可核对。
 
@@ -67,6 +68,19 @@ A framework is accepted as an exact artifact, not as an inferred intention. Reta
 工作文稿中的函数身份和框架一致；并发数只控制同时填写几个函数，不改变已经批准的拆分。
 
 
+每个函数段还要明确属于哪一项用户意图。意图清单来自先前真实确认，不能由规划者在发表时重写；如果一条请求包含研究和写作，就分别覆盖，而不是只交付其中容易完成的一项。一个意图允许拆成几个更小的同方式函数，便于子智能体独立实现。多意图时通过 intent_id 指明归属，只有一项时可自动关联；未知身份、遗漏意图或擅自换工作方式都必须返回具体诊断。
+
+路由与职责共同写进实际 plan 文稿，读者在 View 中能看到每段将交给哪份受限 SKILL。文稿位置指向真实函数说明，签名仍由官方解析器读取，不维护另一份业务工具参数表。发表成功后，用户批准的是这份带关联和路由的实际源码摘要，后续测试规格和作者权限仍以各自已确认的单元为边界。路由选择没有使某个插件自动启用，真实浏览、搜索、识别或办公生成仍在原来的权限边界检查。
+
+已有任务没有意图清单时保留原框架的兼容路径，不根据现在的单元反过来伪造过去用户确认的待办。新任务则由根意图入口先保存清单再提问。后续要求改变意图归属或 SKILL 时，必须让用户重新对齐范围，不能靠换一组函数名绕过旧确认。用户预设函数数量也仍然有效：职责必须完整覆盖意图，同时满足实际数量，二者冲突应返回需求澄清，而不是自动删任务或增加无意义占位。
+
+并行实现依旧围绕 index 中各自的二级标题进行。待办清单描述用户目标，函数段描述工程拆分，并发配置描述资源上限；三个层次不能混为一谈。只有真实试运行证明相关函数就绪，前端才可把对应待办标为已验证。通过验证之后仍等待最终业务验收，不能用一组勾选图标代替用户决定。
+
+待办的可读标题用于交流，intent_id 用于稳定关联，两者不能相互替代。用户修改标题不会令一个函数失去归属，同名任务也不会合并成同一个意图。发表前核对的是每项稳定身份都至少有一个实际函数段覆盖，而不是标题中碰巧包含了用户要求的词。
+
+用户回看已经确认过的方案时，应继续取得原版本的职责和路由。新的基本方案只能产生新的确认请求，不能覆盖那次真实决定。该约束同样适用于网络研究失败后改变资料范围的情况：改变业务约束应再次审阅，单纯重试现有来源则仍依据原来的公开契约继续执行。
+每个实际段落都同时呈现用户意图与所选方法，用户不需要打开内部运行目录寻找这层对应。机器使用稳定身份作关联，人使用标题和完整叙述审阅边界，两者来自同一次真实发表。
+
 We **state = access(core.status(context=`context`),"value")**.
 1. access(`state`,"phase") != "outline" or json.get(value=`state`,key="pending")
   Return *result.error(code="root.stage",message="需要真实用户先确认意图",operation="outline")*.
@@ -77,6 +91,7 @@ We **expected = json.get(value=access(`state`,"settings"),key="expected_units")*
   Return *result.error(code="root.unit_count",message=("用户确认的业务函数数量为 " + json.stringify(value=`expected`) + "，当前草稿数量为 " + json.stringify(value=table.len(xs=`units`))),operation="outline")*.
 1. `artifact_kind` != "" and `artifact_kind` != "docx" and `artifact_kind` != "pptx"
   Return *result.error(code="root.artifact_kind",message="办公产物只支持明确的 docx 或 pptx",operation="outline")*.
+We **intents = json.get(value=`state`,key="intent_tasks")**.
 We **prepared = table.empty_list()** and **ids = table.empty_list()**.
 We **document = "---\nmarkup: occlusion\ntitle: 求道基本方案\n---\n\n# 基本方案\n\n标题：" + core.prose(content=`title`) + "\n\n目标：" + core.prose(content=`goal`) + "\n\n验收：" + core.prose(content=`acceptance`) + "\n\n办公产物：" + core.prose(content=`artifact_kind`) + "\n\n本阶段只约定框架，所有业务逻辑均尚未接通。用户确认后才进入并行细化。\n\n"**.
 - [每个单元都有独立边界](for units as unit)
@@ -94,12 +109,25 @@ We **document = "---\nmarkup: occlusion\ntitle: 求道基本方案\n---\n\n# 基
     We **mode = "code"**.
   1. `mode` != "text" and `mode` != "code" and `mode` != "select" and `mode` != "research" and `mode` != "document"
     Return *result.error(code="root.unit_mode",message="单元方式应为 text、select 或 code",operation="outline")*.
+  We **resolved = routing.resolve(mode=`mode`)**.
+  1. not access(`resolved`,"ok")
+    Return *resolved*.
+  We **route = access(`resolved`,"value")**.
+  We **unit = table.put(in=`unit`,at="route",value=`route`)**.
+  We **unit = table.put(in=`unit`,at="skill_label",value=(access(`route`,"label") + "（" + access(`route`,"document") + " · " + access(`route`,"function") + "）"))**.
+  We **bound = routing.bind(unit=table.put(in=`unit`,at="mode",value=`mode`),intents=`intents`)**.
+  1. not access(`bound`,"ok")
+    Return *bound*.
+  We **unit = access(`bound`,"value")**.
   We **unit = table.put(in=`unit`,at="mode",value=`mode`)**.
   We **unit = table.put(in=`unit`,at="depends_on",value=`dependencies`)**.
   We **ids = table.append(list=`ids`,item=`id`)**.
   We **unit = table.put(in=`unit`,at="status",value="pending")**.
   We **prepared = table.append(list=`prepared`,item=`unit`)**.
   We **document = `document` + scaffold(unit=`unit`)**.
+We **missing = routing.missing(intents=`intents`,units=`prepared`)**.
+1. `missing` != None
+  Return *result.error(code="root.intent_coverage",message=("方案遗漏了已确认待办：" + access(`missing`,"title")),operation="outline")*.
 We **_ = fs.make_dirs(path="solution")**.
 We **_ = fs.atomic_write(path="solution/plan.mq.md",text=`document`)**.
 
@@ -156,7 +184,7 @@ checked at the documented boundary. The final assembly includes the user's decis
 validation receipts rather than erasing this distinction through a polished final answer.
 
 We **id = access(`unit`,"id")**.
-Return *"## unit_" + `id` + "\n\n| 参数 | 类型 | 说明 |\n|---|---|---|\n| input | any | 本单元的结构化输入 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | any | 尚未接通，细化后才能交付 |\n\nUse \x60input\x60。\n\n" + core.prose(content=access(`unit`,"title")) + "：" + core.prose(content=access(`unit`,"purpose")) + "。实现方式：" + core.prose(content=json.get(value=`unit`,key="mode")) + "。本单元当前只约定输入、输出与职责，不把骨架当作业务完成。后续由子智能体实现并使用真实输入试运行，失败会保留具体诊断，确认前不会调用任何业务操作。\n\n在完整工程中，本单元必须说明如何与其他单元交换数据，并遵循参数、返回表与叙述比例要求。这里的返回值只是明确的未接通标记，不能用它证明实际目标已达成。\n\nWe **provided_input = \x60input\x60**.\nReturn *[尚未接通：" + `id` + "](None)*.\n\n"*.
+Return *"## unit_" + `id` + "\n\n| 参数 | 类型 | 说明 |\n|---|---|---|\n| input | any | 本单元的结构化输入 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | any | 尚未接通，细化后才能交付 |\n\nUse \x60input\x60。\n\n" + core.prose(content=access(`unit`,"title")) + "：" + core.prose(content=access(`unit`,"purpose")) + "。实现方式：" + core.prose(content=json.get(value=`unit`,key="mode")) + "；所属意图：" + core.prose(content=json.get(value=`unit`,key="intent_id")) + "；SKILL：" + core.prose(content=json.get(value=`unit`,key="skill_label")) + "。本单元当前只约定输入、输出与职责，不把骨架当作业务完成。后续由子智能体实现并使用真实输入试运行，失败会保留具体诊断，确认前不会调用任何业务操作。\n\n在完整工程中，本单元必须说明如何与其他单元交换数据，并遵循参数、返回表与叙述比例要求。这里的返回值只是明确的未接通标记，不能用它证明实际目标已达成。\n\nWe **provided_input = \x60input\x60**.\nReturn *[尚未接通：" + `id` + "](None)*.\n\n"*.
 
 ## draft
 
@@ -187,13 +215,21 @@ Use `context`, `unit`。
 
 职责保存不会改变目标或验收。后续发表将仍然检查数量、依赖和源码叙述，用户能在实际文稿里发现多余职责或缺失规则并要求返工。当前草稿状态可以重建为框架，却不具有人工确认的效力。
 
+职责在这里先核对已确认的意图归属，错误关联不进入草稿数量统计。主任务可以依据明确诊断修订参数，再继续填写；不能把一组有数量却无正确边界的函数锁成只能发表的现场。用户仍可阅读最终实际文稿并拒绝不符合语义的职责，身份正确并不代替业务审阅。
+
+错误归属返回的诊断会留给主任务修正，不能通过改写待办来迎合已有草稿。修订后的相同函数身份只更新自己的职责，其他已保存函数继续保留。真正需要更换意图时由用户重新确认范围，规划者没有隐式批准入口。
+
 We **state = access(core.status(context=`context`),"value")**.
 1. access(`state`,"phase") != "outline" or json.get(value=`state`,key="pending") or json.get(value=`context`,key="role") != "outline"
   Return *result.error(code="root.draft_scope",message="只可在规划阶段保存自己的职责草稿",operation="draft")*.
 We **id = json.get(value=`unit`,key="id")**.
 We **mode = json.get(value=`unit`,key="mode")**.
 1. not re.is_match(text=`id`,pattern="^[a-z][a-z0-9_]{0,31}$") or (`mode` != "text" and `mode` != "select" and `mode` != "code" and `mode` != "research" and `mode` != "document") or not json.get(value=`unit`,key="purpose")
-  Return *result.error(code="root.draft_contract",message="草稿需要合法身份、明确职责和独立的模式参数",operation="draft")*.
+  Return *result.error(code="root.draft_contract",message="职责 id 必须以小写字母开头且仅含字母数字下划线，最多三十二字符；mode 应是已列出的工作方式，purpose 不能留空",operation="draft")*.
+We **bound = routing.bind(unit=`unit`,intents=json.get(value=`state`,key="intent_tasks"))**.
+1. not access(`bound`,"ok")
+  Return *bound*.
+We **unit = access(`bound`,"value")**.
 We **old = json.get(value=`state`,key="draft_units")**.
 We **updated = table.empty_list()**.
 We **found = False**.
@@ -220,19 +256,30 @@ Return *core.save(context=`context`,state=table.put(in=`state`,at="draft_units",
 | mode | text | required | 由已安装的专用函数固定提供 |
 | depends_on | any | None | 已声明的依赖身份 |
 | constant_text | any | None | 固定正文专用函数绑定的用户原文 |
+| intent_id | text | "" | 对应已确认的意图身份 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 真实保存后的职责记录 |
 
-Use `context`, `id`, `title`, `purpose`, `mode`, `depends_on`=None, `constant_text`=None。
+Use `context`, `id`, `title`, `purpose`, `mode`, `depends_on`=None, `constant_text`=None, `intent_id`=""。
 
 公开接口分别定义固定正文、输入取值和业务运算，模式由这些专用文稿函数绑定。模型不再手写一个容易混进叙述的 mode 参数，也不能靠遗漏参数取得更宽能力。这个组合函数构造原生记录，保存成功才返回职责；不发表方案、不执行实现，更不代替真实用户确认。
 
 依赖为空时建立原生空列表，不把字符串形式的 JSON 数组当作列表。固定正文的业务返回类型为 text，其他模式的具体类型来自公开职责。记录的类型不是作者接口诊断类型；后续模板和独立测试会据此分别检查实际函数的返回。下层 draft 检查身份、阶段和数量，用版本比较保存跨轮事实。调用失败时保留诊断，不能把一个未保存的临时记录显示成已有框架。
 
+返回值必须来自已经保存的实际职责，包含规范身份和真实意图关联。不能将绑定前的临时参数作为成功回执，否则模型会从空关联推测新身份，与下一轮事实产生冲突。一个用户意图可由多个函数完成，所有这些函数使用同一个 intent_id；函数名仍分别保持唯一。
+
+函数身份、意图关联和依赖引用都统一将短横线转为下划线，之后只交接实际保存的规范身份。这是输入名称的确定性规范化，不会重写用户职责、修改业务源码或更换工作方式。模型应以下一轮列出的身份继续规划，不依赖自己上轮尚未保存的临时拼写。相同规范身份仍然修订同一职责，原有唯一性与函数数量检查保持有效。
+
+We **id = text.replace(text=`id`,old="-",new="_")**.
+We **intent_id = text.replace(text=`intent_id`,old="-",new="_")**.
 1. `depends_on` == None
   We **depends_on = table.empty_list()**.
+We **normalized_dependencies = table.empty_list()**.
+- [依赖使用与实际保存一致的函数身份](for depends_on as dependency)
+  We **normalized_dependencies = table.append(list=`normalized_dependencies`,item=text.replace(text=`dependency`,old="-",new="_"))**.
+We **depends_on = `normalized_dependencies`**.
 We **return_type = "any"**.
 1. `mode` == "text"
   We **return_type = "text"**.
@@ -243,9 +290,14 @@ We **return_type = "any"**.
 |---|---|---|---|---|---|
 | `id` | `title` | `purpose` | `depends_on` | `mode` | `return_type` |
 
+We **unit = table.put(in=`unit`,at="intent_id",value=`intent_id`)**.
 1. `constant_text` != None
   We **unit = table.put(in=`unit`,at="constant_text",value=`constant_text`)**.
 We **stored = draft(context=`context`,unit=`unit`)**.
 1. not access(`stored`,"ok")
   Return *stored*.
-Return *unit*.
+We **saved_units = access(access(`stored`,"value"),"draft_units")**.
+- [返回真正保存后的规范身份与意图关联](for saved_units as item)
+  1. access(`item`,"id") == `id`
+    Return *item*.
+Return *result.error(code="root.draft_missing",message="未找到刚保存的职责，请重新读取草稿",operation="define")*.

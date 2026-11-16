@@ -2,6 +2,7 @@
 markup: occlusion
 title: 一次角色工作的有界调用循环
 import:
+  planning: planning.mq.md
   io: io.mq.md
   core: ../state.mq.md
   proof: ../proof.mq.md
@@ -79,7 +80,7 @@ Document research has more bounded steps than a fixed return. A query, a failed 
 
 
 We **feedback = None**.
-1. access(`context`,"role") == "outline"
+1. access(`context`,"role") == "outline" or access(`context`,"role") == "intent"
   We **limit = 12**.
 1. access(`context`,"role") == "implement" and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
   We **limit = 18**.
@@ -127,17 +128,14 @@ The next callable document comes from persisted facts. Planning with a fixed app
 
 数量只是约束的一部分，下一份发表文稿仍将职责原文和验收完整呈现给用户，不替用户判断这些业务内容是否正确。
 
+达到函数数量之后仍要覆盖全部已确认意图。如果两个函数都归属于第一项而遗漏第二项，继续提供职责修订接口，不将模型困在只能反复发表失败方案的现场。缺失判断复用根路由文稿，发表时使用同一个函数再次核对，不能让页面进度与程序门禁采用不同的范围定义。
+
 We **role = access(`context`,"role")**.
 1. `role` == "implement" and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
   Return *document_scene(context=`context`)*.
 1. `role` != "outline"
   Return *context*.
-We **state = access(core.status(context=`context`),"value")**.
-We **expected = json.get(value=access(`state`,"settings"),key="expected_units")**.
-We **drafts = json.get(value=`state`,key="draft_units")**.
-1. `expected` != None and `expected` > 0 and `drafts` and table.len(xs=`drafts`) == `expected`
-  Return *table.put(in=`context`,at="variant",value="publish")*.
-Return *table.put(in=`context`,at="variant",value="")*.
+Return *planning.scene(context=`context`)*.
 
 ## document_scene
 

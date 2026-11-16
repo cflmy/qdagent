@@ -2,6 +2,7 @@
 markup: occlusion
 title: 根 SKILL · state
 import:
+  journey: journey.mq.md
   fs: lib/fs.mq.md
   sys: lib/sys.mq.md
   json: lib/json.mq.md
@@ -82,6 +83,8 @@ Use `context`, `state`。
 保存成功只证明状态提交，不证明业务代码已运行。业务代码仍要带源码摘要和试运行结果，
 才能被后续整合函数接纳；保存失败则保留原状态，宿主显示冲突并允许有界重试。
 
+We **previous = access(status(context=`context`),"value")**.
+We **state = [离开阶段前保留只读审阅内容](journey.archive(previous=`previous`,next=`state`))**.
 We **payload = table.put(in=None,at="root",value=access(`context`,"root"))**.
 We **payload = table.put(in=`payload`,at="revision",value=access(`state`,"revision"))**.
 Return *[比较版本后原子提交](native(context=`context`,operation="root_cas",payload=table.put(in=`payload`,at="state",value=`state`)))*.
@@ -124,7 +127,7 @@ We **state = access(`snapshot`,"value")**.
   |---|---|---|---|---|---|---|
   | `state`[^revision] | "intent" | `user_input` | `empty` | `empty` | `settings` | `previous` |
 
-  We **state = `fresh`**.
+  We **state = table.put(in=`fresh`,at="stage_history",value=json.get(value=`state`,key="stage_history"))**.
 We **history = access(`state`,"history")**.
 1. json.get(value=`context`,key="knowledge_reference")
   We **state = table.put(in=`state`,at="knowledge_reference",value=access(`context`,"knowledge_reference"))**.
@@ -149,7 +152,7 @@ Return *save(context=`context`,state=`state`)*.
 |---|---|---|---|
 | context | map | required | 由宿主注入，子智能体另有受限 unit_id |
 | revision | number | required | 用户看到的确切状态版本 |
-| action | text | required | answer、confirm_intent、confirm_outline、revise、accept |
+| action | text | required | answer、confirm_intent、confirm_outline、revise、revise_intent、accept |
 | answer | text | "" | 用户自由输入的原文 |
 | choice | text | "" | 用户实际选择的文字 |
 | settings | map | None | 宿主验证过的并发数和可用模型身份 |
@@ -196,12 +199,23 @@ An acceptance refers to one exact delivered source digest. A later edit cannot r
 
 Working functions now live in one shared document. Human acceptance checks each approved function's own canonical digest and then checks the complete delivery digest. Editing a neighbor during authoring does not invalidate an unrelated function, but changing any tested implementation or the final entry before acceptance still prevents completion. Historical separate files keep their original verification path until a resumed refinement migrates them. This compatibility does not approve an old author-supplied test suite or silently accept an altered manuscript. The authenticated user still decides acceptance after the actual executable entry and its evidence can be inspected.
 
+用户可以选择重新对齐意图，先保留原阶段的只读记录，再清空待拆分的清单与旧批准。这个入口同样只属于真实用户，不向模型公开；回看历史本身不会调用它。执行中的任务由宿主拒绝改写，新的意图仍要重新提问、重新确认，然后再形成框架。
+
 We **state = access(status(context=`context`),"value")**.
 We **pending_view = json.get(value=`state`,key="pending")**.
+1. not `pending_view`
+  We **pending_view = table.empty_map()**.
 1. access(`state`,"revision") != `revision`
   Return *result.error(code="root.stale_confirmation",message="方案已变化，请重新阅读当前版本",operation="respond")*.
 We **phase = access(`state`,"phase")**.
-1. `action` == "revise" and `phase` != "intent"
+1. `action` == "revise_intent"
+  We **state = table.put(in=`state`,at="phase",value="intent")**.
+  We **state = table.put(in=`state`,at="intent_tasks",value=table.empty_list())**.
+  We **state = table.put(in=`state`,at="draft_units",value=table.empty_list())**.
+  We **state = table.put(in=`state`,at="units",value=table.empty_list())**.
+  We **state = table.put(in=`state`,at="intent_confirmed",value=False)**.
+  We **state = table.put(in=`state`,at="outline_confirmed",value=False)**.
+2. `action` == "revise" and `phase` != "intent"
   We **state = table.put(in=`state`,at="phase",value="outline")**.
   We **state = table.put(in=`state`,at="draft_units",value=table.empty_list())**.
 2. `phase` == "intent" and json.get(value=`pending_view`,key="kind") == "intent" and (`action` == "answer" or `action` == "confirm_intent")
@@ -260,6 +274,7 @@ We **summarized = json.get(value=`pending_view`,key="summary")**.
 |---|---|---|---|---|---|---|
 | "user" | `action` | `answer` | `choice` | `asked` | `summarized` | `revision` |
 
+We **entry = table.put(in=`entry`,at="tasks",value=json.get(value=`state`,key="intent_tasks"))**.
 We **state = table.put(in=`state`,at="history",value=table.append(list=access(`state`,"history"),item=`entry`))**.
 We **saved = save(context=`context`,state=table.put(in=`state`,at="pending",value=None))**.
 1. access(`saved`,"ok")
@@ -468,11 +483,13 @@ Use `state`, `previous_phase`, `action`, `settings`。
 We **previous = json.get(value=access(`state`,"settings"),key="expected_units")**.
 1. `previous` == None
   We **previous = 0**.
+重新对齐意图时允许真实用户重新选择业务函数数量。旧范围先保留为只读历史，新的数量仍需经过后续框架检查，不会预先批准未来实现。
+
 We **expected = json.get(value=`settings`,key="expected_units")**.
 1. `expected` == None
   We **expected = `previous`**.
 1. `expected` < 0 or `expected` > 8
   Return *result.error(code="root.expected_units",message="业务函数数量应为零到八，零表示不限制",operation="settings_change")*.
-1. `expected` != `previous` and `previous_phase` != "intent" and `action` != "revise"
+1. `expected` != `previous` and `previous_phase` != "intent" and `action` != "revise" and `action` != "revise_intent"
   Return *result.error(code="root.constraint_changed",message="函数数量改变需要先返工并重新确认框架",operation="settings_change")*.
 Return *result.ok(value=table.put(in=`settings`,at="expected_units",value=`expected`))*.
