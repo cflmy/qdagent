@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-workbook-runtime-0.8.0"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-function-sections-0.9.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -577,12 +577,16 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request, i identity) {
 		writeJSON(w, 200, map[string]string{"kind": "binary", "filename": path, "source": "", "title": filepath.Base(path)})
 		return
 	}
-	b, e := io.ReadAll(io.LimitReader(f, 524289))
-	if e == nil && len(b) > 524288 && !strings.HasSuffix(path, ".mq.md") {
+	previewLimit := 524288
+	if strings.HasSuffix(path, ".mq.md") {
+		previewLimit = 1 << 20
+	}
+	b, e := io.ReadAll(io.LimitReader(f, int64(previewLimit+1)))
+	if e == nil && len(b) > previewLimit && !strings.HasSuffix(path, ".mq.md") {
 		writeJSON(w, 200, map[string]string{"kind": "binary", "filename": path, "source": "", "title": filepath.Base(path)})
 		return
 	}
-	if e != nil || len(b) > 524288 {
+	if e != nil || len(b) > previewLimit {
 		writeError(w, 413, "preview_too_large", "文件过大，请下载查看")
 		return
 	}

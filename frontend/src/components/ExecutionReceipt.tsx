@@ -28,6 +28,13 @@ export function receiptDiagnostics(value:unknown):Diagnostic[]{
  visit(decode(value));return found;
 }
 const codeLabels:Record<string,string>={'narrative.ratio':'函数叙述比例不足','contract.param_drift':'参数契约与源码不一致','contract.return_mismatch':'返回值与契约不一致','root.independent_test_failed':'独立验证未通过','root.invalid_source':'文稿尚未通过检查','root.unit_count':'职责数量与用户确认不符'};
+function readableDiagnostic(message:string){
+ if(message==='Private and special-use network addresses are blocked')return '该网站的 DNS 返回了内网或特殊用途地址，已阻止访问。可使用其他公开来源。';
+ if(message.includes('before secure TLS connection was established'))return '与网站建立安全连接失败；该地址目前不可达。';
+ if(message.includes('Page has no readable article body'))return '页面没有可读取的正文，未将空页面记为来源。';
+ if(message.includes('Page is an access verification screen'))return '网站返回了访问验证页面，未将其记为资料。';
+ return message;
+}
 export function ExecutionReceipt({value,onPreview}:{value:unknown;onPreview?:(path:string)=>void}){
  const record=value&&typeof value==='object'?value as RecordValue:{};
  const normalized=decode(value) as RecordValue;
@@ -50,7 +57,7 @@ export function ExecutionReceipt({value,onPreview}:{value:unknown;onPreview?:(pa
   {requestedURL&&<a className="receipt-request-url" href={requestedURL} target="_blank" rel="noopener noreferrer">{requestedURL}</a>}
   {command&&<div className="receipt-command"><Terminal size={14}/><code>{command}</code></div>}
   {source&&<details className="receipt-source" open><summary><FileCode2 size={14}/>本次调用的 Marqdo 文稿</summary><pre>{source}</pre></details>}
-  {diagnostics.map((diagnostic,index)=><article className="receipt-diagnostic" key={index}><AlertCircle size={15}/><div><strong>{diagnostic.code&&codeLabels[diagnostic.code]||'执行诊断'}</strong><p>{diagnostic.message}</p>{diagnostic.file&&<code>{diagnostic.file.split('/').pop()}{diagnostic.line?`:${diagnostic.line}`:''}</code>}</div></article>)}
+  {diagnostics.map((diagnostic,index)=><article className="receipt-diagnostic" key={index}><AlertCircle size={15}/><div><strong>{diagnostic.code&&codeLabels[diagnostic.code]||'执行诊断'}</strong><p>{readableDiagnostic(diagnostic.message)}</p>{diagnostic.file&&<code>{diagnostic.file.split('/').pop()}{diagnostic.line?`:${diagnostic.line}`:''}</code>}</div></article>)}
   {browser&&<article className="browser-observation"><strong>{String(browser.title||'网页观察')}</strong><a href={String(browser.url)} target="_blank" rel="noopener noreferrer">{String(browser.url)}</a><small>{String(browser.fetched_at||'')} · Chromium 隔离会话</small>{typeof browser.excerpt==='string'&&<p>{browser.excerpt.slice(0,480)}</p>}<div><button className="text-button" disabled={!onPreview} onClick={()=>onPreview?.(String(browser.snapshot))}>阅读网页快照</button>{typeof browser.screenshot==='string'&&<button className="text-button" disabled={!onPreview} onClick={()=>onPreview?.(String(browser.screenshot))}>查看实际截图</button>}</div></article>}
   {path&&<button className="text-button receipt-artifact" onClick={()=>onPreview?.(path)} disabled={!onPreview}><FileCode2 size={14}/>{path}</button>}
   {search&&<article className="search-observation"><strong>搜索：{String(search.query)}</strong><small>搜索摘要 · 尚未打开网页</small>{(search.results as RecordValue[]).map((item,index)=><div key={index}><a href={String(item.url)} target="_blank" rel="noopener noreferrer">{String(item.title||item.url)}</a><p>{String(item.excerpt||'')}</p></div>)}{!(search.results as unknown[]).length&&<p>本次查询没有返回结果。</p>}{Array.isArray(search.unresponsive_engines)&&search.unresponsive_engines.length>0&&<small>部分引擎未响应：{search.unresponsive_engines.map(item=>Array.isArray(item)?item.join(' · '):String(item)).join('；')}</small>}</article>}

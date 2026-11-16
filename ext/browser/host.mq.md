@@ -2,6 +2,7 @@
 markup: occlusion
 title: 浏览观察的保存与交接
 import:
+  failures: failures.mq.md
   io: ext/root-skill/runtime/io.mq.md
   core: ext/root-skill/state.mq.md
   proof: ext/root-skill/proof.mq.md
@@ -34,13 +35,21 @@ The browser broker runs outside the agent container and never receives the works
 
 截图保持原始 PNG 字节，正文以不可执行的快照保存。网络错误不创建一个成功来源，保存或状态提交失败也不能报告完成。模型只接收有界摘录与可定位的来源，完整正文留在实际文件里；网页内容不作为新增系统指令。
 
+失败地址与实际原因会交接到下一轮，帮助作者更换公开候选。连续失败两次后不再重复请求；空页面和验证页不会写入成功来源。已有成功来源仍然保留，网络失败不能通过添加一个引用字符串来绕过。
+
+
 We **state = access(core.status(context=`context`),"value")**.
 1. access(`state`,"phase") != "refine" or (access(`context`,"role") != "implement" and access(`context`,"role") != "research")
   Return *result.error(code="browser.scope",message="当前阶段不能浏览网页",operation="capture")*.
 We **event = table.put(in=table.put(in=None,at="id",value=access(`context`,"unit_id")),at="url",value=`url`)**.
 We **_ = io.event(context=`context`,kind="browser_start",data=`event`)**.
+We **permitted = failures.check(context=`context`,url=`url`)**.
+1. not access(`permitted`,"ok")
+  We **_ = io.event(context=`context`,kind="browser_end",data=table.put(in=table.put(in=`event`,at="status",value="failed"),at="result",value=`permitted`))**.
+  Return *permitted*.
 We **page = io.native(context=`context`,operation="runtime_browser_open",payload=table.put(in=None,at="url",value=`url`))**.
 1. not access(`page`,"ok")
+  We **_ = failures.remember(context=`context`,url=`url`,error=`page`)**.
   We **_ = io.event(context=`context`,kind="browser_end",data=table.put(in=table.put(in=`event`,at="status",value="failed"),at="result",value=`page`))**.
   Return *page*.
 We **record = persist(page=access(`page`,"value"),unit_id=access(`context`,"unit_id"))**.

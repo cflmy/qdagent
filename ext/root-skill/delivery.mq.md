@@ -2,6 +2,7 @@
 markup: occlusion
 title: 根 SKILL · delivery
 import:
+  workbook: runtime/workbook.mq.md
   author: authoring.mq.md
   trial_engine: runtime/trial.mq.md
   core: state.mq.md
@@ -57,7 +58,7 @@ No process result, model statement or attractive artifact can replace a missing 
 
 The acceptance boundary has three separate layers. First, a unit's declared examples compare explicit inputs with expected returns. Second, this function verifies that exactly the tested source is still present and that the whole generated entry is structurally valid. Third, the integrated program receives a smoke input under limited effects and produces an actual return. None of these operations is a substitute for the user's business review. A report can be syntactically valid and still need factual correction; a calculation can pass one example while its applicability remains narrow. The final narration should state those limits directly and retain the source material that informed the decision.
 
-A unit's input is a record with request and dependencies. The request contains the root call's explicit input. The dependency record contains only the results of predecessors declared in the approved framework. That makes the engineering relationship inspectable: a later unit cannot silently read a model's remembered version of an earlier result. The framework validates identifiers and ordering before any child starts. Independent units can be authored concurrently because their source files are distinct. Their final execution order is nevertheless explicit in the generated run function, which is important when the program is reused outside this conversation.
+A unit's input is a record with request and dependencies. The request contains the root call's explicit input. The dependency record contains only the results of predecessors declared in the approved framework. That makes the engineering relationship inspectable: a later unit cannot silently read a model's remembered version of an earlier result. The framework validates identifiers and ordering before any child starts. Independent functions can be authored concurrently because their assigned bodies are disjoint and section writes merge against the latest shared document. Their final execution order is nevertheless explicit in the generated run function, which is important when the program is reused outside this conversation.
 
 The generated source includes the actual user discussion as narration. Those records identify what was requested and what was approved; they do not become native effects or a way to modify the private workflow state. A model-authored summary may add explanation, but it cannot erase a user's qualification or replace a confirmation record. The narrative parameter should explain the chosen composition, its data assumptions, the meaning of each return and a realistic verification method. If it is too thin to meet the engineering guide, the official check rejects the entry and returns diagnostics. The caller should improve the explanation rather than bypassing the check or claiming that the manuscript is finished.
 
@@ -76,7 +77,10 @@ We **stubs = table.empty_list()**.
   We **own = table.put(in=`context`,at="unit_id",value=access(`unit`,"id"))**.
   1. not proof.ready(context=`own`,item=`unit`)
     Return *result.error(code="root.stale_unit",message="单元源码或试运行证据已失效",operation="integrate")*.
-  We **source = `source` + access(`unit`,"fragment") + "\n"**.
+  We **actual = workbook.snapshot(context=`own`,item=`unit`)**.
+  1. not access(`actual`,"ok")
+    Return *actual*.
+  We **source = `source` + access(access(`actual`,"value"),"fragment") + "\n"**.
   We **stubs = table.concat(a=`stubs`,b=access(access(`unit`,"trial"),"pending_labels"))**.
 We **source = `source` + "## run\n\n| 参数 | 类型 | 默认 | 说明 |\n|---|---|---|---|\n| input | any | None | 用户请求或显式业务输入 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | map | 各单元实际返回，业务验收由用户独立确认 |\n\nUse \x60input\x60=None。\n\n" + core.prose(content=`narrative`) + "\n\n已确认的目标：" + core.prose(content=access(`state`,"goal")) + "。验收条件：" + core.prose(content=access(`state`,"acceptance")) + "。\n\n"**.
 We **history = access(`state`,"history")**.

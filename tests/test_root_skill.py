@@ -72,7 +72,7 @@ class RootTests(unittest.TestCase):
   self.author('u0',{'text':'含有 `变量`、**标记**、\n换行和|分隔符'},expected='真实结果');state=self.trial('u0');self.assertEqual(state['units'][0]['status'],'failed')
   self.assertEqual(self.call('refine')['phase'],'refine')
   self.author('u0','真实结果');self.trial('u0')
-  path=self.root/'work/solution/units/u0.mq.md';path.write_text(path.read_text()+'\n源码已经变化。\n')
+  path=self.root/'work/solution/index.mq.md';path.write_text(path.read_text()+'\n源码已经变化。\n')
   self.assertEqual(self.call('refine')['phase'],'refine')
   self.assertFalse(self.raw('author_unit',context={**self.context,'unit_id':'other'},unit_id='u0',narrative=NARRATIVE,mode='literal',body='',value=1)['ok'])
  def test_concurrent_units_merge_and_final_acceptance_is_version_bound(self):

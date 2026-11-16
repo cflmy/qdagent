@@ -46,7 +46,7 @@ We **dependencies = json.get(value=`item`,key="depends_on")**.
 We **seen = table.empty_list()**.
 We **unique = table.empty_list()**.
 - [按真实地址去重](for collected as source)
-  1. not table.contains(list=`seen`,item=access(`source`,"url"))
+  1. re.find(text=access(`source`,"excerpt"),pattern="(?s).{40}") and not table.contains(list=`seen`,item=access(`source`,"url"))
     We **seen = table.append(list=`seen`,item=access(`source`,"url"))**.
     We **unique = table.append(list=`unique`,item=`source`)**.
 Return *unique*.

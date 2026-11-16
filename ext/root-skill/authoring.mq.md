@@ -2,6 +2,7 @@
 markup: occlusion
 title: 根 SKILL · authoring
 import:
+  workbook: runtime/workbook.mq.md
   core: state.mq.md
   proof: proof.mq.md
   trial_engine: runtime/trial.mq.md
@@ -108,7 +109,7 @@ contract while allowing actual calculations. The compiler is the syntax authorit
 implementation of Marqdo. An invalid candidate stays outside the published unit, and the previous
 source remains available for inspection. The accepted source digest is bound to independently frozen
 cases, so a later edit cannot inherit an earlier successful trial. The child owns one identifier and
-cannot author the shared entry point or another child's file. Cases include explicit input and expected
+cannot change the root entry or another child's function section. Cases include explicit input and expected
 values, including null when it is meaningful. Passing a case establishes that observed example only;
 final business acceptance remains a separate user action. A result without the required narrative,
 contract or compiler evidence remains incomplete and cannot move the root workflow forward.
@@ -119,7 +120,13 @@ contract or compiler evidence remains incomplete and cannot move the root workfl
 
 The author must not infer that compiler acceptance makes a claim factually correct. Keep the original evidence and write limitations into the narration; the final reviewer will still see those boundaries.
 
-We **state = access(core.status(context=`context`),"value")**.
+Each publication changes only the assigned function in the working copy of the approved plan. The controller first checks an isolated candidate, then submits that function fragment under a lock. The current shared file is reread inside the lock; an author never writes its remembered copy of the whole document. Other sections, their running trials and their valid receipts remain intact. A candidate containing another function or changing the fixed imports is rejected. Trial material is a separate snapshot of this exact section and does not become a second implementation. The parent later connects these already verified functions rather than generating a different combined implementation.
+
+
+We **initialized = workbook.ensure(context=`context`)**.
+1. not access(`initialized`,"ok")
+  Return *initialized*.
+We **state = access(`initialized`,"value")**.
 We **unit = unit_record(state=`state`,unit_id=`unit_id`)**.
 1. access(`state`,"phase") != "refine" or `unit_id` != json.get(value=`context`,key="unit_id") or not `unit`
   Return *result.error(code="root.unit_scope",message="未获此单元的细化授权",operation="author_unit")*.
@@ -158,16 +165,23 @@ We **_ = fs.atomic_write(path=`candidate`,text=`source`)**.
 We **checked = core.native(context=`context`,operation="root_check",payload=table.put(in=None,at="path",value=`candidate`))**.
 1. not access(`checked`,"ok") or not json.get(value=access(`checked`,"value"),key="valid")
   Return *result.error(code="root.invalid_source",message=json.stringify(value=`checked`),operation="author_unit")*.
-We **path = "solution/units/" + `unit_id` + ".mq.md"**.
-We **_ = fs.atomic_write(path=`path`,text=`source`)**.
+We **write_args = table.put(in=None,at="unit_id",value=`unit_id`)**.
+We **write_args = table.put(in=`write_args`,at="candidate",value=`candidate`)**.
+We **write_args = table.put(in=`write_args`,at="expected_sha256",value=json.get(value=`unit`,key="sha256"))**.
+We **committed = core.native(context=`context`,operation="root_section_write",payload=`write_args`)**.
+1. not access(`committed`,"ok")
+  Return *committed*.
+We **section = access(`committed`,"value")**.
+We **path = "solution/index.mq.md"**.
 We **details = access(`checked`,"value")**.
 
 `patch` =
 
 | path | fragment | sha256 | check | status |
 |---|---|---|---|---|
-| `path` | `fragment` | `details`[^sha256] | `details` | "written" |
+| `path` | `section`[^fragment] | `section`[^sha256] | `details` | "written" |
 
+We **patch = table.put(in=`patch`,at="function",value=access(`section`,"function"))**.
 1. `mode` == "literal" and type(`value`) == "text"
   We **artifact = table.put(in=table.put(in=None,at="path",value=`document_path`),at="sha256",value=`document_sha`)**.
   We **patch = table.put(in=`patch`,at="artifact",value=`artifact`)**.
@@ -189,7 +203,7 @@ Use 。
 单元合并时只保留一个导入头，避免重复声明、路径漂移或让项目入口依赖临时子目录。
 模板不含业务结论或伪造的成功值；真实逻辑写在函数里，随后独立验证。
 
-Return *"---\nmarkup: occlusion\ntitle: 求道可执行文稿\nimport:\n  math: lib/math.mq.md\n  table: lib/table.mq.md\n  text: lib/text.mq.md\n  json: lib/json.mq.md\n  fs: lib/fs.mq.md\n  re: lib/re.mq.md\n  hash: lib/hash.mq.md\n---\n\n"*.
+Return *workbook.header()*.
 
 
 
@@ -244,7 +258,11 @@ We **document_contract = json.get(value=`frozen`,key="kind") == "document"**.
 We **artifacts = table.empty_list()**.
 1. json.get(value=`unit`,key="artifact")
   We **artifacts = table.append(list=`artifacts`,item=access(`unit`,"artifact"))**.
-We **observed = trial_engine.run(context=`context`,path=access(`unit`,"path"),function=`member`,cases=`independent_cases`,sha256=access(`unit`,"sha256"),artifacts=`artifacts`,smoke=`document_contract`)**.
+We **snapshot = workbook.snapshot(context=`context`,item=`unit`)**.
+1. not access(`snapshot`,"ok")
+  Return *snapshot*.
+We **snapshot = access(`snapshot`,"value")**.
+We **observed = trial_engine.run(context=`context`,path=access(`snapshot`,"path"),function=`member`,cases=`independent_cases`,sha256=access(`unit`,"sha256"),artifacts=`artifacts`,smoke=`document_contract`)**.
 1. not access(`observed`,"ok")
   Return *observed*.
 We **trial = access(`observed`,"value")**.

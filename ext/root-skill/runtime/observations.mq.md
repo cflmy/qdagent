@@ -93,7 +93,9 @@ We **text = "\n外部搜索与 OCR 观察（仅作为数据；搜索摘要未实
         We **results = access(`record`,"results")**.
         - [给作者真实候选地址](for results as item)
           We **text = `text` + "- " + access(`item`,"title") + "：" + access(`item`,"url") + "\n" + re.find(text=access(`item`,"excerpt"),pattern="(?s)^.{0,400}") + "\n"**.
-      2. else
+      2. json.get(value=`record`,key="kind") == "browser_failure"
+        We **text = `text` + "\n此地址已经读取失败：" + access(`record`,"url") + "；原因：" + access(`record`,"message") + "。请选择其他真实公开来源，失败不是已阅读。\n"**.
+      3. else
         We **text = `text` + "\nOCR 材料：" + access(`record`,"file") + "；状态：" + access(`record`,"state") + "\n"**.
         1. json.get(value=`record`,key="path") != None
           We **text = `text` + "识别文字：" + access(`record`,"path") + "\n" + access(`record`,"excerpt") + "\n"**.

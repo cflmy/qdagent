@@ -84,6 +84,8 @@ Use `context`, `model_id`。
 
 顺序是先冻结案例，再启动作者。已有有效案例不重复生成；已有源码仍须结合摘要和案例判断是否有效。固定正文使用只含 write_text 的窄接口，不把代码编写或文件读取权限一并提供。测试模型配置可以继承，实现与测试的消息包和角色工作目录始终分开，两个请求不会共享模型聊天历史。
 
+A source-policy upgrade does not require inventing a new test. If an existing document has an older evidence marker, the trusted executor first runs its current section against the same frozen contract. Good sources retain their implementation without another generation request. Empty historical pages remain excluded and cannot recover a passing verdict by keeping the old passed field. If the recheck fails, the ordinary restricted author loop continues with the genuine observations.
+
 We **state = access(core.status(context=`context`),"value")**.
 We **item = proof.unit(state=`state`,unit_id=access(`context`,"unit_id"))**.
 1. not json.get(value=`item`,key="tests")
@@ -98,6 +100,11 @@ We **item = proof.unit(state=`state`,unit_id=access(`context`,"unit_id"))**.
 We **item = proof.unit(state=access(core.status(context=`context`),"value"),unit_id=access(`context`,"unit_id"))**.
 1. proof.ready(context=`context`,item=`item`)
   Return *result.ok(value=True)*.
+1. json.get(value=`item`,key="sha256") and not core.evidence_current(tests=json.get(value=`item`,key="tests"),trial=json.get(value=`item`,key="trial"))
+  We **renewed = author.trial_unit(context=`context`,unit_id=access(`item`,"id"))**.
+  We **item = proof.unit(state=access(core.status(context=`context`),"value"),unit_id=access(`context`,"unit_id"))**.
+  1. proof.ready(context=`context`,item=`item`)
+    Return *result.ok(value=True)*.
 We **own = table.put(in=`context`,at="role",value="implement")**.
 We **own = table.put(in=`own`,at="variant",value=json.get(value=`item`,key="mode"))**.
 Return *turn.run(context=`own`,model_id=`model_id`)*.

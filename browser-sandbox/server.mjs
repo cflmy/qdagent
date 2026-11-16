@@ -41,9 +41,12 @@ async function openPage(url,signal){
   await page.waitForTimeout(500);
   if(!response||response.status()>=400)throw Error('Page navigation failed: '+(response?.status()||'no response'));
   const text=(await page.locator('body').innerText({timeout:5000})).slice(0,24000);
+  const title=await page.title();
+  if(text.trim().length<40)throw Error('Page has no readable article body');
+  if(/^(just a moment|verify you are human|access denied|安全验证|访问验证)/i.test(title.trim()))throw Error('Page is an access verification screen');
   const links=await page.locator('a[href]').evaluateAll(nodes=>nodes.map(node=>({text:(node.textContent||'').trim().slice(0,160),url:node.href})).filter(link=>link.url.startsWith('https://')||link.url.startsWith('http://')).slice(0,80));
   const screenshot=await page.screenshot({type:'png',timeout:10000});if(screenshot.length>3*1024*1024)throw Error('Screenshot exceeds bound');
-  return {ok:true,url:page.url(),title:await page.title(),text,excerpt:text.slice(0,3000),links,status:response.status(),fetched_at:new Date().toISOString(),screenshot:screenshot.toString('base64'),requests,blocked:blocked.slice(0,10),sandbox:'chromium-user-namespace'};
+  return {ok:true,url:page.url(),title,text,excerpt:text.slice(0,3000),links,status:response.status(),fetched_at:new Date().toISOString(),screenshot:screenshot.toString('base64'),requests,blocked:blocked.slice(0,10),sandbox:'chromium-user-namespace'};
  }finally{signal.removeEventListener('abort',cancel);await context?.close();release()}
 }
 function send(response,status,value){const body=Buffer.from(JSON.stringify(value));response.writeHead(status,{'content-type':'application/json','content-length':body.length,'connection':'close','cache-control':'no-store'});response.end(body)}

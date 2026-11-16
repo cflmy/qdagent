@@ -94,6 +94,13 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 		return Run{}, err
 	}
 	ctxMap["knowledge_reference"] = knowledge
+	if !resume {
+		title, nameErr := s.store.nameFirstInput(owner, task, question)
+		if nameErr != nil {
+			return Run{}, nameErr
+		}
+		ctxMap["title"] = title
+	}
 	config, err := s.store.resolveModel(owner, model)
 	if err != nil {
 		return Run{}, err

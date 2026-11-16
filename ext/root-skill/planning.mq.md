@@ -2,6 +2,7 @@
 markup: occlusion
 title: 根 SKILL · planning
 import:
+  workbook: runtime/workbook.mq.md
   core: state.mq.md
   fs: lib/fs.mq.md
   sys: lib/sys.mq.md
@@ -60,6 +61,12 @@ A framework is accepted as an exact artifact, not as an inferred intention. Reta
 
 这些约束都与真实方案一起保存。函数数量来自已认证用户选择，产物类型来自可审阅的规划；它们不从一段模型完成消息或执行动画推断。发表前统一核对，发表后暂停等待确切版本确认。任何一项不成立都保留草稿与诊断，不能把未完成的规划直接交给作者实现。
 
+确认前的工作副本只包含骨架，与原方案的函数逐一对应，不代表任何业务已经完成。人工确认仍绑定原始 plan 文稿。后续作者在 index 中填写分配的段落，不能重新定义框架或修改其他函数。每次重新规划都会产生新的代际，避免同名旧函数被悄悄当作新批准的实现。
+
+
+工作文稿中的函数身份和框架一致；并发数只控制同时填写几个函数，不改变已经批准的拆分。
+
+
 We **state = access(core.status(context=`context`),"value")**.
 1. access(`state`,"phase") != "outline" or json.get(value=`state`,key="pending")
   Return *result.error(code="root.stage",message="需要真实用户先确认意图",operation="outline")*.
@@ -93,7 +100,7 @@ We **document = "---\nmarkup: occlusion\ntitle: 求道基本方案\n---\n\n# 基
   We **unit = table.put(in=`unit`,at="status",value="pending")**.
   We **prepared = table.append(list=`prepared`,item=`unit`)**.
   We **document = `document` + scaffold(unit=`unit`)**.
-We **_ = fs.make_dirs(path="solution/units")**.
+We **_ = fs.make_dirs(path="solution")**.
 We **_ = fs.atomic_write(path="solution/plan.mq.md",text=`document`)**.
 
 `pending_view` =
@@ -114,7 +121,11 @@ We **outline_digest = hash.sha256(text=`document`)**.
 |---|---|---|---|---|---|
 | `prepared` | `title` | `goal` | `acceptance` | `outline_digest` | `pending_view` |
 
-Return *core.save(context=`context`,state=table.merge(a=`state`,b=`patch`))*.
+We **state = table.put(in=table.put(in=`state`,at="workbook",value=None),at="framework_epoch",value=access(`state`,"revision"))**.
+We **saved = core.save(context=`context`,state=table.merge(a=`state`,b=`patch`))**.
+1. not access(`saved`,"ok")
+  Return *saved*.
+Return *workbook.ensure(context=`context`)*.
 
 ## scaffold
 

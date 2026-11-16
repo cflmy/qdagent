@@ -194,6 +194,8 @@ An acceptance refers to one exact delivered source digest. A later edit cannot r
 
 历史交付缺少独立冻结记录时不可在新版直接接受。文稿与交流继续保留，用户通过返工重新确认边界，再生成当前协议的真实测试，不能通过一次升级追认原来的作者自检。
 
+Working functions now live in one shared document. Human acceptance checks each approved function's own canonical digest and then checks the complete delivery digest. Editing a neighbor during authoring does not invalidate an unrelated function, but changing any tested implementation or the final entry before acceptance still prevents completion. Historical separate files keep their original verification path until a resumed refinement migrates them. This compatibility does not approve an old author-supplied test suite or silently accept an altered manuscript. The authenticated user still decides acceptance after the actual executable entry and its evidence can be inspected.
+
 We **state = access(status(context=`context`),"value")**.
 We **pending_view = json.get(value=`state`,key="pending")**.
 1. access(`state`,"revision") != `revision`
@@ -220,8 +222,13 @@ We **phase = access(`state`,"phase")**.
     Return *result.error(code="root.legacy_review",message="该交付缺少当前独立测试证据，请先选择返工重新确认框架",operation="respond")*.
   We **units = access(`state`,"units")**.
   - [用户确认也绑定每份真实源码与正文版本](for units as unit)
-    1. not fs.exists(path=access(`unit`,"path")) or hash.sha256(text=fs.read_text(path=access(`unit`,"path"))) != access(`unit`,"sha256")
-      Return *result.error(code="root.delivery_changed",message="单元源码已变化，需要重新验证",operation="respond")*.
+    1. json.get(value=`unit`,key="function")
+      We **section = native(context=`context`,operation="root_section_read",payload=table.put(in=None,at="unit_id",value=access(`unit`,"id")))**.
+      1. not access(`section`,"ok") or access(access(`section`,"value"),"sha256") != access(`unit`,"sha256")
+        Return *result.error(code="root.delivery_changed",message="函数段已变化，需要重新验证",operation="respond")*.
+    2. else
+      1. not fs.exists(path=access(`unit`,"path")) or hash.sha256(text=fs.read_text(path=access(`unit`,"path"))) != access(`unit`,"sha256")
+        Return *result.error(code="root.delivery_changed",message="单元源码已变化，需要重新验证",operation="respond")*.
     We **artifact = json.get(value=`unit`,key="artifact")**.
     1. `artifact`
       1. not fs.exists(path=access(`artifact`,"path")) or hash.sha256(text=fs.read_text(path=access(`artifact`,"path"))) != access(`artifact`,"sha256")
@@ -386,14 +393,51 @@ Use `state`。
 
 这个判断保护最终用户入口，也用于等待消息的事实描述。它不重新执行代码，不生成案例，更不把一个字段改成 True 来迁移旧任务。已完成的历史记录继续保存，新协议的就绪仍由 proof 模块检查源码、规格与冻结版本。空单元列表不能证明存在交付，旧格式缺少必要字段也不能获得默认通过。
 
+来源规则升级后，含外部引用的旧文档还需要当前可读正文证据；保持旧的 passed 字段不能代替重新验证。无需外部来源的函数不因此丢失有效案例。
+
 We **units = access(`state`,"units")**.
 1. table.len(xs=`units`) == 0
   Return *False*.
 - [逐项核对当前测试证据](for units as unit)
   We **tests = json.get(value=`unit`,key="tests")**.
   We **trial = json.get(value=`unit`,key="trial")**.
+  1. not evidence_current(tests=`tests`,trial=`trial`)
+    Return *False*.
   1. not `tests` or not `trial` or not json.get(value=`trial`,key="passed") or (json.get(value=`trial`,key="assurance") != "independent_cases" and json.get(value=`trial`,key="assurance") != "independent_contract") or json.get(value=`trial`,key="suite_sha256") != json.get(value=`tests`,key="sha256")
     Return *False*.
+Return *True*.
+
+## evidence_current
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| tests | any | required | 已冻结的独立案例或文档规则 |
+| trial | any | required | 对应版本的实际试运行 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | bool | 来源验证规则是否仍然适用 |
+
+Use `tests`, `trial`。
+
+旧版本可能把空网页计作来源，所以要求实际引用的文档必须经过当前可读正文规则重新核验。已有通过字段不能覆盖这一版本差异。固定输入输出案例和不要求外部来源的文档不受这个来源版本升级影响；它们仍需各自完整的独立验证。此函数只检查规则身份，不读取作者内容、不补造测试结果，也不替用户批准。可信执行器可以重新运行原有独立规则，资料有效时继续复用，资料无效时保留未完成。
+
+Missing evidence is represented by a null value, not an empty record. Check the value shape before looking up fields so an unstarted function remains simply not ready. A legacy malformed receipt is rejected without throwing a parser error or preventing unrelated functions from being scheduled. Source-free exact cases still need a real frozen suite and trial before this version predicate can succeed.
+
+1. type(`tests`) != "map" or type(`trial`) != "map"
+  Return *False*.
+We **suite = json.get(value=`tests`,key="suite")**.
+1. type(`suite`) != "map"
+  Return *False*.
+1. json.get(value=`suite`,key="kind") == "document"
+  We **rules = json.get(value=`suite`,key="rules")**.
+  1. type(`rules`) != "map" or json.get(value=`rules`,key="minimum_sources") == None
+    Return *False*.
+  1. access(`rules`,"minimum_sources") > 0
+    We **contract = json.get(value=`trial`,key="contract")**.
+    1. type(`contract`) != "map"
+      Return *False*.
+    Return *(json.get(value=`contract`,key="evidence_version") == "readable-page-v1")*.
 Return *True*.
 
 ## settings_change

@@ -3,6 +3,7 @@
 use std::{fs,io::{Read,Write},path::{Path,PathBuf},process::{Command,Stdio},time::{Duration,Instant}};
 use serde_json::{json,Value};
 use sha2::{Digest,Sha256};
+#[path="workbook.rs"] mod workbook;
 
 fn digest(data:&[u8])->String {format!("{:x}",Sha256::digest(data))}
 fn workspace(v:&Value)->Result<PathBuf,String>{
@@ -13,7 +14,8 @@ fn source(root:&Path,rel:&str)->Result<PathBuf,String>{
  if rel.is_empty()||rel.starts_with('/')||rel.split('/').any(|p|p.is_empty()||p=="."||p=="..")||!rel.ends_with(".mq.md"){return Err("relative Marqdo source required".into())}
  let path=root.join(rel).canonicalize().map_err(|e|e.to_string())?;
  if !path.starts_with(root)||!path.is_file(){return Err("source escapes workspace".into())}
- if fs::metadata(&path).map_err(|e|e.to_string())?.len()>128*1024{return Err("source exceeds 128 KiB".into())}Ok(path)
+ let limit=if rel=="solution/index.mq.md"{1024*1024}else{128*1024};
+ if fs::metadata(&path).map_err(|e|e.to_string())?.len()>limit{return Err("source exceeds its document size bound".into())}Ok(path)
 }
 fn run(args:&[String],input:&str,cwd:&Path)->Result<Value,String>{
  let mut cmd=Command::new("marqdo");cmd.args(args).current_dir(cwd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -39,6 +41,7 @@ fn validate(root:&Path,path:&Path)->Result<Value,String>{
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
  let operation=v["operation"].as_str().unwrap_or("");
+ if matches!(operation,"root_workbook_init"|"root_section_read"|"root_section_write"){return workbook::dispatch(v)}
  if operation=="root_read"||operation=="root_cas"{
   let root=super::root(v)?;let _lock=super::lifecycle(&root)?;let path=root.join("data/dialogue/proj/root-skill.json");
   let mut state:Value=match fs::read_to_string(&path){Ok(raw)=>serde_json::from_str(&raw).map_err(|e|e.to_string())?,Err(e) if e.kind()==std::io::ErrorKind::NotFound=>json!({"revision":0}),Err(e)=>return Err(e.to_string())};

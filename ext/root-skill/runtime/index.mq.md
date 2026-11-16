@@ -2,6 +2,7 @@
 markup: occlusion
 title: 根状态机的真实执行入口
 import:
+  workbook: workbook.mq.md
   io: io.mq.md
   core: ../state.mq.md
   proof: ../proof.mq.md
@@ -90,7 +91,7 @@ Return *io.outcome(answer="当前阶段仍未完成，不能跳过所需程序�
 
 Use `context`。
 
-Execution proceeds in at most eight dependency waves because the approved framework contains at most eight units. Unrelated ready jobs still run concurrently under the user's limit. A failed research job blocks its downstream writer; it does not trigger a speculative article. The attempted set prevents repeated model spending on the same failed unit during one root invocation. A later explicit continuation can retry while preserving successful independent units.
+Development proceeds in at most eight material waves because the approved framework contains at most eight units. Runtime data dependencies do not serialize ordinary function authors; only genuine material requirements delay research and document authors. Unrelated ready jobs still run concurrently under the user's limit. A failed research job blocks its downstream writer; it does not trigger a speculative article. The attempted set prevents repeated model spending on the same failed unit during one root invocation. A later explicit continuation can retry while preserving successful independent units.
 
 父文稿先为每个单元冻结无执行语义的公开规格，再用标准库 subtask.run_many 按用户配置并行执行子文稿。作业文件只含可信调用与任务上下文，不放模型凭据。所有子进程继承取消范围；返回时重新核对每个单元的源码和独立测试摘要，不能仅凭零退出前进。
 
@@ -180,7 +181,13 @@ Use `context`, `attempted`=None。
 
 本函数只承担下文描述的局部责任。它不会替用户确认，不会替另一个角色修改文稿，也不会把源码检查、案例通过和业务验收混为一谈。调试时依据实际调用现场、源版本和运行结果继续处理；刷新页面或切换模型不能沿用已经失效的批准。需要增加能力时优先组合已有 Marqdo 函数，缺少的系统边界才通过 ABI 补齐。
 
-We **state = access(core.status(context=`context`),"value")**.
+每个作业绑定主文稿中的一个函数段，独立快照只用于受限试运行。父任务不会把职责拆成新的完整工程，也不会允许两个作者各自覆盖整份主方案。
+
+
+We **bound = workbook.ensure(context=`context`)**.
+1. not access(`bound`,"ok")
+  Return *bound*.
+We **state = access(`bound`,"value")**.
 We **units = access(`state`,"units")**.
 We **jobs = table.empty_list()**.
 We **_ = fs.make_dirs(path=".agent/root-jobs")**.
@@ -237,8 +244,11 @@ Return *path*.
 
 Use `context`, `state`, `item`。
 
-同一波只运行依赖已经通过验证的职责。研究和报告不是两个同时猜测材料的作者：研究失败时，依赖它的报告保持等待，不消耗模型请求，也不编造缺失资料。无依赖的职责仍可并行，所有依赖关系来自用户批准的框架，不能临时扩大。恢复后重新核对前置源码、正文与独立测试摘要；一个旧 ready 标签不能授权交接。失败职责在本次根运行不会无限重试，新的继续请求才开始新的有界尝试。
+运行依赖不等于开发顺序。普通代码、取值和固定正文函数可以依据各自公开输入返回契约并行填写，实际 run 仍按确认的依赖传值。只有研究与文章等必须取得实际资料的职责等待前置材料：研究和报告不是两个同时猜测材料的作者：研究失败时，依赖它的报告保持等待，不消耗模型请求，也不编造缺失资料。无依赖的职责仍可并行，所有依赖关系来自用户批准的框架，不能临时扩大。恢复后重新核对前置源码、正文与独立测试摘要；一个旧 ready 标签不能授权交接。失败职责在本次根运行不会无限重试，新的继续请求才开始新的有界尝试。
 
+We **mode = json.get(value=`item`,key="mode")**.
+1. `mode` != "research" and `mode` != "document"
+  Return *True*.
 We **dependencies = json.get(value=`item`,key="depends_on")**.
 - [每个前置单元必须仍有有效证据](for dependencies as dependency)
   We **prior = proof.unit(state=`state`,unit_id=`dependency`)**.

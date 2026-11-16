@@ -54,6 +54,8 @@ test('real local model follows the mandatory root skill and human gates',async({
  await expect(flow).toContainText('四阶段流程已完成');
  const taskId=await page.evaluate(()=>localStorage.getItem('qd.task.v4'));const state=await (await page.request.get(`/api/tasks/${taskId}/workflow`)).json();
  expect(state.workflow.phase).toBe('complete');expect(state.workflow.units.every((unit:any)=>unit.trial.passed)).toBe(true);
+ expect(state.workflow.units.every((unit:any)=>unit.path==='solution/index.mq.md'&&unit.function===`unit_${unit.id}`)).toBe(true);
+ const titled=await(await page.request.get(`/api/tasks/${taskId}`)).json();expect(titled.task.title).not.toBe('新任务');
 });
 
 test('uploaded Marqdo source uses official read-only View',async({page})=>{

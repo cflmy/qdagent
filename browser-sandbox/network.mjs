@@ -35,7 +35,7 @@ export async function fetchPinned(raw,options={}){
 // Chromium route handlers do not reliably intercept redirect continuations.
 // Resolve redirects here, rechecking and pinning every hop before any connection.
 export async function fetchPublic(raw,options={}){
- let current=raw;
+ let current=new URL(raw).href;
  for(let hop=0;hop<7;hop++){
   options.beforeRequest?.();
   const response=await fetchPinned(current,options);options.onResponse?.(response.body.length);

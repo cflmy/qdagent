@@ -30,6 +30,8 @@ This verifier observes output after actual execution. It never asks another mode
 
 这些检查能拒绝空正文、遗失正文、虚构来源和旧摘要，不能替代领域事实审核或证明文章完整回答了问题。用户最终仍需核对主题、论证和质量。独立规则在实现前冻结，此函数只确定性执行规则，不访问另一模型来重新评价或修改预期。来源列表只来自当前职责及仍有效的依赖，不扩大文件权限。
 
+来源检查带有可读正文规则的版本身份。旧版本的空页面证明不能因为仍保留 passed 字段而继续使用，必须用同一独立契约重新验证。
+
 We **tests = access(`trial`,"cases")**.
 We **first = table.at(xs=`tests`,i=0)**.
 We **content = access(access(`first`,"actual"),"result")**.
@@ -55,6 +57,7 @@ We **passed = access(`trial`,"passed") and `length_ok` and `sources_ok`**.
 | `passed` | `length_ok` | `sources_ok` | `cited` | "结构与可追溯来源检查，不等同于事实或主题审核；仍需用户审阅。" |
 
 We **contract = table.put(in=`contract`,at="rules",value=`rules`)**.
+We **contract = table.put(in=`contract`,at="evidence_version",value="readable-page-v1")**.
 We **contract = table.put(in=`contract`,at="observed_urls",value=`urls`)**.
 We **observed_chars = 0**.
 1. type(`content`) == "text"

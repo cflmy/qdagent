@@ -75,9 +75,14 @@ Use `context`, `model_id`="inherit", `limit`=6。
 
 当用户限定的职责数已满足，下一轮只给发表入口，避免反复定义同一个职责。这个限制由 scene 读取真实状态决定；模型即使重复输出原来的函数名，也会被当前公开文稿边界拒绝。发表仍然需要实际调用，阶段仍需用户确认，不能把接口收窄本身当成任务已经完成。
 
+Document research has more bounded steps than a fixed return. A query, a failed address, a second source and a final publication are separate calls. This role therefore has up to eighteen turns, while ordinary implementation keeps six and outline keeps twelve. The limit is still explicit and the process deadline still applies. Failed addresses have their own two-attempt network bound, so increasing the role budget does not authorize endless retries. Successful observations survive between turns and user continuations. A section that is already independently ready exits immediately; a partial section remains incomplete rather than receiving a fabricated result at the budget boundary.
+
+
 We **feedback = None**.
 1. access(`context`,"role") == "outline"
   We **limit = 12**.
+1. access(`context`,"role") == "implement" and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
+  We **limit = 18**.
 We **rounds = table.range(start=1,end=(`limit` + 1))**.
 - [在当前调用现场有界推进](for rounds as step)
   1. done(context=`context`)

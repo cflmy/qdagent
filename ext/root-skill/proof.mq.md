@@ -2,6 +2,7 @@
 markup: occlusion
 title: 独立测试的规格、冻结与验证
 import:
+  workbook: runtime/workbook.mq.md
   core: state.mq.md
   io: runtime/io.mq.md
   fs: lib/fs.mq.md
@@ -208,12 +209,28 @@ Use `context`, `item`。
 
 本函数只承担下文描述的局部责任。它不会替用户确认，不会替另一个角色修改文稿，也不会把源码检查、案例通过和业务验收混为一谈。调试时依据实际调用现场、源版本和运行结果继续处理；刷新页面或切换模型不能沿用已经失效的批准。需要增加能力时优先组合已有 Marqdo 函数，缺少的系统边界才通过 ABI 补齐。
 
+就绪检查读取当前主文稿里的那个函数段。并行作者修改其他段不改变本段摘要，也不会让已经通过的案例重新消耗模型请求。只有自己的实际函数、共享导入、正文依据或独立规则发生变化，才失去已有证据。状态中的 fragment 是缓存，不能覆盖真实文件的观察。
+
+
+核验只读取实际文件，不执行其他函数，也不将其他作者的上下文交给测试者。当前实现缺失或无法定位时明确保留未就绪。
+
+
+来源规则升级会使旧的文档来源证明失效。重新验证仍使用已冻结契约，不把空快照伪装为重新读取成功，也不影响无需外部来源的固定值函数。
+
 We **trial = json.get(value=`item`,key="trial")**.
 We **tests = json.get(value=`item`,key="tests")**.
+1. not core.evidence_current(tests=`tests`,trial=`trial`)
+  Return *False*.
+
 1. not `tests` or not `trial` or json.get(value=`item`,key="status") != "ready" or not access(`trial`,"passed") or json.get(value=`trial`,key="sha256") != json.get(value=`item`,key="sha256") or json.get(value=`trial`,key="suite_sha256") != access(`tests`,"sha256")
   Return *False*.
-1. not fs.exists(path=access(`item`,"path")) or hash.sha256(text=fs.read_text(path=access(`item`,"path"))) != access(`item`,"sha256")
-  Return *False*.
+1. json.get(value=`item`,key="function")
+  We **section = workbook.read(context=`context`)**.
+  1. not access(`section`,"ok") or access(access(`section`,"value"),"sha256") != access(`item`,"sha256")
+    Return *False*.
+2. else
+  1. not fs.exists(path=access(`item`,"path")) or hash.sha256(text=fs.read_text(path=access(`item`,"path"))) != access(`item`,"sha256")
+    Return *False*.
 We **artifact = json.get(value=`item`,key="artifact")**.
 1. `artifact`
   1. not fs.exists(path=access(`artifact`,"path")) or hash.sha256(text=fs.read_text(path=access(`artifact`,"path"))) != access(`artifact`,"sha256")

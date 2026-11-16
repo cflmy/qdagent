@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const token=fs.readFileSync(process.env.BROWSER_KEY_FILE,'utf8').trim();
 async function open(url){return (await fetch('http://127.0.0.1:7318/open',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({url})})).json()}
+test('empty and verification pages cannot become successful observations',async()=>{
+ for(const route of ['empty','challenge']){const page=await open('http://127.0.0.1:7431/'+route);assert.equal(page.ok,false);assert.match(page.message,/readable article body|verification screen/)}
+});
 test('browser requires authentication and keeps Chromium namespace sandbox',async()=>{
  assert.equal((await fetch('http://127.0.0.1:7318/open',{method:'POST',body:'{}'})).status,401);
  const health=await(await fetch('http://127.0.0.1:7318/healthz')).json();assert.equal(health.sandbox,'chromium-user-namespace');assert.equal(health.ok,true);
