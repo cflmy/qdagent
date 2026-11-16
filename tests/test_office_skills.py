@@ -31,10 +31,11 @@ class OfficeSkillsTests(unittest.TestCase):
   for kind,doc,part in [('docx','word','chapter'),('pptx','presentation','slide')]:
    with self.subTest(kind=kind):
     first=self.create(kind,original);path=self.work/first['path'];digest=hashlib.sha256(path.read_bytes()).hexdigest()
-    revised=self.invoke(f'ext/office/{doc}.mq.md','replace_'+part,id=first['id'],index=0,heading='修订部分',body='新的正文，保留原文件。',context=self.context);self.assertTrue(revised['ok'],revised)
+    baseline=self.invoke('ext/office/index.mq.md','inspect',id=first['id'],context=self.context)['value']['sections']
+    revised=self.invoke(f'ext/office/{doc}.mq.md','replace_'+part,id=first['id'],index=0,heading='修订部分',body='新的正文已经更新，原文件仍然保持不变。',context=self.context);self.assertTrue(revised['ok'],revised)
     new=revised['value'];self.assertNotEqual(new['id'],first['id']);self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),digest)
-    inspected=self.invoke('ext/office/index.mq.md','inspect',id=new['id'],context=self.context);self.assertEqual(inspected['value']['sections'][1],original[1]);self.assertEqual(inspected['value']['sections'][0]['body'],'新的正文，保留原文件。')
-    added=self.invoke(f'ext/office/{doc}.mq.md','insert_'+part,id=new['id'],index=2,heading='附加部分',body='实际追加的正文。',context=self.context);self.assertTrue(added['ok'],added)
+    inspected=self.invoke('ext/office/index.mq.md','inspect',id=new['id'],context=self.context);self.assertEqual(inspected['value']['sections'][1],baseline[1]);self.assertEqual(inspected['value']['sections'][0]['body'],'新的正文已经更新，原文件仍然保持不变。')
+    added=self.invoke(f'ext/office/{doc}.mq.md','insert_'+part,id=new['id'],index=2,heading='附加部分',body='实际追加的正文，用于核对本次真实修订。',context=self.context);self.assertTrue(added['ok'],added)
     removed=self.invoke(f'ext/office/{doc}.mq.md','remove_'+part,id=added['value']['id'],index=0,context=self.context);self.assertTrue(removed['ok'],removed)
     final=self.invoke('ext/office/index.mq.md','inspect',id=removed['value']['id'],context=self.context);self.assertEqual([s['heading'] for s in final['value']['sections']],['保留部分','附加部分'])
     before=len(json.loads((self.work/'.agent/artifacts.json').read_text()));bad=self.invoke(f'ext/office/{doc}.mq.md','remove_'+part,id=new['id'],index=12,context=self.context);self.assertFalse(bad['ok']);self.assertEqual(before,len(json.loads((self.work/'.agent/artifacts.json').read_text())))

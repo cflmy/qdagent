@@ -1,6 +1,6 @@
 [package]
 name = "qdagent-transport"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 publish = false
 
@@ -20,3 +20,4 @@ sha2 = "0.10"
 marqdo = { path = "../../../../marqdo", default-features = false }
 zip = { version = "=0.6.6", default-features = false, features = ["deflate"] }
 quick-xml = "=0.38.3"
+png = "=0.17.16"

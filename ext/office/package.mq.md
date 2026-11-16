@@ -2,6 +2,10 @@
 markup: occlusion
 title: 办公产物：可读源稿、真实文件与内容核验
 import:
+  validation: layouts/validate.mq.md
+  ppt_layout: layouts/presentation.mq.md
+  ppt_render: layouts/render_presentation.mq.md
+  word_render: layouts/render_word.mq.md
   records: records.mq.md
   fs: lib/fs.mq.md
   archive: lib/archive.mq.md
@@ -63,7 +67,7 @@ Return *[原子写入包内真实部件](fs.atomic_write(path=(`root` + "/" + `p
 |---|---|---|
 | result | any | Result，已登记的真实产物和源稿 |
 
-Use `kind`, `title`, `sections`, `templates` and `render_pdf`=False。这是工作根内的生成入口，模板由工程控制器注入，模型不能替换 XML 模板。报告和演示接收同一种简单的标题正文结构；演示先生成封面，再把每个 section 变成一页。此版本适合阅读清楚的文字汇报，不承诺复杂表格、图片、公式或自动分页效果。
+Use `kind`, `title`, `sections`, `templates` and `render_pdf`=False。这是工作根内的生成入口，模板由工程控制器注入，模型不能替换 XML 模板。报告和演示接收同一种简单的标题正文结构；演示先生成封面，再把每个 section 变成一页。内置布局支持实际文字、双栏、引文与静态 PNG 图文，先校验整份请求再写入；不承诺复杂表格、任意图片格式或公式。
 
 A document is not a string with an office extension. The package contains content types and relationship parts, and each internal target is generated from a fixed path. A presentation includes a slide master, blank layout, theme, presentation metadata and individual slide relationships. The editable text lives in real WordprocessingML or DrawingML text nodes. Content is escaped before substitution. User prose cannot add a relationship, execute code or choose a server path.
 
@@ -81,20 +85,10 @@ A successful return includes paths relative to the task workspace. Use those pat
 
 生成完成后还保存结构源稿，并把真实摘要写入当前版本登记。后续局部编辑只读取与二进制和 Markdown 都一致的源稿，不根据相同标题猜测版本。新文件不覆盖旧文件，生成失败的目录也不会被当成已经核对的交付。
 
-1. `kind` != "docx" and `kind` != "pptx"
-  Return *[只接受真实支持格式](result.error(code="office.kind",message=`kind`,operation="generate"))*.
-1. table.len(xs=`sections`) < 1 or table.len(xs=`sections`) > 20 or table.len(xs=`title`) > 100 or `title` == ""
-  Return *[限制有界文稿](result.error(code="office.input",message="一至二十节，标题一至一百字符",operation="generate"))*.
-1. re.is_match(text=`title`,pattern="[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x{FFFE}\\x{FFFF}]")
-  Return *[XML 文字不能含非法控制字符](result.error(code="office.xml_text",message="标题含不支持字符",operation="generate"))*.
-- [先验证整份输入再写文件](for sections as section)
-  We **heading = json.get(value=`section`,key="heading")** and **body = json.get(value=`section`,key="body")**.
-  1. not `heading` or not `body` or table.len(xs=`heading`) > 100 or table.len(xs=`body`) > 10000
-    Return *[每节需要有界标题正文](result.error(code="office.section",message="heading 与 body 必填",operation="generate"))*.
-  1. re.is_match(text=(`heading` + `body`),pattern="[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x{FFFE}\\x{FFFF}]")
-    Return *[XML 非法控制字符明确失败](result.error(code="office.xml_text",message="章节含不支持字符",operation="generate"))*.
-  1. `kind` == "pptx" and (table.len(xs=`body`) > 700 or table.len(xs=text.str_split(s=`body`,sep="\n")) > 8)
-    Return *[先拆分长幻灯片](result.error(code="office.slide_large",message="单页最多八行、七百字符，请拆页",operation="generate"))*.
+We **prepared = [写入前校验全部版式与真实图片](validation.preflight(kind=`kind`,title=`title`,sections=`sections`))**.
+1. not access(`prepared`,"ok")
+  Return *prepared*.
+We **sections = access(`prepared`,"value")**.
 We **id = [新版本的真实身份](uuid.v4())**.
 We **directory = "artifacts/" + `id`**.
 We **root = `directory` + "/package"**.
@@ -105,26 +99,29 @@ We **title_xml = escape(value=`title`)**.
 We **title_para = text.replace(text=access(`templates`,"paragraph"),old="{{style}}",new="<w:pPr><w:pStyle w:val=\"Title\"/></w:pPr>")**.
 We **content = text.replace(text=`title_para`,old="{{text}}",new=`title_xml`)**.
 We **slides = table.empty_list()**.
-We **cover = table.put(in=None,at="heading",value=`title`)**.
-We **cover = table.put(in=`cover`,at="body",value="求道 · 可编辑演示文稿")**.
+We **cover = ppt_layout.cover(heading=`title`,body="求道 · 可编辑演示文稿")**.
 We **slides = table.append(list=`slides`,item=`cover`)**.
+We **word_rels = ""** and **section_number = 0**.
 - [正文与源稿同时组装](for sections as section)
   We **heading = access(`section`,"heading")** and **body = access(`section`,"body")**.
   We **source = `source` + "## " + `heading` + "\n\n" + `body` + "\n\n"**.
   We **slides = table.append(list=`slides`,item=`section`)**.
-  We **paragraph = text.replace(text=access(`templates`,"paragraph"),old="{{style}}",new="<w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr>")**.
-  We **content = `content` + text.replace(text=`paragraph`,old="{{text}}",new=escape(value=`heading`))**.
-  We **lines = text.str_split(s=`body`,sep="\n")**.
-  - [换行形成真实段落](for lines as line)
-    We **paragraph = text.replace(text=access(`templates`,"paragraph"),old="{{style}}",new="")**.
-    We **content = `content` + text.replace(text=`paragraph`,old="{{text}}",new=escape(value=`line`))**.
+  We **section_number = `section_number` + 1**.
+  1. json.get(value=`section`,key="image") != None
+    We **source = `source` + "图片原件：" + access(`section`,"image") + "；具体说明见结构源稿与实际文件。\n\n"**.
+  1. `kind` == "docx"
+    We **rendered = word_render.section(root=`root`,section=`section`,number=str(`section_number`),templates=`templates`)**.
+    1. not access(`rendered`,"ok")
+      Return *rendered*.
+    We **content = `content` + access(access(`rendered`,"value"),"xml")**.
+    We **word_rels = `word_rels` + access(access(`rendered`,"value"),"relationships")**.
 We **_ = [保留可读可改的源稿](fs.atomic_write(path=(`directory` + "/source.md"),text=`source`))**.
 We **_ = [准备关系目录](fs.make_dirs(path=(`root` + "/_rels")))**.
 1. `kind` == "docx"
   We **_ = [准备 Word 部件目录](fs.make_dirs(path=(`root` + "/word/_rels")))**.
   We **_ = part(root=`root`,path="[Content_Types].xml",body=access(`templates`,"docx_types"))**.
   We **_ = part(root=`root`,path="_rels/.rels",body=access(`templates`,"docx_root"))**.
-  We **_ = part(root=`root`,path="word/_rels/document.xml.rels",body=access(`templates`,"docx_rels"))**.
+  We **_ = part(root=`root`,path="word/_rels/document.xml.rels",body=text.replace(text=access(`templates`,"docx_rels"),old="</Relationships>",new=(`word_rels` + "</Relationships>")))**.
   We **_ = part(root=`root`,path="word/styles.xml",body=access(`templates`,"docx_styles"))**.
   We **_ = part(root=`root`,path="word/document.xml",body=text.replace(text=access(`templates`,"docx_document"),old="{{content}}",new=`content`))**.
 1. `kind` == "pptx"
@@ -194,13 +191,11 @@ We **types = ""** and **ids = ""** and **rels = ""** and **n = 0**.
   We **types = `types` + "<Override PartName=\"/ppt/slides/slide" + `number` + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slide+xml\"/>"**.
   We **ids = `ids` + "<p:sldId id=\"" + `sid` + "\" r:id=\"rId" + `relation` + "\"/>"**.
   We **rels = `rels` + "<Relationship Id=\"rId" + `relation` + "\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide\" Target=\"slides/slide" + `number` + ".xml\"/>"**.
-  We **body = ""** and **lines = text.str_split(s=access(`slide`,"body"),sep="\n")**.
-  - [正文一行一个可编辑段落](for lines as line)
-    We **body = `body` + text.replace(text=access(`templates`,"slide_paragraph"),old="{{text}}",new=escape(value=`line`))**.
-  We **xml = text.replace(text=access(`templates`,"slide"),old="{{body}}",new=`body`)**.
-  We **xml = text.replace(text=`xml`,old="{{title}}",new=escape(value=access(`slide`,"heading")))**.
-  We **_ = part(root=`root`,path=("ppt/slides/slide" + `number` + ".xml"),body=`xml`)**.
-  We **_ = part(root=`root`,path=("ppt/slides/_rels/slide" + `number` + ".xml.rels"),body=access(`templates`,"slide_rels"))**.
+  We **rendered = ppt_render.slide(root=`root`,section=`slide`,number=`number`,templates=`templates`)**.
+  1. not access(`rendered`,"ok")
+    Return *rendered*.
+  We **_ = part(root=`root`,path=("ppt/slides/slide" + `number` + ".xml"),body=access(access(`rendered`,"value"),"xml"))**.
+  We **_ = part(root=`root`,path=("ppt/slides/_rels/slide" + `number` + ".xml.rels"),body=access(access(`rendered`,"value"),"relationships"))**.
 We **_ = part(root=`root`,path="[Content_Types].xml",body=text.replace(text=access(`templates`,"pptx_types"),old="{{slides}}",new=`types`))**.
 We **_ = part(root=`root`,path="_rels/.rels",body=access(`templates`,"pptx_root"))**.
 We **_ = part(root=`root`,path="ppt/presentation.xml",body=text.replace(text=access(`templates`,"presentation"),old="{{slides}}",new=`ids`))**.

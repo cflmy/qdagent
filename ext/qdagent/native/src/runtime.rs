@@ -3,6 +3,7 @@ use std::{collections::HashSet,fs,io::{BufRead,BufReader,Read,Write},path::{Path
 use marqdo::ast::{Arg,Expr,Stmt};
 #[path="call_preflight.rs"] mod call_preflight;
 #[path="office_read.rs"] mod office_read;
+#[path="office_image.rs"] mod office_image;
 use serde_json::{json,Value};
 use sha2::{Digest,Sha256};
 fn digest(raw:&[u8])->String{format!("{:x}",Sha256::digest(raw))}
@@ -181,6 +182,7 @@ fn model(v:&Value)->Result<Value,String>{
 pub fn dispatch(v:&Value)->Result<Value,String>{
  match v["operation"].as_str().unwrap_or(""){
   "runtime_office_read"=>office_read::read(v),
+  "runtime_office_image"=>office_image::inspect(v),
   "runtime_search"|"runtime_ocr_submit"|"runtime_ocr_poll"=>{
    let c=context(v)?;private_request(c)?;
    if !matches!(c["role"].as_str(),Some("implement"|"research"|"outline"|"intent")){return Err("service is outside this role's context".into())}

@@ -27,6 +27,8 @@ import:
 | 读取上传原件 | read.mq.md 的 read | 只读提取文字，next_offset 不为空时继续读取 |
 | 主方案办公交付 | 根交付文稿的 assemble | 从已验证函数段组装，之后 finish，最后等待用户审阅 |
 
+布局与内容预算见 layouts/index.mq.md；每种布局都是实际函数，普通输入也在写入前分配到真实布局并校验。
+
 结构修订不等于任意外来文档无损编辑。已有文件没有本插件的结构快照时，只能先读取真实文字并明确重建；图片、复杂表格、图表、演讲备注和原始版式不在当前文字模板保证中。PDF 只对本次可信模板生成的包排版，不能把用户上传的未知包直接送给 Office 引擎。详细规范见 docs/office-skills.mq.md。
 
 Return *"Word 与 PPT 分别使用各自的创建和修订文稿；上传读取与真实办公交付保持各自权限及验证。"*.
@@ -68,7 +70,7 @@ We **templates = [读取固定声明模板](fs.read_json(path="ext/office/templa
 |---|---|---|---|---|
 | `kind` | `title` | `sections` | `templates` | `render_pdf` |
 
-Return *[在狭窄任务根生成真实文件](call.invoke(file=(access(`context`,"project") + "/ext/office/package.mq.md"),function="generate",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec"))*.
+Return *[在狭窄任务根生成真实文件](call.invoke(file=(access(`context`,"project") + "/ext/office/package.mq.md"),function="generate",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec,environment.read"))*.
 
 ## inspect
 
@@ -123,7 +125,7 @@ We **args = table.put(in=`args`,at="body",value=`body`)**.
 We **args = table.put(in=`args`,at="action",value="replace")**.
 We **args = table.put(in=`args`,at="templates",value=`templates`)**.
 We **args = table.put(in=`args`,at="render_pdf",value=`render_pdf`)**.
-Return *[在受限根生成修订版本](call.invoke(file=(access(`context`,"project") + "/ext/office/edit.mq.md"),function="change",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec"))*.
+Return *[在受限根生成修订版本](call.invoke(file=(access(`context`,"project") + "/ext/office/edit.mq.md"),function="change",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec,environment.read"))*.
 
 ## insert_section
 
@@ -156,7 +158,7 @@ We **args = table.put(in=`args`,at="body",value=`body`)**.
 We **args = table.put(in=`args`,at="action",value="insert")**.
 We **args = table.put(in=`args`,at="templates",value=`templates`)**.
 We **args = table.put(in=`args`,at="render_pdf",value=`render_pdf`)**.
-Return *[在受限根生成修订版本](call.invoke(file=(access(`context`,"project") + "/ext/office/edit.mq.md"),function="change",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec"))*.
+Return *[在受限根生成修订版本](call.invoke(file=(access(`context`,"project") + "/ext/office/edit.mq.md"),function="change",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec,environment.read"))*.
 
 ## remove_section
 
@@ -187,4 +189,37 @@ We **args = table.put(in=`args`,at="body",value="")**.
 We **args = table.put(in=`args`,at="action",value="remove")**.
 We **args = table.put(in=`args`,at="templates",value=`templates`)**.
 We **args = table.put(in=`args`,at="render_pdf",value=`render_pdf`)**.
-Return *[在受限根生成修订版本](call.invoke(file=(access(`context`,"project") + "/ext/office/edit.mq.md"),function="change",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec"))*.
+Return *[在受限根生成修订版本](call.invoke(file=(access(`context`,"project") + "/ext/office/edit.mq.md"),function="change",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec,environment.read"))*.
+
+## replace_layout
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| id | text | required | 已有真实办公版本 |
+| index | number | required | 从零开始的内容块位置 |
+| section | map | required | 调用实际布局函数得到的完整记录 |
+| context | map | required | 可信执行器注入的任务上下文 |
+| render_pdf | bool | False | 是否同时生成新版本 PDF |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 新的真实版本，或明确失败 |
+
+Use `id`, `index`, `section`, `context`, `render_pdf`=False。
+
+双栏、引文和图文有各自的字段，不能只改一个派生 body 而让实际页面保留旧栏内容。本函数接收布局函数生成的完整记录，沿用真实旧版本中其他内容。创建新版本前仍核对全部内容块、图片和摘要，不会因来自修订入口而跳过布局检查；原版本始终保留。
+
+调用者不能选择模板或动作字符串，源稿和图片也不是 XML 片段。这里固定执行当前章或页的完整替换，文件根来自可信上下文。位置无效、格式不符或预算失败都不登记新交付，错误保留具体布局和字段。普通文字块仍可用原先的 replace_section，但派生字段不一致时应使用本函数重新构造完整布局。
+
+A complete layout record preserves the relationship between visual fields and readable source. A comparison is not two arbitrary strings plus an unrelated body, and a picture is not an unverified path. The renderer receives the canonical result of the shared constructor and whole-request preflight. This replacement creates a new artifact identity and retains every untouched section. It never overwrites the original binary or accepts a model-supplied XML template. The caller should inspect the new version and its actual rendered output before final review.
+
+We **templates = fs.read_json(path="ext/office/templates.json")**.
+We **args = table.put(in=None,at="id",value=`id`)**.
+We **args = table.put(in=`args`,at="index",value=`index`)**.
+We **args = table.put(in=`args`,at="heading",value="")**.
+We **args = table.put(in=`args`,at="body",value="")**.
+We **args = table.put(in=`args`,at="action",value="replace")**.
+We **args = table.put(in=`args`,at="replacement",value=`section`)**.
+We **args = table.put(in=`args`,at="templates",value=`templates`)**.
+We **args = table.put(in=`args`,at="render_pdf",value=`render_pdf`)**.
+Return *call.invoke(file=(access(`context`,"project") + "/ext/office/edit.mq.md"),function="change",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec,environment.read")*.

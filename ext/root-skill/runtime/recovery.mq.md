@@ -239,6 +239,12 @@ Use `observed`。
 
 错误消息只决定推荐阅读哪个修复章节，没有任何分支会启动浏览器、写文件或调用模型。章节返回文字后仍由根程序构造本角色上下文，再由模型产生新的普通调用文稿。新文稿依然经过完整预检，不能借用修复过程绕过原来的效果限制。
 
+办公布局的诊断直接关联到当前字段与实际模板，不能和网络重试混为一谈。文字预算、派生正文、图片尺寸或比例失败都需要修订内容或选择合适版式，不会因为换一次模型请求而变合法。实际约束仍在对应布局函数中，分类只交接可读修复方法，不维护另一份参数表。
+
+版式字段的具体数值应从本轮函数表读取，不能从历史经验复制旧上限。模板升级后仍需要真实预检与排版，过去一次成功不能替当前版本作证。
+
+1. text.contains(text=`observed`,sub="office.layout") or text.contains(text=`observed`,sub="office.image") or text.contains(text=`observed`,sub="PNG")
+  Return *"office_layout"*.
 1. text.contains(text=`observed`,sub="unknown_arg") or text.contains(text=`observed`,sub="duplicate_arg")
   Return *"arguments"*.
 1. text.contains(text=`observed`,sub="missing_arg") or text.contains(text=`observed`,sub="arg_mismatch")

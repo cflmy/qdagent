@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-office-skills-0.12.0"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-layout-contracts-0.13.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
