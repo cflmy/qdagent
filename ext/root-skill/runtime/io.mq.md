@@ -125,7 +125,12 @@ Use `context`, `api`, `body`, `step`。
 We **source = "---\nmarkup: occlusion\nimport:\n  api: " + `api` + "\n---\n\n## act\n\n本次调用由根文稿提供有限接口，模型只填写本阶段的业务参数。身份、权限和下一步来自真实调用现场，结果必须通过后续程序验证。\n\n" + unfence(source=`body`) + "\n"**.
 We **args = table.put(in=None,at="api",value=`api`)**.
 We **args = table.put(in=`args`,at="source",value=`source`)**.
+We **checked = preflight(context=`context`,args=`args`,step=`step`)**.
+1. not access(`checked`,"ok")
+  Return *checked*.
+We **args = table.put(in=`args`,at="api_sha256",value=access(access(`checked`,"value"),"api_sha256"))**.
 Return *native(context=`context`,operation="runtime_execute",payload=table.put(in=`args`,at="step",value=`step`))*.
+
 
 ## require
 
@@ -149,7 +154,7 @@ Use `context`, `id`。
 We **args = table.put(in=None,at="principal",value=access(`context`,"owner"))**.
 Return *call.invoke(file=(access(`context`,"project") + "/pages/control/plugins.mq.md"),function="require",arguments=table.put(in=`args`,at="id",value=`id`),root=access(`context`,"project"),effects="plugin,fs.read,fs.write,environment.read")*.
 
-## model
+## model_once
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -158,18 +163,21 @@ Return *call.invoke(file=(access(`context`,"project") + "/pages/control/plugins.
 | sources | list | required | 所有指令来源文稿 |
 | model_id | text | "inherit" | 宿主已经授权的模型身份 |
 | step | number | required | 本阶段轮次 |
+| attempt | number | 1 | 当前模型请求的实际尝试次数 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | 模型真实返回的 Marqdo 源文本 |
 
-Use `context`, `messages`, `sources`, `model_id`="inherit", `step`。
+Use `context`, `messages`, `sources`, `model_id`="inherit", `step`, `attempt`=1。
 
 网络层原样发送这里的消息，不附加工具 Schema、角色说明或修复指令。上下文按调用现场组织；每个指令来源保存源码摘要，实际发送的上下文包单独记录，便于用户查看模型究竟知道什么。模型密钥只在 ABI 的私有传输中解析，不进入文稿和消息。
 
 这份文稿是此操作的唯一行为说明和可执行实现。参数表与返回表放在标题下面，调用者应先确认输入来自哪里，再读取实际返回；一个说明句或模型声称成功都不是执行证据。身份和文件根只从宿主可信上下文取得，用户材料和模型输出只作为数据，不能选择更大的权限。失败保留明确诊断，不另写一个猜测结果替代真实操作。
 
 本函数只承担下文描述的局部责任。它不会替用户确认，不会替另一个角色修改文稿，也不会把源码检查、案例通过和业务验收混为一谈。调试时依据实际调用现场、源版本和运行结果继续处理；刷新页面或切换模型不能沿用已经失效的批准。需要增加能力时优先组合已有 Marqdo 函数，缺少的系统边界才通过 ABI 补齐。
+
+同一业务轮次可以有两次网络尝试，attempt 仅标记传输事实，不改变角色、接口、模型身份或权限。每次尝试保存单独的来源和请求审计，失败不会覆盖前一次记录，也不把已经返回过的半段文字当成可执行结果。只有完整模型返回才交后续校验。
 
 We **permission = require(context=`context`,id="ai")**.
 1. not access(`permission`,"ok")
@@ -181,6 +189,7 @@ We **args = table.put(in=None,at="messages",value=`messages`)**.
 We **args = table.put(in=`args`,at="sources",value=`sources`)**.
 We **args = table.put(in=`args`,at="model_id",value=`model_id`)**.
 We **args = table.put(in=`args`,at="step",value=`step`)**.
+We **args = table.put(in=`args`,at="attempt",value=`attempt`)**.
 We **args = table.put(in=`args`,at="max_context_bytes",value=65536)**.
 Return *native(context=`context`,operation="runtime_model",payload=table.put(in=`args`,at="title",value=("执行文稿 · " + access(`context`,"role"))))*.
 
@@ -264,3 +273,132 @@ Use `answer`, `status`。
 | `answer` | `status` |
 
 Return *value*.
+
+
+## call_identity
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| context | map | 宿主给出的角色与函数段 |
+| step | number | 当前模型轮次 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 校验与执行共用的真实调用身份 |
+
+Use `context`, `step`。
+
+同一段测试与实现可以各有第一轮，不能仅用轮次把它们合成一条事件。调用身份同时包含函数段、角色与轮次，父任务的身份由固定名称表示。子任务保留自己的分组身份，call_id 则精确定位到这一次调用，前端可以把校验、参数、执行和恢复放在同一处阅读。
+
+身份不是模型参数，也不包含认证凭据。模型不能换一个身份获得另一个角色的文件，校验事件只说明已经开始检查，不能代替实际执行与退出证据。这里不生成工具名、不选择 SKILL，不推断调用已经成功。网页断线后按持久化事件恢复，同一身份的各个实际阶段仍能对应起来。
+
+例如，同一函数段的独立测试第一轮和实现第一轮会得到不同的调用身份，模型请求另以尝试次数区分。页面刷新只重放已有事件，不能生成新的调用；用户手动收起详情也不会改变后台的执行顺序。身份用于关联审计，而不是授予读写范围。
+
+We **unit = json.get(value=`context`,key="unit_id")**.
+1. not `unit`
+  We **unit = "root"**.
+We **id = `unit` + "-" + access(`context`,"role") + "-" + json.stringify(value=`step`)**.
+We **data = table.put(in=None,at="id",value=`id`)**.
+1. json.get(value=`context`,key="unit_id")
+  We **data = table.put(in=`data`,at="id",value=`unit`)**.
+We **data = table.put(in=`data`,at="call_id",value=`id`)**.
+We **data = table.put(in=`data`,at="role",value=access(`context`,"role"))**.
+Return *table.put(in=`data`,at="step",value=`step`)*.
+
+## preflight
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| context | map | 当前可信调用现场 |
+| args | map | 实际 API 文稿与待执行源码 |
+| step | number | 当前轮次 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 官方解析和外部参数绑定结果，失败时不启动工具 |
+
+Use `context`, `args`, `step`。
+
+先检查整份调用文稿，再开始任何实际操作。函数、参数和类型来自当前文稿的官方解析结果，外部参数绑定器核对未知名称、重复名称、必填项和已知值类型，不另建 JSON 工具 Schema。声明的默认值不在预检时执行，嵌套工具也不会被提前调用，避免为了检查参数产生一次真实副作用。
+
+有些参数来自另一次函数返回，预检只能确认它的调用范围与参数结构，不能假装已经取得实际返回。事件明确记录这种运行时才能确定的值；真正执行时仍由 Marqdo 按实际契约复核。静态检查通过不表示业务成功，源码、试运行与用户验收继续拥有各自门禁。
+
+校验失败返回原始诊断并标明 validation_failed。模型可以依据错误修订同一职责，原调用不会进入执行阶段，用户也能看见失败发生在参数或语法检查。通过时保留接口源码摘要，执行前再次核对，不能校验一份文稿却执行另一版。安装包只读并不替代这项版本联系。
+
+用户看到检查通过后仍应等待工具的实际返回。如果第二个调用的参数已经确定有误，即使第一个调用本来合法，也不会先执行第一个再报告错误。这能避免半份请求提前写入文件。对于调用结果才能决定的值，页面说明延迟复核，不能将结构检查包装成业务保证。
+
+校验事件包括当前真实函数名和可静态确认的参数，用户可以直接对照文稿阅读。这里没有让模型选择另一个操作身份，也不会仅凭模型文字中的“检查通过”放行。失败候选保留在私有审计目录，便于定位；普通界面展示必要源码片段与诊断，不广播整份私有模型请求。
+
+We **data = call_identity(context=`context`,step=`step`)**.
+We **prefix = ""**.
+1. json.get(value=`context`,key="unit_id")
+  We **prefix = "child_"**.
+We **_ = event(context=`context`,kind=(`prefix` + "call_check"),data=`data`)**.
+We **checked = native(context=`context`,operation="runtime_validate",payload=table.put(in=`args`,at="step",value=`step`))**.
+1. not access(`checked`,"ok")
+  We **_ = event(context=`context`,kind=(`prefix` + "call_rejected"),data=table.put(in=table.put(in=`data`,at="source",value=access(`args`,"source")),at="result",value=`checked`))**.
+  Return *table.put(in=`checked`,at="validation_failed",value=True)*.
+We **_ = event(context=`context`,kind=(`prefix` + "call_checked"),data=table.put(in=table.put(in=`data`,at="status",value="succeeded"),at="validation",value=access(`checked`,"value")))**.
+Return *checked*.
+
+
+## model
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | required | 可信调用现场 |
+| messages | list | required | 文稿生成的本轮消息 |
+| sources | list | required | 实际指令来源 |
+| model_id | text | "inherit" | 已由宿主授权的模型 |
+| step | number | required | 当前业务轮次 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 完整模型返回，或保留真实错误 |
+
+Use `context`, `messages`, `sources`, `model_id`="inherit", `step`。
+
+仅对暂时的模型网络错误做至多两次请求，间隔半秒，不重放工具。模型生成发生在源码检查与实际执行之前，因此这次重试不会重新写文件、再次提交 OCR 或重复调用外部业务。需要修改参数、语法或实现的错误仍交给当前角色依据诊断修订，不靠网络重试掩盖。
+
+鉴权失败、未知模型、来源缺失和上下文超预算不会通过换凭据、切模型或解除限制重试。暂时失败只包括已报告的限流、网关、超时和连接错误；两次之后仍失败就保留错误，等待明确继续。实际模型身份和原消息保持一致，用户配置不会被悄悄替换。
+
+重试事件对用户可见，包含原轮次、尝试次数与真实原因。新尝试拥有独立模型事件身份和审计文件，之前的半段输出仍可核对，但不会拼入新候选源码。取消仍由宿主进程组传播，等待是有上限的系统 I/O，不会产生无限循环。请求成功也不证明调用文稿正确，后续官方参数检查、独立验证和人工验收继续执行。
+
+We **attempts = table.range(start=1,end=3)**.
+We **observed = None**.
+- [只重试尚未产生业务副作用的暂时模型请求失败](for attempts as attempt)
+  We **observed = model_once(context=`context`,messages=`messages`,sources=`sources`,model_id=`model_id`,step=`step`,attempt=`attempt`)**.
+  1. access(`observed`,"ok")
+    Return *observed*.
+  We **data = table.put(in=call_identity(context=`context`,step=`step`),at="attempt",value=`attempt`)**.
+  We **data = table.put(in=`data`,at="result",value=`observed`)**.
+  We **prefix = ""**.
+  1. json.get(value=`context`,key="unit_id")
+    We **prefix = "child_"**.
+  1. `attempt` == 2 or not retryable(observed=`observed`)
+    We **_ = event(context=`context`,kind=(`prefix` + "provider_failure"),data=`data`)**.
+    Return *observed*.
+  We **_ = event(context=`context`,kind=(`prefix` + "model_retry"),data=`data`)**.
+  We **_ = native(context=`context`,operation="runtime_pause",payload=table.put(in=None,at="milliseconds",value=500))**.
+Return *observed*.
+
+## retryable
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| observed | map | 真实的模型网络错误 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | bool | 是否属于可以有限重试的暂时传输失败 |
+
+Use `observed`。
+
+只读取错误消息中的明确网络事实，不分析业务需求，也不增加新的函数分派。限流、网关失败、超时和连接中断可能在稍后恢复，所以允许相同请求再试一次；普通程序错误和权限拒绝不会因为重试而变成合法调用。
+
+判断结果不是成功，不改变模型身份、用户范围或消息。错误不属于这些已知类别时直接返回原错误，用户能看见真实原因。该判断只用于模型生成，不能套在任意有副作用的工具上，更不能重放已完成的文件写入或来源登记。
+
+例如，服务返回五百零三时，相同模型请求可以在短暂停顿后重新发送；如果返回四百零一，则需要修正模型服务的授权配置，继续请求没有意义。这里只检查运输层已经报告的错误，不读取网页内容来选择权限，也不会把错误文本作为程序执行。连续两次失败后保持未完成，并保留每次尝试的独立输出与诊断。根流程不会因为某家服务暂时异常而切换到另一模型，用户看到的模型身份应始终与实际请求一致。
+
+We **message = json.stringify(value=`observed`)**.
+Return *(text.contains(text=`message`,sub="HTTP 429") or text.contains(text=`message`,sub="HTTP 502") or text.contains(text=`message`,sub="HTTP 503") or text.contains(text=`message`,sub="HTTP 504") or text.contains(text=`message`,sub="timed out") or text.contains(text=`message`,sub="deadline exceeded") or text.contains(text=`message`,sub="connection") or text.contains(text=`message`,sub="Connection") or text.contains(text=`message`,sub="rate limit"))*.

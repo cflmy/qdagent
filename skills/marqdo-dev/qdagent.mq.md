@@ -65,7 +65,7 @@ Return *engineering.checked(argv=`argv`,timeout_ms=180000,max_output=20000)*.
 
 Use 。
 
-运行文稿检查、真实 CLI 与 ABI 协议、模型传输替身及 Go race 验收。替身只替代供应商生成，实际解析、角色、进程、独立案例和状态流都由 Marqdo 执行。没有配置浏览验收端点时相应用例会明确跳过，必须另外调用 browser_acceptance 补齐，不能把跳过当成浏览成功。该入口不使用生产账号或生产数据。
+运行文稿检查、真实 CLI 与 ABI 协议、模型传输替身及 Go race 验收。替身只替代供应商生成，实际解析、角色、进程、独立案例和状态流都由 Marqdo 执行。没有配置浏览验收端点时相应用例会明确跳过，必须另外调用 browser_acceptance 补齐，不能把跳过当成浏览成功。该入口不使用生产账号或生产数据。完整协议回归包含多次真实进程与官方解析，使用十分钟的整体上限，避免尚未执行到工作器与并发检查就被旧的三分钟限制中断；每项网络和子进程仍保留自己的更短期限。
 
 `argv` =
 
@@ -74,7 +74,7 @@ Use 。
 | "bash" |
 | "deploy/test-runtime.sh" |
 
-Return *engineering.checked(argv=`argv`,timeout_ms=180000,max_output=20000)*.
+Return *engineering.checked(argv=`argv`,timeout_ms=600000,max_output=20000)*.
 
 ## browser_acceptance
 

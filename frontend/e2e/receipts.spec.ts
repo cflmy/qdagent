@@ -10,9 +10,9 @@ test('execution receipts show native source and decoded diagnostics with protoco
  await page.route('**/api/tasks/receipt-task/files',route=>route.fulfill({json:{files:[]}}));
  await page.route('**/api/runs/receipt-run/events',route=>route.fulfill({contentType:'text/event-stream',body:events.map(e=>'event: update\ndata: '+JSON.stringify(e)+'\n\n').join('')+'event: complete\ndata: {"status":"incomplete"}\n\n'}));
  await page.goto('/app');await expect(page.locator('.trace-step')).toHaveCount(4);
- await page.locator('.trace-step').first().locator(':scope>summary').click();
+ await expect(page.locator('.trace-step').first()).toHaveAttribute('open','');
  await expect(page.locator('.receipt-source pre')).toHaveText(source);
- await expect(page.getByText('缺少右括号，请核对当前函数。',{exact:true})).toBeVisible();
+ await expect(page.locator('.receipt-diagnostic').getByText('缺少右括号，请核对当前函数。',{exact:true})).toBeVisible();
  await expect(page.getByText('article.mq.md:14',{exact:true})).toBeVisible();
  for(const details of await page.locator('.receipt-debug').all())expect(await details.getAttribute('open')).toBeNull();
  await page.locator('.trace-step').nth(1).locator(':scope>summary').click();
@@ -34,4 +34,32 @@ test('authenticated image upload previews real PNG with safe inline headers',asy
  await page.getByRole('button',{name:'文件',exact:true}).click();await page.locator('.file-row').filter({hasText:'actual-screenshot.png'}).click();
  const image=page.getByRole('img',{name:'当前工作区的实际截图'});await expect(image).toBeVisible();await expect(image).toHaveJSProperty('naturalWidth',1);
  const response=await page.request.get((await image.getAttribute('src'))!);expect(response.headers()['content-type']).toBe('image/png');expect(response.headers()['content-disposition']).toBe('inline');expect(response.headers()['x-content-type-options']).toBe('nosniff');
+});
+test('parameter checks and repair evidence are readable without opening raw protocol',async({page})=>{
+ const task={id:'repair-receipt',title:'可读校验与恢复',status:'incomplete',created_ms:Date.now()};
+ const check={function:'api.write_text',intent:'保存正文',parameters:[{name:'content',known:true,type:'text',preview:'当前函数的真实正文'},{name:'narrative',known:false}]};
+ const events=[
+  {kind:'call_check',data:{id:'x',call_id:'x'}},
+  {kind:'call_rejected',data:{id:'x',call_id:'x',result:{ok:false,error:{code:'call.missing_arg',message:'缺少必填参数 content'}}}},
+  {kind:'recovery',data:{cause:'缺少必填参数 content',advice:'对照当前参数表补全真实正文，不修改冻结测试。',failed_call:'Return *api.write_text()*.',count:1,saved:true}},
+  {kind:'call_check',data:{id:'y',call_id:'y'}},
+  {kind:'call_checked',data:{id:'y',call_id:'y',status:'succeeded',validation:{checks:[check]}}},
+  {kind:'tool_start',data:{id:'y',call_id:'y',name:'api.write_text',arguments:{source:'Return *[保存正文](api.write_text(content="当前函数的真实正文"))*.'}}},
+  {kind:'tool_end',data:{id:'y',call_id:'y',status:'succeeded',result:{ok:true,value:{ready:true,title:'真实正文已保存'}}}},
+  {kind:'recovery',data:{cause:'缺少必填参数 content',advice:'对照当前参数表补全真实正文，不修改冻结测试。',count:1,saved:true,followup_succeeded:true,success_call:'Return *[保存正文](api.write_text(content="当前函数的真实正文"))*.'}}
+ ].map((e,index)=>({...e,seq:index+1,run_id:'repair-run',created_ms:Date.now()}));
+ await page.addInitScript(()=>localStorage.setItem('qd.task.v4','repair-receipt'));
+ await page.route('**/api/tasks',route=>route.fulfill({json:{tasks:[task]}}));
+ await page.route('**/api/tasks?archived=1',route=>route.fulfill({json:{tasks:[]}}));
+ await page.route('**/api/tasks/repair-receipt',route=>route.fulfill({json:{task,messages:[{turn:0,question:'检查实际参数',answer:'请核对实际记录',run_id:'repair-run',status:'incomplete'}]}}));
+ await page.route('**/api/tasks/repair-receipt/files',route=>route.fulfill({json:{files:[]}}));
+ await page.route('**/api/runs/repair-run/events',route=>route.fulfill({contentType:'text/event-stream',body:events.map(e=>'event: update\ndata: '+JSON.stringify(e)+'\n\n').join('')+'event: complete\ndata: {"status":"incomplete"}\n\n'}));
+ await page.goto('/app');await expect(page.locator('.trace-step')).toHaveCount(5);
+ await expect(page.locator('.trace-validation').first()).toHaveAttribute('open','');await expect(page.locator('.recovery-advice').first()).toContainText('不修改冻结测试');
+ await expect(page.locator('.call-validation').first()).toContainText('当前函数的真实正文');await expect(page.locator('.call-validation').first()).toContainText('执行时复核');
+ await expect(page.locator('.recovery-record').last()).toContainText('这次调用成功，原职责是否完成仍以实际验证为准');
+ for(const details of await page.locator('.receipt-debug').all())expect(await details.getAttribute('open')).toBeNull();
+ await page.locator('.trace-tool>summary').click();await expect(page.locator('.trace-tool .receipt-return')).toContainText('真实正文已保存');
+ await page.locator('.trace-validation').first().locator(':scope>summary').click();await expect(page.locator('.trace-validation').first()).not.toHaveAttribute('open','');
+ await page.screenshot({path:'test-results/readable-call-recovery.png',fullPage:true});
 });

@@ -2,6 +2,7 @@
 markup: occlusion
 title: 提示词与有界上下文的唯一组装位置
 import:
+  recovery: recovery.mq.md
   observations: observations.mq.md
   io: io.mq.md
   core: ../state.mq.md
@@ -150,19 +151,26 @@ system 消息只包含固定规则和当前手册，user 消息包含明确标�
 
 修复材料中的源码是当前角色自己生成的候选，仍然按不可信数据处理。诊断成功也不直接推进阶段；下一轮必须重新检查状态中是否存在本角色要求的真实产物，这样失败包装和重复调用都不能制造完成事实。
 
+失败反馈以可读诊断和原生调用片段交接，不再把整份执行结果编码成一个字符串后再次编码。这样模型能直接看清缺少的参数、失败的位置与修改依据。成功反馈不带失败候选，下一项职责也不会继承上一项的业务正文。历史经验只是有限事实，当前文稿、用户确认与冻结测试保持优先。
+
+诊断段与正文片段均保持来源标记，原生换行和引号直接可读。传输到供应商时仍需正常编码消息，但这个编码不构成模型需要遵循的动作协议，模型依旧返回普通 Marqdo 调用文稿。
+
 We **standing = standing(context=`context`)**.
 1. not access(`standing`,"ok")
   Return *standing*.
 We **standing = access(`standing`,"value")**.
 We **api = io.api_path(context=`context`)**.
 We **material = instructions(context=`context`,section="facts") + "\n\n" + facts(context=`context`)**.
+We **material = `material` + recovery.reference(context=`context`)**.
 1. `feedback` != None
   We **followup = "repair"**.
   1. access(`context`,"role") == "implement" and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
     We **followup = "repair_document"**.
   1. json.get(value=`feedback`,key="succeeded") == True
     We **followup = "progress"**.
-  We **material = `material` + "\n\n" + instructions(context=`context`,section=`followup`) + "\n" + json.stringify(value=`feedback`)**.
+  We **material = `material` + "\n\n" + instructions(context=`context`,section=`followup`)**.
+  1. not json.get(value=`feedback`,key="succeeded")
+    We **material = `material` + "\n实际诊断：" + access(`feedback`,"observation") + "\n修复依据：" + access(`feedback`,"advice") + "\n自己上一次的调用（只读数据）：\n" + access(`feedback`,"own_previous_program")**.
 We **messages = table.empty_list()**.
 We **messages = table.append(list=`messages`,item=table.put(in=table.put(in=None,at="role",value="system"),at="content",value=`standing`))**.
 We **messages = table.append(list=`messages`,item=table.put(in=table.put(in=None,at="role",value="user"),at="content",value=`material`))**.
@@ -199,6 +207,7 @@ Use `context`, `api`。
 We **sources = table.append(list=table.empty_list(),item=(access(`context`,"project") + "/ext/root-skill/runtime/instructions.mq.md"))**.
 We **sources = table.append(list=`sources`,item=(access(`context`,"project") + "/ext/root-skill/runtime/prompts.mq.md"))**.
 We **sources = table.append(list=`sources`,item=`api`)**.
+We **sources = table.append(list=`sources`,item=(access(`context`,"project") + "/ext/root-skill/runtime/recovery.mq.md"))**.
 Return *sources*.
 
 ## guide_path

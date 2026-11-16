@@ -20,10 +20,11 @@ import (
 )
 
 type Task struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Status  string `json:"status"`
-	Created int64  `json:"created_ms"`
+	Archived int64  `json:"archived_ms"`
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Status   string `json:"status"`
+	Created  int64  `json:"created_ms"`
 }
 type Model struct {
 	ID       string `json:"id"`
@@ -71,9 +72,17 @@ func openStore(root string) (*Store, error) {
 			return nil, err
 		}
 	}
+	if err = s.migrateTaskLifecycle(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	// A server restart cannot silently resume or repeat a potentially mutating task.
 	_, err = db.Exec(`UPDATE qd_runs SET status='interrupted',finished_ms=? WHERE status='running'`, time.Now().UnixMilli())
 	if err != nil {
+		return nil, err
+	}
+	if err = s.finishDeletedTasks(); err != nil {
+		db.Close()
 		return nil, err
 	}
 	return s, nil
@@ -85,9 +94,10 @@ func randomID() string {
 	}
 	return hex.EncodeToString(b)
 }
-func digest(v string) string { h := sha256.Sum256([]byte(v)); return hex.EncodeToString(h[:]) }
-func (s *Store) tasks(owner string) ([]Task, error) {
-	rows, err := s.db.Query(`SELECT id,title,status,created_ms FROM qd_tasks WHERE owner=? ORDER BY created_ms DESC`, owner)
+func digest(v string) string                        { h := sha256.Sum256([]byte(v)); return hex.EncodeToString(h[:]) }
+func (s *Store) tasks(owner string) ([]Task, error) { return s.archivedTasks(owner, false) }
+func (s *Store) archivedTasks(owner string, archived bool) ([]Task, error) {
+	rows, err := s.db.Query(`SELECT id,title,status,created_ms,archived_ms FROM qd_tasks WHERE owner=? AND deleted_ms=0 AND (archived_ms>0)=? ORDER BY created_ms DESC`, owner, archived)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +105,7 @@ func (s *Store) tasks(owner string) ([]Task, error) {
 	out := []Task{}
 	for rows.Next() {
 		var t Task
-		if err = rows.Scan(&t.ID, &t.Title, &t.Status, &t.Created); err != nil {
+		if err = rows.Scan(&t.ID, &t.Title, &t.Status, &t.Created, &t.Archived); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -104,7 +114,7 @@ func (s *Store) tasks(owner string) ([]Task, error) {
 }
 func (s *Store) task(owner, id string) (Task, error) {
 	var t Task
-	err := s.db.QueryRow(`SELECT id,title,status,created_ms FROM qd_tasks WHERE id=? AND owner=?`, id, owner).Scan(&t.ID, &t.Title, &t.Status, &t.Created)
+	err := s.db.QueryRow(`SELECT id,title,status,created_ms,archived_ms FROM qd_tasks WHERE id=? AND owner=? AND deleted_ms=0`, id, owner).Scan(&t.ID, &t.Title, &t.Status, &t.Created, &t.Archived)
 	return t, err
 }
 func validID(id string) bool {
@@ -126,7 +136,7 @@ func (s *Store) createTask(owner, title string) (Task, error) {
 	if len([]rune(title)) > 120 {
 		return Task{}, errors.New("任务名称最多 120 字")
 	}
-	t := Task{randomID(), title, "idle", time.Now().UnixMilli()}
+	t := Task{ID: randomID(), Title: title, Status: "idle", Created: time.Now().UnixMilli()}
 	_, err := s.db.Exec(`INSERT INTO qd_tasks(id,owner,title,status,created_ms) VALUES(?,?,?,?,?)`, t.ID, owner, t.Title, t.Status, t.Created)
 	if err != nil {
 		return t, err

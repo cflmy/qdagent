@@ -166,3 +166,5 @@ npm run build --prefix frontend
 插件安装元数据统一维护在 `ext/plugins.mq.md`；Go 插件页面与 Marqdo 权限检查共读该表，不在 Go 中重复列举扩展。仅登记身份、入口和 ABI 依赖，不增加模型工具名称路由。
 
 浏览器与原生文稿链路可通过 `marqdo call deploy/manage.mq.md probe_browser --effects plugin,fs.read,fs.write,process.exec,environment.read --fs-root . --json` 重跑，验收只创建临时容器，不更新生产服务。
+
+任务支持归档、只读回看与恢复；永久删除仅对已归档任务开放，并需再次确认。普通 Marqdo 调用先经官方解析和参数绑定检查，再执行实际工具。失败向同一角色交接有限、同版本的真实错误经验，执行区展示参数、诊断与后续修订。边界见 [任务生命周期与恢复规范](docs/task-lifecycle-and-recovery.mq.md)。

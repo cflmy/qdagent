@@ -29,6 +29,34 @@ class RuntimeIOTests(unittest.TestCase):
         self.assertTrue(outer.get('ok'), outer)
         return outer['result']
 
+    def test_entire_program_is_checked_before_the_first_file_write(self):
+        installation=self.root/'installation'
+        api=installation/'ext/root-skill/calls/checked.mq.md';api.parent.mkdir(parents=True)
+        api.write_text('---\nmarkup: occlusion\nimport:\n  fs: '+str(PROJECT/'lib/fs.mq.md')+'\n---\n\n## write\n\n| 参数 | 类型 | 说明 |\n|---|---|---|\n| value | text | 实际正文 |\n\nUse `value`。\nReturn *fs.write_text(path="effect.txt",text=`value`)*.\n\n## accept\n\n| 参数 | 类型 | 说明 |\n|---|---|---|\n| value | text | 实际返回 |\n\nUse `value`。\nReturn *`value`*.\n')
+        context={**self.context,'project':str(installation)}
+        self.request.write_text(json.dumps({'context':context,'model':{}}))
+        source='---\nmarkup: occlusion\nimport:\n  api: '+str(api)+'\n---\n\n## act\n\nWe **first = api.write(value="must not run")**.\nReturn *api.accept(value=12)*.\n'
+        denied=self.invoke('runtime_execute',context=context,source=source,api=str(api),step=1)
+        self.assertFalse(denied['ok']);self.assertIn('contract.arg_mismatch',denied['error']['message'])
+        self.assertEqual(list(self.root.rglob('effect.txt')),[])
+        succeeded=self.invoke('runtime_execute',context=context,source=source.replace('value=12','value="real return"'),api=str(api),step=2)
+        self.assertTrue(succeeded['ok'],succeeded);self.assertEqual(succeeded['value'],'real return')
+        self.assertEqual(next(self.root.rglob('effect.txt')).read_text(),'must not run')
+
+    def test_recovery_cache_is_bounded_and_cannot_escape_the_private_workspace(self):
+        path='.agent/recovery/'+'a'*64+'.json'
+        self.assertEqual(self.invoke('runtime_recovery_read',path=path)['value'],[])
+        self.assertTrue(self.invoke('runtime_recovery_write',path=path,records=[{'cause':'actual failure'}])['ok'])
+        self.assertEqual(self.invoke('runtime_recovery_read',path=path)['value'][0]['cause'],'actual failure')
+        self.assertEqual((self.root/path).stat().st_mode & 0o777,0o600)
+        self.assertFalse(self.invoke('runtime_recovery_write',path=path,records=[{}]*7)['ok'])
+        self.assertFalse(self.invoke('runtime_recovery_read',path='../escape.json')['ok'])
+        target=self.root/'private-other.json';target.write_text('[]')
+        (self.root/path).unlink();(self.root/path).symlink_to(target)
+        self.assertFalse(self.invoke('runtime_recovery_read',path=path)['ok'])
+        self.assertFalse(self.invoke('runtime_recovery_write',path=path,records=[])['ok'])
+        self.assertFalse(self.invoke('runtime_recovery_read',context={**self.context,'owner':'someone-else'},path=path)['ok'])
+
     def test_reference_is_role_bounded_and_cannot_follow_escaping_symlink(self):
         installation = self.root/'installation'
         (installation/'kb').mkdir(parents=True)

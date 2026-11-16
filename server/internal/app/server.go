@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-task-journey-0.10.0"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-recovery-0.11.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -60,6 +60,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/tasks", s.auth.protect(s.createTask))
 	m.HandleFunc("GET /api/tasks/{id}", s.auth.protect(s.task))
 	m.HandleFunc("PATCH /api/tasks/{id}", s.auth.protect(s.renameTask))
+	m.HandleFunc("PATCH /api/tasks/{id}/archive", s.auth.protect(s.archiveTask))
+	m.HandleFunc("DELETE /api/tasks/{id}", s.auth.protect(s.deleteTask))
 	m.HandleFunc("POST /api/tasks/{id}/runs", s.auth.protect(s.startRun))
 	m.HandleFunc("GET /api/runs/{id}", s.auth.protect(s.getRun))
 	m.HandleFunc("GET /api/runs/{id}/events", s.auth.protect(s.stream))
@@ -138,7 +140,7 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 func (s *Server) tasks(w http.ResponseWriter, r *http.Request, i identity) {
-	v, e := s.store.tasks(i.Principal)
+	v, e := s.store.archivedTasks(i.Principal, r.URL.Query().Get("archived") == "1")
 	if e != nil {
 		writeError(w, 500, "database_error", "任务目录读取失败")
 		return
@@ -189,6 +191,8 @@ func (s *Server) task(w http.ResponseWriter, r *http.Request, i identity) {
 	writeJSON(w, 200, map[string]any{"task": t, "messages": messages})
 }
 func (s *Server) renameTask(w http.ResponseWriter, r *http.Request, i identity) {
+	s.supervisor.mu.Lock()
+	defer s.supervisor.mu.Unlock()
 	t, ok := s.owned(w, r, i)
 	if !ok {
 		return
@@ -199,12 +203,16 @@ func (s *Server) renameTask(w http.ResponseWriter, r *http.Request, i identity) 
 	if !decode(w, r, &v) {
 		return
 	}
+	if t.Archived != 0 {
+		writeError(w, 409, "task_archived", "任务已归档，请恢复后修改")
+		return
+	}
 	v.Title = strings.TrimSpace(v.Title)
 	if v.Title == "" || len([]rune(v.Title)) > 120 {
 		writeError(w, 400, "invalid_title", "请输入 1–120 字的名称")
 		return
 	}
-	if _, e := s.store.db.Exec(`UPDATE qd_tasks SET title=? WHERE id=? AND owner=?`, v.Title, t.ID, i.Principal); e != nil {
+	if _, e := s.store.db.Exec(`UPDATE qd_tasks SET title=? WHERE id=? AND owner=? AND archived_ms=0 AND deleted_ms=0`, v.Title, t.ID, i.Principal); e != nil {
 		writeError(w, 500, "database_error", "名称保存失败")
 		return
 	}
@@ -649,6 +657,10 @@ func (s *Server) upload(w http.ResponseWriter, r *http.Request, i identity) {
 	if !ok {
 		return
 	}
+	if t.Archived != 0 {
+		writeError(w, 409, "task_archived", "任务已归档，请恢复后上传文件")
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 52<<20)
 	if e := r.ParseMultipartForm(1 << 20); e != nil {
 		writeError(w, 413, "upload_too_large", "单文件上限为 50 MB")
@@ -670,6 +682,13 @@ func (s *Server) upload(w http.ResponseWriter, r *http.Request, i identity) {
 	name := filepath.Base(strings.ReplaceAll(header.Filename, "\\", "/"))
 	if name == "." || name == ".." || name == "" || len(name) > 200 || strings.ContainsAny(name, "\x00\r\n") {
 		writeError(w, 400, "invalid_filename", "文件名无效")
+		return
+	}
+	s.supervisor.mu.Lock()
+	defer s.supervisor.mu.Unlock()
+	latest, stateErr := s.store.task(i.Principal, t.ID)
+	if stateErr != nil || latest.Archived != 0 {
+		writeError(w, 409, "task_archived", "任务已归档，请恢复后上传文件")
 		return
 	}
 	rel := "uploads/" + randomID()[:12] + "-" + name

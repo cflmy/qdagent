@@ -14,7 +14,7 @@ export function useResource<T>(path:string|null,interval=0){
  useEffect(()=>{if(!interval||!path)return;const timer=setInterval(reload,interval);return()=>clearInterval(timer)},[interval,path,reload]);
  return {...(value.path===path?value:{data:undefined,error:undefined,loading:!!path}),reload};
 }
-export interface Task {id:string;title:string;status:string;created_ms:number}
+export interface Task {archived_ms?:number;id:string;title:string;status:string;created_ms:number}
 export interface Model {id:string;label:string;model:string;protocol:string;endpoint?:string;builtin:boolean;has_key:boolean;thinking:boolean;notice?:string}
 export interface Plugin {id:string;name:string;description:string;version:string;builtin:boolean;enabled:boolean;available:boolean;modules?:string[]}
 export interface Message {turn:number;question:string;answer:string;run_id:string;status:string}
@@ -42,5 +42,5 @@ export function useRun(id:string,onDone:()=>void){
  source.onerror=()=>{if(alive)setState(s=>({...s,connection:'reconnecting'}))};return()=>{alive=false;source.close()};
  },[id]);return state.id===id?state:{id,events:[],answer:'',status:'',connection:''};
 }
-export const statusText:Record<string,string>={waiting_service:'等待文字识别',waiting_user:'等待你的回应',written:'已校验',running:'进行中',succeeded:'已完成',failed:'未完成',cancelled:'已停止',interrupted:'已中断',incomplete:'待继续',answer_only:'已回复',idle:'未开始',ready:'未开始',completed:'已完成',pending:'待开始'};
+export const statusText:Record<string,string>={recorded:'已记录',retrying:'已安排重试',waiting_service:'等待文字识别',waiting_user:'等待你的回应',written:'已校验',running:'进行中',succeeded:'已完成',failed:'未完成',cancelled:'已停止',interrupted:'已中断',incomplete:'待继续',answer_only:'已回复',idle:'未开始',ready:'未开始',completed:'已完成',pending:'待开始'};
 export function sizeLabel(n:number){return n>=1048576?`${(n/1048576).toFixed(1)} MB`:n>=1024?`${Math.ceil(n/1024)} KB`:`${n} B`}

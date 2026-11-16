@@ -15,7 +15,7 @@ import test_root_skill as protocol
 
 class RuntimeTests(unittest.TestCase):
  def setUp(self):
-  self.fixture=protocol.RootTests(methodName='runTest');self.fixture.setUp();self.requests=[];self.repairs={};self.test_attempts={};self.outline_attempts=0;self.lock=threading.Lock();self.active=0;self.peak=0
+  self.fixture=protocol.RootTests(methodName='runTest');self.fixture.setUp();self.requests=[];self.repairs={};self.test_attempts={};self.outline_attempts=0;self.lock=threading.Lock();self.active=0;self.peak=0;self.transient_failures=0
   self.responses={}
   for name in ['intent','outline','test','bad','good','deliver','forbidden_test_read','outline_first','outline_second','outline_publish']:
    p=subprocess.run(['marqdo','call',str(protocol.PROJECT/'tests/fixtures/document-agent/responses.mq.md'),name,'--json'],capture_output=True,text=True,check=True)
@@ -25,6 +25,11 @@ class RuntimeTests(unittest.TestCase):
    def do_POST(self):
     request=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
     assert 'tools' not in request
+    with outer.lock:
+     transient=outer.transient_failures>0
+     if transient:outer.transient_failures-=1
+    if transient:
+     self.send_response(503);self.end_headers();self.wfile.write(b'temporary provider unavailable');return
     standing=request['messages'][0]['content']
     role='intent' if '## ask\n' in standing else 'outline' if ('## text_unit\n' in standing or '## define\n' in standing or '## publish\n' in standing) else 'test' if ('## sample\n' in standing or '## verify_constant\n' in standing) else 'implement' if '## write_text\n' in standing else 'deliver'
     with outer.lock:outer.requests.append((role,request));outer.active+=1;outer.peak=max(outer.peak,outer.active)
@@ -64,6 +69,15 @@ class RuntimeTests(unittest.TestCase):
   events.append({'kind':'final','data':final['result']})
   self.assertTrue(events,proc.stderr);self.assertEqual(events[-1]['kind'],'final',events[-4:]);self.assertEqual(events[-1]['data']['status'],'waiting_user',events[-5:]);self.assertEqual(proc.returncode,0,proc.stderr)
   return events,context
+ def test_transient_provider_failure_retries_the_same_generation_before_any_tool(self):
+  self.transient_failures=1
+  events,_=self.run_worker()
+  self.assertEqual(len([e for e in events if e['kind']=='model_retry']),1)
+  starts=[e['data'] for e in events if e['kind']=='model_start']
+  self.assertEqual([e['attempt'] for e in starts[:2]],[1,2]);self.assertNotEqual(starts[0]['call_id'],starts[1]['call_id'])
+  state=self.fixture.call('status');self.assertEqual(state['phase'],'intent');self.assertIsNotNone(state['pending'])
+  self.assertEqual(len([role for role,_ in self.requests if role=='intent']),1)
+
  def test_document_native_flow_has_blind_testers_and_repairs_real_defects(self):
   self.run_worker();state=self.fixture.call('status');self.fixture.call('respond',revision=state['revision'],action='confirm_intent',choice=state['pending']['choices'][0],settings={'concurrency':2,'child_model':'inherit','test_model':'inherit','unit_models':{},'expected_units':2})
   self.run_worker();state=self.fixture.call('status');self.assertEqual(len(state['draft_units']),2);self.assertEqual(self.outline_attempts,3);self.fixture.call('respond',revision=state['revision'],action='confirm_outline',settings={'concurrency':2,'child_model':'inherit','test_model':'fixture-test','unit_models':{}})
@@ -75,10 +89,18 @@ class RuntimeTests(unittest.TestCase):
   self.assertEqual(len([e for e in events if e['kind']=='child_start']),2)
   failed=[e for e in events if e['kind']=='child_tool_end' and e['data']['status']=='failed'];self.assertTrue(failed,'injected defect bypassed independent tests')
   self.assertTrue(all(unit['trial']['passed'] and unit['trial']['assurance']=='independent_cases' for unit in state['units']))
-  tests=[request for role,request in self.requests if role=='test'];self.assertEqual(len(tests),4);self.assertEqual(len([e for e in events if e['kind']=='call_rejected' and e['data']['role']=='test']),2)
+  tests=[request for role,request in self.requests if role=='test'];self.assertEqual(len(tests),4);self.assertEqual(len([e for e in events if e['kind'] in ('call_rejected','child_call_rejected') and e['data']['role']=='test']),2)
   for request in tests:
-   serialized=json.dumps(request,ensure_ascii=False);self.assertEqual(request['model'],'isolated-test');self.assertNotIn('故意植入的错误',serialized);self.assertNotIn('unit_record',serialized);self.assertNotIn('source_header',serialized);self.assertNotIn('We **',request['messages'][1]['content']);self.assertNotIn('Return *',request['messages'][1]['content'].split('上一次调用尚未取得')[0])
-  for role,request in self.requests:self.assertNotIn('tools',request)
+   serialized=json.dumps(request,ensure_ascii=False);self.assertEqual(request['model'],'isolated-test');self.assertNotIn('故意植入的错误',serialized);self.assertNotIn('unit_record',serialized);self.assertNotIn('source_header',serialized);self.assertNotIn('We **',request['messages'][1]['content']);self.assertNotIn('Return *',request['messages'][1]['content'].split('同角色、当前框架与接口版本的真实错误经验：')[0].split('上一次调用尚未取得')[0])
+  for role,request in self.requests:
+   self.assertNotIn('tools',request)
+   if role=='test':
+    self.assertNotIn('api.write_text(content=',request['messages'][1]['content'])
+    self.assertNotIn('故意植入的错误',request['messages'][1]['content'])
+  repairs=[e for e in events if e['kind']=='child_recovery'];self.assertTrue(any(e['data'].get('followup_succeeded') for e in repairs))
+  for role,request in self.requests:
+   if role=='implement' and '实际诊断：' in request['messages'][1]['content']:
+    self.assertNotIn('\\\"',request['messages'][1]['content'].split('实际诊断：')[1].split('自己上一次的调用')[0])
   for unit in state['units']:
    self.assertEqual(unit['specification']['executable_statements'],0);self.assertEqual(unit['tests']['sha256'],unit['trial']['suite_sha256'])
   self.fixture.call('respond',revision=state['revision'],action='accept');self.assertEqual(self.fixture.call('status')['phase'],'complete')

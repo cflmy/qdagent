@@ -48,7 +48,7 @@ func newSupervisor(s *Store) *supervisor {
 }
 func (s *Store) run(owner, id string) (Run, error) {
 	var r Run
-	err := s.db.QueryRow(`SELECT id,task_id,model,status,answer,question,created_ms FROM qd_runs WHERE id=? AND owner=?`, id, owner).Scan(&r.ID, &r.Task, &r.Model, &r.Status, &r.Answer, &r.Question, &r.Created)
+	err := s.db.QueryRow(`SELECT id,task_id,model,status,answer,question,created_ms FROM qd_runs WHERE id=? AND owner=? AND task_id IN (SELECT id FROM qd_tasks WHERE deleted_ms=0)`, id, owner).Scan(&r.ID, &r.Task, &r.Model, &r.Status, &r.Answer, &r.Question, &r.Created)
 	return r, err
 }
 func (s *Store) runEvents(id string, after int64) ([]Event, error) {
@@ -88,6 +88,13 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 	}
 	if !s.store.pluginEnabled(owner, "ai") {
 		return Run{}, errors.New("请先启用模型与智能体插件")
+	}
+	current, err := s.store.task(owner, task)
+	if err != nil {
+		return Run{}, err
+	}
+	if current.Archived != 0 {
+		return Run{}, errors.New("任务已归档，请恢复后执行")
 	}
 	ctxMap, err := s.store.taskContext(owner, task)
 	if err != nil {

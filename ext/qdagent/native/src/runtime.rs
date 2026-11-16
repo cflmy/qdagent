@@ -1,6 +1,7 @@
 //! I/O and official-parser boundary. Agent policy and all prompts live in .mq.md.
 use std::{collections::HashSet,fs,io::{BufRead,BufReader,Read,Write},path::{Path,PathBuf},process::{Command,Stdio},time::{Duration,Instant}};
 use marqdo::ast::{Arg,Expr,Stmt};
+#[path="call_preflight.rs"] mod call_preflight;
 use serde_json::{json,Value};
 use sha2::{Digest,Sha256};
 fn digest(raw:&[u8])->String{format!("{:x}",Sha256::digest(raw))}
@@ -71,7 +72,7 @@ fn call_source(source:&str)->Result<(String,Vec<(String,String)>),String>{
 }
 fn prepare_call(source:&str,api:&Path)->Result<(Value,String),String>{
  let (normalized,cells)=call_source(source)?;
- let module=parser(&normalized)?;let allowed=parser(&fs::read_to_string(api).map_err(|e|e.to_string())?)?;
+ let module=parser(&normalized)?;let api_source=fs::read_to_string(api).map_err(|e|e.to_string())?;let allowed=parser(&api_source)?;
  let names:HashSet<_>=allowed.functions.iter().map(|f|f.name.clone()).collect();
  if module.imports.len()!=1||module.imports[0].bind!="api"||Path::new(&module.imports[0].path)!=api||!module.uses.is_empty(){return Err("call imports do not match the supplied document".into())}
  if module.functions.len()!=1{return Err("one call entry required".into())}
@@ -99,33 +100,36 @@ fn prepare_call(source:&str,api:&Path)->Result<(Value,String),String>{
    }
   }
  }
+ let checks=call_preflight::check(&module,&allowed,api,&cells)?;
  let executable=lines.concat();
  // Parse the generated transport form too: it cannot widen the supplied role.
  parser(&executable)?;
- Ok((json!({"calls":calls,"sha256":digest(source.as_bytes()),"execution_sha256":digest(executable.as_bytes()),"parser":"marqdo::load::parse_source_auto","cells":"host_document_code_blocks"}),executable))
+ Ok((json!({"calls":calls,"sha256":digest(source.as_bytes()),"execution_sha256":digest(executable.as_bytes()),"checks":checks,"api_sha256":digest(api_source.as_bytes()),"parser":"marqdo::load::parse_source_auto","cells":"host_document_code_blocks"}),executable))
 }
 fn validate(source:&str,api:&Path)->Result<Value,String>{prepare_call(source,api).map(|(metadata,_)|metadata)}
 fn execute(v:&Value)->Result<Value,String>{
  let c=context(v)?;private_request(c)?;let project=PathBuf::from(text(c,"project")?);
  let api=descendants(Path::new(text(v,"api")?),&project.join("ext/root-skill/calls"))?;
+ if let Some(expected)=v["api_sha256"].as_str(){if digest(&fs::read(&api).map_err(|e|e.to_string())?)!=expected{return Err("call document changed after validation".into())}}
  let source=text(v,"source")?;if source.len()>128*1024{return Err("call document exceeds bound".into())}
  let dir=directory(c)?;let unit=id(c["unit_id"].as_str().unwrap_or("root"))?;let role=id(text(c,"role")?)?;let step=v["step"].as_u64().ok_or("step required")?;
  let own=dir.join("actors").join(unit).join(role);fs::create_dir_all(&own).map_err(|e|e.to_string())?;
  let entry=own.join(format!("turn-{step}.mq.md"));super::atomic(&own.join(format!("turn-{step}.source.mq.md")),source)?;
  let (checked,executable)=match prepare_call(source,&api){Ok(value)=>value,Err(message)=>{event(c,"call_rejected",json!({"id":unit,"role":role,"step":step,"message":message,"source_sha256":digest(source.as_bytes())}))?;return Err(message)}};
+ if let Some(expected)=v["api_sha256"].as_str(){if checked["api_sha256"].as_str()!=Some(expected){return Err("call document changed after validation".into())}}
  super::atomic(&entry,&executable)?;
  let actor=own.join("context.json");super::atomic(&actor,&c.to_string())?;
  let scratch=own.join("work");fs::create_dir_all(&scratch).map_err(|e|e.to_string())?;
  let argv=vec!["call".to_string(),entry.to_string_lossy().into_owned(),"act".into(),"--args-json".into(),"-".into(),"--fs-root".into(),scratch.to_string_lossy().into_owned(),"--effects".into(),"plugin,fs.read,fs.write,process.exec,environment.read".into(),"--session".into(),format!("{}-{unit}-{role}",text(c,"run_id")?),"--json".into()];
  let ident=format!("{unit}-{role}-{step}");let child=c["unit_id"].is_string();
- let kind=if child{"child_tool_start"}else{"tool_start"};let mut data=json!({"id":if child{unit}else{&ident},"name":checked["calls"].as_array().and_then(|x|x.first()).cloned().unwrap_or(json!("act")),"arguments":{"source":source},"command":"marqdo call","role":role,"source_sha256":checked["sha256"]});event(c,kind,data.clone())?;
+ let kind=if child{"child_tool_start"}else{"tool_start"};let mut data=json!({"id":if child{unit}else{&ident},"call_id":ident,"name":checked["calls"].as_array().and_then(|x|x.first()).cloned().unwrap_or(json!("act")),"arguments":{"source":source},"command":"marqdo call","role":role,"source_sha256":checked["sha256"]});event(c,kind,data.clone())?;
  let started=Instant::now();let mut command=Command::new("marqdo");command.args(&argv).current_dir(&scratch).env("QDAGENT_ACTOR_FILE",&actor).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
  let mut process=command.spawn().map_err(|e|e.to_string())?;process.stdin.take().unwrap().write_all(b"{}").map_err(|e|e.to_string())?;
  let output=bounded_wait(process,Duration::from_secs(90))?;
  let outer:Value=serde_json::from_slice(&output.0).unwrap_or(Value::Null);
  let ok=output.2==0&&outer["ok"]==true;let result=if ok{outer["result"].clone()}else{json!({"ok":false,"error":if outer["error"].is_object(){outer["error"].clone()}else{json!({"code":"runtime.execution","message":"Marqdo execution failed"})}})};
  let success=ok&&result["ok"]!=false;
- data["status"]=json!(if success{"succeeded"}else{"failed"});data["result"]=result.clone();data["elapsed_ms"]=json!(started.elapsed().as_millis());data["evidence"]=json!({"call":argv,"exit_code":output.2,"source_sha256":checked["sha256"],"execution_sha256":checked["execution_sha256"],"parameter_adapter":checked["cells"]});data.as_object_mut().unwrap().remove("arguments");
+ data["status"]=json!(if success{"succeeded"}else{"failed"});data["result"]=result.clone();data["elapsed_ms"]=json!(started.elapsed().as_millis());data["evidence"]=json!({"call":argv,"exit_code":output.2,"source_sha256":checked["sha256"],"execution_sha256":checked["execution_sha256"],"parameter_adapter":checked["cells"],"api_sha256":checked["api_sha256"],"checks":checked["checks"]});data.as_object_mut().unwrap().remove("arguments");
  event(c,if child{"child_tool_end"}else{"tool_end"},data)?;Ok(result)
 }
 fn bounded_wait(mut child:std::process::Child,timeout:Duration)->Result<(Vec<u8>,Vec<u8>,i32),String>{
@@ -144,8 +148,9 @@ fn model(v:&Value)->Result<Value,String>{
  }
  if origins.is_empty(){return Err("instruction provenance missing".into())}
  let packet=directory(c)?.join("packets");fs::create_dir_all(&packet).map_err(|e|e.to_string())?;let unit=id(c["unit_id"].as_str().unwrap_or("root"))?;let role=id(text(c,"role")?)?;let step=v["step"].as_u64().ok_or("step required")?;
- super::atomic(&packet.join(format!("{unit}-{role}-{step}.json")),&json!({"messages":messages,"origins":origins,"role":role,"unit_id":c["unit_id"]}).to_string())?;
- let child=c["unit_id"].is_string();event(c,if child{"child_model_start"}else{"model_start"},json!({"id":unit,"step":step,"title":v["title"],"model":selected,"role":role,"sources":origins,"context_bytes":v["messages"].to_string().len()}))?;
+ super::atomic(&packet.join(format!("{unit}-{role}-{step}-{}.json",v["attempt"].as_u64().unwrap_or(1))),&json!({"messages":messages,"origins":origins,"role":role,"unit_id":c["unit_id"]}).to_string())?;
+ let attempt=v["attempt"].as_u64().unwrap_or(1);let model_call_id=format!("model-{unit}-{role}-{step}-{attempt}");
+ let child=c["unit_id"].is_string();event(c,if child{"child_model_start"}else{"model_start"},json!({"id":unit,"call_id":model_call_id,"attempt":attempt,"step":step,"title":v["title"],"model":selected,"role":role,"sources":origins,"context_bytes":v["messages"].to_string().len()}))?;
  let mut cmd=Command::new("python3");cmd.arg(project.join("worker/provider.py")).current_dir(&project).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());let mut process=cmd.spawn().map_err(|e|e.to_string())?;
  let body=json!({"model":config,"messages":messages}).to_string();if body.len()>2*1024*1024{return Err("model request exceeded bound".into())}process.stdin.take().unwrap().write_all(body.as_bytes()).map_err(|e|e.to_string())?;
  let stdout=process.stdout.take().unwrap();let stderr=process.stderr.take().unwrap();let errors=std::thread::spawn(move||{let mut b=vec![];let _=stderr.take(65536).read_to_end(&mut b);});
@@ -159,7 +164,7 @@ fn model(v:&Value)->Result<Value,String>{
     else if kind=="transport_error"{failure=Some(data["message"].as_str().unwrap_or("provider failure").into())}
     else if matches!(kind,"text_delta"|"reasoning_delta"){
      let projected=if kind=="text_delta"{"program_delta"}else{kind};
-     if child{event(c,"child_update",json!({"id":unit,"event":projected,"text":data["text"],"role":role}))?}else{event(c,projected,data.clone())?}
+     if child{event(c,"child_update",json!({"id":unit,"call_id":model_call_id,"attempt":attempt,"event":projected,"text":data["text"],"role":role}))?}else{event(c,projected,json!({"text":data["text"],"call_id":model_call_id,"step":step,"attempt":attempt,"role":role}))?}
     }
    },
    Ok(Err(_))=>{failure=Some("provider event stream failed".into());break},
@@ -168,8 +173,9 @@ fn model(v:&Value)->Result<Value,String>{
   }
  }
  let status=process.wait().map_err(|e|e.to_string())?;let _=errors.join();if !status.success()&&failure.is_none(){failure=Some("provider process failed".into())}
- event(c,if child{"child_model_end"}else{"model_end"},json!({"id":unit,"step":step,"status":if failure.is_none(){"succeeded"}else{"failed"},"role":role}))?;
- if let Some(error)=failure{return Err(error)}if answer.len()>128*1024||answer.trim().is_empty(){return Err("empty or oversized Marqdo response".into())}Ok(json!({"text":answer,"sources":origins}))
+ if failure.is_none()&&(answer.len()>128*1024||answer.trim().is_empty()){failure=Some("empty or oversized Marqdo response".into())}
+ event(c,if child{"child_model_end"}else{"model_end"},json!({"id":unit,"call_id":model_call_id,"attempt":attempt,"step":step,"status":if failure.is_none(){"succeeded"}else{"failed"},"role":role}))?;
+ if let Some(error)=failure{return Err(error)}Ok(json!({"text":answer,"sources":origins}))
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
  match v["operation"].as_str().unwrap_or(""){
@@ -208,11 +214,18 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    for c in value.chars(){if c=='`'{current+=1;maximum=maximum.max(current)}else{current=0}}
    let fence="`".repeat((maximum+1).max(3));Ok(json!(format!("{fence}markdown\n{value}\n{fence}")))
   },
+  "runtime_pause"=>{private_request(context(v)?)?;let ms=v["milliseconds"].as_u64().ok_or("milliseconds required")?;if ms>2000{return Err("pause exceeds bound".into())}std::thread::sleep(Duration::from_millis(ms));Ok(json!(true))},
   "runtime_context"=>{let p=std::env::var("QDAGENT_ACTOR_FILE").map_err(|_|"actor context unavailable")?;serde_json::from_slice(&fs::read(p).map_err(|e|e.to_string())?).map_err(|e|e.to_string())},
   "runtime_event"=>{event(context(v)?,text(v,"kind")?,v["data"].clone())?;Ok(json!(true))},
   "runtime_model"=>model(v),
   "runtime_execute"=>execute(v),
-  "runtime_validate"=>validate(text(v,"source")?,Path::new(text(v,"api")?)),
+  "runtime_recovery_read"|"runtime_recovery_write"=>call_preflight::cache(v),
+  "runtime_diagnostic"=>Ok(call_preflight::diagnostic(&v["observed"],0).unwrap_or_else(||json!({"message":v["observed"].to_string().chars().take(1600).collect::<String>()}))),
+  "runtime_validate"=>{
+   let source=text(v,"source")?;if source.len()>128*1024{return Err("call document exceeds bound".into())}
+   if let Some(step)=v["step"].as_u64(){let c=context(v)?;private_request(c)?;let unit=id(c["unit_id"].as_str().unwrap_or("root"))?;let role=id(text(c,"role")?)?;let own=directory(c)?.join("actors").join(unit).join(role);fs::create_dir_all(&own).map_err(|e|e.to_string())?;super::atomic(&own.join(format!("turn-{step}.source.mq.md")),source)?;}
+   validate(source,Path::new(text(v,"api")?))
+  },
   "runtime_intent"=>{let source=text(v,"source")?;let parsed=parser(source)?;if !parsed.imports.is_empty()||!parsed.uses.is_empty()||parsed.functions.iter().any(|f|!f.body.is_empty()||!f.children.is_empty()){return Err("intent projection contains executable content".into())}Ok(json!({"sha256":digest(source.as_bytes()),"executable_statements":0,"text":source}))},
   "runtime_suite"=>{
    let c=context(v)?;id(text(c,"unit_id")?)?;if c["role"]!="test"{return Err("only test actor can freeze a suite".into())}
@@ -228,7 +241,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   },
   "runtime_suite_verify"=>{let suite=&v["tests"]["suite"];let raw=suite.to_string();if digest(raw.as_bytes())!=text(&v["tests"],"sha256")?{return Err("frozen tests digest mismatch".into())}Ok(suite.clone())},
   "runtime_document"=>{let c=context(v)?;let requested=Path::new(text(v,"path")?);let base=Path::new(text(c,"project")?).join("ext/root-skill");let path=descendants(requested,&base.join("runtime")).or_else(|_|descendants(requested,&base.join("guides")))?;if !path.to_string_lossy().ends_with(".mq.md"){return Err("Marqdo instruction source required".into())}let source=fs::read_to_string(path).map_err(|e|e.to_string())?;Ok(json!({"source":source}))},
-  "runtime_handbook"=>{let c=context(v)?;let path=descendants(Path::new(text(v,"path")?),&Path::new(text(c,"project")?).join("ext/root-skill/calls"))?;let source=fs::read_to_string(path).map_err(|e|e.to_string())?;let module=parser(&source)?;let mut excerpts=vec![];for function in &module.functions{let start=function.span.line.saturating_sub(1)as usize;let end=function.body.iter().map(marqdo::ast::stmt_line).min().unwrap_or(function.span.line).saturating_sub(1)as usize;excerpts.push(source.lines().skip(start).take(end-start).collect::<Vec<_>>().join("\n"))}Ok(json!({"source":excerpts.join("\n\n")}))},
+  "runtime_handbook"=>{let c=context(v)?;let path=descendants(Path::new(text(v,"path")?),&Path::new(text(c,"project")?).join("ext/root-skill/calls"))?;let source=fs::read_to_string(path).map_err(|e|e.to_string())?;let module=parser(&source)?;let mut excerpts=vec![];for function in &module.functions{let start=function.span.line.saturating_sub(1)as usize;let end=function.body.iter().map(marqdo::ast::stmt_line).min().unwrap_or(function.span.line).saturating_sub(1)as usize;excerpts.push(source.lines().skip(start).take(end-start).collect::<Vec<_>>().join("\n"))}Ok(json!({"source":excerpts.join("\n\n"),"api_sha256":digest(source.as_bytes())}))},
   "runtime_library"=>{let c=context(v)?;let module=text(v,"module")?;if module.is_empty()||!module.bytes().all(|b|b.is_ascii_lowercase()||b==b'_'){return Err("invalid standard module".into())}let p=Path::new(text(c,"project")?).join(format!("lib/{module}.mq.md"));let source=fs::read_to_string(p).map_err(|e|e.to_string())?;let section=text(v,"section")?;let doc=if section.is_empty(){source}else{let m=parser(&source)?;let function=m.functions.iter().find(|f|f.name==section).ok_or("unknown library function")?;let start=function.span.line.saturating_sub(1) as usize;let next=m.functions.iter().filter(|f|f.span.line>function.span.line).map(|f|f.span.line.saturating_sub(1)as usize).min().unwrap_or(source.lines().count());source.lines().skip(start).take(next-start).collect::<Vec<_>>().join("\n")};Ok(json!({"source":doc.chars().take(12000).collect::<String>()}))},
   "runtime_material"=>{let c=context(v)?;let rel=text(v,"path")?;if !rel.starts_with("uploads/"){return Err("only supplied material is visible at this call site".into())}let root=Path::new(text(c,"workspace")?);let p=descendants(&root.join(rel),&root.join("uploads"))?;let bytes=fs::read(p).map_err(|e|e.to_string())?;if bytes.len()>64*1024{return Err("material exceeds text context bound".into())}let source=String::from_utf8(bytes).map_err(|_|"binary material requires a document plugin")?;Ok(json!({"source":source}))},
   "runtime_reference"=>{
@@ -255,9 +268,21 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
  use super::*;
  #[test]fn official_ast_rejects_host_calls_and_control_flow(){let dir=std::env::temp_dir().join(format!("qd-parser-{}",std::process::id()));fs::create_dir_all(&dir).unwrap();let api=dir.join("api.mq.md");fs::write(&api,"---\nmarkup: occlusion\n---\n## ask\n\nReturn *None*.\n").unwrap();let header=format!("---\nmarkup: occlusion\nimport:\n  api: {}\n---\n\n## act\n\n",api.display());assert!(validate(&(header.clone()+"Return *api.ask()* ."),&api).is_ok());for body in ["Return *sys.env_get(name=\"HOME\")*.","Return *api.respond()*.","1. True\n  Return *api.ask()*."]{assert!(validate(&(header.clone()+body),&api).is_err(),"{body}")}fs::remove_dir_all(dir).unwrap();}
  #[test]fn fenced_markdown_is_inert_and_nested_fences_keep_original_text(){
-  let dir=std::env::temp_dir().join(format!("qd-native-cell-{}",std::process::id()));fs::create_dir_all(&dir).unwrap();let api=dir.join("api.mq.md");fs::write(&api,"## write_document\n\nUse `content`, `narrative`。\nReturn *True*.\n").unwrap();
+  let dir=std::env::temp_dir().join(format!("qd-native-cell-{}",std::process::id()));fs::create_dir_all(&dir).unwrap();let api=dir.join("api.mq.md");fs::write(&api,"## write_document\n\nUse `content`, `narrative`。\nReturn *`content` + `narrative`*.\n").unwrap();
   let source=format!("---\nmarkup: occlusion\nimport:\n  api: {}\n---\n\n## act\n\n`article` =\n````markdown\n# 原生正文\n\n```mq\nReturn *sys.env_get(name=\"SECRET\")*.\n```\n\n保持 \"引号\" 与 `变量`。\n````\nReturn *api.write_document(content=`article`,narrative=\"来源\")*.\n",api.display());
   let (metadata,executable)=prepare_call(&source,&api).unwrap();assert_eq!(metadata["calls"],json!(["api.write_document"]));assert!(executable.contains("\\x60变量\\x60"));assert!(!executable.contains("````markdown"));assert!(executable.contains("Return *sys.env_get"));assert!(validate(&source.replace("Return *api.write_document", "We **leak = sys.env_get(name=\"SECRET\")**.\nReturn *api.write_document"),&api).is_err());fs::remove_dir_all(dir).unwrap();
+ }
+ #[test]fn official_binding_checks_every_call_before_any_effect(){
+  let dir=std::env::temp_dir().join(format!("qd-args-{}",std::process::id()));fs::create_dir_all(&dir).unwrap();let api=dir.join("api.mq.md");
+  fs::write(&api,"---\nmarkup: occlusion\n---\n## accept\n\n| 参数 | 类型 | 说明 |\n|---|---|---|\n| value | text | 必填正文 |\n\nUse `value`。\nReturn *`value`*.\n").unwrap();
+  let header=format!("---\nmarkup: occlusion\nimport:\n  api: {}\n---\n\n## act\n\n",api.display());
+  for (call,code) in [("api.accept(other=\"x\")","call.unknown_arg"),("api.accept()","call.missing_arg"),("api.accept(value=12)","contract.arg_mismatch"),("api.accept(value=\"a\",value=\"b\")","call.duplicate_arg")]{let source=format!("{header}We **first = api.accept(value=\"valid\")**.\nReturn *{call}*.\n");let error=validate(&source,&api).unwrap_err();assert!(error.contains(code),"{error}")}
+  let valid=validate(&(header+"Return *[保存真实正文](api.accept(value=\"合法正文\"))*."),&api).unwrap();assert_eq!(valid["checks"][0]["parameters"][0]["type"],"text");assert_eq!(valid["checks"][0]["intent"],"保存真实正文");fs::remove_dir_all(dir).unwrap();
+ }
+ #[test]fn preflight_never_evaluates_optional_defaults(){
+  let api=Path::new("default-check.mq.md");let mut allowed=parser("## accept\n\nUse `value`。\nReturn *`value`*.\n").unwrap();let span=allowed.functions[0].span;
+  allowed.functions[0].params.push(marqdo::ast::Param{name:"optional".into(),span,default:Some(Expr::Var("THIS_DEFAULT_MUST_NOT_RUN".into())),inferred:false});
+  let caller=parser("## act\n\nReturn *api.accept(value=\"valid\")*.\n").unwrap();let checked=call_preflight::check(&caller,&allowed,api,&[]);assert!(checked.is_ok(),"{checked:?}");
  }
  #[test]fn intent_cannot_carry_hidden_executable_statements(){assert!(dispatch(&json!({"operation":"runtime_intent","source":"## scope\n\n公开业务意图。\n"})).is_ok());assert!(dispatch(&json!({"operation":"runtime_intent","source":"## scope\n\nWe **secret = 8**.\n"})).is_err());}
 }

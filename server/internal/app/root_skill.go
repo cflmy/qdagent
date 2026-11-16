@@ -86,6 +86,14 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
 	if !ok {
 		return
 	}
+	if task.Archived != 0 {
+		writeError(w, 409, "task_archived", "任务已归档，请恢复后继续")
+		return
+	}
+	if s.supervisor.workflow == nil {
+		writeError(w, 503, "workflow_unavailable", "根 SKILL 未准备好")
+		return
+	}
 	var input struct {
 		Revision      int64             `json:"revision"`
 		Action        string            `json:"action"`
@@ -189,6 +197,12 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
 		return
 	}
 	s.supervisor.mu.Lock()
+	latest, stateErr := s.store.task(i.Principal, task.ID)
+	if stateErr != nil || latest.Archived != 0 {
+		s.supervisor.mu.Unlock()
+		writeError(w, 409, "task_archived", "任务已归档，请恢复后继续")
+		return
+	}
 	var active int
 	s.store.db.QueryRow(`SELECT count(*) FROM qd_runs WHERE task_id=? AND status='running'`, task.ID).Scan(&active)
 	if active != 0 {

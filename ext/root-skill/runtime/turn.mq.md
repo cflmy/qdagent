@@ -2,6 +2,8 @@
 markup: occlusion
 title: 一次角色工作的有界调用循环
 import:
+  recovery: recovery.mq.md
+  re: lib/re.mq.md
   planning: planning.mq.md
   io: io.mq.md
   core: ../state.mq.md
@@ -79,7 +81,13 @@ Use `context`, `model_id`="inherit", `limit`=6。
 Document research has more bounded steps than a fixed return. A query, a failed address, a second source and a final publication are separate calls. This role therefore has up to eighteen turns, while ordinary implementation keeps six and outline keeps twelve. The limit is still explicit and the process deadline still applies. Failed addresses have their own two-attempt network bound, so increasing the role budget does not authorize endless retries. Successful observations survive between turns and user continuations. A section that is already independently ready exits immediately; a partial section remains incomplete rather than receiving a fabricated result at the budget boundary.
 
 
+错误处理有三条独立边界。模型网络连接短暂失败时，传输重试仍属于同一次生成，不会重放任何工具；调用文本在执行前不合法时，需要模型按官方错误改写，并受相同无效源码次数限制；工具开始运行后报告业务失败时，必须先核对已经保存的状态再继续，不自动重放副作用。当前角色每次只收到自己的上次失败片段、实际原因与同版本经验。
+
+例如，成功创建职责草稿后下一轮应定义缺少的职责或发表框架，不能把阶段仍未完成误当成刚才创建失败。某段通过独立试运行后立即退出，不再请求模型重复作者操作。达到轮次上限则返回未完成与可追溯诊断，用户以后可以明确继续；缓存保存与否都不改变这些真实门禁。
+
 We **feedback = None**.
+We **last_invalid = ""**.
+We **repeated = 0**.
 1. access(`context`,"role") == "outline" or access(`context`,"role") == "intent"
   We **limit = 12**.
 1. access(`context`,"role") == "implement" and (json.get(value=`context`,key="variant") == "research" or json.get(value=`context`,key="variant") == "document")
@@ -100,10 +108,22 @@ We **rounds = table.range(start=1,end=(`limit` + 1))**.
   We **succeeded = access(`executed`,"ok")**.
   1. `succeeded` and json.get(value=access(`executed`,"value"),key="ok") == False and json.get(value=access(`executed`,"value"),key="error") != None
     We **succeeded = False**.
+  We **lesson = recovery.observe(context=`context`,source=access(access(`generated`,"value"),"text"),observed=`executed`,succeeded=`succeeded`)**.
   We **feedback = table.put(in=None,at="succeeded",value=`succeeded`)**.
   1. not `succeeded`
-    We **feedback = table.put(in=`feedback`,at="own_previous_program",value=access(access(`generated`,"value"),"text"))**.
-    We **feedback = table.put(in=`feedback`,at="observation",value=`executed`)**.
+    We **feedback = table.put(in=`feedback`,at="own_previous_program",value=re.find(text=access(access(`generated`,"value"),"text"),pattern="(?s)^.{0,8000}"))**.
+    We **feedback = table.put(in=`feedback`,at="observation",value=access(`lesson`,"cause"))**.
+    We **feedback = table.put(in=`feedback`,at="advice",value=access(`lesson`,"advice"))**.
+  1. not `succeeded` and json.get(value=`executed`,key="validation_failed")
+    1. `last_invalid` == access(access(`generated`,"value"),"text")
+      We **repeated = `repeated` + 1**.
+    2. else
+      We **repeated = 1**.
+    We **last_invalid = access(access(`generated`,"value"),"text")**.
+  2. else
+    We **repeated = 0**.
+  1. `repeated` >= 3
+    Return *result.error(code="root.repeated_invalid_call",message="同一调用连续三次校验失败，已保存具体诊断和修复依据，请修改调用后继续",operation="run")*.
 1. done(context=`context`)
   Return *result.ok(value=True)*.
 Return *result.error(code="root.role_incomplete",message=("本阶段未取得必要的真实结果：" + access(`context`,"role")),operation="run")*.
