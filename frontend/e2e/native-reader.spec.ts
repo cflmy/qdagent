@@ -1,7 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 const project=fileURLToPath(new URL('../../',import.meta.url));
@@ -11,7 +10,7 @@ test.beforeAll(()=>{
  knowledge=JSON.parse(execFileSync('python3',['tests/prepare_knowledge_browser.py','migration-verification'],{cwd:project,timeout:100000,encoding:'utf8'}));
 });
 test.afterAll(()=>{
- if(knowledge?.key)fs.rmSync(path.join(project,'data/knowledge',createHash('sha256').update('migration-verification').digest('hex'),knowledge.key),{recursive:true,force:true});
+ if(knowledge?.key)fs.rmSync(path.join(project,'data/knowledge/public',knowledge.key),{recursive:true,force:true});
 });
 const source='---\nmarkup: occlusion\ntitle: 只读关系演示\n---\n\n## example\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | int | 演示值 |\n\n这里通过叙述解释每一个动作。我们[计算第一笔金额](40 + 2)，并保留它与实际逻辑的关系。阅读本身不会执行代码。\n\nWe **amount = [建立明确的计算结果](40 + 2)**.\n\n接下来我们继续[解释同一个结果](§amount§)，展示正文与侧注之间的连线。\n\n在执行了上述操作之后我们得到了所需的*amount*。\n\n[后续阅读](follow-up.mq.md)\n\n## never_run\n\n本段只用于确认阅读不会运行写文件。\n\nReturn *[写入不应该出现的文件](> host_write_text path="view-must-not-run.txt" text="executed")*.\n'.replaceAll('§',String.fromCharCode(96));
 test('large reader uses the native canvas and connectors without workspace chrome',async({page})=>{
@@ -48,7 +47,7 @@ test('large reader uses the native canvas and connectors without workspace chrom
 test('knowledge stays in the main workbench and opens only the selected detail in a new page',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/app?section=knowledge');await expect(page.locator('.sidebar')).toBeVisible();
- await expect(page.getByRole('heading',{name:'我的知识库',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'公用知识库',exact:true})).toBeVisible();
  await expect(page.locator('.composer-dock,.reader-panel')).toHaveCount(0);
  const card=page.locator('.library-card').filter({hasText:knowledge.name});await expect(card).toBeVisible();
  const popupPromise=page.waitForEvent('popup');await card.getByRole('link',{name:'查看详情'}).click();const popup=await popupPromise;

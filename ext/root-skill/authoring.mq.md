@@ -162,7 +162,7 @@ We **source = `header` + `fragment`**.
 We **candidate = ".agent/root-candidates/" + `unit_id` + ".mq.md"**.
 We **_ = fs.make_dirs(path=".agent/root-candidates")**.
 We **_ = fs.atomic_write(path=`candidate`,text=`source`)**.
-We **checked = core.native(context=`context`,operation="root_check",payload=table.put(in=None,at="path",value=`candidate`))**.
+We **checked = core.native(context=`context`,operation="root_check",payload=table.put(in=table.put(in=None,at="path",value=`candidate`),at="single_function",value=("unit_" + `unit_id`)))**.
 1. not access(`checked`,"ok") or not json.get(value=access(`checked`,"value"),key="valid")
   Return *result.error(code="root.invalid_source",message=json.stringify(value=`checked`),operation="author_unit")*.
 We **write_args = table.put(in=None,at="unit_id",value=`unit_id`)**.

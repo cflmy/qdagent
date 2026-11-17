@@ -75,7 +75,7 @@ func TestOIDCFullFlowWithDiscoveryRecoveryAndReplayProtection(t *testing.T) {
 		if mismatchSubject {
 			sub = "different-subject"
 		}
-		writeJSON(w, 200, map[string]string{"sub": sub, "name": "验收用户"})
+		writeJSON(w, 200, map[string]any{"sub": sub, "name": "验收用户", "is_admin": true, "admin_role": "operator"})
 	})
 	provider := httptest.NewServer(mux)
 	defer provider.Close()
@@ -135,6 +135,9 @@ func TestOIDCFullFlowWithDiscoveryRecoveryAndReplayProtection(t *testing.T) {
 	s.Handler().ServeHTTP(w, r)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "验收用户") {
 		t.Fatal("session cannot access API")
+	}
+	if !strings.Contains(w.Body.String(), `"can_manage":true`) {
+		t.Fatal("verified userinfo role not applied", w.Body.String())
 	}
 	if callback(cookie, state).Header().Get("Location") != "/?auth_error=state" {
 		t.Fatal("single-use authorization state reused")

@@ -245,6 +245,10 @@ Use `observed`。
 
 官方提示没有实际调用与返回，常见原因是可读标签的括号没有闭合，整句因此仅剩叙述。此时应进入语法修复说明，建议模型重新输出一条完整的直接调用；不能由宿主补括号后悄悄执行。未知变量也需要检查反引号引用和实际赋值，函数名或类型名称不应变成未定义变量。分类只增加这条解释，不把异常当成已成功，也不自动修改模型写出的业务代码。
 
+The single-function category distinguishes an invalid generation unit from a transient provider outage. A rejected batch has not partially executed, so its repair is to generate one operation, not replay the whole batch. An extra heading belongs to the candidate scope diagnostic; it does not authorize changing the frozen framework or another function.
+
+1. text.contains(text=`observed`,sub="call.multiple_operations") or text.contains(text=`observed`,sub="candidate.scope")
+  Return *"one_function"*.
 1. text.contains(text=`observed`,sub="root.formula_operator")
   Return *"formula"*.
 1. text.contains(text=`observed`,sub="office.layout") or text.contains(text=`observed`,sub="office.image") or text.contains(text=`observed`,sub="PNG")

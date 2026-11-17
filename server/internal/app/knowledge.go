@@ -42,9 +42,12 @@ func (s *Server) knowledgeCall(ctx context.Context, fn string, c map[string]any,
 	return result.Value, nil
 }
 func (s *Server) knowledgeContext(i identity) map[string]any {
-	return map[string]any{"owner": i.Principal, "project": s.store.root, "workspace": filepath.Join(s.store.root, "data"), "id": "knowledge"}
+	return map[string]any{"owner": i.Principal, "admin_role": s.store.accountRole(i.Principal), "knowledge_scope": publicKnowledgeScope, "project": s.store.root, "workspace": filepath.Join(s.store.root, "data"), "id": "knowledge"}
 }
 func (s *Server) prepareKnowledge(w http.ResponseWriter, r *http.Request, i identity) {
+	if !s.requireManager(w, i) {
+		return
+	}
 	if !s.store.pluginEnabled(i.Principal, "knowledge") {
 		writeError(w, 403, "plugin_disabled", "知识编译插件已停用")
 		return
@@ -85,6 +88,9 @@ func (s *Server) prepareKnowledge(w http.ResponseWriter, r *http.Request, i iden
 	writeJSON(w, 200, value)
 }
 func (s *Server) publishKnowledge(w http.ResponseWriter, r *http.Request, i identity) {
+	if !s.requireManager(w, i) {
+		return
+	}
 	if !s.store.pluginEnabled(i.Principal, "knowledge") {
 		writeError(w, 403, "plugin_disabled", "知识编译插件已停用")
 		return
@@ -128,6 +134,9 @@ func (s *Server) knowledgeDocument(w http.ResponseWriter, r *http.Request, i ide
 		root, _ := v["root"].(string)
 		path := "index.mq.md"
 		if r.URL.Query().Get("related") == "decisions.mq.md" {
+			if !s.requireManager(w, i) {
+				return
+			}
 			path = "decisions.mq.md"
 		}
 		out, e := s.marqdo(ctx, "pages/agent/previews.mq.md", "show", root, map[string]string{"path": path}, "plugin,fs.read,fs.write,process.exec,random.read,environment.read")
@@ -153,6 +162,9 @@ func (s *Server) executeKnowledge(w http.ResponseWriter, r *http.Request, i iden
 		WriteBack bool   `json:"write_back"`
 	}
 	if !decode(w, r, &input) {
+		return
+	}
+	if input.WriteBack && !s.requireManager(w, i) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)

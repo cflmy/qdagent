@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {ArrowLeft,BookOpen,CheckCircle2,Code2,FileCode2,FlaskConical,LoaderCircle,Play} from 'lucide-react';
-import {api,type Preview,useResource} from '../api';
+import {api,type Account,type Preview,useResource} from '../api';
 import {Markdown} from './Markdown';
 import {FilePreview} from './FilePreview';
 import {ReadableValue} from './ReadableValue';
@@ -19,6 +19,8 @@ function KnowledgeResult({value}:{value:unknown}){
 }
 
 export default function KnowledgePage(){
+ const account=useResource<Account>('/api/me');
+ const canManage=account.data?.access?.can_manage===true;
  const query=new URLSearchParams(location.search),key=query.get('id')||'',reference=query.get('reference')||'';
  const [related,setRelated]=useState(false),[sourceIndex,setSourceIndex]=useState(-1),[code,setCode]=useState(false),[tools,setTools]=useState(false),[fn,setFn]=useState('run'),[input,setInput]=useState('{}'),[writeBack,setWriteBack]=useState(false),[busy,setBusy]=useState(''),[error,setError]=useState(''),[result,setResult]=useState<unknown>();
  const base=reference?'/api/knowledge/reference?path='+encodeURIComponent(reference):'/api/knowledge/'+encodeURIComponent(key);
@@ -42,7 +44,7 @@ export default function KnowledgePage(){
  function navigate(href:string){
   if(reference){const path=relativeDocumentPath(reference,href);if(path&&path.endsWith('.md'))location.assign('/app/knowledge?reference='+encodeURIComponent(path));return}
   const path=relativeDocumentPath(related?'decisions.mq.md':'index.mq.md',href);
-  if(path==='decisions.mq.md'){setRelated(true);setSourceIndex(-1);setCode(false);return}
+  if(path==='decisions.mq.md'){if(!canManage){setError('交流与验收记录仅供管理员查看。');return}setRelated(true);setSourceIndex(-1);setCode(false);return}
   if(path==='index.mq.md'){setRelated(false);setSourceIndex(-1);setCode(false);return}
   const index=entry?.sources?.findIndex(s=>s.path===path)??-1;
   if(index>=0){setSourceIndex(index);setCode(false)}
@@ -63,14 +65,14 @@ export default function KnowledgePage(){
    <div className="panel-body knowledge-tools">
     {error&&<div className="knowledge-error" role="alert">{error}</div>}
     <div className="knowledge-experiment-inputs">
-     <label className="knowledge-label">函数<select value={fn} onChange={e=>setFn(e.target.value)}>{(entry?.functions||['run']).map(f=><option key={f} value={f}>{f}</option>)}</select></label>
+     <label className="knowledge-label">函数<select value={fn} onChange={e=>setFn(e.target.value)}>{(entry?.functions||['run']).filter(f=>canManage||f!=='replay').map(f=><option key={f} value={f}>{f}</option>)}</select></label>
      <label className="knowledge-label">业务参数<textarea rows={7} value={input} onChange={e=>setInput(e.target.value)} spellCheck={false}/></label>
     </div>
     {contract.data&&<details className="knowledge-contract"><summary>函数公开契约</summary><Markdown text={contract.data.contract}/></details>}
-    <label className="knowledge-writeback"><input type="checkbox" checked={writeBack} onChange={e=>setWriteBack(e.target.checked)}/>将实际结果写回文稿</label>
+    {canManage&&<label className="knowledge-writeback"><input type="checkbox" checked={writeBack} onChange={e=>setWriteBack(e.target.checked)}/>将实际结果写回文稿</label>}
     <div className="knowledge-run-actions"><button className="button primary" disabled={!!busy} onClick={execute}>{busy==='execute'?<LoaderCircle size={15} className="spin"/>:<Play size={15}/>}运行函数</button><button className="button" disabled={!!busy} onClick={verify}>{busy==='verify'?<LoaderCircle size={15} className="spin"/>:<CheckCircle2 size={15}/>}复核冻结案例</button></div>
     {result!==undefined&&<section className="knowledge-result"><h3>实际执行结果</h3><KnowledgeResult value={result}/></section>}
-    <section className="knowledge-provenance"><h3>来源与审阅</h3>{(entry?.sources||[]).map(s=><article key={s.path}><FileCode2 size={16}/><strong>{readableFileName(s.path)}</strong><small>{new Set(s.chunks?.map(c=>c.page)).size} 个来源页 · SHA256 {s.sha256.slice(0,12)}…</small></article>)}<button className="text-button" onClick={()=>{setRelated(v=>!v);setSourceIndex(-1);setCode(false);setTools(false)}}>{related?'返回知识文稿':'查看用户交流与验收记录'}</button><p>契约测试不代替领域判断。外联执行没有自动授予进程或网络权限。</p></section>
+    <section className="knowledge-provenance"><h3>来源与审阅</h3>{(entry?.sources||[]).map(s=><article key={s.path}><FileCode2 size={16}/><strong>{readableFileName(s.path)}</strong><small>{new Set(s.chunks?.map(c=>c.page)).size} 个来源页 · SHA256 {s.sha256.slice(0,12)}…</small></article>)}{canManage&&<button className="text-button" onClick={()=>{setRelated(v=>!v);setSourceIndex(-1);setCode(false);setTools(false)}}>{related?'返回知识文稿':'查看用户交流与验收记录'}</button>}<p>契约测试不代替领域判断。外联执行没有自动授予进程或网络权限。</p></section>
    </div>
   </Dialog>
  </main>;

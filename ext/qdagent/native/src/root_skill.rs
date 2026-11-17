@@ -55,7 +55,11 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
  }
  let root=workspace(v)?;let path=source(&root,v["path"].as_str().ok_or("path required")?)?;
  let checked=validate(&root,&path)?;
- if operation=="root_check"{return Ok(checked)}
+ if operation=="root_check"{
+  if let Some(name)=v["single_function"].as_str(){let module=marqdo::load::parse_source_auto(&fs::read_to_string(&path).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
+   if module.functions.len()!=1||module.functions[0].name!=name||!module.functions[0].children.is_empty(){return Err("candidate.scope: 候选不是当前唯一分配函数，不能替换函数段".into())}
+  }return Ok(checked)
+ }
  if operation!="root_trial"&&operation!="root_smoke"{return Err("unknown root skill operation".into())}
  if checked["valid"]!=true{return Ok(json!({"passed":false,"check":checked}))}
  if checked["sha256"]!=v["sha256"]{return Err("source changed after validation".into())}

@@ -14,6 +14,16 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--authorize-model-request" {
+		root := os.Getenv("QDAGENT_ROOT")
+		if root == "" {
+			root = "."
+		}
+		if err := app.AuthorizeModelRequest(root, os.Stdin, os.Stdout); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "--healthcheck" {
 		c := http.Client{Timeout: 3 * time.Second}
 		r, e := c.Get("http://127.0.0.1:7964/healthz")

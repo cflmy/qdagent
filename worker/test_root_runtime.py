@@ -15,9 +15,9 @@ import test_root_skill as protocol
 
 class RuntimeTests(unittest.TestCase):
  def setUp(self):
-  self.fixture=protocol.RootTests(methodName='runTest');self.fixture.setUp();self.requests=[];self.repairs={};self.test_attempts={};self.outline_attempts=0;self.lock=threading.Lock();self.active=0;self.peak=0;self.transient_failures=0
+  self.fixture=protocol.RootTests(methodName='runTest');self.fixture.setUp();self.requests=[];self.repairs={};self.test_attempts={};self.outline_attempts=0;self.intent_attempts=0;self.lock=threading.Lock();self.active=0;self.peak=0;self.transient_failures=0
   self.responses={}
-  for name in ['intent','outline','test','bad','good','deliver','forbidden_test_read','outline_first','outline_second','outline_publish']:
+  for name in ['intent','intent_task','outline','test','bad','good','deliver','forbidden_test_read','outline_first','outline_second','outline_publish']:
    p=subprocess.run(['marqdo','call',str(protocol.PROJECT/'tests/fixtures/document-agent/responses.mq.md'),name,'--json'],capture_output=True,text=True,check=True)
    self.responses[name]=json.loads(p.stdout)['result']
   outer=self
@@ -33,7 +33,10 @@ class RuntimeTests(unittest.TestCase):
     standing=request['messages'][0]['content']
     role='intent' if '## ask\n' in standing else 'outline' if ('## text_unit\n' in standing or '## define\n' in standing or '## publish\n' in standing) else 'test' if ('## sample\n' in standing or '## verify_constant\n' in standing) else 'implement' if '## write_text\n' in standing else 'deliver'
     with outer.lock:outer.requests.append((role,request));outer.active+=1;outer.peak=max(outer.peak,outer.active)
-    if role=='outline':
+    if role=='intent':
+     with outer.lock:count=outer.intent_attempts;outer.intent_attempts+=1
+     response=outer.responses['intent_task' if count==0 else 'intent']
+    elif role=='outline':
      with outer.lock:count=outer.outline_attempts;outer.outline_attempts+=1
      response=outer.responses[['outline_first','outline_second','outline_publish'][min(count,2)]]
     elif role=='implement':
@@ -76,7 +79,7 @@ class RuntimeTests(unittest.TestCase):
   starts=[e['data'] for e in events if e['kind']=='model_start']
   self.assertEqual([e['attempt'] for e in starts[:2]],[1,2]);self.assertNotEqual(starts[0]['call_id'],starts[1]['call_id'])
   state=self.fixture.call('status');self.assertEqual(state['phase'],'intent');self.assertIsNotNone(state['pending'])
-  self.assertEqual(len([role for role,_ in self.requests if role=='intent']),1)
+  self.assertEqual(len([role for role,_ in self.requests if role=='intent']),2)
 
  def test_document_native_flow_has_blind_testers_and_repairs_real_defects(self):
   self.run_worker();state=self.fixture.call('status');self.fixture.call('respond',revision=state['revision'],action='confirm_intent',choice=state['pending']['choices'][0],settings={'concurrency':2,'child_model':'inherit','test_model':'inherit','unit_models':{},'expected_units':2})

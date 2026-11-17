@@ -17,6 +17,7 @@ import:
   text: lib/text.mq.md
   author: ../authoring.mq.md
   implementation: ../runtime/implementation.mq.md
+  call: ../../../pages/control/call.mq.md
   proof: ../proof.mq.md
 ---
 
@@ -305,3 +306,20 @@ Use `expression`, `variable`, `field`, `missing`, `narrative`。
   Return *result.error(code="root.formula_operator",message="公式库的乘方使用 ^，平方也可以写 x*x；不能使用 Python 的 **。请保持 formula 接口并修正 expression，不需要改写输入判断。",operation="formula")*.
 We **body = scalar_formula.body(expression=`expression`,variable=`variable`,field=`field`,missing=`missing`)**.
 Return *implementation.publish(context=io.current(),mode="code",value=None,body=`body`,narrative=`narrative`)*.
+
+
+## debug
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 当前函数的实际独立案例诊断 |
+
+页面中的真实退出和诊断会与本次调试关联；展开历史记录不会再运行一次测试。
+
+只重跑已经保存的本函数，不提交新的文稿或测试。适合核对同一函数的当前状态，不用重新生成函数体；若源码确实有错，则根据返回的真实原因修改当前函数并再次提交。这个入口不会调试邻段，不替换输入预期，不把失败强行标为成功。
+
+当前职责、函数身份和只读试运行根来自受信上下文。模型不能通过参数选择另一个工作区或拿到完整测试文稿，返回仍是当前函数的有界观测。调试一次不意味着整个任务已经完成；所有函数分别验证后，才由根文稿确定性地整合。若当前函数尚未保存，调试会保留未完成原因；它不创建默认实现，也不替用户选择新的计算规则。
+
+We **context = io.current()**.
+We **arguments = table.put(in=None,at="context",value=`context`)**.
+Return *call.invoke(file=(access(`context`,"project") + "/ext/root-skill/runtime/implementation.mq.md"),function="trial",arguments=`arguments`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,process.exec,environment.read")*.

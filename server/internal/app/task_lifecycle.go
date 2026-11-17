@@ -139,6 +139,23 @@ func (s *Server) archiveTask(w http.ResponseWriter, r *http.Request, i identity)
 	if *input.Archived {
 		stamp = time.Now().UnixMilli()
 	}
+	if !*input.Archived && task.Archived != 0 {
+		changed, e := s.store.db.Exec(`UPDATE qd_tasks SET archived_ms=0 WHERE id=? AND owner=? AND deleted_ms=0 AND (
+		 EXISTS(SELECT 1 FROM qd_accounts WHERE principal=? AND admin_role IN ('super_admin','operator') AND role_expires>?)
+		 OR COALESCE((SELECT task_limit FROM qd_account_limits WHERE principal=?),(SELECT task_limit FROM qd_access_policy WHERE id=1))=-1
+		 OR (SELECT count(*) FROM qd_tasks WHERE owner=? AND archived_ms=0 AND deleted_ms=0) < COALESCE((SELECT task_limit FROM qd_account_limits WHERE principal=?),(SELECT task_limit FROM qd_access_policy WHERE id=1)))`, task.ID, i.Principal, i.Principal, time.Now().Unix(), i.Principal, i.Principal, i.Principal)
+		if e != nil {
+			writeError(w, 503, "restore_failed", "暂时无法恢复任务")
+			return
+		}
+		if n, _ := changed.RowsAffected(); n != 1 {
+			writeError(w, 409, "task_limit_reached", errTaskLimit.Error())
+			return
+		}
+		task.Archived = 0
+		writeJSON(w, 200, task)
+		return
+	}
 	if _, err := s.store.db.Exec(`UPDATE qd_tasks SET archived_ms=? WHERE id=? AND owner=? AND deleted_ms=0`, stamp, task.ID, i.Principal); err != nil {
 		writeError(w, 500, "database_error", "归档状态保存失败")
 		return

@@ -81,6 +81,13 @@ func (a *auth) who(r *http.Request) (identity, error) {
 	if a.dev != "" {
 		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 		if p := net.ParseIP(ip); p != nil && p.IsLoopback() {
+			role := ""
+			if os.Getenv("QDAGENT_DEV_ADMIN") == "1" {
+				role = "operator"
+			}
+			if err := a.store.syncIdentity(a.dev, "本地开发", role, time.Now().Add(8*time.Hour).Unix()); err != nil {
+				return identity{}, err
+			}
 			return identity{a.dev, "本地开发"}, nil
 		}
 	}
@@ -90,6 +97,9 @@ func (a *auth) who(r *http.Request) (identity, error) {
 	}
 	var i identity
 	err = a.store.db.QueryRow(`SELECT principal,name FROM qd_http_sessions WHERE hash=? AND expires>?`, digest(c.Value), time.Now().Unix()).Scan(&i.Principal, &i.Name)
+	if err == nil {
+		_, err = a.store.db.Exec(`INSERT OR IGNORE INTO qd_accounts(principal,name,admin_role,role_expires,updated_ms) VALUES(?,?,'',0,?)`, i.Principal, i.Name, nowMS())
+	}
 	return i, err
 }
 func (a *auth) discover(ctx context.Context) (*oidc.Provider, error) {
@@ -189,8 +199,13 @@ func (a *auth) callback(w http.ResponseWriter, r *http.Request) {
 	var claims struct {
 		Name      string `json:"name"`
 		Preferred string `json:"preferred_username"`
+		IsAdmin   bool   `json:"is_admin"`
+		AdminRole string `json:"admin_role"`
 	}
-	_ = info.Claims(&claims)
+	if err = info.Claims(&claims); err != nil {
+		a.failure(w, r, "userinfo", err)
+		return
+	}
 	name := claims.Name
 	if name == "" {
 		name = claims.Preferred
@@ -199,6 +214,10 @@ func (a *auth) callback(w http.ResponseWriter, r *http.Request) {
 		name = "求道用户"
 	}
 	principal := a.issuer + "\n" + verified.Subject
+	if err = a.store.syncIdentity(principal, name, verifiedRole(claims.IsAdmin, claims.AdminRole), time.Now().Add(8*time.Hour).Unix()); err != nil {
+		a.failure(w, r, "storage", err)
+		return
+	}
 	session := randomID() + randomID()
 	_, err = a.store.db.Exec(`INSERT INTO qd_http_sessions(hash,principal,name,expires) VALUES(?,?,?,?)`, digest(session), principal, name, time.Now().Add(8*time.Hour).Unix())
 	if err != nil {

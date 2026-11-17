@@ -15,6 +15,8 @@ export function useResource<T>(path:string|null,interval=0){
  return {...(value.path===path?value:{data:undefined,error:undefined,loading:!!path}),reload};
 }
 export interface Task {archived_ms?:number;id:string;title:string;status:string;created_ms:number}
+export interface AccountUsage {role:string;can_manage:boolean;can_audit:boolean;task_limit:number;active_tasks:number;smart_daily_limit:number;smart_used:number;smart_remaining:number;resets_at:string}
+export interface Account {name:string;access:AccountUsage}
 export interface Model {id:string;label:string;model:string;protocol:string;endpoint?:string;builtin:boolean;has_key:boolean;thinking:boolean;notice?:string}
 export interface Plugin {id:string;name:string;description:string;version:string;builtin:boolean;enabled:boolean;available:boolean;modules?:string[]}
 export interface Message {turn:number;question:string;answer:string;run_id:string;status:string}

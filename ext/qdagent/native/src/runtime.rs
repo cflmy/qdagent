@@ -92,6 +92,18 @@ fn prepare_call(source:&str,api:&Path)->Result<(Value,String),String>{
   }
  }
  if !returned||calls.is_empty(){return Err("an actual document function call and return are required".into())}
+ // Effects come from the official semantic closure, not a second tool registry.
+ let semantic=marqdo::sema::compile_file_closure(api).map_err(|e|e.to_string())?;
+ let canonical=api.canonicalize().map_err(|e|e.to_string())?;
+ let mut operations=vec![];
+ for call in &calls{
+  let name=call.strip_prefix("api.").ok_or("invalid document call")?;
+  let function=allowed.functions.iter().find(|f|f.name==name).ok_or("unknown supplied function")?;
+  let pure=semantic.semantics.artifacts.iter().find(|a|a.kind=="function"&&a.source.line==function.span.line&&semantic.semantics.root.join(&a.source.file).canonicalize().ok().as_ref()==Some(&canonical))
+   .is_some_and(|a|a.effects.values().iter().all(|effect|effect=="pure"));
+  if !pure{operations.push(call.clone())}
+ }
+ if operations.len()>1{return Err(format!("call.multiple_operations: 每轮最多一个非纯函数调用，实际为 {}",operations.len()))}
  let mut lines=normalized.split_inclusive('\n').map(str::to_string).collect::<Vec<_>>();
  // Re-emit only AST-bound data assignments; executable expressions are untouched.
  for stmt in fun.body.iter().rev(){
@@ -108,7 +120,7 @@ fn prepare_call(source:&str,api:&Path)->Result<(Value,String),String>{
  let executable=lines.concat();
  // Parse the generated transport form too: it cannot widen the supplied role.
  parser(&executable)?;
- Ok((json!({"calls":calls,"sha256":digest(source.as_bytes()),"execution_sha256":digest(executable.as_bytes()),"checks":checks,"api_sha256":digest(api_source.as_bytes()),"parser":"marqdo::load::parse_source_auto","cells":"host_document_code_blocks"}),executable))
+ Ok((json!({"operation":operations.first().or_else(||calls.last()),"calls":calls,"sha256":digest(source.as_bytes()),"execution_sha256":digest(executable.as_bytes()),"checks":checks,"api_sha256":digest(api_source.as_bytes()),"parser":"marqdo::load::parse_source_auto","cells":"host_document_code_blocks"}),executable))
 }
 fn validate(source:&str,api:&Path)->Result<Value,String>{prepare_call(source,api).map(|(metadata,_)|metadata)}
 fn execute(v:&Value)->Result<Value,String>{
@@ -126,7 +138,7 @@ fn execute(v:&Value)->Result<Value,String>{
  let scratch=own.join("work");fs::create_dir_all(&scratch).map_err(|e|e.to_string())?;
  let argv=vec!["call".to_string(),entry.to_string_lossy().into_owned(),"act".into(),"--args-json".into(),"-".into(),"--fs-root".into(),scratch.to_string_lossy().into_owned(),"--effects".into(),"plugin,fs.read,fs.write,process.exec,environment.read".into(),"--session".into(),format!("{}-{unit}-{role}",text(c,"run_id")?),"--json".into()];
  let ident=format!("{unit}-{role}-{step}");let child=c["unit_id"].is_string();
- let kind=if child{"child_tool_start"}else{"tool_start"};let mut data=json!({"id":if child{unit}else{&ident},"call_id":ident,"name":checked["calls"].as_array().and_then(|x|x.first()).cloned().unwrap_or(json!("act")),"arguments":{"source":source},"command":"marqdo call","role":role,"source_sha256":checked["sha256"]});event(c,kind,data.clone())?;
+ let kind=if child{"child_tool_start"}else{"tool_start"};let mut data=json!({"id":if child{unit}else{&ident},"call_id":ident,"name":checked["operation"],"arguments":{"source":source},"command":"marqdo call","role":role,"source_sha256":checked["sha256"]});event(c,kind,data.clone())?;
  let started=Instant::now();let mut command=Command::new("marqdo");command.args(&argv).current_dir(&scratch).env("QDAGENT_ACTOR_FILE",&actor).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
  let mut process=command.spawn().map_err(|e|e.to_string())?;process.stdin.take().unwrap().write_all(b"{}").map_err(|e|e.to_string())?;
  let output=bounded_wait(process,Duration::from_secs(90))?;
@@ -154,6 +166,16 @@ fn model(v:&Value)->Result<Value,String>{
  let packet=directory(c)?.join("packets");fs::create_dir_all(&packet).map_err(|e|e.to_string())?;let unit=id(c["unit_id"].as_str().unwrap_or("root"))?;let role=id(text(c,"role")?)?;let step=v["step"].as_u64().ok_or("step required")?;
  super::atomic(&packet.join(format!("{unit}-{role}-{step}-{}.json",v["attempt"].as_u64().unwrap_or(1))),&json!({"messages":messages,"origins":origins,"role":role,"unit_id":c["unit_id"]}).to_string())?;
  let attempt=v["attempt"].as_u64().unwrap_or(1);let model_call_id=format!("model-{unit}-{role}-{step}-{attempt}");
+ if let Some(helper)=req["quota_helper"].as_str(){
+  let request_file=std::env::var("QDAGENT_RUN_REQUEST_FILE").map_err(|_|"private request unavailable")?;
+  let mut command=Command::new(helper);command.arg("--authorize-model-request").env("QDAGENT_ROOT",&project).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+  let mut permit=command.spawn().map_err(|_|"模型额度服务不可用")?;
+  let data=json!({"request_file":request_file,"model_id":selected,"unit":unit,"role":role,"step":step,"attempt":attempt}).to_string();
+  permit.stdin.take().ok_or("quota input missing")?.write_all(data.as_bytes()).map_err(|e|e.to_string())?;
+  let output=bounded_wait(permit,Duration::from_secs(10))?;let response:Value=serde_json::from_slice(&output.0).map_err(|_|"模型额度服务未返回有效授权")?;
+  if output.2!=0||response["ok"]!=true{return Err(response["message"].as_str().unwrap_or("模型额度请求未获授权").into())}
+  event(c,"model_usage",response)?;
+ }else if config["selection_id"].is_string(){return Err("模型额度服务不可用，未发送请求".into())}
  let child=c["unit_id"].is_string();event(c,if child{"child_model_start"}else{"model_start"},json!({"id":unit,"call_id":model_call_id,"attempt":attempt,"step":step,"title":v["title"],"model":selected,"role":role,"sources":origins,"context_bytes":v["messages"].to_string().len()}))?;
  let mut cmd=Command::new("python3");cmd.arg(project.join("worker/provider.py")).current_dir(&project).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());let mut process=cmd.spawn().map_err(|e|e.to_string())?;
  let body=json!({"model":config,"messages":messages}).to_string();if body.len()>2*1024*1024{return Err("model request exceeded bound".into())}process.stdin.take().unwrap().write_all(body.as_bytes()).map_err(|e|e.to_string())?;
@@ -282,6 +304,13 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
 }
 #[cfg(test)]mod tests{
  use super::*;
+ #[test]fn one_operation_allows_pure_arguments_but_never_batches_writes(){
+  let temp=crate::document_bundle::Temporary::new().unwrap();let api=temp.0.join("api.mq.md");
+  fs::write(&api,"---\nmarkup: occlusion\nimport:\n  table: lib/table.mq.md\n  fs: lib/fs.mq.md\n---\n\n## field\n\nUse `value`。\nReturn *table.put(in=None,at=\"value\",value=`value`)*.\n\n## store\n\nUse `value`。\nReturn *fs.write_text(path=\"must-not-exist.txt\",text=`value`)*.\n").unwrap();
+  let header=format!("---\nmarkup: occlusion\nimport:\n  api: {}\n---\n\n## act\n\n",api.display());
+  let rejected=validate(&(header.clone()+"We **first = api.store(value=\"one\")**.\nReturn *api.store(value=\"two\")*."),&api).unwrap_err();assert!(rejected.contains("call.multiple_operations"),"{rejected}");
+  let allowed=validate(&(header+"We **record = api.field(value=\"data\")**.\nReturn *api.store(value=\"one\")*."),&api).unwrap();assert_eq!(allowed["operation"],"api.store");assert!(!temp.0.join("must-not-exist.txt").exists());
+ }
  #[test]fn official_ast_rejects_host_calls_and_control_flow(){let dir=std::env::temp_dir().join(format!("qd-parser-{}",std::process::id()));fs::create_dir_all(&dir).unwrap();let api=dir.join("api.mq.md");fs::write(&api,"---\nmarkup: occlusion\n---\n## ask\n\nReturn *None*.\n").unwrap();let header=format!("---\nmarkup: occlusion\nimport:\n  api: {}\n---\n\n## act\n\n",api.display());assert!(validate(&(header.clone()+"Return *api.ask()* ."),&api).is_ok());for body in ["Return *sys.env_get(name=\"HOME\")*.","Return *api.respond()*.","1. True\n  Return *api.ask()*."]{assert!(validate(&(header.clone()+body),&api).is_err(),"{body}")}fs::remove_dir_all(dir).unwrap();}
  #[test]fn fenced_markdown_is_inert_and_nested_fences_keep_original_text(){
   let dir=std::env::temp_dir().join(format!("qd-native-cell-{}",std::process::id()));fs::create_dir_all(&dir).unwrap();let api=dir.join("api.mq.md");fs::write(&api,"## write_document\n\nUse `content`, `narrative`。\nReturn *`content` + `narrative`*.\n").unwrap();

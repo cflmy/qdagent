@@ -5,7 +5,7 @@ import test_root_skill as root
 import test_office_skills as office
 class KnowledgeTests(unittest.TestCase):
  def setUp(self):
-  self.root=root.RootTests();self.root.setUp();self.context={**self.root.context}
+  self.root=root.RootTests();self.root.setUp();self.context={**self.root.context,'admin_role':'operator'}
   self.project=self.root.root/'project';self.project.mkdir();self.context['project']=str(self.project);self.work=self.root.root/'work';(self.work/'uploads').mkdir();(self.work/'uploads/source.py').write_text('# Source evidence: f(x)=x*x, domain real numbers.\ndef square(x): return x*x\n')
  def tearDown(self):self.root.tearDown()
  def invoke(self,fn,**args):
@@ -47,7 +47,7 @@ class KnowledgeTests(unittest.TestCase):
   actual=self.invoke('execute',id=key,function='run',input={'x':3});self.assertTrue(actual['ok'],actual);self.assertEqual(actual['value']['result'],{'u0':9})
   written=self.invoke('execute',id=key,function='replay',input={'x':4},write_back=True);self.assertTrue(written['ok'],written);self.assertTrue(written['value']['write_back']);document=self.invoke('document',id=key);self.assertTrue(document['ok'],document);self.assertIn('marqdo-out',document['value']['source'])
   verification=self.invoke('verify',id=key);self.assertTrue(verification['ok'],verification);self.assertTrue(verification['value']['passed'],verification);self.assertEqual(verification['value']['replayed'],3)
-  before=self.context['owner'];self.context['owner']='other-owner';self.assertFalse(self.invoke('document',id=key)['ok']);self.context['owner']=before
+  before=self.context['owner'];self.context['owner']='other-owner';self.context['admin_role']='';self.assertTrue(self.invoke('document',id=key)['ok']);self.assertTrue(self.invoke('execute',id=key,function='run',input={'x':3})['ok']);self.assertFalse(self.invoke('execute',id=key,function='run',input={'x':3},write_back=True)['ok']);self.assertFalse(self.invoke('prepare',title='普通用户不能创建',paths=['uploads/source.py'])['ok']);self.context['owner']=before;self.context['admin_role']='operator'
   location=Path(document['value']['root'])/'index.mq.md';location.write_text(location.read_text()+'\nUnreviewed edit.\n');self.assertFalse(self.invoke('execute',id=key,function='run',input={'x':3})['ok'])
 
  def test_readable_article_packages_reviewed_modules_and_rejects_changed_implementation(self):

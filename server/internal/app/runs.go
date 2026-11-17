@@ -112,6 +112,15 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 	if err != nil {
 		return Run{}, err
 	}
+	if model == "builtin-smart" {
+		usage, e := s.store.accountUsage(owner)
+		if e != nil {
+			return Run{}, e
+		}
+		if usage.SmartRemaining == 0 {
+			return Run{}, errSmartLimit
+		}
+	}
 	weight := 1
 	if s.workflow != nil {
 		if !s.store.pluginEnabled(owner, "root-skill") {
@@ -190,6 +199,12 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 	c["model"] = r.Model
 	c["run_id"] = r.ID
 	payload := map[string]any{"run_id": r.ID, "task_id": r.Task, "question": r.Question, "owner": owner, "context": c, "model": config, "knowledge": knowledge}
+	if executable, e := os.Executable(); e == nil {
+		payload["quota_helper"] = executable
+	} else {
+		s.finish(r, turn, "failed", "模型额度服务不可用")
+		return
+	}
 	if s.workflow != nil {
 		payload["root_skill"] = true
 		state, stateErr := s.workflow.snapshot(r.Task)

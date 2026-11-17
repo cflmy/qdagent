@@ -51,6 +51,30 @@ We **permit = flow.authorize(context=`context`,phase="refine",role="implement")*
 We **written = author.author_unit(context=`context`,unit_id=access(`context`,"unit_id"),narrative=`narrative`,mode=`mode`,body=`body`,value=`value`)**.
 1. not access(`written`,"ok")
   Return *written*.
+Return *[只调试刚刚保存的当前函数](trial(context=`context`))*.
+
+## trial
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| context | map | 受信当前函数与实现角色 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 当前函数的独立案例诊断，不含邻段源码与完整测试文稿 |
+
+Use `context`。
+
+只检查和调用当前分配的函数。生成与调试都以同一个函数段为边界，保存合法函数以后立即重跑原有独立案例；无需模型重新拼接工程入口，也不重复生成已通过的邻段。显式 debug 复用这个入口，读到当前源码版本再执行，不能借调试切换身份、输入或独立测试。修改过的函数必须重新获得案例证据，旧摘要不能直接沿用。
+
+语法错误停在候选中，运行错误保留具体输入、实际返回与契约位置。返回只给当前实现者修复所需的失败观测，成功案例与其他角色的材料不会塞回模型上下文。不根据模型自报的完成判断成功，所有已冻结案例实际通过才表示这一函数就绪。失败时保留源码，下一轮仍只修改这一函数，不让局部错误扩大成整份文档重写。
+
+We **permit = flow.authorize(context=`context`,phase="refine",role="implement")**.
+1. not access(`permit`,"ok")
+  Return *permit*.
+
+The trial reads the stored source and the already frozen suite. It does not ask the author to provide another expected result. For example, a numeric function returning text remains a type failure; the diagnostic does not convert its output until it matches. Exact-value cases use the existing native value comparator, while document contracts use their separately declared source requirements. A returned failure belongs to the actual function version and cannot be promoted by a later model message. Successful case bodies are omitted from the repair packet, keeping the next context focused on the failed observation and the current function.
+
 We **observed = author.trial_unit(context=`context`,unit_id=access(`context`,"unit_id"))**.
 1. not access(`observed`,"ok")
   Return *observed*.

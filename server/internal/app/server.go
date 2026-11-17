@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-paper-reader-0.14.2"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-access-control-0.15.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -53,9 +53,10 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /login", s.auth.login)
 	m.HandleFunc("GET /oidc/callback", s.auth.callback)
 	m.HandleFunc("POST /api/logout", s.auth.protect(func(w http.ResponseWriter, r *http.Request, i identity) { s.auth.logout(w, r) }))
-	m.HandleFunc("GET /api/me", s.auth.protect(func(w http.ResponseWriter, r *http.Request, i identity) {
-		writeJSON(w, 200, map[string]string{"name": i.Name})
-	}))
+	m.HandleFunc("GET /api/me", s.auth.protect(s.account))
+	m.HandleFunc("GET /api/admin/access", s.auth.protect(s.adminAccess))
+	m.HandleFunc("PUT /api/admin/access", s.auth.protect(s.updateAccess))
+	m.HandleFunc("PUT /api/admin/access/users/{account}", s.auth.protect(s.updateAccess))
 	m.HandleFunc("GET /api/tasks", s.auth.protect(s.tasks))
 	m.HandleFunc("POST /api/tasks", s.auth.protect(s.createTask))
 	m.HandleFunc("GET /api/tasks/{id}", s.auth.protect(s.task))
@@ -164,6 +165,10 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request, i identity) 
 	}
 	t, e := s.store.createTask(i.Principal, v.Title)
 	if e != nil {
+		if errors.Is(e, errTaskLimit) {
+			writeError(w, 409, "task_limit_reached", e.Error())
+			return
+		}
 		writeError(w, 400, "create_task_failed", "任务创建失败，请稍后重试")
 		return
 	}
@@ -251,6 +256,10 @@ func (s *Server) startRun(w http.ResponseWriter, r *http.Request, i identity) {
 	}
 	run, e := s.supervisor.start(i.Principal, t.ID, v.Model, v.Question, v.Knowledge)
 	if e != nil {
+		if errors.Is(e, errSmartLimit) {
+			writeError(w, 429, "model_quota_exceeded", e.Error())
+			return
+		}
 		writeError(w, 409, "run_rejected", e.Error())
 		return
 	}
@@ -302,7 +311,12 @@ func (s *Server) models(w http.ResponseWriter, r *http.Request, i identity) {
 			}
 		}
 	}
-	writeJSON(w, 200, map[string]any{"models": models, "default_model": preferred})
+	usage, e := s.store.accountUsage(i.Principal)
+	if e != nil {
+		writeError(w, 503, "usage_unavailable", "暂时无法读取模型额度")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"models": models, "default_model": preferred, "usage": usage})
 }
 func validEndpoint(raw string) bool {
 	u, e := url.Parse(raw)
@@ -508,9 +522,11 @@ func (s *Server) knowledge(w http.ResponseWriter, r *http.Request, i identity) {
 				}
 			}
 		}
-		drafts = append(drafts, map[string]any{"task": task.ID, "title": compilation["title"], "phase": phase, "document": document})
+		if manageRole(s.store.accountRole(i.Principal)) {
+			drafts = append(drafts, map[string]any{"task": task.ID, "title": compilation["title"], "phase": phase, "document": document})
+		}
 	}
-	writeJSON(w, 200, map[string]any{"sources": out, "compilations": drafts})
+	writeJSON(w, 200, map[string]any{"sources": out, "compilations": drafts, "can_manage": manageRole(s.store.accountRole(i.Principal)), "visibility": "public"})
 }
 func (s *Server) workspace(t Task) string {
 	return filepath.Join(s.store.root, "data/workspaces", t.ID)

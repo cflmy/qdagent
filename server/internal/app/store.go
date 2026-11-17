@@ -76,6 +76,10 @@ func openStore(root string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	if err = s.migrateAccess(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	// A server restart cannot silently resume or repeat a potentially mutating task.
 	_, err = db.Exec(`UPDATE qd_runs SET status='interrupted',finished_ms=? WHERE status='running'`, time.Now().UnixMilli())
 	if err != nil {
@@ -137,11 +141,22 @@ func (s *Store) createTask(owner, title string) (Task, error) {
 		return Task{}, errors.New("任务名称最多 120 字")
 	}
 	t := Task{ID: randomID(), Title: title, Status: "idle", Created: time.Now().UnixMilli()}
-	_, err := s.db.Exec(`INSERT INTO qd_tasks(id,owner,title,status,created_ms) VALUES(?,?,?,?,?)`, t.ID, owner, t.Title, t.Status, t.Created)
+	created, err := s.db.Exec(`INSERT INTO qd_tasks(id,owner,title,status,created_ms)
+	 SELECT ?,?,?,?,? WHERE
+	 EXISTS(SELECT 1 FROM qd_accounts WHERE principal=? AND admin_role IN ('super_admin','operator') AND role_expires>?)
+	 OR COALESCE((SELECT task_limit FROM qd_account_limits WHERE principal=?),(SELECT task_limit FROM qd_access_policy WHERE id=1))=-1
+	 OR (SELECT count(*) FROM qd_tasks WHERE owner=? AND archived_ms=0 AND deleted_ms=0) <
+	 COALESCE((SELECT task_limit FROM qd_account_limits WHERE principal=?),(SELECT task_limit FROM qd_access_policy WHERE id=1))`, t.ID, owner, t.Title, t.Status, t.Created, owner, time.Now().Unix(), owner, owner, owner)
 	if err != nil {
 		return t, err
 	}
+	if n, _ := created.RowsAffected(); n != 1 {
+		return Task{}, errTaskLimit
+	}
 	_, err = s.taskContext(owner, t.ID)
+	if err != nil {
+		_, _ = s.db.Exec(`DELETE FROM qd_tasks WHERE id=? AND owner=?`, t.ID, owner)
+	}
 	return t, err
 }
 func (s *Store) taskContext(owner, id string) (map[string]any, error) {
@@ -184,6 +199,8 @@ func (s *Store) taskContext(owner, id string) (map[string]any, error) {
 		}
 	}
 	c := map[string]any{"id": id, "title": t.Title, "owner": owner, "project": s.root, "root": root, "workspace": workspace, "created_ms": t.Created, "bundle": "0.4.0"}
+	c["admin_role"] = s.accountRole(owner)
+	c["knowledge_scope"] = publicKnowledgeScope
 	data, _ := json.Marshal(c)
 	if err = atomicWrite(filepath.Join(root, "context.json"), data, 0600); err != nil {
 		return nil, err
@@ -261,7 +278,7 @@ func (s *Store) models(owner string) ([]Model, error) {
 	if s.db.QueryRow(`SELECT id FROM qd_model_profiles WHERE owner='agent-development' AND model='smart/default' ORDER BY id LIMIT 1`).Scan(&shared) == nil {
 		out = append(out, Model{ID: "builtin-smart", Label: "智能模型", Model: "smart/default", Protocol: "openai", Builtin: true, HasKey: true})
 	}
-	out = append(out, Model{ID: "builtin-local", Label: "本机 Qwen", Model: "qwen3.5:4b-q4_K_M", Protocol: "ollama", Builtin: true})
+	out = append(out, Model{ID: "builtin-local", Label: "Qwen 3.5 · 4B", Model: "qwen3.5:4b-q4_K_M", Protocol: "ollama", Builtin: true})
 	rows, err := s.db.Query(`SELECT id,label,protocol,model,endpoint,thinking,credential!='' FROM qd_model_profiles WHERE owner=? ORDER BY label,id`, owner)
 	if err != nil {
 		return nil, err
@@ -284,12 +301,13 @@ func (s *Store) models(owner string) ([]Model, error) {
 	return out, nil
 }
 func (s *Store) resolveModel(owner, id string) (map[string]any, error) {
+	selection := id
 	if id == "builtin-local" {
 		ep := os.Getenv("QDAGENT_OLLAMA_URL")
 		if ep == "" {
 			ep = "http://127.0.0.1:11434"
 		}
-		return map[string]any{"protocol": "ollama", "model": "qwen3.5:4b-q4_K_M", "endpoint": ep, "api_key": "", "builtin": true, "thinking": false}, nil
+		return map[string]any{"selection_id": selection, "protocol": "ollama", "model": "qwen3.5:4b-q4_K_M", "endpoint": ep, "api_key": "", "builtin": true, "thinking": false}, nil
 	}
 	if id == "builtin-smart" {
 		owner = "agent-development"
@@ -322,7 +340,7 @@ func (s *Store) resolveModel(owner, id string) (map[string]any, error) {
 			endpoint = "http://127.0.0.1:11434"
 		}
 	}
-	return map[string]any{"protocol": protocol, "model": model, "endpoint": endpoint, "api_key": key, "thinking": thinking, "builtin": builtin}, nil
+	return map[string]any{"selection_id": selection, "protocol": protocol, "model": model, "endpoint": endpoint, "api_key": key, "thinking": thinking, "builtin": builtin}, nil
 }
 func (s *Store) pluginEnabled(owner, id string) bool {
 	var n int
