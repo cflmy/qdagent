@@ -7,11 +7,9 @@ import:
   json: lib/json.mq.md
   table: lib/table.mq.md
   text: lib/text.mq.md
-  re: lib/re.mq.md
-  uuid: lib/uuid.mq.md
   ui: ui.mq.md
   component: ext/web/component/index.mq.md
-  engineering: ext/engineering/index.mq.md
+  plugin: lib/plugin.mq.md
   artifacts: artifacts.mq.md
 ---
 
@@ -51,19 +49,15 @@ Return *[原生组件生成文件列表](ui.render(nodes=`nodes`))*.
 
 Use `path`="" and `artifact`=""。选产物时从真实清单取得源稿；选工作文件时直接使用授权根内的相对路径。只接收 Markdown 文本，不把二进制 Office 当作乱码展示。文件大小限制为 256 KiB，较大材料继续提供下载路径，不能把整个模型上下文或页面塞满。
 
-Marqdo files use the actual CLI DocumentViewV1 renderer, never a handwritten interpretation of its syntax. The read-only command returns its sanitized fragment and executed=false. A temporary isolated project avoids unrelated malformed files breaking the preview. Source is copied as data and is never run. Relative custom imports outside this isolated document are reported as unavailable rather than expanded into an unbounded server project.
+Marqdo 文稿交给官方 DocumentViewV1 渲染，不执行正文。ABI 使用官方解析器枚举相对导入，只复制当前授权工作根内的公开 Marqdo 文件，在隔离目录保留原有相对结构，然后调用只读 View。标准库与安装扩展继续从安装根解析，用户文稿不能指定绝对路径、远程导入或私有目录。
 
-The preview refuses non-public import paths before invoking the renderer. Only installed lib/ and ext/ imports are permitted in this standalone reader. This prevents an uploaded source document from requesting private server files through its metadata. Ordinary Markdown uses the existing safe component renderer and raw source is always escaped when a diagnostic is needed.
+多文件阅读最多包含四十八份文稿，单份一 MiB，总计四 MiB，深度十二层；循环、缺失依赖、越界符号链接和超限都显示实际诊断。页面不会展开整个服务器工程，不通过正则猜测语言语法，也不因为需要预览就给予业务函数写入或进程权限。临时副本在成功和失败时均由 ABI 回收。
 
-A rendering failure remains a visible diagnostic with the actual source available; it cannot be described as successful execution. Model content is never mounted as a browser program. The inspector's own lifecycle remains independent from the ongoing task, so changing a document cannot cancel or restart the agent.
+返回片段必须标记 sanitized_html 和 executed=false。正文、文件名和原始源码分别返回；渲染失败保留原文供核对，不把纯源码回退描述成正确的 View。公式、可调用链接与侧注继续由原生阅读器展示，切换文稿不会触发正在进行的任务。
 
-DocumentViewV1 is produced in a fresh isolated directory and explicitly reports read-only rendering. Its sanitized fragment is used directly, preserving the same syntax presentation as View. Temporary copies are removed after rendering. A fallback source display remains visibly a diagnostic rather than a substitute claiming successful View interpretation.
+The document snapshot is deliberately smaller than the task workspace. It contains the selected source and only the relative imports explicitly declared by the official AST. An unrelated malformed draft is not scanned and cannot break this document. Dependencies retain their original directory relationships, so a chapter can call its implementation without copying program statements into the reading surface. Installed libraries are not interpreted as arbitrary workspace paths. Public standard libraries remain available through the CLI's existing installation rules.
 
-The rendering format and read-only capability flags are checked before inserting the native fragment. A mismatch is not treated as a successful preview.
-
-The inspector title uses the native document metadata when it exists, while the file list retains the original relative filename. These are display labels only. They never select another source or change the root permission. Unsupported project imports remain an explicit limitation of standalone reading rather than being silently followed into server directories.
-
-The accepted source snapshot is returned as ordinary text for explicit source mode and download. It never becomes an application script.
+No downloaded interpreter, uploaded source file or foreign-language process runs during this operation. The native command has its own time and output budgets and reports an actual failure when either is exceeded. An unavailable import is described as unavailable instead of silently rendering a different source. When displaying a diagnostic, the original source is escaped and remains distinct from the sanitized native fragment. The frontend can offer source mode without treating it as an application or replaying a task.
 
 1. `artifact` != ""
   We **entries = artifacts.list()** and **found = False**.
@@ -80,43 +74,18 @@ We **source = fs.read_text(path=`path`)** and **kind = "markdown"** and **title 
 We **html = ui.markdown(source=`source`)**.
 1. text.ends_with(text=`path`,suffix=".mq.md")
   We **kind = "marqdo-view"**.
-  We **front = re.find(text=`source`,pattern="(?s)^---\n.*?\n---")**.
-  We **remaining = re.replace(text=`front`,pattern="(?m)^[ \\t]+[A-Za-z_一-龥][A-Za-z0-9_一-龥]*: ['\"]?(lib/[A-Za-z_一-龥][A-Za-z0-9_一-龥]*[.]mq[.]md|ext/[A-Za-z0-9_/-]+[.]mq[.]md)['\"]?[ \\t]*$",with="")**.
-  1. re.is_match(text=`remaining`,pattern="(?m)^[ \\t]+[^ \\t\\n]|^import:[ \\t]*[^ \\t\\n]")
-    Return *[不跟随私有导入](table.put(in=None,at="html",value=ui.markdown(source="此文档包含独立预览无法解析的项目导入，请在其原工程使用 marqdo view 查看。")))*.
-  We **directory = ".agent/previews/" + uuid.v4()**.
-  We **_ = fs.make_dirs(path=`directory`)**.
-  We **_ = fs.atomic_write(path=(`directory` + "/document.mq.md"),text=`source`)**.
-
-  We **absolute = sys.cwd() + "/" + `directory`**.
-
-  `argv` =
-
-  | argument |
-  |---|
-  | "marqdo" |
-  | "view" |
-  | "document" |
-  | "--project" |
-  | `absolute` |
-  | "--document" |
-  | "document.mq.md" |
-  | "--json" |
-
-  We **out = engineering.run(argv=`argv`,cwd=sys.cwd(),timeout_ms=20000,max_output=2097152)**.
-  We **ran = access(`out`,"value")**.
-  1. access(`ran`,"code") == 0 and not access(`ran`,"truncated")
-    We **view = json.parse(text=access(`ran`,"stdout"))**.
-    We **render = access(`view`,"render")**.
-    1. access(`render`,"format") != "sanitized_html" or access(access(`view`,"capabilities"),"executed") != False
-      Return *[拒绝意外的执行式渲染](table.put(in=None,at="html",value=ui.markdown(source="阅读器未返回预期的只读格式。")))*.
-    We **html = access(`render`,"fragment")**.
+  We **_ = [只加载安装的预览边界插件](plugin.load(path=(sys.env_get(name="MARQDO_EXT") + "/native/libqdagent_transport.so")))**.
+  We **request = table.put(in=None,at="operation",value="document_view")**.
+  We **request = table.put(in=`request`,at="workspace",value=sys.cwd())**.
+  We **rendered = [在当前工作根内制作只读文稿快照](qdagent_transport(request=table.put(in=`request`,at="path",value=`path`)))**.
+  1. access(`rendered`,"ok")
+    We **view = access(`rendered`,"value")**.
+    We **html = access(access(`view`,"render"),"fragment")**.
     We **document_title = json.get(value=access(`view`,"document"),key="title")**.
-    1. `document_title` and `document_title` != "document.mq"
+    1. `document_title`
       We **title = `document_title`**.
-  2. *
-    We **html = ui.markdown(source=("View 无法完整解析此文件，以下为原始源码。\n\n" + access(`ran`,"stderr"))) + ui.render(nodes=component.element(kind="pre",value=`source`))**.
-  We **_ = fs.remove_tree(path=`directory`)**.
+  2. else
+    We **html = ui.markdown(source=("View 无法完整解析此文件。\n\n" + json.stringify(value=access(`rendered`,"error")))) + ui.render(nodes=component.element(kind="pre",value=`source`))**.
 We **out = table.put(in=None,at="html",value=`html`)**.
 We **out = table.put(in=`out`,at="title",value=`title`)**.
 We **out = table.put(in=`out`,at="source",value=`source`)**.

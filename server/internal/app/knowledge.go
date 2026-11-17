@@ -287,7 +287,7 @@ func (s *Server) knowledgeReference(w http.ResponseWriter, r *http.Request, i id
 			writeError(w, 500, "view_error", "无法准备只读阅读")
 			return
 		}
-		out, e := s.marqdo(ctx, "pages/agent/previews.mq.md", "show", isolated, map[string]string{"path": name}, "plugin,fs.read,fs.write,process.exec,random.read")
+		out, e := s.marqdo(ctx, "pages/agent/previews.mq.md", "show", isolated, map[string]string{"path": name}, "plugin,fs.read,fs.write,process.exec,random.read,environment.read")
 		if e != nil {
 			writeError(w, 422, "view_error", "参考文稿暂时无法渲染")
 			return

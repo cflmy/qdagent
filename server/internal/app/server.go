@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-native-reader-0.14.1"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-paper-reader-0.14.2"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -493,13 +493,22 @@ func (s *Server) knowledge(w http.ResponseWriter, r *http.Request, i identity) {
 			continue
 		}
 		phase := "intent"
+		document := "solution/plan.mq.md"
 		if s.supervisor.workflow != nil {
 			state, _ := s.supervisor.workflow.snapshot(task.ID)
 			if p, ok := state["phase"].(string); ok {
 				phase = p
 			}
+			if phase == "review" || phase == "complete" {
+				document = "solution/index.mq.md"
+				if delivery, ok := state["delivery"].(map[string]any); ok {
+					if path, ok := delivery["path"].(string); ok && path != "" {
+						document = path
+					}
+				}
+			}
 		}
-		drafts = append(drafts, map[string]any{"task": task.ID, "title": compilation["title"], "phase": phase})
+		drafts = append(drafts, map[string]any{"task": task.ID, "title": compilation["title"], "phase": phase, "document": document})
 	}
 	writeJSON(w, 200, map[string]any{"sources": out, "compilations": drafts})
 }
@@ -656,7 +665,7 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request, i identity) {
 	if strings.HasSuffix(path, ".mq.md") {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
-		raw, e := s.marqdo(ctx, "pages/agent/previews.mq.md", "show", s.workspace(t), map[string]string{"path": path}, "plugin,fs.read,fs.write,process.exec,random.read")
+		raw, e := s.marqdo(ctx, "pages/agent/previews.mq.md", "show", s.workspace(t), map[string]string{"path": path}, "plugin,fs.read,fs.write,process.exec,random.read,environment.read")
 		if e != nil {
 			writeError(w, 422, "view_error", "Marqdo View 暂时无法解析此文件，可下载源码查看")
 			return

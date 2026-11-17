@@ -121,6 +121,8 @@ Use `context`。
 
 大的编译任务按主方案的函数段拆分并逐次完成。模型可以只看本段公开契约与必要来源，测试者只取得冻结的业务意图与输入返回规则，不看实现控制流。来源更新、函数实现变更和测试失效必须重新验证。只有用户接受的真实工程才能进入可执行知识库，草稿可以保留和继续，不能跳过确认直接标为知识。
 
+The readable article may import its implementation instead of embedding every computational statement in the teaching text. Publication copies those declared modules as a bounded package and binds each hash to the reviewed delivery. Reads, calls and explicit writeback check the module receipt as well as the entry. A changed dependency cannot inherit the old approval, and a module outside the delivery directory cannot be silently included in a private published version.
+
 发布复制精确的已审阅文稿与必要材料到当前用户的独立知识版本。官方检查与知识编译器再建立真实符号投影；新版本不覆盖旧版。文件根来自可信身份，不从模型文本读取。失败没有知识登记，草稿继续保留在原任务，可逐段修复与重新试运行。参考摘要只提供公开意图与接口，避免把完整实现塞进每次模型上下文。
 
 首先检查根状态确实已完成，且用户没有接受部分交付；然后重新检查每份原件和每个提取片段的摘要。材料可以在上传后继续存在，但只要其内容变化，就不能再沿用先前确认。这里返回来源变化的具体错误，让用户在原任务重新核对，而不是创建一个看起来有效的新版本。知识记录中的来源列表来自这次真实读取，不接受模型另外提交的页码或摘要。原文片段也作为附件复制，因此删除原任务不会让出处只剩一个失效路径。
@@ -193,9 +195,15 @@ We **units = access(`state`,"units")**.
   1. `artifact` != None
     We **attachments = table.append(list=`attachments`,item=access(`artifact`,"path"))**.
 We **source = fs.read_text(path=access(access(`state`,"delivery"),"path"))**.
+We **delivery_path = access(access(`state`,"delivery"),"path")**.
+We **delivery_check = access(access(access(`state`,"delivery"),"check"),"value")**.
+1. fs.file_hash(path=`delivery_path`) != access(`delivery_check`,"sha256")
+  Return *result.error(code="knowledge.delivery_changed",message="交付正文已变化，请重新验证并验收",operation="publish")*.
 We **source = text.replace(text=`source`,old="import:\n",new="import:\n  writeback: lib/writeback.mq.md\n  foreign: lib/foreign.mq.md\n")**.
 We **source = `source` + replay_source()**.
 We **args = table.put(in=None,at="source",value=`source`)**.
+We **args = table.put(in=`args`,at="source_path",value=`delivery_path`)**.
+We **args = table.put(in=`args`,at="reviewed_modules",value=json.get(value=`delivery_check`,key="dependencies"))**.
 We **args = table.put(in=`args`,at="id",value=uuid.v4())**.
 We **args = table.put(in=`args`,at="journal",value=fs.read_text(path="solution/decisions.mq.md"))**.
 We **args = table.put(in=`args`,at="title",value=access(`compilation`,"title"))**.

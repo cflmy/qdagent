@@ -164,6 +164,8 @@ Return *save(context=`context`,state=`state`)*.
 
 Use `context`, `revision`, `action`, `answer`="", `choice`="", `settings`=None, `accept_stubs`=False。
 
+Relative implementation modules are part of the same review. The compiler adapter records their exact hashes with the delivered entry, and this function obtains a fresh bounded module receipt before accepting it. A change to an imported implementation therefore invalidates approval even if the article itself has identical bytes. This comparison does not update an old receipt or grant new effects; the author must verify the changed package and present that actual version again.
+
 The final confirmation binds every separately stored artifact as well as the assembled entry. An article can change without changing the function that reads it, so checking only index.mq.md would let an old review authorize new text. This boundary now rereads each current unit and document digest before recording acceptance. A missing file or altered manuscript returns a precise changed-delivery error. The user must request a revision and repeat verification; the service does not silently approve the new bytes. This protects real user decisions while keeping old readable files and previous discussion available.
 
 只有认证后的用户入口调用本函数。模型目录没有它；普通工具上下文也不能选择 actor。
@@ -250,6 +252,11 @@ We **phase = access(`state`,"phase")**.
   We **delivery = access(`state`,"delivery")**.
   1. hash.sha256(text=fs.read_text(path=access(`delivery`,"path"))) != access(access(access(`delivery`,"check"),"value"),"sha256")
     Return *result.error(code="root.delivery_changed",message="交付源码已变化，请重新整合后验收",operation="respond")*.
+  We **reviewed_modules = json.get(value=access(access(`delivery`,"check"),"value"),key="dependencies")**.
+  1. `reviewed_modules` != None
+    We **current_modules = [验收同时核对相对导入的实际文稿](native(context=`context`,operation="root_check",payload=table.put(in=None,at="path",value=access(`delivery`,"path"))))**.
+    1. not access(`current_modules`,"ok") or json.stringify(value=json.get(value=access(`current_modules`,"value"),key="dependencies")) != json.stringify(value=`reviewed_modules`)
+      Return *result.error(code="root.delivery_changed",message="交付依赖文稿已变化，请重新验证后验收",operation="respond")*.
   1. table.len(xs=access(`pending_view`,"stubs")) > 0 and not `accept_stubs`
     Return *result.error(code="root.pending_stubs",message="请明确知悉未接通项后再验收",operation="respond")*.
   We **delivery_status = "accepted"**.

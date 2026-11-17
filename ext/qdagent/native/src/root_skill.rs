@@ -37,7 +37,8 @@ fn validate(root:&Path,path:&Path)->Result<Value,String>{
  let labels=run(&["labels".into(),path.to_string_lossy().into_owned(),"--json".into()],"",root)?;
  let pending:Value=serde_json::from_str(labels["stdout"].as_str().unwrap_or("[]")).unwrap_or(Value::Null);
  let valid=parsed["ok"]==true&&parsed["result"]["ok"]==true&&check["exit_code"]==0&&labels["exit_code"]==0&&pending.is_array();
- Ok(json!({"valid":valid,"sha256":digest(&raw),"syntax":parsed,"contract":check,"pending_labels":pending}))
+ let dependencies=super::document_bundle::Bundle::collect(root,path)?.dependencies();
+ Ok(json!({"valid":valid,"sha256":digest(&raw),"dependencies":dependencies,"syntax":parsed,"contract":check,"pending_labels":pending}))
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
  let operation=v["operation"].as_str().unwrap_or("");

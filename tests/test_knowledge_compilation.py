@@ -49,4 +49,26 @@ class KnowledgeTests(unittest.TestCase):
   verification=self.invoke('verify',id=key);self.assertTrue(verification['ok'],verification);self.assertTrue(verification['value']['passed'],verification);self.assertEqual(verification['value']['replayed'],3)
   before=self.context['owner'];self.context['owner']='other-owner';self.assertFalse(self.invoke('document',id=key)['ok']);self.context['owner']=before
   location=Path(document['value']['root'])/'index.mq.md';location.write_text(location.read_text()+'\nUnreviewed edit.\n');self.assertFalse(self.invoke('execute',id=key,function='run',input={'x':3})['ok'])
+
+ def test_readable_article_packages_reviewed_modules_and_rejects_changed_implementation(self):
+  self.assertTrue(self.invoke('prepare',title='独立实现文件的文稿',paths=['uploads/source.py'])['ok'])
+  self.root.framework();self.root.author('u0','冻结的验收值',body='Return *"冻结的验收值"*.',mode='code');self.root.trial('u0');self.root.call('refine');state=self.root.integrate()
+  work=self.root.root/'work';entry=work/'solution/paper/index.mq.md';kernel=work/'solution/paper/implementation/kernel.mq.md';kernel.parent.mkdir(parents=True);old=(work/'solution/index.mq.md').read_text();kernel.write_text(old)
+  entry.write_text('---\nmarkup: occlusion\ntitle: 可读导读\nimport:\n  engine: implementation/kernel.mq.md\n---\n\n# 导读\n\n这里是面向读者的解释，内部实现单独保存。阅读不会执行程序，正式调用必须经过已确认的函数与权限。计算结果仍与原来的独立测试比较，不改变冻结预期。\n\n## run\n\n| 参数 | 类型 | 默认 | 说明 |\n|---|---|---|---|\n| input | any | None | 公开业务输入 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | map | 原实现的完整结果 |\n\nUse §input§=None。\n\n本文入口连接已经验证的实际实现，不重新生成或猜测返回值。只有显式调用时才进行计算，展开侧注仍然是只读阅读。在完成上述操作之后得到所需的*[完整结果](engine.run(input=§input§))*。\n\n## unit_u0\n\n| 参数 | 类型 | 默认 | 说明 |\n|---|---|---|---|\n| input | any | None | 冻结的公开输入 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | text | 冻结的验收值 |\n\nUse §input§=None。\n\n本单元保持原始独立契约，向读者解释调用所取得的验收值。它只转交公开输入，不查看测试、不修改预期，也不赋予模块额外的文件权限。执行之后便可以返回所需的*[实际验收值](engine.unit_u0(input=§input§))*。\n'.replace('§',chr(96)))
+  checked=self.root.call('state.native',operation='root_check',payload={'path':'solution/paper/index.mq.md'});self.assertTrue(checked['valid'],checked)
+  trial=self.root.call('state.native',operation='root_smoke',payload={'path':'solution/paper/index.mq.md','sha256':checked['sha256'],'function':'run','cases':[{'input':{}}]});self.assertTrue(trial['passed'],trial)
+  state['delivery']['path']='solution/paper/index.mq.md';state['pending']['path']='solution/paper/index.mq.md'
+  state['delivery']['check']={'ok':True,'value':checked};state['delivery']['trial']={'ok':True,'value':trial}
+  state=self.root.call('state.save',state=state)
+  kernel.write_text(old+'\n未审阅的修改。\n')
+  rejected=self.root.raw('respond',revision=state['revision'],action='accept');self.assertEqual(rejected['error']['code'],'root.delivery_changed',rejected)
+  kernel.write_text(old);self.root.call('respond',revision=state['revision'],action='accept')
+  published=self.invoke('publish');self.assertTrue(published['ok'],published);record=published['value'];self.assertEqual(set(record['functions']),{'unit_u0','run','replay'});self.assertEqual(len(record['dependencies']),1)
+  read=self.invoke('document',id=record['key']);self.assertTrue(read['ok'],read)
+  called=self.invoke('execute',id=record['key'],function='run',input={});self.assertTrue(called['ok'],called);self.assertEqual(called['value']['result'],{'u0':'冻结的验收值'})
+  written=self.invoke('execute',id=record['key'],function='run',input={},write_back=True);self.assertTrue(written['ok'],written)
+  verified=self.invoke('verify',id=record['key']);self.assertTrue(verified['ok'],verified);self.assertTrue(verified['value']['passed'],verified)
+  saved=Path(read['value']['root'])/'implementation/kernel.mq.md';saved.write_text(old+'\n发布后变更。\n')
+  self.assertFalse(self.invoke('execute',id=record['key'],function='run',input={})['ok']);self.assertFalse(self.invoke('document',id=record['key'])['ok'])
+
 if __name__=='__main__':unittest.main()

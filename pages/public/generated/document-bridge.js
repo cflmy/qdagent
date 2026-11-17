@@ -1,4 +1,4 @@
-/* Navigation only. Syntax, disclosures and annotation geometry belong to the official reader.js. */
+/* Native reading bootstrap: navigation and bundled KaTeX. Syntax and geometry stay in reader.js. */
 (function(){
  'use strict';
  var script=document.currentScript,channel=script.dataset.channel,parentOrigin=script.dataset.parentOrigin;
