@@ -1,5 +1,7 @@
 import http.server
 import json
+import socket
+import ssl
 import threading
 import time
 import unittest
@@ -7,6 +9,15 @@ from unittest.mock import patch
 import provider as agent
 
 class AgentTests(unittest.TestCase):
+    def test_transport_failures_are_actionable_without_leaking_secrets(self):
+        local={'builtin':True,'protocol':'ollama'}
+        code,message=agent.transport_diagnostic(ConnectionRefusedError('secret-url sk-sensitive'),local)
+        self.assertEqual(code,'provider.connection_refused');self.assertIn('Ollama',message);self.assertNotIn('sensitive',message)
+        self.assertIn('解析失败',agent.transport_diagnostic(socket.gaierror('secret'),{})[1])
+        self.assertIn('超时',agent.transport_diagnostic(TimeoutError('secret'),{})[1])
+        self.assertIn('TLS',agent.transport_diagnostic(ssl.SSLError('secret'),{})[1])
+        self.assertNotIn('secret',agent.transport_diagnostic(OSError('secret'),{})[1])
+
     def test_custom_model_cannot_access_local_network(self):
         for address in ('http://example.com','https://127.0.0.1','https://localhost','https://224.0.0.1'):
             with self.assertRaises(RuntimeError):

@@ -3,7 +3,7 @@ import {Check,ChevronRight,LoaderCircle,Terminal,Workflow,X,BrainCircuit,GitBran
 import {type RunEvent,statusText} from '../api';
 import {readableFileName} from '../files';
 import {Markdown} from './Markdown';
-import {ExecutionReceipt,receiptDiagnostics} from './ExecutionReceipt';
+import {ExecutionReceipt,receiptDiagnostics,readableDiagnostic} from './ExecutionReceipt';
 interface Step {id:string;kind:string;name:string;status:string;arguments?:unknown;result?:unknown;evidence?:unknown;elapsed?:number;thought:string;program?:string;started?:number;children?:RunEvent[];validation?:Record<string,unknown>}
 const object=(value:unknown):Record<string,unknown>=>value&&typeof value==='object'?value as Record<string,unknown>:{};
 function nestedEvents(events:RunEvent[]):RunEvent[]{return events.filter(event=>event.kind!=='child_end').map(event=>{const data={...event.data};let kind=event.kind.slice(6);if(kind==='update')kind=String(data.event);if(['tool_start','tool_end'].includes(kind))data.id=data.call_id||`${data.id}-${data.role}`;return {...event,kind,data}})}
@@ -35,7 +35,7 @@ export function Timeline({events,connection,onPreview}:{events:RunEvent[];connec
  return <section className="timeline" aria-label="执行过程"><div className="section-label"><Workflow size={17}/><span>执行过程</span><small>{steps.length} 项实际记录</small>{connection==='reconnecting'&&<span className="connection-warning">正在恢复连接…</span>}</div><div className="timeline-steps">{steps.map(step=><StepCard key={step.id} step={step} onPreview={onPreview}/>)}</div>{events.filter(e=>e.kind==='error'||e.kind==='notice').map(e=><div className="trace-notice" key={e.seq}><AlertCircle size={14}/>{String(e.data.message)}</div>)}</section>
 }
 function stepSummary(step:Step):string{
- const errors=receiptDiagnostics(step.result);if(errors.length)return errors[0].message;
+ const errors=receiptDiagnostics(step.result);if(errors.length)return readableDiagnostic(errors[0].message);
  if(step.kind==='child'){const last=step.children?.filter(e=>['child_tool_start','child_tool_end','child_call_rejected'].includes(e.kind)).at(-1);return last?`${String(last.data.name||'调用校验')} · ${statusText[String(last.data.status)]||String(last.data.status||'已记录')}`:'独立测试与函数实现分别运行，记录可展开核对。'}
  if(step.kind==='recovery'){const value=object(step.result);return String(value.followup_succeeded?'后续调用已成功，原职责仍按实际证据判断。':value.cause||'具体错误已交给当前角色参考。')}
  if(step.kind==='validation')return step.status==='failed'?'本次校验未通过，未进入工具执行。':'检查函数范围、参数名称、必填项、已知类型与接口版本。';

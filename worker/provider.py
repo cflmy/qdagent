@@ -12,6 +12,25 @@ import time
 from urllib.parse import urlsplit
 MAX_REPLY=512*1024
 
+def transport_diagnostic(error, config):
+    """Return bounded transport facts, never exception text or credentials."""
+    local = bool(config.get('builtin')) and config.get('protocol') == 'ollama'
+    if isinstance(error, RuntimeError):
+        return 'provider.rejected', str(error)[:400]
+    if isinstance(error, socket.gaierror):
+        return 'provider.dns', '模型服务域名解析失败，尚未建立连接。'
+    if isinstance(error, ConnectionRefusedError):
+        return 'provider.connection_refused', ('本机 Qwen 服务未启动或拒绝连接。请联系管理员恢复 Ollama，或手动选择其他可用模型。' if local else '模型服务拒绝连接，请检查模型服务是否在线。')
+    if isinstance(error, (TimeoutError, socket.timeout)):
+        return 'provider.timeout', '模型服务连接或读取超时，本轮未取得完整回复。'
+    if isinstance(error, ssl.SSLError):
+        return 'provider.tls', '模型服务的 TLS 安全连接失败，请检查服务证书与网络。'
+    if isinstance(error, (ConnectionError, http.client.HTTPException)):
+        return 'provider.disconnected', '模型服务连接中断，本轮未取得完整回复。'
+    if isinstance(error, OSError):
+        return 'provider.network', '无法连接模型服务，请检查服务与网络是否可用。'
+    return 'provider.transport', '模型传输未完成，请联系管理员查看服务状态。'
+
 def emit(kind,**data):
  print(json.dumps({'kind':kind,'data':data},ensure_ascii=False),flush=True)
 
@@ -131,10 +150,11 @@ def stream_model(config, messages, emit_event=None):
 
 
 if __name__=='__main__':
+ request={}
  try:
   request=json.load(sys.stdin)
   text,reasoning=stream_model(request['model'],request['messages'])
   emit('response',text=text)
  except Exception as error:
-  public=str(error) if isinstance(error,RuntimeError) else 'provider transport failed'
-  emit('transport_error',message=public[:400]);sys.exit(1)
+  code,public=transport_diagnostic(error,request.get('model',{}))
+  emit('transport_error',message=public,code=code);sys.exit(1)

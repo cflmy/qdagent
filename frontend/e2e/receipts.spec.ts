@@ -10,6 +10,8 @@ test('execution receipts show native source and decoded diagnostics with protoco
  await page.route('**/api/tasks/receipt-task/files',route=>route.fulfill({json:{files:[]}}));
  await page.route('**/api/runs/receipt-run/events',route=>route.fulfill({contentType:'text/event-stream',body:events.map(e=>'event: update\ndata: '+JSON.stringify(e)+'\n\n').join('')+'event: complete\ndata: {"status":"incomplete"}\n\n'}));
  await page.goto('/app');await expect(page.locator('.trace-step')).toHaveCount(4);
+ await expect(page.locator('.message.assistant .timeline')).toHaveCount(1);
+ const avatar=await page.locator('.message.assistant>.avatar').boundingBox(),timeline=await page.locator('.message.assistant .timeline').boundingBox();expect(avatar).toBeTruthy();expect(timeline).toBeTruthy();expect(timeline!.y).toBeGreaterThanOrEqual(avatar!.y);expect(timeline!.x).toBeGreaterThan(avatar!.x);
  await expect(page.locator('.trace-step').first()).toHaveAttribute('open','');
  await expect(page.locator('.receipt-source pre')).toHaveText(source);
  await expect(page.locator('.receipt-diagnostic').getByText('缺少右括号，请核对当前函数。',{exact:true})).toBeVisible();
@@ -32,8 +34,8 @@ test('authenticated image upload previews real PNG with safe inline headers',asy
  await page.locator('input[type=file]').setInputFiles({name:'actual-screenshot.png',mimeType:'image/png',buffer:png});
  await expect(page.locator('.attachment-chips')).toContainText('actual-screenshot.png');
  await page.getByRole('button',{name:'文件',exact:true}).click();await page.locator('.file-row').filter({hasText:'actual-screenshot.png'}).click();
- const image=page.getByRole('img',{name:'当前工作区的实际截图'});await expect(image).toBeVisible();await expect(image).toHaveJSProperty('naturalWidth',1);
- const response=await page.request.get((await image.getAttribute('src'))!);expect(response.headers()['content-type']).toBe('image/png');expect(response.headers()['content-disposition']).toBe('inline');expect(response.headers()['x-content-type-options']).toBe('nosniff');
+ const image=page.frameLocator('iframe[title="多格式文件预览"]').locator('img').first();await expect(image).toBeVisible();await expect(image).toHaveJSProperty('naturalWidth',1);
+ const download=await page.locator('.reader-footer').getByRole('link',{name:'下载',exact:true}).getAttribute('href');const response=await page.request.get(download!+'&inline=1');expect(response.headers()['content-type']).toBe('image/png');expect(response.headers()['content-disposition']).toBe('inline');expect(response.headers()['x-content-type-options']).toBe('nosniff');
 });
 test('parameter checks and repair evidence are readable without opening raw protocol',async({page})=>{
  const task={id:'repair-receipt',title:'可读校验与恢复',status:'incomplete',created_ms:Date.now()};

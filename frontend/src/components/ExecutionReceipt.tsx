@@ -31,7 +31,8 @@ export function receiptDiagnostics(value:unknown):Diagnostic[]{
  visit(decode(value));return found;
 }
 const codeLabels:Record<string,string>={'narrative.ratio':'函数叙述比例不足','contract.param_drift':'参数契约与源码不一致','contract.return_mismatch':'返回值与契约不一致','root.independent_test_failed':'独立验证未通过','root.invalid_source':'文稿尚未通过检查','root.unit_count':'职责数量与用户确认不符','call.unknown_arg':'参数名称未在文稿中声明','call.missing_arg':'缺少必填参数','call.duplicate_arg':'参数重复填写','contract.arg_mismatch':'参数类型与契约不符'};
-function readableDiagnostic(message:string){
+export function readableDiagnostic(message:string){
+ if(message==='provider transport failed')return '该次模型请求未完成，旧记录未保存具体连接原因；重新发起时会显示新的连接诊断。';
  if(message==='Private and special-use network addresses are blocked')return '该网站的 DNS 返回了内网或特殊用途地址，已阻止访问。可使用其他公开来源。';
  if(message.includes('before secure TLS connection was established'))return '与网站建立安全连接失败；该地址目前不可达。';
  if(message.includes('Page has no readable article body'))return '页面没有可读取的正文，未将空页面记为来源。';

@@ -30,7 +30,7 @@ test('real account permissions, public reading and visible quotas',async({page})
   for(const endpoint of ['prepare','publish']){const result=await page.request.post('/api/tasks/no-access/knowledge/'+endpoint,{headers:{Origin:origin},data:{}});expect(result.status()).toBe(403)}
   expect((await page.request.put('/api/admin/access',{headers:{Origin:origin},data:{task_limit:99,smart_daily_limit:99}})).status()).toBe(403);
   await page.getByRole('button',{name:'我的用量',exact:true}).click();await expect(page.locator('.access-metrics')).toContainText('50');await expect(page.locator('.access-metrics')).toContainText('4B 参数');await expect(page.getByRole('button',{name:'保存默认额度',exact:true})).toHaveCount(0);
-  await page.screenshot({path:'test-results/access-reader.png'});
+  await page.screenshot({path:'test-results/access-reader.png',animations:'disabled'});
   await page.getByRole('button',{name:'关闭',exact:true}).click();
   const created:string[]=[];try{
    for(let i=0;i<3;i++){const result=await page.request.post('/api/tasks',{headers:{Origin:origin},data:{title:'额度浏览器验收 '+i}});expect(result.status()).toBe(201);created.push((await result.json()).id)}
@@ -38,4 +38,6 @@ test('real account permissions, public reading and visible quotas',async({page})
   }finally{for(const id of created){await page.request.patch('/api/tasks/'+id+'/archive',{headers:{Origin:origin},data:{archived:true}});await page.request.delete('/api/tasks/'+id,{headers:{Origin:origin}})}}
  }
  await page.setViewportSize({width:390,height:844});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+ if(!await page.getByRole('dialog').isVisible()){await page.getByRole('button',{name:'展开导航',exact:true}).click();await page.getByRole('button',{name:'我的用量',exact:true}).click()}
+ const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();const bounds=await dialog.boundingBox();expect(bounds!.x).toBeGreaterThanOrEqual(0);expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(390);await expect(dialog.getByRole('button',{name:'关闭',exact:true})).toBeVisible();await expect.poll(()=>dialog.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBeTruthy();await page.screenshot({path:account.access.can_manage?'test-results/access-admin-mobile.png':'test-results/access-reader-mobile.png',animations:'disabled'});
 });
