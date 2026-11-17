@@ -56,6 +56,11 @@ func recordedFileNames(workflow map[string]any, artifacts any) map[string]string
 			if item, ok := entry.(map[string]any); ok {
 				path, _ := item["path"].(string)
 				title, _ := item["title"].(string)
+				if theme, ok := item["theme"].(map[string]any); ok {
+					if label, ok := theme["label"].(string); ok && label != "" {
+						title += " · " + label
+					}
+				}
 				if path != "" && title != "" {
 					names[path] = titledFileName(path, title)
 					if kind, _ := item["kind"].(string); kind == "docx" || kind == "pptx" {

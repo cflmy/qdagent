@@ -2,6 +2,7 @@
 markup: occlusion
 title: 按章节与页面生成修订版本
 import:
+  json: lib/json.mq.md
   records: records.mq.md
   package: package.mq.md
   table: lib/table.mq.md
@@ -37,6 +38,10 @@ Use `id`, `index`, `heading`, `body`, `action`, `templates`, `render_pdf`=False,
 
 布局字段必须随原章节一起保留。普通正文可以直接替换，但双栏或引文的派生内容不能靠单独改 body 更新，应使用完整布局替换入口；这样源稿与实际页面不会出现两套不同正文。
 
+主题来自已核对的原版快照，修订不会悄悄换色或丢失原布局。没有主题的历史版本沿用原有纸感，新版保持独立。
+
+同一批中的多个文件都必须有完整真实证据，不能用默认版本的成功掩盖其他版本失败。读取历史版本时保留精确身份；前端显示名称可以相同，但选择、下载与检查必须始终使用真实身份。用户无需看到内部长标识，也不能仅靠标题匹配版本。
+
 We **read = records.read(id=`id`)**.
 1. not access(`read`,"ok")
   Return *read*.
@@ -59,4 +64,7 @@ We **section = table.put(in=table.put(in=`section`,at="heading",value=`heading`)
   We **sections = table.remove_at(list=`sections`,index=`index`)**.
 2. else
   Return *result.error(code="office.edit",message="至少保留一节正文，且只允许已接通的编辑操作",operation="change")*.
-Return *[保留旧文件并生成新的实际版本](package.generate(kind=access(`old`,"kind"),title=access(`old`,"title"),sections=`sections`,templates=`templates`,render_pdf=`render_pdf`))*.
+We **theme = "sage"**.
+1. json.get(value=`old`,key="theme") != None
+  We **theme = access(access(`old`,"theme"),"id")**.
+Return *[保留旧文件并生成新的实际版本](package.generate(kind=access(`old`,"kind"),title=access(`old`,"title"),sections=`sections`,templates=`templates`,render_pdf=`render_pdf`,theme=`theme`))*.

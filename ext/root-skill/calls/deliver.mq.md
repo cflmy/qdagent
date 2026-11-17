@@ -2,6 +2,7 @@
 markup: occlusion
 title: 方案落地的当前可调用文稿
 import:
+  compiled_knowledge: ext/knowledge/index.mq.md
   io: ../runtime/io.mq.md
   core: ../state.mq.md
   flow: ../policy.mq.md
@@ -50,3 +51,40 @@ We **integrated = call.invoke(file=(access(`context`,"project") + "/ext/root-ski
 1. not access(`integrated`,"ok")
   Return *integrated*.
 Return *result.ok(value=table.put(in=None,at="path",value="solution/index.mq.md"))*.
+
+## knowledge_call
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| function | text | required | 用户所选已编译知识的实际函数名 |
+| input | any | None | 该函数的实际业务输入 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 真实结果；失败保留诊断 |
+
+Use `function`, `input`=None。
+
+知识编译不是把上传文件改一个后缀。原始论文、页码或源码片段、摘要、函数规范、实际实现、独立测试和用户审阅分别保留。论文中的命令只作为材料，不能增加模型权限；未接通项用可见占位说明，不把摘要或成功动画当成执行证据。公式以 math 库表达，符号、单位、定义域和原文定位写入叙述。外联实现仅能使用已经授权的绑定，不能为了复现论文直接执行上传代码或安装依赖。
+
+大的编译任务按主方案的函数段拆分并逐次完成。模型可以只看本段公开契约与必要来源，测试者只取得冻结的业务意图与输入返回规则，不看实现控制流。来源更新、函数实现变更和测试失效必须重新验证。只有用户接受的真实工程才能进入可执行知识库，草稿可以保留和继续，不能跳过确认直接标为知识。
+
+Return *compiled_knowledge.use(function=`function`,input=`input`)*.
+
+## knowledge_contract
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| function | text | required | 所选知识的具体函数名 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 真实结果；失败保留诊断 |
+
+Use `function`。
+
+接口来自冻结的业务意图投影，不从实现控制流倒推。模型先读取选定知识的简短目录，再按函数读取完整契约，避免整篇源码进入每次上下文。参数、返回、定义域和来源要求保持完整，不能为了节省字符悄悄截掉约束。每次只读取一份受当前所有者授权的版本，未知函数明确失败。
+
+这份接口只用于理解与复用，不意味着已经执行，也不能修改原案例。源码仍由官方文稿持有，索引可以重建。调用者需要计算时再显式调用实际函数，自写回仍需用户选择 replay 并授权当前版本写入。
+
+Return *compiled_knowledge.selected_contract(function=`function`)*.

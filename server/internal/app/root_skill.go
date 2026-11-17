@@ -99,6 +99,7 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
 		Action        string            `json:"action"`
 		Answer        string            `json:"answer"`
 		Choice        string            `json:"choice"`
+		OfficeThemes  []string          `json:"office_themes"`
 		Concurrency   *int              `json:"concurrency"`
 		ExpectedUnits *int              `json:"expected_units"`
 		ChildModel    string            `json:"child_model"`
@@ -122,6 +123,21 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
 	settings, _ := current["settings"].(map[string]any)
 	if settings == nil {
 		settings = map[string]any{"concurrency": float64(2), "child_model": "inherit", "unit_models": map[string]any{}}
+	}
+	if input.OfficeThemes != nil {
+		if len(input.OfficeThemes) < 1 || len(input.OfficeThemes) > 4 {
+			writeError(w, 400, "office_themes", "请选择一至四种风格")
+			return
+		}
+		seen := map[string]bool{}
+		for _, theme := range input.OfficeThemes {
+			if (theme != "sage" && theme != "paper" && theme != "midnight" && theme != "coral") || seen[theme] {
+				writeError(w, 400, "office_themes", "风格无效或重复")
+				return
+			}
+			seen[theme] = true
+		}
+		settings["office_themes"] = input.OfficeThemes
 	}
 	if input.Concurrency != nil {
 		if *input.Concurrency < 1 || *input.Concurrency > 8 {

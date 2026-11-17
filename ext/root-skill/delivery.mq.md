@@ -103,7 +103,7 @@ We **_ = fs.atomic_write(path="solution/index.mq.md",text=`source`)**.
 We **checked = core.native(context=`context`,operation="root_check",payload=table.put(in=None,at="path",value="solution/index.mq.md"))**.
 1. not access(`checked`,"ok") or not json.get(value=access(`checked`,"value"),key="valid")
   Return *result.error(code="root.integration_check",message=json.stringify(value=`checked`),operation="integrate")*.
-We **case = table.put(in=None,at="input",value=access(`state`,"goal"))**.
+We **case = table.put(in=None,at="input",value=smoke_input(state=`state`))**.
 We **cases = table.append(list=table.empty_list(),item=`case`)**.
 We **trial_args = table.put(in=None,at="path",value="solution/index.mq.md")**.
 We **trial_args = table.put(in=`trial_args`,at="function",value="run")**.
@@ -135,3 +135,33 @@ We **observed = trial_engine.run(context=`context`,path="solution/index.mq.md",f
 | "review" | `pending_view` | `delivery` |
 
 Return *core.save(context=`context`,state=table.merge(a=`state`,b=`patch`))*.
+
+
+## smoke_input
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| state | map | required | 已确认框架与冻结独立案例 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | any | 首个冻结案例的 request，缺少时沿用目标文字 |
+
+Use `state`。
+
+根入口把业务输入交给每个单元的 request。计算型任务可能要求数值、列表或对象，不能无条件把目标描述这段文字交给它。这里按已确认单元顺序寻找首个独立冻结案例中明确提供的 request，用它作整合冒烟的原始输入。即使 request 是空值，也保留这份真实输入，不能根据实现喜欢的返回来另造数据。
+
+本函数不调用模型，不读取实现，不改冻结案例，也不复制案例的预期作为整合结果。整合仍调用所有实际函数并检查真实退出；某个后续单元无法处理共同请求时，整合明确失败，需要修复或调整已确认契约。一次成功只证明这一请求可以经过组合程序，所有单元的独立测试仍分别必需。它也不会将各单元不相容的输入拼成一个模型猜测的对象。
+
+历史固定正文和文档任务可能没有带 request 的数值案例，这些任务继续使用已确认目标文字。来源完全来自现有状态，模型不能通过新参数偷偷替换试运行输入。参数表中的返回描述同时解释了优先顺序，后续维护者无需阅读宿主代码就能理解这一选择。
+
+We **units = access(`state`,"units")**.
+- [只读取独立角色已经冻结的请求](for units as unit)
+  We **tests = json.get(value=`unit`,key="tests")**.
+  1. `tests` != None and json.get(value=`tests`,key="kind") == "cases"
+    We **cases = access(access(`tests`,"suite"),"cases")**.
+    - [保持案例顺序并保留真实空值](for cases as case)
+      We **argument = access(`case`,"input")**.
+      1. type(`argument`) == "map" and table.has(map=`argument`,key="request")
+        Return *access(`argument`,"request")*.
+Return *access(`state`,"goal")*.

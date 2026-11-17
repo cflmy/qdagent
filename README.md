@@ -170,3 +170,7 @@ npm run build --prefix frontend
 任务支持归档、只读回看与恢复；永久删除仅对已归档任务开放，并需再次确认。普通 Marqdo 调用先经官方解析和参数绑定检查，再执行实际工具。失败向同一角色交接有限、同版本的真实错误经验，执行区展示参数、诊断与后续修订。边界见 [任务生命周期与恢复规范](docs/task-lifecycle-and-recovery.mq.md)。
 
 Word/PPT SKILL 现支持真实文件创建、按章/页替换插入删除、分页读取上传文件文字，以及从已验证函数段组装可编辑文件和 PDF。手册入口：[办公 SKILL](ext/office/index.mq.md)、[Word](ext/office/word.mq.md)、[PPT](ext/office/presentation.mq.md)。开发与能力限制见 [办公规范](docs/office-skills.mq.md)。
+
+办公产物支持竹影纸笺、留白画廊、极夜星图与日落编辑部四套风格。框架确认时可选择一至四种，同一份已验证正文按设定并发生成，工作台的“多方案”支持真实 PDF 预览、同页比较与大屏查看。PPTX 保留原生转场，PDF 为静态输出；参见[多风格产物规范](docs/product-variants.mq.md)。
+
+知识库中的“知识编译”进入 `/app/knowledge`：上传文本 PDF 或 UTF-8 源码，保留原件、分页片段和摘要，再通过根流程逐段形成可调用文稿。用户验收后才能发布私有版本；大屏提供官方 View、公开契约、受限执行、冻结案例复核和真实结果自写回，智能体按需读取契约并调用。扫描 PDF 先走 OCR 核对，上传源码不会直接运行，外联仍需授权的 ABI；参见[知识编译规范](docs/knowledge-compilation.mq.md)。

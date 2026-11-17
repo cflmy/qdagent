@@ -34,19 +34,21 @@ Return *table.put(in=table.put(in=None,at="heading",value=`heading`),at="body",v
 | title | text | required | 实际文件题目 |
 | chapters | list | required | 由 chapter 形成的一至二十项内容 |
 | context | map | required | 可信执行器注入的当前任务根；不是模型参数 |
+| theme | text | "sage" | sage、paper、midnight、coral |
+| group_id | text | "" | 同一批变体身份 |
 | render_pdf | bool | False | 是否同时生成真实 PDF |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | create 的实际结果，失败保留明确诊断 |
 
-Use `title`, `chapters`, `context`, `render_pdf`=False。
+Use `title`, `chapters`, `context`, `render_pdf`=False, `theme`="sage", `group_id`=""。
 
 每次只描述实际正文，不把“准备撰写”当作已经完成。章节按段落阅读，正文中的 Markdown 符号目前按文字保留，不承诺复杂表格和修订痕迹；PNG 图文请使用 illustrated 布局。本手册的标题就是可直接调用的函数，参数和返回紧随标题。所有路径都来自当前任务的真实登记，显示标题不作为文件身份。操作成功只证明文件事实，不证明正文中的事实正确，也不代替用户最终验收。原版本保持可读，新版本使用新身份；失败保留实际原因，不用一个漂亮的文件名冒充产物。
 
 创建得到真正可编辑的 Word 文件、Markdown 源稿和受摘要保护的结构快照。先确认用户范围并完成内容核对，再选择格式。返回的身份用于后续 inspect 或局部修订；新文件不覆盖同名旧版本。
 
-Return *[生成真实Word文件](office.create(kind="docx",title=`title`,sections=`chapters`,context=`context`,render_pdf=`render_pdf`))*.
+Return *[生成真实Word文件](office.create(kind="docx",title=`title`,sections=`chapters`,context=`context`,render_pdf=`render_pdf`,theme=`theme`,group_id=`group_id`))*.
 
 ## replace_chapter
 

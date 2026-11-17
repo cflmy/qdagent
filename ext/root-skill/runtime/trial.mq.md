@@ -2,6 +2,7 @@
 markup: occlusion
 title: 官方写时复制沙盒中的真实试运行
 import:
+  values: value.mq.md
   core: ../state.mq.md
   sandbox: ext/ai/sandbox.mq.md
   table: lib/table.mq.md
@@ -108,7 +109,7 @@ We **wrapper = fs.read_text(path=`path`) + "\n\n## main\n\nWe **input = json.par
 We **ran = sandbox.run(id=`id`,source=`wrapper`)**.
 We **changes = sandbox.diff(id=`id`)**.
 We **_ = sandbox.discard(id=`id`)**.
-We **matched = access(`ran`,"ok") and (`smoke` or access(`ran`,"value") == json.get(value=`case`,key="expected"))**.
+We **matched = access(`ran`,"ok") and (`smoke` or values.equal(left=access(`ran`,"value"),right=json.get(value=`case`,key="expected")))**.
 We **actual = table.put(in=table.put(in=None,at="ok",value=access(`ran`,"ok")),at="result",value=json.get(value=`ran`,key="value"))**.
 We **evidence = table.put(in=table.put(in=None,at="engine",value="marqdo-cow"),at="changes",value=`changes`)**.
 We **evidence = table.put(in=`evidence`,at="error",value=json.get(value=`ran`,key="error"))**.

@@ -40,6 +40,8 @@ Return *"Word 与 PPT 分别使用各自的创建和修订文稿；上传读取�
 | kind | text | required | docx 或 pptx |
 | title | text | required | 一百字符以内的题目 |
 | sections | list | required | 一至二十项 heading、body |
+| theme | text | "sage" | sage、paper、midnight、coral |
+| group_id | text | "" | 同一批变体身份 |
 | render_pdf | bool | False | 容器内立即核验排版并附带 PDF |
 | context | map | required | 由执行器注入的身份与工作根 |
 
@@ -47,7 +49,7 @@ Return *"Word 与 PPT 分别使用各自的创建和修订文稿；上传读取�
 |---|---|---|
 | result | any | 真实文件路径、源稿、大小、摘要和验证范围 |
 
-Use `kind`, `title`, `sections`, `render_pdf`=False and `context`。当前交付文稿通过普通函数调用本入口，只提供业务内容；context 不在模型参数中，由可信执行器注入。先读实际材料和验收标准，再组织内容。每个 section 的 heading 是章节或页标题，body 用换行区分段落。PPTX 会自动添加封面，后续每节一页，单页最多八行、七百字符；过长应先拆页。
+Use `kind`, `title`, `sections`, `render_pdf`=False and `context`, `theme`="sage", `group_id`=""。当前交付文稿通过普通函数调用本入口，只提供业务内容；context 不在模型参数中，由可信执行器注入。先读实际材料和验收标准，再组织内容。每个 section 的 heading 是章节或页标题，body 用换行区分段落。PPTX 会自动添加封面，后续每节一页，正文页最多六行、一百八十五字符；过长应先拆页。
 
 | 任务 | kind | sections 示例 |
 |---|---|---|
@@ -66,9 +68,9 @@ We **templates = [读取固定声明模板](fs.read_json(path="ext/office/templa
 
 `args` =
 
-| kind | title | sections | templates | render_pdf |
-|---|---|---|---|---|
-| `kind` | `title` | `sections` | `templates` | `render_pdf` |
+| kind | title | sections | templates | render_pdf | theme | group_id |
+|---|---|---|---|---|---|---|
+| `kind` | `title` | `sections` | `templates` | `render_pdf` | `theme` | `group_id` |
 
 Return *[在狭窄任务根生成真实文件](call.invoke(file=(access(`context`,"project") + "/ext/office/package.mq.md"),function="generate",arguments=`args`,root=access(`context`,"workspace"),effects="plugin,fs.read,fs.write,random.read,process.exec,environment.read"))*.
 

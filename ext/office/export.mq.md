@@ -2,6 +2,7 @@
 markup: occlusion
 title: Office 排版插件：从已登记文稿导出 PDF
 import:
+  json: lib/json.mq.md
   artifacts: ../../pages/agent/artifacts.mq.md
   engineering: ext/engineering/index.mq.md
   fs: lib/fs.mq.md
@@ -35,6 +36,8 @@ This operation verifies that a real office engine can load and render the genera
 The external engine runs as the same non-root container user with the existing read-only application filesystem and bounded process timeout. This is a documented missing host capability, not a second Python or JavaScript business implementation. Conversion failure retains the source and diagnostic, and it never erases a previously generated editable file.
 
 [LibreOffice command-line documentation](https://help.libreoffice.org/latest/en-US/text/shared/guide/start_parameters.html) describes the headless conversion and per-process UserInstallation profile parameters used here.
+
+预览名称包含风格，使用户在下载或打开独立大屏时能够分清版本。可读名称不会替代真实身份或摘要，相同题目仍可能有多个独立 PDF。生成器仅转换本次受信的可编辑文件，读取上传文件不触发这个排版入口。
 
 We **entries = artifacts.list()**.
 We **selected = None**.
@@ -80,4 +83,7 @@ We **path = `directory` + "/source.pdf"**.
 We **prefix = fs.read_chunk(path=`path`,offset=0,size=5)**.
 1. bytes.to_text(data=access(`prefix`,"data")) != "%PDF-"
   Return *[格式签名必须真实](result.error(code="office.pdf_signature",message=`id`,operation="pdf"))*.
-Return *[登记实际排版产物](result.ok(value=artifacts.register(id=`version`,title=(access(`selected`,"title") + " · PDF"),kind="pdf",path=`path`,source=access(`selected`,"source"))))*.
+We **label = access(`selected`,"title")**.
+1. json.get(value=`selected`,key="theme") != None
+  We **label = `label` + " · " + access(access(`selected`,"theme"),"label")**.
+Return *[登记实际排版产物](result.ok(value=artifacts.register(id=`version`,title=(`label` + " · PDF"),kind="pdf",path=`path`,source=access(`selected`,"source"))))*.

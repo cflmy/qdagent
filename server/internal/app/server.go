@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-layout-contracts-0.13.0"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-knowledge-studio-0.14.0"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -72,6 +72,13 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/plugins", s.auth.protect(s.plugins))
 	m.HandleFunc("PATCH /api/plugins/{id}", s.auth.protect(s.togglePlugin))
 	m.HandleFunc("GET /api/knowledge", s.auth.protect(s.knowledge))
+	m.HandleFunc("POST /api/tasks/{id}/knowledge/prepare", s.auth.protect(s.prepareKnowledge))
+	m.HandleFunc("POST /api/tasks/{id}/knowledge/publish", s.auth.protect(s.publishKnowledge))
+	m.HandleFunc("GET /api/knowledge/{knowledge}/contract", s.auth.protect(s.knowledgeContract))
+	m.HandleFunc("GET /api/knowledge/{knowledge}/source", s.auth.protect(s.knowledgeSource))
+	m.HandleFunc("GET /api/knowledge/{knowledge}/document", s.auth.protect(s.knowledgeDocument))
+	m.HandleFunc("POST /api/knowledge/{knowledge}/verify", s.auth.protect(s.verifyKnowledge))
+	m.HandleFunc("POST /api/knowledge/{knowledge}/execute", s.auth.protect(s.executeKnowledge))
 	m.HandleFunc("GET /api/tasks/{id}/workflow", s.auth.protect(s.workflow))
 	m.HandleFunc("POST /api/tasks/{id}/workflow/respond", s.auth.protect(s.respondWorkflow))
 	m.HandleFunc("GET /api/tasks/{id}/files", s.auth.protect(s.files))
@@ -446,7 +453,7 @@ func (s *Server) togglePlugin(w http.ResponseWriter, r *http.Request, i identity
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 func (s *Server) knowledge(w http.ResponseWriter, r *http.Request, i identity) {
-	out := []map[string]string{}
+	out := []map[string]any{}
 	root := filepath.Join(s.store.root, "kb")
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, e error) error {
 		if e != nil {
@@ -457,11 +464,43 @@ func (s *Server) knowledge(w http.ResponseWriter, r *http.Request, i identity) {
 		}
 		if !d.IsDir() && d.Type()&os.ModeSymlink == 0 && strings.HasSuffix(d.Name(), ".md") {
 			rel, _ := filepath.Rel(root, path)
-			out = append(out, map[string]string{"id": filepath.ToSlash(rel), "name": strings.TrimSuffix(d.Name(), ".md")})
+			out = append(out, map[string]any{"id": filepath.ToSlash(rel), "name": strings.TrimSuffix(d.Name(), ".md"), "status": "reference"})
 		}
 		return nil
 	})
-	writeJSON(w, 200, map[string]any{"sources": out})
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	compiled, err := s.knowledgeCall(ctx, "list", s.knowledgeContext(i), map[string]any{})
+	if err != nil {
+		writeError(w, 503, "knowledge_unavailable", "知识服务暂时无法加载，请重试")
+		return
+	}
+	if entries, ok := compiled.([]any); ok {
+		for _, entry := range entries {
+			if item, ok := entry.(map[string]any); ok {
+				out = append(out, item)
+			}
+		}
+	}
+	drafts := []map[string]any{}
+	tasks, _ := s.store.tasks(i.Principal)
+	for _, task := range tasks {
+		var compilation map[string]any
+		readBoundedJSON(filepath.Join(s.workspace(task), ".agent/knowledge-compilation.json"), &compilation)
+		if compilation == nil {
+			continue
+		}
+		phase := "intent"
+		if s.supervisor.workflow != nil {
+			state, _ := s.supervisor.workflow.snapshot(task.ID)
+			if p, ok := state["phase"].(string); ok {
+				phase = p
+			}
+		}
+		drafts = append(drafts, map[string]any{"task": task.ID, "title": compilation["title"], "phase": phase})
+	}
+	writeJSON(w, 200, map[string]any{"sources": out, "compilations": drafts})
 }
 func (s *Server) workspace(t Task) string {
 	return filepath.Join(s.store.root, "data/workspaces", t.ID)

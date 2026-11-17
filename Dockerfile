@@ -13,7 +13,7 @@ COPY server/ ./
 RUN CGO_ENABLED=1 go build -mod=vendor -buildvcs=false -trimpath -ldflags="-s -w" -o /out/qdagent ./cmd/qdagent
 
 FROM python:3.12-slim@sha256:6b25cbe6577518889d553cdd5a5da97d259348d8f6e45b527dd731caaba27a07
-RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm sqlite3 git curl build-essential pkg-config ca-certificates libgcc-s1 libreoffice-writer libreoffice-impress fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm sqlite3 git curl build-essential pkg-config ca-certificates libgcc-s1 poppler-utils libreoffice-writer libreoffice-impress fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid 10001 qdagent && useradd --uid 10001 --gid 10001 --create-home qdagent
 WORKDIR /app
 COPY .marqdo/docker-context/bin/marqdo /usr/local/bin/marqdo

@@ -27,3 +27,4 @@ title: 已安装插件的共同清单
 | 10 | "office" | "办公文档与演示" | "" | "ext/office/index.mq.md" | "Word/PPT 多布局校验、PNG 图文、修订与 PDF 交付" | "" |
 | 13 | "search" | "联网搜索" | "libqdagent_transport.so" | "ext/search/index.mq.md" | "自部署 SearXNG 搜索，保留候选来源及上游故障" | "" |
 | 14 | "ocr" | "PaddleOCR 文字识别" | "libqdagent_transport.so" | "ext/ocr/index.mq.md" | "识别授权上传的图片与 PDF，保存原件依据与真实文字" | "" |
+| 15 | "knowledge" | "知识编译与重现实验" | "libqdagent_transport.so" | "ext/knowledge/index.mq.md" | "论文与源码分段、独立验证、私有知识版本、公式计算及结果自写回" | "" |

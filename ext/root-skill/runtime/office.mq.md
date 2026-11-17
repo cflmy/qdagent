@@ -35,7 +35,13 @@ Use `state`。
 
 本函数不读取模型密钥，不执行单元，不启动网络或排版，也不推进阶段。相同内容可以复用已核对的现有产物，避免断线恢复时重复创建同一文件。摘要只能检查版本联系，不能替代正文质量审核或用户验收。
 
-Return *hash.sha256(text=(json.stringify(value=json.get(value=`state`,key="outline_sha256")) + json.stringify(value=access(`state`,"units")) + json.stringify(value=json.get(value=`state`,key="artifact_kind"))))*.
+历史任务没有风格设置时保留原来的指纹计算，不因新增默认选项就追溯性否定已经审阅的单版本交付。用户明确选择风格后才把该列表加入联系，既保证新请求的精确性，也让旧记录继续可读。并发数只影响执行资源，不改变正文或文件内容，因此不加入内容指纹。
+
+We **payload = json.stringify(value=json.get(value=`state`,key="outline_sha256")) + json.stringify(value=access(`state`,"units")) + json.stringify(value=json.get(value=`state`,key="artifact_kind"))**.
+We **themes = json.get(value=access(`state`,"settings"),key="office_themes")**.
+1. `themes` != None
+  We **payload = `payload` + json.stringify(value=`themes`)**.
+Return *hash.sha256(text=`payload`)*.
 
 ## sections
 
@@ -103,14 +109,19 @@ We **receipt = json.get(value=`state`,key="office_delivery")**.
 1. not `receipt` or access(`receipt`,"fingerprint") != fingerprint(state=`state`)
   Return *result.error(code="root.office_missing",message="请先组装已验证正文，当前方案尚无有效办公交付",operation="ready")*.
 We **artifact = access(`receipt`,"artifact")**.
-1. not fs.exists(path=access(`artifact`,"path")) or fs.file_hash(path=access(`artifact`,"path")) != access(`artifact`,"sha256")
-  Return *result.error(code="office.changed",message="办公文件已变化或不存在",operation="ready")*.
-We **source = records.read(id=access(`artifact`,"id"))**.
-1. not access(`source`,"ok")
-  Return *source*.
-We **pdf = json.get(value=`artifact`,key="pdf")**.
-1. `pdf` and (not fs.exists(path=access(`pdf`,"path")) or fs.file_hash(path=access(`pdf`,"path")) != access(`pdf`,"sha256"))
-  Return *result.error(code="office.changed",message="附带 PDF 已变化或不存在",operation="ready")*.
+We **versions = json.get(value=`artifact`,key="variants")**.
+1. `versions` == None
+  We **versions = table.append(list=table.empty_list(),item=`artifact`)**.
+- [所有风格都要保持当前摘要与源稿有效](for versions as version)
+  1. not fs.exists(path=access(`version`,"path")) or fs.file_hash(path=access(`version`,"path")) != access(`version`,"sha256")
+    Return *result.error(code="office.changed",message="办公文件已变化或不存在",operation="ready")*.
+  We **source = records.read(id=access(`version`,"id"))**.
+  1. not access(`source`,"ok")
+    Return *source*.
+  We **pdf = json.get(value=`version`,key="pdf")**.
+  1. `pdf` and (not fs.exists(path=access(`pdf`,"path")) or fs.file_hash(path=access(`pdf`,"path")) != access(`pdf`,"sha256"))
+    Return *result.error(code="office.changed",message="附带 PDF 已变化或不存在",operation="ready")*.
+
 Return *result.ok(value=`artifact`)*.
 
 ## assemble
@@ -130,7 +141,7 @@ Use `context`, `render_pdf`=True。
 
 有效的已有交付可以复用，恢复时不重复写入。选择不同的 PDF 需求会重新生成一个独立版本，旧文件仍保留。只有真实文件生成、可选 PDF 生成和当前状态保存都成功，才记录为本方案的交付；失败保留具体原因，不能进入最终审阅。
 
-Word 以章节组织原文，PPT 先确定性拆成有界文字页，不截掉过长内容；超过页面限制时明确请用户调整已确认方案。当前不承诺复杂图表、图片、备注或外来版式无损编辑。最后仍需通过工程整合和用户验收，文件容器有效不表示事实全部正确。
+Word 以章节组织原文，PPT 先确定性拆成有界文字页，不截掉过长内容；超过页面限制时明确请用户调整已确认方案。用户可在确认框架时选择一至四种风格，每份独立登记，仍沿用相同正文和内容预算。最后仍需通过工程整合和用户验收，文件容器有效不表示事实全部正确。
 
 The output format is an explicit part of the confirmed framework. The delivery actor cannot change it through this call, choose a different template path or provide an unverified article. The same ordinary Word or presentation handbook is used for direct library calls and root delivery. Restarting a task first checks whether a usable version already exists. Reuse preserves its exact file identity and avoids repeating conversion as a side effect. If generation succeeds but the state compare-and-swap fails, the file remains on disk and the operation reports the conflict; it does not claim that the new user decision was fulfilled.
 
@@ -179,13 +190,31 @@ Use `context`, `state`, `sections`, `render_pdf`。
 
 本函数不修改阶段，也不替用户验收。新身份对应新的真实文件，原版继续保留。文件正文仍可能需要审阅，容器格式有效不证明领域事实正确、演示信息密度合适或排版满足所有目标应用。模型只在当前角色范围内取得返回证据，不会收到底层命令、令牌或另一个任务文件。
 
+风格批处理只消费本次确认且通过独立测试的正文，全部变体使用相同输入，并行仅承担表现生成。并发限制沿用用户配置，最多四个。输出分别拥有真实身份和源稿，失败保留已完成文件与具体错误，不自动改变确认过的格式。默认三种风格可在确认框架时选择，不能由宿主另写一套生成业务。
+
+同一批中的多个文件都必须有完整真实证据，不能用默认版本的成功掩盖其他版本失败。读取历史版本时保留精确身份；前端显示名称可以相同，但选择、下载与检查必须始终使用真实身份。用户无需看到内部长标识，也不能仅靠标题匹配版本。
+
+主题选择仅授权表现生成，不能增加正文来源、修改已确认规格或改变独立测试。真实文件和 PDF 分别有摘要，最终审阅重新核对所有变体，避免用户切换到另一个版本时实际内容已经改变。登记锁不会把长时间排版串行化，只有最后写清单时短暂互斥，三个版本可以同时处于生成中。
+
+每个主题由实际参数函数与固定声明资源共同提供。创建时先拒绝未知名字，再按同一份布局契约检查全部内容；父进程只负责有界并发与收集结果，不在宿主另写布局或模型提示。源稿、可编辑文件和预览各自保留身份，用户选择与下载始终定位实际文件。只读切换不会触发再次创作或覆盖原来版本。
+
 We **route = access(routing.office(kind=access(`state`,"artifact_kind")),"value")**.
 We **args = table.empty_map()**.
 We **args = table.put(in=`args`,at="title",value=access(`state`,"title"))**.
-We **args = table.put(in=`args`,at=access(`route`,"parameter"),value=`sections`)**.
+
 We **args = table.put(in=`args`,at="render_pdf",value=`render_pdf`)**.
 We **args = table.put(in=`args`,at="context",value=`context`)**.
-Return *call.invoke(file=(access(`context`,"project") + ("/" + access(`route`,"document"))),function="create",arguments=`args`,root=access(`context`,"project"),effects="plugin,fs.read,fs.write,process.exec,environment.read,random.read")*.
+We **themes = json.get(value=access(`state`,"settings"),key="office_themes")**.
+1. `themes` == None
+  We **themes = json.parse(text="[\"paper\",\"midnight\",\"coral\"]")**.
+We **args = table.put(in=`args`,at="kind",value=access(`state`,"artifact_kind"))**.
+We **args = table.put(in=`args`,at="sections",value=`sections`)**.
+We **args = table.put(in=`args`,at="themes",value=`themes`)**.
+We **limit = access(access(`state`,"settings"),"concurrency")**.
+1. `limit` > 4
+  We **limit = 4**.
+We **args = table.put(in=`args`,at="concurrency",value=`limit`)**.
+Return *call.invoke(file=(access(`context`,"project") + "/ext/office/variants.mq.md"),function="generate",arguments=`args`,root=access(`context`,"project"),effects="plugin,fs.read,fs.write,process.exec,environment.read,random.read")*.
 
 ## store
 

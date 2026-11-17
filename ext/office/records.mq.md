@@ -2,6 +2,7 @@
 markup: occlusion
 title: 办公源稿：版本记录与真实文件绑定
 import:
+  manifest: manifest.mq.md
   fs: lib/fs.mq.md
   json: lib/json.mq.md
   table: lib/table.mq.md
@@ -38,6 +39,8 @@ The sidecar is written only for a newly generated artifact. Its hash is then rec
 We **id = access(`artifact`,"id")**.
 We **snapshot = table.put(in=None,at="kind",value=`kind`)**.
 We **snapshot = table.put(in=`snapshot`,at="title",value=`title`)**.
+We **snapshot = table.put(in=`snapshot`,at="theme",value=json.get(value=`artifact`,key="theme"))**.
+We **snapshot = table.put(in=`snapshot`,at="group_id",value=json.get(value=`artifact`,key="group_id"))**.
 We **snapshot = table.put(in=`snapshot`,at="sections",value=`sections`)**.
 We **snapshot = table.put(in=`snapshot`,at="sha256",value=access(`artifact`,"sha256"))**.
 We **snapshot = table.put(in=`snapshot`,at="source_sha256",value=fs.file_hash(path=access(`artifact`,"source")))**.
@@ -46,13 +49,9 @@ We **_ = fs.make_dirs(path=".agent/office")**.
 We **_ = fs.atomic_write(path=`path`,text=json.stringify(value=`snapshot`))**.
 We **entry = table.put(in=`artifact`,at="manuscript",value=`path`)**.
 We **entry = table.put(in=`entry`,at="manuscript_sha256",value=fs.file_hash(path=`path`))**.
-We **next = table.empty_list()**.
-We **entries = artifacts.list()**.
-- [只更新本次版本的快照联系](for entries as item)
-  1. access(`item`,"id") == `id`
-    We **item = `entry`**.
-  We **next = table.append(list=`next`,item=`item`)**.
-We **_ = fs.atomic_write(path=".agent/artifacts.json",text=json.stringify(value=`next`))**.
+We **saved = manifest.save(entry=`entry`)**.
+1. not access(`saved`,"ok")
+  Return *saved*.
 Return *entry*.
 
 ## read

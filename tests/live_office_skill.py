@@ -38,11 +38,14 @@ def inside():
             print(json.dumps({'phase':state['phase'],'status':result.get('status'),'evidence':evidence[-8:]},ensure_ascii=False))
             raise AssertionError('actual Office delivery did not reach review')
         artifact=state['office_delivery']['artifact'];assert artifact['kind']=='pptx'
-        assert (base/'work'/artifact['path']).is_file();assert (base/'work'/artifact['pdf']['path']).read_bytes().startswith(b'%PDF-')
+        variants=artifact.get('variants',[artifact]);assert len(variants)==3,{'actual_variants':len(variants)}
+        assert len({a['theme']['id'] for a in variants})==3
+        for a in variants:
+            assert (base/'work'/a['path']).is_file();assert (base/'work'/a['pdf']['path']).read_bytes().startswith(b'%PDF-')
         events=[json.loads(line) for line in (run/'events.ndjson').read_text().splitlines()]
         names=[event['data'].get('name') for event in events if event['kind']=='tool_start']
         assert 'api.assemble' in names,names
-        print(json.dumps({'phase':state['phase'],'actual_pptx':True,'actual_pdf':True,'office_call':'api.assemble','independent_tests':all(u['trial']['passed'] for u in state['units']),'final_user_approval':'still required'},ensure_ascii=False))
+        print(json.dumps({'phase':state['phase'],'actual_pptx':len(variants),'actual_pdf':len(variants),'office_call':'api.assemble','independent_tests':all(u['trial']['passed'] for u in state['units']),'final_user_approval':'still required'},ensure_ascii=False))
 
 def host():
     resolver=['docker','exec','-i','qdagent-qdagent-1','marqdo','call','/app/pages/control/models.mq.md','resolve','--args-json','-','--fs-root','/app','--effects','plugin,fs.read,fs.write,environment.read','--json']

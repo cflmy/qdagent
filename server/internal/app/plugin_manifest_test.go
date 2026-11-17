@@ -45,7 +45,7 @@ func TestPluginListAndToggleReadSharedMarqdoInstallationDocument(t *testing.T) {
 			}
 		}
 	}
-	if !found || len(body.Plugins) != 15 {
+	if !found || len(body.Plugins) != 16 {
 		t.Fatal("shared manuscript was not projected")
 	}
 	if request(s, "PATCH", "/api/plugins/browser", `{"enabled":false}`).Code != 200 || s.store.pluginEnabled("test-owner", "browser") {

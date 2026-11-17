@@ -14,3 +14,6 @@
 - 任务归档、删除、参数预检、错误经验和可读执行详情遵循 `docs/task-lifecycle-and-recovery.mq.md`；经验按角色与真实接口版本隔离，不能自动重放工具或借修复改变冻结测试。
 - Word/PPT 与后续办公格式遵循 `docs/office-skills.mq.md`；正文来自已验证函数段，编辑保留旧版，不把任意上传 Office 包交给排版引擎，不用复杂版式的宣传代替实际能力。
 - 办公模板遵循 `docs/office-layout-contracts.mq.md`：每种布局一个 Marqdo 函数，参数表声明内容预算和素材条件；所有创建与修订在写入前复用同一整份预检，不凑字、缩字或静默裁剪，不把 ZIP 有效当成版式已验证。
+
+- 多风格产物遵循 `docs/product-variants.mq.md`；风格不能重写正文，并发登记不得覆盖其他结果。
+- 知识编译遵循 `docs/knowledge-compilation.mq.md`；论文与源码先定位来源，再走根流程、冻结独立测试与用户验收，发布私有版本；上传代码不直接执行，自写回不能改变已审阅控制流。

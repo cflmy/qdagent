@@ -2,6 +2,7 @@
 markup: occlusion
 title: 任务工作台：计划、子任务和文件交付
 import:
+  manifest: ext/office/manifest.mq.md
   fs: lib/fs.mq.md
   json: lib/json.mq.md
   table: lib/table.mq.md
@@ -237,8 +238,7 @@ We **_ = [源稿必须实际存在](fs.stat(path=`source`))**.
 |---|---|---|---|---|---|---|---|
 | `id` | `title` | `kind` | `path` | `source` | `digest` | `size` | "producer_checked_and_digest" |
 
-We **entries = list()**.
-We **entries = table.append(list=`entries`,item=`entry`)**.
-We **_ = fs.make_dirs(path=".agent")**.
-We **_ = [原子追加交付事实](fs.write_json(path=".agent/artifacts.json",value=`entries`))**.
+We **saved = manifest.save(entry=`entry`)**.
+1. not access(`saved`,"ok")
+  Return *saved*.
 Return *entry*.

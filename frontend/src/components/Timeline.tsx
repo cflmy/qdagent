@@ -10,6 +10,8 @@ function nestedEvents(events:RunEvent[]):RunEvent[]{return events.filter(event=>
 export function Timeline({events,connection,onPreview}:{events:RunEvent[];connection?:string;onPreview?:(path:string)=>void}){
  const steps:Step[]=[];const index=new Map<string,Step>(),checks=new Map<string,Record<string,unknown>>();let lastModel:Step|undefined;
  for(const event of events){const d=event.data;
+  if(event.kind==='artifact_variant_start'){const id=`variant-${d.group_id}-${d.theme}`;const names:Record<string,string>={paper:'留白画廊',midnight:'极夜星图',coral:'日落编辑部',sage:'竹影纸笺'};const step:Step={id,kind:'tool',name:`风格排版 · ${names[String(d.theme)]||d.theme}`,status:'running',thought:'',arguments:{theme:d.theme},started:event.created_ms};steps.push(step);index.set(id,step)}
+  if(event.kind==='artifact_variant_end'){const step=index.get(`variant-${d.group_id}-${d.theme}`);if(step){step.status=d.ok?'succeeded':'failed';if(step.started)step.elapsed=event.created_ms-step.started}}
   if(event.kind==='model_start'){const step:Step={id:String(d.call_id||`model-${d.step}-${d.attempt||1}`),kind:'model',name:String(d.title||'模型处理'),status:'running',thought:'',arguments:{model:d.model,role:d.role,attempt:d.attempt||1,sources:d.sources,context_bytes:d.context_bytes}};steps.push(step);index.set(step.id,step);lastModel=step}
   if(event.kind==='program_delta'||event.kind==='reasoning_delta'){const step=d.call_id?index.get(String(d.call_id)):lastModel;if(step){if(event.kind==='program_delta')step.program=(step.program||'')+String(d.text||'');else step.thought+=String(d.text||'')}}
   if(event.kind==='model_end'){const step=index.get(String(d.call_id||`model-${d.step}-${d.attempt||1}`));if(step)step.status=String(d.status||'succeeded')}

@@ -2,6 +2,8 @@
 markup: occlusion
 title: 办公产物：可读源稿、真实文件与内容核验
 import:
+  appearance: themes/index.mq.md
+  manifest: manifest.mq.md
   validation: layouts/validate.mq.md
   ppt_layout: layouts/presentation.mq.md
   ppt_render: layouts/render_presentation.mq.md
@@ -61,13 +63,15 @@ Return *[原子写入包内真实部件](fs.atomic_write(path=(`root` + "/" + `p
 | title | text | required | 文件可读标题 |
 | sections | list | required | 每项 heading、body；body 使用换行分段 |
 | templates | map | required | 可信控制器读取的声明式模板 |
+| theme | text | "sage" | 固定风格身份 |
+| group_id | text | "" | 同一批内容变体 |
 | render_pdf | bool | False | 立即渲染本次新文件为 PDF |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | any | Result，已登记的真实产物和源稿 |
 
-Use `kind`, `title`, `sections`, `templates` and `render_pdf`=False。这是工作根内的生成入口，模板由工程控制器注入，模型不能替换 XML 模板。报告和演示接收同一种简单的标题正文结构；演示先生成封面，再把每个 section 变成一页。内置布局支持实际文字、双栏、引文与静态 PNG 图文，先校验整份请求再写入；不承诺复杂表格、任意图片格式或公式。
+Use `kind`, `title`, `sections`, `templates` and `render_pdf`=False, `theme`="sage", `group_id`=""。这是工作根内的生成入口，模板由工程控制器注入，模型不能替换 XML 模板。报告和演示接收同一种简单的标题正文结构；演示先生成封面，再把每个 section 变成一页。内置布局支持实际文字、双栏、引文与静态 PNG 图文，先校验整份请求再写入；不承诺复杂表格、任意图片格式或公式。
 
 A document is not a string with an office extension. The package contains content types and relationship parts, and each internal target is generated from a fixed path. A presentation includes a slide master, blank layout, theme, presentation metadata and individual slide relationships. The editable text lives in real WordprocessingML or DrawingML text nodes. Content is escaped before substitution. User prose cannot add a relationship, execute code or choose a server path.
 
@@ -85,6 +89,9 @@ A successful return includes paths relative to the task workspace. Use those pat
 
 生成完成后还保存结构源稿，并把真实摘要写入当前版本登记。后续局部编辑只读取与二进制和 Markdown 都一致的源稿，不根据相同标题猜测版本。新文件不覆盖旧文件，生成失败的目录也不会被当成已经核对的交付。
 
+We **spec = appearance.select(theme=`theme`)**.
+1. json.get(value=`spec`,key="ok") == False
+  Return *spec*.
 We **prepared = [写入前校验全部版式与真实图片](validation.preflight(kind=`kind`,title=`title`,sections=`sections`))**.
 1. not access(`prepared`,"ok")
   Return *prepared*.
@@ -122,10 +129,10 @@ We **_ = [准备关系目录](fs.make_dirs(path=(`root` + "/_rels")))**.
   We **_ = part(root=`root`,path="[Content_Types].xml",body=access(`templates`,"docx_types"))**.
   We **_ = part(root=`root`,path="_rels/.rels",body=access(`templates`,"docx_root"))**.
   We **_ = part(root=`root`,path="word/_rels/document.xml.rels",body=text.replace(text=access(`templates`,"docx_rels"),old="</Relationships>",new=(`word_rels` + "</Relationships>")))**.
-  We **_ = part(root=`root`,path="word/styles.xml",body=access(`templates`,"docx_styles"))**.
-  We **_ = part(root=`root`,path="word/document.xml",body=text.replace(text=access(`templates`,"docx_document"),old="{{content}}",new=`content`))**.
+  We **_ = part(root=`root`,path="word/styles.xml",body=appearance.xml(content=access(`templates`,"docx_styles"),theme=`theme`,kind="docx"))**.
+  We **_ = part(root=`root`,path="word/document.xml",body=text.replace(text=access(`templates`,"docx_document"),old="{{content}}",new=appearance.xml(content=`content`,theme=`theme`,kind="docx")))**.
 1. `kind` == "pptx"
-  We **_ = [生成完整演示包](presentation(root=`root`,slides=`slides`,templates=`templates`))**.
+  We **_ = [生成完整演示包](presentation(root=`root`,slides=`slides`,templates=`templates`,theme=`theme`))**.
 We **path = `directory` + "/document." + `kind`**.
 We **packed = [原生 ZIP 打包](archive.pack(src=`root`,dest=`path`,max_bytes=8388608))**.
 1. not access(`packed`,"ok")
@@ -139,12 +146,16 @@ We **main = `directory` + "/verified/word/document.xml"**.
 1. not fs.exists(path=`main`)
   Return *[缺少主部件不能交付](result.error(code="office.package",message=`main`,operation="generate"))*.
 We **artifact = [统一登记真实交付](artifacts.register(id=`id`,title=`title`,kind=`kind`,path=`path`,source=(`directory` + "/source.md")))**.
+We **artifact = table.put(in=table.put(in=`artifact`,at="theme",value=`spec`),at="group_id",value=`group_id`)**.
 We **artifact = [绑定真实源稿与文件版本](records.save(artifact=`artifact`,kind=`kind`,title=`title`,sections=`sections`))**.
 1. `render_pdf`
   We **pdf = [只转换本次刚生成的受信任包](export.pdf(id=`id`))**.
   1. not access(`pdf`,"ok")
     Return *pdf*.
   We **artifact = [Office 与实际排版一起交付](table.put(in=`artifact`,at="pdf",value=access(`pdf`,"value")))**.
+We **saved = manifest.save(entry=`artifact`)**.
+1. not access(`saved`,"ok")
+  Return *saved*.
 Return *[交付真实文件身份](result.ok(value=`artifact`))*.
 
 ## presentation
@@ -153,13 +164,14 @@ Return *[交付真实文件身份](result.ok(value=`artifact`))*.
 |---|---|---|---|
 | root | text | required | 新建包目录 |
 | slides | list | required | 包括封面在内的全部页 |
+| theme | text | "sage" | 固定风格及原生转场 |
 | templates | map | required | 可信声明模板 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | any | 演示部件写入完成 |
 
-Use `root`, `slides` and `templates`。每页都连接到空白版式，版式连接到母版，母版连接到主题。页面编号同时用于部件名、关系和主清单，不能出现清单有页面但 ZIP 没文件的假演示。16:9 页面使用纸色背景、深色标题和一致字体；中文字体声明保留，实际显示仍取决于打开文件的系统。
+Use `root`, `slides` and `templates`, `theme`="sage"。每页都连接到空白版式，版式连接到母版，母版连接到主题。页面编号同时用于部件名、关系和主清单，不能出现清单有页面但 ZIP 没文件的假演示。16:9 页面使用纸色背景、深色标题和一致字体；中文字体声明保留，实际显示仍取决于打开文件的系统。
 
 The package is deliberately simple and editable. It contains text boxes rather than screenshots of text. A slide title has its own shape and the body has separate paragraphs, allowing an office application to edit them naturally. A theme supplies a consistent color and font vocabulary. The layout is blank because all geometry is explicit in the fixed declaration. This avoids requiring an inherited placeholder position that the generated slide never supplies.
 
@@ -194,7 +206,7 @@ We **types = ""** and **ids = ""** and **rels = ""** and **n = 0**.
   We **rendered = ppt_render.slide(root=`root`,section=`slide`,number=`number`,templates=`templates`)**.
   1. not access(`rendered`,"ok")
     Return *rendered*.
-  We **_ = part(root=`root`,path=("ppt/slides/slide" + `number` + ".xml"),body=access(access(`rendered`,"value"),"xml"))**.
+  We **_ = part(root=`root`,path=("ppt/slides/slide" + `number` + ".xml"),body=appearance.slide(content=access(access(`rendered`,"value"),"xml"),theme=`theme`,templates=`templates`,layout=access(`slide`,"layout")))**.
   We **_ = part(root=`root`,path=("ppt/slides/_rels/slide" + `number` + ".xml.rels"),body=access(access(`rendered`,"value"),"relationships"))**.
 We **_ = part(root=`root`,path="[Content_Types].xml",body=text.replace(text=access(`templates`,"pptx_types"),old="{{slides}}",new=`types`))**.
 We **_ = part(root=`root`,path="_rels/.rels",body=access(`templates`,"pptx_root"))**.

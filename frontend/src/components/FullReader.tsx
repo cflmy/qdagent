@@ -1,0 +1,5 @@
+import {useState} from 'react';
+import {ArrowLeft,BookOpen} from 'lucide-react';
+import {type Files,useResource} from '../api';
+import {Reader} from './Reader';
+export default function FullReader(){const q=new URLSearchParams(window.location.search),task=q.get('task')||'';const [path,setPath]=useState(q.get('path')||'');const files=useResource<Files>(task?`/api/tasks/${encodeURIComponent(task)}/files`:null,0);return <main className="artifact-fullscreen"><header><a href="/app"><ArrowLeft size={15}/> 返回工作台</a><span><BookOpen size={15}/> {files.data?.workflow?.title||'大屏阅读'}</span><span>MARQDO · VIEW</span></header>{!task?<p>请从工作区选择一份文稿。</p>:files.error?<p role="alert">{files.error.message} <a href="/login">登录后重试</a></p>:<Reader task={task} files={files.data} events={[]} selected={path} onSelect={value=>{setPath(value);const url=new URL(window.location.href);url.searchParams.set('path',value);window.history.replaceState(null,'',url)}} onClose={()=>{window.location.href='/app'}} onExpand={()=>{if(!document.fullscreenElement)void document.documentElement.requestFullscreen();else void document.exitFullscreen()}}/>}</main>}

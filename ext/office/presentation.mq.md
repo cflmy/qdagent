@@ -34,19 +34,21 @@ Return *[使用有明确内容预算的正文页](layouts.title_body(heading=`he
 | title | text | required | 实际文件题目 |
 | slides | list | required | 由 slide 形成的一至二十项内容 |
 | context | map | required | 可信执行器注入的当前任务根；不是模型参数 |
+| theme | text | "sage" | sage、paper、midnight、coral |
+| group_id | text | "" | 同一批变体身份 |
 | render_pdf | bool | False | 是否同时生成真实 PDF |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
 | result | map | create 的实际结果，失败保留明确诊断 |
 
-Use `title`, `slides`, `context`, `render_pdf`=False。
+Use `title`, `slides`, `context`, `render_pdf`=False, `theme`="sage", `group_id`=""。
 
 每次只描述实际正文，不把“准备撰写”当作已经完成。一个内容页只表达一个主题；正文十二至一百八十五字符、最多六行、每行最多三十字符，创建会添加封面，编辑位置不计算封面。本手册的标题就是可直接调用的函数，参数和返回紧随标题。所有路径都来自当前任务的真实登记，显示标题不作为文件身份。操作成功只证明文件事实，不证明正文中的事实正确，也不代替用户最终验收。原版本保持可读，新版本使用新身份；失败保留实际原因，不用一个漂亮的文件名冒充产物。
 
 创建得到真正可编辑的 PPT 文件、Markdown 源稿和受摘要保护的结构快照。先确认用户范围并完成内容核对，再选择格式。返回的身份用于后续 inspect 或局部修订；新文件不覆盖同名旧版本。
 
-Return *[生成真实PPT文件](office.create(kind="pptx",title=`title`,sections=`slides`,context=`context`,render_pdf=`render_pdf`))*.
+Return *[生成真实PPT文件](office.create(kind="pptx",title=`title`,sections=`slides`,context=`context`,render_pdf=`render_pdf`,theme=`theme`,group_id=`group_id`))*.
 
 ## replace_slide
 
