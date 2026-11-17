@@ -112,7 +112,7 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 	if err != nil {
 		return Run{}, err
 	}
-	if model == "builtin-smart" {
+	if sharedModelSelection(model) {
 		usage, e := s.store.accountUsage(owner)
 		if e != nil {
 			return Run{}, e

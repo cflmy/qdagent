@@ -106,7 +106,7 @@ Return *[实际会话面板](ui.render(nodes=`nodes`))*.
 
 Use `entries`。只展示服务端已去除密钥的字段。选择按钮携带不透明配置身份，删除按钮独立操作；模型名称可以重复，身份不会混淆。列表为空时不显示假模型或多余提示块，新增表单仍能使用。
 
-The model picker groups the fixed shared option, the administrator's local model and private profiles into distinct readable cards. A shared option explains its intended use without claiming the provider has already responded. The local option explicitly says its connection is checked when used; no green availability indicator is fabricated. Private profiles alone receive a delete button. The button's data identity remains stable while its visible label remains human readable, and the server independently resolves every selection.
+The model picker groups the fixed shared option, the administrator's local model and private profiles into distinct readable cards. Further shared entries opened by the administrator stay under the same shared heading but name their own provider group in the hint, so a picker can offer one entry per provider instead of one long list. They remain non-deletable, because only a personal custom- profile belongs to the current account. A shared option explains its intended use without claiming the provider has already responded. The local option explicitly says its connection is checked when used; no green availability indicator is fabricated. Private profiles alone receive a delete button. The button's data identity remains stable while its visible label remains human readable, and the server independently resolves every selection.
 
 Rendering is not a provider request and never loads a credential into a browser field. The model and protocol help users identify the selected service, while an active task remains bound to the profile saved at begin. The backend checks the owner again for selection, deletion and actual inference, independently of these buttons.\n\nThe fixed display order is independent of database insertion order: shared service first, local inference second and personal profiles last. Every selectable card keeps the opaque server identity in its event data, while its visible title and help text use only approved public fields. Credentials, remote API roots and local addresses are never included in the rendered fragment.
 
@@ -114,6 +114,8 @@ We **ordered = table.empty_list()**.
 - [共享服务优先，其次本机和个人配置](for entries as entry)
   We **id = access(`entry`,"id")** and **rank = 2**.
   1. `id` == "builtin-smart"
+    We **rank = 0**.
+  1. text.starts_with(text=`id`, prefix="shared-")
     We **rank = 0**.
   1. `id` == "builtin-local"
     We **rank = 1**.
@@ -126,6 +128,10 @@ We **nodes = table.empty_list()** and **last_group = ""**.
   We **description = "个人配置 · 仅当前账号可管理"** and **group = "我的模型"** and **group_id = "qd-model-group-personal"**.
   1. `id` == "builtin-smart"
     We **group = "共享智能模型"** and **group_id = "qd-model-group-shared"** and **label = "智能模型（默认）"** and **description = "平台提供 · 适合问答、分析、写作与规划"**.
+  1. text.starts_with(text=`id`, prefix="shared-")
+    We **group = "共享智能模型"** and **group_id = "qd-model-group-shared"** and **description = "平台共享 · 由管理员维护"**.
+    1. access(`entry`,"group") != None
+      We **description = (access(`entry`,"group") + " · 平台共享")**.
   1. `id` == "builtin-local"
     We **group = "本机模型"** and **group_id = "qd-model-group-local"** and **label = "Qwen（本机）"** and **description = "使用本地算力 · 数据更可控"**.
   We **heading = ui.text_node(text=`group`,id=`group_id`,style="qd-model-group")**.
@@ -134,7 +140,7 @@ We **nodes = table.empty_list()** and **last_group = ""**.
   We **button = ui.button(text=`label`,id=("model-" + `id`),data_id=`id`,style="mq-model-opt qd-model-select")**.
   We **hint = ui.text_node(text=`description`,style="qd-model-description")**.
   We **choices = table.concat(a=`button`,b=`hint`)**.
-  1. not text.starts_with(text=`id`,prefix="builtin-")
+  1. text.starts_with(text=`id`,prefix="custom-")
     We **choices = table.concat(a=`choices`,b=ui.button(text="删除",data_id=`id`,style="mq-btn qd-model-remove"))**.
   We **card = ui.region(children=`choices`,style="qd-custom-model")**.
   We **nodes = table.concat(a=`nodes`,b=`card`)**.

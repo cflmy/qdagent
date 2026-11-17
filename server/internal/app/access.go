@@ -236,8 +236,9 @@ func (s *Server) updateAccess(w http.ResponseWriter, r *http.Request, i identity
 
 // Called immediately before each provider attempt, including children and retries.
 // The single SQL insertion serializes concurrent requests; a repeated identity is denied.
+// Shared slots (builtin-smart and shared-*) share one daily limit and are recorded as builtin-smart.
 func (s *Store) consumeModel(owner, model, requestID string) (AccountUsage, error) {
-	if model != "builtin-smart" {
+	if !sharedModelSelection(model) {
 		day, _ := quotaDay(time.Now())
 		if _, err := s.db.Exec(`INSERT INTO qd_model_usage(request_id,owner,model,day,created_ms) VALUES(?,?,?,?,?)`, requestID, owner, model, day, nowMS()); err != nil {
 			return AccountUsage{}, errors.New("请求身份已使用或用量记录不可用")

@@ -30,6 +30,10 @@ The owner is independently bound in every query. An opaque profile id cannot gra
 
 每个已登录用户都可以选择管理员明确开放的共享智能模型和本机 Qwen。共享清单只判断固定账户是否存在 smart/default 配置，不返回那个账户的配置身份、端点或凭据。共享项采用固定的 builtin 身份，用户不能删除；个人配置仍只由自己的主体查询。没有共享配置时只列出本机与个人选项，本机服务是否在线由实际请求结果说明。
 
+The administrator may also open further models from the dedicated shared catalog account, and the models already configured under the development account next to smart/default belong to the same shared surface. Each of them keeps its own opaque profile identity behind the shared- prefix, so the public label and provider model name still come from that one administrator-owned row. They are listed as built-in entries and share the single daily quota; the browser never receives the account, endpoint or credential, and no user can delete them through the personal delete path.
+
+A shared entry also carries a presentation group so the picker can show one entry per provider instead of one long list. The group is derived from the public label or from the trusted account, never from client input, and it grants nothing: resolution still re-reads the account that owns the profile.
+
 The administrator's shared model is an intentional service capability available to authenticated users. Listing it performs no provider request and does not copy or expose a credential. The server resolves a fixed model name against a fixed administrative owner, independently of any client-supplied id. Personal profiles retain their existing owner checks and deletion rules. A shared identity remains stable even when an administrator rotates its underlying credential or replaces the profile.
 
 The local entry identifies the configured Ollama model rather than promising that Ollama is currently running. Its network address comes only from the administrator environment and cannot be changed through this shared option. Inference remains subject to the user's task and plugin authorization. Public labels are presentation data and never grant access to arbitrary model profiles.
@@ -46,7 +50,23 @@ We **shared = store.query(sql="SELECT id FROM qd_model_profiles WHERE owner=? AN
   We **item = table.put(in=None,at="id",value="builtin-smart")**.
   We **item = table.put(in=`item`,at="label",value="共享智能模型")**.
   We **item = table.put(in=`item`,at="model",value="smart/default")**.
+  We **item = table.put(in=`item`,at="group",value="智能模型")**.
   We **entries = table.append(list=`entries`,item=`item`)**.
+We **catalog_args = table.append(list=table.empty_list(),item="agent-development")**.
+We **catalog_args = table.append(list=`catalog_args`,item="shared-catalog")**.
+We **more = store.query(sql="SELECT id,owner,label,protocol,model,endpoint,thinking,CASE WHEN credential='' THEN 0 ELSE 1 END AS has_key FROM qd_model_profiles WHERE owner IN (?,?) ORDER BY label,id",args=`catalog_args`)**.
+- [其它共享模型只投影公开字段](for more as row)
+  1. not (access(`row`,"owner") == "agent-development" and access(`row`,"model") == "smart/default")
+    We **group = "智能模型"**.
+    1. access(`row`,"owner") == "shared-catalog"
+      We **parts = text.str_split(s=access(`row`,"label"), sep=" · ")**.
+      We **group = "共享模型"**.
+      1. table.len(xs=`parts`) > 1
+        We **group = access(`parts`,1)**.
+    We **item = table.put(in=`row`,at="id",value=("shared-" + access(`row`,"id")))**.
+    We **item = table.put(in=`item`,at="group",value=`group`)**.
+    We **item = table.delete(map=`item`,key="owner")** and **item = table.delete(map=`item`,key="endpoint")**.
+    We **entries = table.append(list=`entries`,item=`item`)**.
 Return *[公开清单不包含凭据](`entries`)*.
 
 ## save
@@ -156,7 +176,7 @@ For a local profile, resolve the administrator's current Ollama environment addr
 
 The shared identifier is a narrow server-side alias. The public list and actual resolver independently check whether its administrator-owned profile exists. If the provider configuration is removed or its credential cannot be decrypted, the request fails explicitly; it cannot fall through to an unrelated local model. Credentials never enter the browser, task history or tool output.
 
-共享选项是管理员明确授权的固定模型身份，不允许浏览器传入共享账户或任意配置 ID。服务仅在实际调用时解析受信任配置，凭据仍只在服务端内存使用。未配置共享模型时返回明确错误。本机选项使用管理员指定的 Ollama 地址，是否已安装由实际运行结果决定。
+共享选项是管理员明确授权的固定模型身份，不允许浏览器传入共享账户或任意配置 ID。服务仅在实际调用时解析受信任配置，凭据仍只在服务端内存使用。未配置共享模型时返回明确错误。本机选项使用管理员指定的 Ollama 地址，是否已安装由实际运行结果决定。除固定智能模型外，开发账户下同批配置与独立共享目录账户的 shared- 条目都会被解析成各自的管理员配置；解析时从受信账户重新读取配置身份，因此传入别人的配置身份也只会得到“配置不可用”。
 
 1. `selection` == "builtin-local"
   We **selection = "qwen3.5:4b-q4_K_M"**.
@@ -166,6 +186,15 @@ The shared identifier is a narrow server-side alias. The public list and actual 
   1. table.len(xs=`shared`) != 1
     Return *[共享模型尚未配置](result.error(code="qdagent.model_missing",message="共享模型暂不可用",operation="resolve"))*.
   Return *[使用管理员授权的固定模型](resolve(selection=access(access(`shared`,1),"id"),principal="agent-development"))*.
+1. text.starts_with(text=`selection`, prefix="shared-")
+  We **profile = re.replace(text=`selection`, pattern="^shared-", with="")**.
+  We **owner_args = table.append(list=table.empty_list(),item=`profile`)**.
+  We **owner_args = table.append(list=`owner_args`,item="agent-development")**.
+  We **owner_args = table.append(list=`owner_args`,item="shared-catalog")**.
+  We **owner_rows = store.query(sql="SELECT owner FROM qd_model_profiles WHERE id=? AND owner IN (?,?)",args=`owner_args`)**.
+  1. table.len(xs=`owner_rows`) != 1
+    Return *[共享身份必须落在受信账户](result.error(code="qdagent.model_missing",message="共享模型暂不可用",operation="resolve"))*.
+  Return *[其它共享模型仍绑定管理员配置](resolve(selection=`profile`, principal=access(access(`owner_rows`,1),"owner")))*.
 1. text.starts_with(text=`selection`, prefix="custom-")
   We **args = table.append(list=table.empty_list(), item=`selection`)**.
   We **args = table.append(list=`args`, item=`principal`)**.

@@ -239,6 +239,62 @@ func TestBudgetDiagnosticKeepsSharedModelVisibleButChoosesHealthyDefault(t *test
 	}
 }
 
+func TestSharedCatalogGroupsAndTrustedOwners(t *testing.T) {
+	s := testServer(t)
+	for _, statement := range []string{
+		`INSERT INTO qd_model_profiles(id,owner,label,protocol,model,endpoint,credential) VALUES('smart','agent-development','智能模型','openai','smart/default','https://api.example.com/v1','')`,
+		`INSERT INTO qd_model_profiles(id,owner,label,protocol,model,endpoint,credential) VALUES('dev-flash','agent-development','DeepSeek Flash','openai','deepseek-flash','https://api.example.com/v1','')`,
+		`INSERT INTO qd_model_profiles(id,owner,label,protocol,model,endpoint,credential) VALUES('shared-extra','shared-catalog','硅基流动 · Qwen3-8B','openai','Qwen/Qwen3-8B','https://api.example.com/v1','')`,
+		`INSERT INTO qd_model_profiles(id,owner,label,protocol,model,endpoint,credential) VALUES('other','another-owner','别人的配置','openai','other-model','https://api.example.com/v1','')`,
+	} {
+		if _, e := s.store.db.Exec(statement); e != nil {
+			t.Fatal(e)
+		}
+	}
+	list, e := s.store.models("test-owner")
+	if e != nil {
+		t.Fatal(e)
+	}
+	groups := map[string]string{}
+	for _, m := range list {
+		switch m.ID {
+		case "builtin-smart":
+			groups["smart"] = m.Group
+		case "shared-dev-flash":
+			groups["dev"] = m.Group
+		case "shared-shared-extra":
+			groups["catalog"] = m.Group
+		case "shared-other":
+			t.Fatal("an unrelated owner leaked through the shared prefix", list)
+		}
+	}
+	if groups["smart"] != smartModelGroup || groups["dev"] != smartModelGroup {
+		t.Fatal("development account models must stay in the smart group", list)
+	}
+	if groups["catalog"] != "硅基流动" {
+		t.Fatal("the public label must provide the provider group", list)
+	}
+	cfg, e := s.store.resolveModel("test-owner", "shared-dev-flash")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if cfg["model"] != "deepseek-flash" || cfg["selection_id"] != "shared-dev-flash" {
+		t.Fatal("shared alias resolved to the wrong profile", cfg)
+	}
+	if _, e = s.store.resolveModel("test-owner", "shared-shared-extra"); e != nil {
+		t.Fatal("the catalog profile must resolve", e)
+	}
+	if _, e = s.store.resolveModel("test-owner", "shared-other"); e == nil {
+		t.Fatal("the shared prefix widened access to an unrelated profile")
+	}
+	if sharedGroupName("没有分隔符") != sharedModelGroup || sharedGroupName("硅基流动 · Qwen3-8B") != "硅基流动" {
+		t.Fatal("group derivation is wrong")
+	}
+	if !sharedModelSelection("builtin-smart") || !sharedModelSelection("shared-shared-extra") || sharedModelSelection("custom-x") {
+		t.Fatal("shared quota membership is wrong")
+	}
+}
+
 func TestCancellationStopsWorkerDescendants(t *testing.T) {
 	s := testServer(t)
 	installNativeFixture(t, s.store.root, `import subprocess

@@ -29,6 +29,7 @@ type Task struct {
 type Model struct {
 	ID       string `json:"id"`
 	Label    string `json:"label"`
+	Group    string `json:"group,omitempty"`
 	Protocol string `json:"protocol"`
 	Model    string `json:"model"`
 	Endpoint string `json:"endpoint,omitempty"`
@@ -272,12 +273,71 @@ func modelCrypt(key []byte, value, owner, id string, seal bool) (string, error) 
 	}
 	return string(plain), nil
 }
+
+// sharedModelPrefix 标记共享模型的对外身份；实际配置身份追加在其后。
+const sharedModelPrefix = "shared-"
+
+const (
+	// smartModelOwner 持有固定的 smart/default 智能模型位。
+	smartModelOwner = "agent-development"
+	// smartModelGroup 是智能模型及同账户其它模型的展示分组。
+	smartModelGroup = "智能模型"
+	// sharedModelOwner 是额外共享模型的目录账户，其配置整体对外开放。
+	sharedModelOwner = "shared-catalog"
+	// sharedModelGroup 是无可识别前缀时的回退分组。
+	sharedModelGroup = "共享模型"
+)
+
+// sharedModelSelection 判断选择是否落在管理员开放的共享槽位上。
+// builtin-smart 是固定的智能模型位，shared-* 是按配置身份暴露的其它共享模型，二者共用同一份每日额度。
+func sharedModelSelection(selection string) bool {
+	return selection == "builtin-smart" || strings.HasPrefix(selection, sharedModelPrefix)
+}
+
+// sharedGroupName 从公开名称派生界面分组。分组只是展示归类，不参与权限判定；
+// 配置的公开名称形如“供应商 · 型号”时取前半部分。
+func sharedGroupName(label string) string {
+	if index := strings.Index(label, " · "); index > 0 {
+		return strings.TrimSpace(label[:index])
+	}
+	return sharedModelGroup
+}
+
 func (s *Store) models(owner string) ([]Model, error) {
 	out := []Model{}
 	var shared string
-	if s.db.QueryRow(`SELECT id FROM qd_model_profiles WHERE owner='agent-development' AND model='smart/default' ORDER BY id LIMIT 1`).Scan(&shared) == nil {
-		out = append(out, Model{ID: "builtin-smart", Label: "智能模型", Model: "smart/default", Protocol: "openai", Builtin: true, HasKey: true})
+	if s.db.QueryRow(`SELECT id FROM qd_model_profiles WHERE owner=? AND model='smart/default' ORDER BY id LIMIT 1`, smartModelOwner).Scan(&shared) == nil {
+		out = append(out, Model{ID: "builtin-smart", Label: "智能模型", Model: "smart/default", Protocol: "openai", Builtin: true, HasKey: true, Group: smartModelGroup})
 	}
+	sharedRows, err := s.db.Query(`SELECT id,owner,label,protocol,model,endpoint,thinking,credential!='' FROM qd_model_profiles WHERE owner IN (?,?) ORDER BY label,id`, smartModelOwner, sharedModelOwner)
+	if err != nil {
+		return nil, err
+	}
+	for sharedRows.Next() {
+		var m Model
+		var sharedOwner string
+		if err = sharedRows.Scan(&m.ID, &sharedOwner, &m.Label, &m.Protocol, &m.Model, &m.Endpoint, &m.Thinking, &m.HasKey); err != nil {
+			sharedRows.Close()
+			return nil, err
+		}
+		if sharedOwner == smartModelOwner && m.Model == "smart/default" {
+			continue
+		}
+		m.Group = smartModelGroup
+		if sharedOwner == sharedModelOwner {
+			m.Group = sharedGroupName(m.Label)
+		}
+		// 共享条目只公开选择所需的展示字段，端点与账户在解析时才从受信行读取。
+		m.Endpoint = ""
+		m.ID = sharedModelPrefix + m.ID
+		m.Builtin = true
+		out = append(out, m)
+	}
+	if err = sharedRows.Err(); err != nil {
+		sharedRows.Close()
+		return nil, err
+	}
+	sharedRows.Close()
 	out = append(out, Model{ID: "builtin-local", Label: "Qwen 3.5 · 4B", Model: "qwen3.5:4b-q4_K_M", Protocol: "ollama", Builtin: true})
 	rows, err := s.db.Query(`SELECT id,label,protocol,model,endpoint,thinking,credential!='' FROM qd_model_profiles WHERE owner=? ORDER BY label,id`, owner)
 	if err != nil {
@@ -310,8 +370,15 @@ func (s *Store) resolveModel(owner, id string) (map[string]any, error) {
 		return map[string]any{"selection_id": selection, "protocol": "ollama", "model": "qwen3.5:4b-q4_K_M", "endpoint": ep, "api_key": "", "builtin": true, "thinking": false}, nil
 	}
 	if id == "builtin-smart" {
-		owner = "agent-development"
+		owner = smartModelOwner
 		if err := s.db.QueryRow(`SELECT id FROM qd_model_profiles WHERE owner=? AND model='smart/default' ORDER BY id LIMIT 1`, owner).Scan(&id); err != nil {
+			return nil, errors.New("共享模型尚未配置")
+		}
+	}
+	if strings.HasPrefix(id, sharedModelPrefix) {
+		// 共享身份不携带账户，只能落在两个受信账户上；配置身份本身全局唯一。
+		id = strings.TrimPrefix(id, sharedModelPrefix)
+		if err := s.db.QueryRow(`SELECT owner FROM qd_model_profiles WHERE id=? AND owner IN (?,?)`, id, smartModelOwner, sharedModelOwner).Scan(&owner); err != nil {
 			return nil, errors.New("共享模型尚未配置")
 		}
 	}
