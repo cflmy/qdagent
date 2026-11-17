@@ -2,7 +2,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 (cd server && go build -buildvcs=false -o ../.marqdo/qdagent-go ./cmd/qdagent)
-npm run --prefix frontend build
+npm run --prefix frontend build -- --logLevel warn
 if [ -z "${QDAGENT_BROWSER:-}" ] && [ -x .marqdo/docker-context/browser/chromium/chrome ]; then
  export QDAGENT_BROWSER="$PWD/.marqdo/docker-context/browser/chromium/chrome"
 fi

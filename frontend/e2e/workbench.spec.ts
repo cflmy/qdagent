@@ -89,8 +89,8 @@ test('uploaded Marqdo source uses official read-only View',async({page})=>{
  await page.getByRole('button',{name:'文件',exact:true}).click();await page.locator('.file-row').filter({hasText:'native-acceptance.mq.md'}).click();
  await expect(page.frameLocator('.native-view').locator('body')).toContainText('这里是一份通过官方 View 阅读的文稿',{timeout:35000});
  await expect(page.frameLocator('.native-view').locator('body')).not.toContainText('View 无法完整解析');
- const frame=page.frameLocator('.native-view'),label=frame.locator('.occl-label').filter({hasText:'计算一个值'});await expect(label).toBeVisible();const note=await label.getAttribute('aria-describedby');await label.click();await expect(frame.locator(`[id="${note}"]`)).toHaveAttribute('open','');
- await page.getByRole('button',{name:'阅读文稿',exact:true}).click();await expect(frame.locator(`[id="${note}"]`)).toHaveAttribute('open','');
+ const frame=page.frameLocator('.native-view'),label=frame.locator('.occl-label').filter({hasText:'计算一个值'});await expect(label).toBeVisible();await label.click();await expect(frame.locator('#reader-dialog')).toBeVisible();await expect(frame.locator('#reader-dialog-content')).toContainText('2 + 3');
+ await page.getByRole('button',{name:'阅读文稿',exact:true}).click();await expect(frame.locator('#reader-dialog')).toBeVisible();await frame.getByRole('button',{name:'关闭',exact:true}).click();
  await page.getByRole('button',{name:'打开源码',exact:true}).click();await expect(page.locator('.document-source')).toContainText('Return *2 + 3*');
   const taskId=await page.evaluate(()=>localStorage.getItem('qd.task.v4'));const listed=await (await page.request.get(`/api/tasks/${taskId}/files`)).json();const uploaded=listed.files.find((file:any)=>file.name.endsWith('native-acceptance.mq.md'));
   const {writeFile}=await import('node:fs/promises');const {fileURLToPath}=await import('node:url');await writeFile(fileURLToPath(new URL(`../../data/workspaces/${taskId}/${uploaded.path}`,import.meta.url)),content.replace('这里是一份通过官方 View 阅读的文稿','文稿更新已生效'));

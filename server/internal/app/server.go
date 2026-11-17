@@ -39,7 +39,7 @@ func New(root, frontend string) (*Server, error) {
 		s.close()
 		return nil, err
 	}
-	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-knowledge-studio-0.14.0"}, nil
+	return &Server{store: s, auth: a, supervisor: newSupervisor(s), frontend: frontend, revision: "qdagent-native-reader-0.14.1"}, nil
 }
 func (s *Server) Close() { s.supervisor.shutdown(); s.store.close() }
 func (s *Server) Handler() http.Handler {
@@ -72,6 +72,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/plugins", s.auth.protect(s.plugins))
 	m.HandleFunc("PATCH /api/plugins/{id}", s.auth.protect(s.togglePlugin))
 	m.HandleFunc("GET /api/knowledge", s.auth.protect(s.knowledge))
+	m.HandleFunc("GET /api/knowledge/reference", s.auth.protect(s.knowledgeReference))
 	m.HandleFunc("POST /api/tasks/{id}/knowledge/prepare", s.auth.protect(s.prepareKnowledge))
 	m.HandleFunc("POST /api/tasks/{id}/knowledge/publish", s.auth.protect(s.publishKnowledge))
 	m.HandleFunc("GET /api/knowledge/{knowledge}/contract", s.auth.protect(s.knowledgeContract))

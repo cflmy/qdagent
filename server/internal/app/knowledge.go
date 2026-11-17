@@ -8,10 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -233,4 +236,67 @@ func (s *Server) verifyKnowledge(w http.ResponseWriter, r *http.Request, i ident
 		return
 	}
 	writeJSON(w, 200, value)
+}
+
+// Installed reference documents are readable separately from compiled private knowledge.
+func (s *Server) knowledgeReference(w http.ResponseWriter, r *http.Request, i identity) {
+	rel := r.URL.Query().Get("path")
+	if !fs.ValidPath(rel) || !strings.HasSuffix(rel, ".md") {
+		writeError(w, 404, "knowledge_missing", "参考文稿不存在")
+		return
+	}
+	root := filepath.Join(s.store.root, "kb")
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		writeError(w, 404, "knowledge_missing", "参考文稿不存在")
+		return
+	}
+	defer dir.Close()
+	f, err := dir.Open(rel)
+	if err != nil {
+		writeError(w, 404, "knowledge_missing", "参考文稿不存在")
+		return
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 1<<20 {
+		writeError(w, 404, "knowledge_missing", "参考文稿不可读取")
+		return
+	}
+	source, err := io.ReadAll(io.LimitReader(f, (1<<20)+1))
+	if err != nil || len(source) > 1<<20 {
+		writeError(w, 413, "knowledge_large", "参考文稿超过阅读上限")
+		return
+	}
+	if r.URL.Query().Get("view") == "1" {
+		ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
+		defer cancel()
+		cache := filepath.Join(s.store.root, "data", "tmp")
+		if e := os.MkdirAll(cache, 0700); e != nil {
+			writeError(w, 500, "view_error", "无法准备只读阅读")
+			return
+		}
+		isolated, e := os.MkdirTemp(cache, "reference-view-")
+		if e != nil {
+			writeError(w, 500, "view_error", "无法准备只读阅读")
+			return
+		}
+		defer os.RemoveAll(isolated)
+		name := filepath.Base(rel)
+		if e = os.WriteFile(filepath.Join(isolated, name), source, 0600); e != nil {
+			writeError(w, 500, "view_error", "无法准备只读阅读")
+			return
+		}
+		out, e := s.marqdo(ctx, "pages/agent/previews.mq.md", "show", isolated, map[string]string{"path": name}, "plugin,fs.read,fs.write,process.exec,random.read")
+		if e != nil {
+			writeError(w, 422, "view_error", "参考文稿暂时无法渲染")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(out)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"source": string(source), "record": map[string]any{
+		"id": rel, "name": strings.TrimSuffix(filepath.Base(rel), ".md"), "status": "reference",
+	}})
 }
