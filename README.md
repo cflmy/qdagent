@@ -20,6 +20,30 @@ Go 服务不嵌入 Marqdo VM。工具和读取器使用独立 CLI 子进程，�
 
 子任务调度复用 Marqdo 标准库，Office 复用既有 Marqdo 插件。后续可逐个替换其内部实现，稳定的调用合同和真实收据保持一致。原来的 `pages/public/client.mq.md`、Web 启动器和开发技能保留作迁移参考，**已经不是生产站点入口**。
 
+## 目录结构
+
+| 目录 | 职责 |
+|---|---|
+| `index.mq.md` | 根流程入口，业务状态迁移的唯一编排处 |
+| `ext/` | 可调用能力（SKILL）：`<名称>/` 内是 `.mq.md` 契约，`native/` 是对应 ABI 产物 |
+| `lib/` | 标准库手册，中英文双份，语义保持一致 |
+| `pages/` | 站点页面与端点；`pages/ext/` 是站点宿主的插件安装镜像，由 `ext/qdagent/index.mq.md install` 同步 |
+| `server/` | Go 宿主：OIDC、同源保护、受限 I/O、资源限制与事件转发 |
+| `worker/` | 模型供应商传输进程，不承载提示词 |
+| `frontend/` | React 工作台源码；`dist/` 由构建生成，不入库 |
+| `browser-sandbox/` | 隔离浏览器服务 |
+| `docs/` | 唯一文档根：架构规范在顶层，`design/` 放设计记录与图（`design/assets/`），`gaps/` 登记能力缺口，`next/` 放迁移计划 |
+| `deploy/` | 构建、准备与检查脚本；`build.sh` 是唯一构建入口 |
+| `tests/` | 跨语言验收测试 |
+| `skills/` | Marqdo 开发技能：`read` / `search` / `write` / `patch` 等原生任务 |
+| `test-results/` | Playwright 截图与追踪，跑测试时生成，不入库 |
+| `knowledge/` | 随仓库发布的公共知识原文 |
+| `kb/` | 运行时知识库根，容器内由用户数据填充，仓库只保留占位文件 |
+| `data/` | 运行时任务、会话与 SQLite，不入库 |
+| `.marqdo/` | Marqdo 构建缓存、密钥与人工探针归档，不入库 |
+
+文档只有一个根 `docs/`。旧 `doc/` 已并入 `docs/`，历史路径不再有效。顶层目录名不得包含空格或引号——这类目录只会来自未加引号的路径拼接，`deploy/check-layout.sh` 会在构建开始时直接失败。
+
 ## 文稿驱动的根流程
 
 本轮加入完成后可回看的四阶段导航、常驻工作区文件树与可读文件名。根任务通过普通 Marqdo 函数拆分意图待办并选择实际 SKILL，基本方案必须覆盖全部已确认意图；具体约束见 [docs/task-journey-and-routing.mq.md](docs/task-journey-and-routing.mq.md)。
@@ -135,10 +159,10 @@ QDAGENT_START_TEST_SERVER=1 QDAGENT_BROWSER=/path/to/chrome npm exec --prefix fr
 
 Go 检查覆盖账号隔离、同源限制、加密范围、越界路径与符号链接、真实首段 SSE、持久化和登记交付边界。Python 检查覆盖消息原样传输、增量协议，以及真实 Marqdo 根流程的隔离与修复。浏览器检查直接操作真实 Go API，包含任务、模型、插件、上传、文稿、调宽和手机布局。
 
-迁移说明与下一步见 [技术栈渐进迁移](doc/next/技术栈渐进迁移.md)。Marqdo 工具开发仍可阅读原有 `.mq.md` 手册；新增库继续遵循代码即文档、文档即可调用能力的规范。
+迁移说明与下一步见 [技术栈渐进迁移](docs/next/技术栈渐进迁移.md)。Marqdo 工具开发仍可阅读原有 `.mq.md` 手册；新增库继续遵循代码即文档、文档即可调用能力的规范。
 
 
-首页设计稿、实现截图和测量基准见 [首页对齐记录](doc/design/landing-v1-alignment.md)。QD 标识由 Marqdo 折面标识延伸为 SVG，中文字体按首页文案子集化并随前端部署，减少跨设备字体替换引起的偏移。修改文案后可以用 `deploy/subset-fonts.py` 更新字体子集；字体许可在 `frontend/public/fonts/LICENSE-Noto.txt`。
+首页设计稿、实现截图和测量基准见 [首页对齐记录](docs/design/landing-v1-alignment.md)。QD 标识由 Marqdo 折面标识延伸为 SVG，中文字体按首页文案子集化并随前端部署，减少跨设备字体替换引起的偏移。修改文案后可以用 `deploy/subset-fonts.py` 更新字体子集；字体许可在 `frontend/public/fonts/LICENSE-Noto.txt`。
 
 
 ## 根流程验证

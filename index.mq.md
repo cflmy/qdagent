@@ -152,4 +152,4 @@ Return *[阅读实际能力目录](plugins.catalog())*.
 
 Return *[列出独立工作任务](sessions.list())*.
 
-模型面板支持本机模型名及自定义远程 OpenAI 兼容/Ollama 服务，密钥加密保存。单文件支持 50 MiB 分块上传；决策与接口返回的思考在对话中展开。开发与验收见 [模型和大文件输入](doc/gaps/models-upload.mq.md)。
+模型面板支持本机模型名及自定义远程 OpenAI 兼容/Ollama 服务，密钥加密保存。单文件支持 50 MiB 分块上传；决策与接口返回的思考在对话中展开。开发与验收见 [模型和大文件输入](docs/gaps/models-upload.mq.md)。

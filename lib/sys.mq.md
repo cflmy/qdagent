@@ -109,7 +109,7 @@ Call this function directly:
 marqdo call lib/sys.mq.md meta  --effects none --json
 ```
 
-Bound Artifact Metadata from the entry `.mq.md` (map). See `doc/design/binding.md`.
+Bound Artifact Metadata from the entry `.mq.md` (map). See `docs/design/binding.md`.
 
 Return *[Bound Artifact Metadata from the entry .mq.md (map)](host_meta())*.
 

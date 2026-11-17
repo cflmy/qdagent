@@ -2,6 +2,7 @@
 # Conventional build entry; no model task or credential enters the image context.
 set -eu
 cd "$(dirname "$0")/.."
+bash deploy/check-layout.sh
 bash deploy/check-document-runtime.sh
 cargo build --release --offline --locked --manifest-path ext/qdagent/native/Cargo.toml --target-dir .marqdo/native-target
 install -m 0755 .marqdo/native-target/release/libqdagent_transport.so ext/native/libqdagent_transport.next.so

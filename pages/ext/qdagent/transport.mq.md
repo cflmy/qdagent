@@ -8,7 +8,7 @@ import:
 ---
 
 这里只补齐现有子任务句柄不能跨独立 HTTP 请求复用的缺口。具体限制和移除条件见
-doc/gaps/ndjson-transport.mq.md。提示词、模型输出解析、错误展示与对话渲染不在插件里实现，
+docs/gaps/ndjson-transport.mq.md。提示词、模型输出解析、错误展示与对话渲染不在插件里实现，
 业务调用从 ollama_chat 进入，不能把外部进程作为另一套智能体运行时。
 
 ## request

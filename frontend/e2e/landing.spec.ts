@@ -15,7 +15,7 @@ test('public homepage follows the design grid without authentication requests',a
  expect(Math.abs(positions['.lp-feature-grid'].y-1070)).toBeLessThan(1);expect(Math.abs(positions['.lp-cta'].y-1329)).toBeLessThan(1);expect(Math.abs(positions['.lp-footer'].y-1500)).toBeLessThan(1);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(1003);
  expect(errors).toEqual([]);expect(privateRequests).toEqual([]);
- await page.screenshot({path:'doc/design/landing-v1-implemented.png',fullPage:true});
+ await page.screenshot({path:'docs/design/assets/landing-v1-implemented.png',fullPage:true});
 });
 
 test('homepage adapts to mobile without clipped text or horizontal overflow',async({page})=>{
@@ -23,7 +23,7 @@ test('homepage adapts to mobile without clipped text or horizontal overflow',asy
  await expect(page.getByRole('heading',{level:1})).toBeVisible();await expect(page.getByRole('link',{name:'进入工作台'})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(390);
  for(const selector of ['.lp-document','.lp-workflow','.lp-feature-grid','.lp-cta']){const box=await page.locator(selector).boundingBox();expect(box!.x).toBeGreaterThanOrEqual(0);expect(box!.x+box!.width).toBeLessThanOrEqual(390)}
- await page.screenshot({path:'doc/design/landing-v1-mobile.png',fullPage:true});
+ await page.screenshot({path:'docs/design/assets/landing-v1-mobile.png',fullPage:true});
 });
 
 test('login failure returns a readable retry state and workspace requires authentication',async({page})=>{

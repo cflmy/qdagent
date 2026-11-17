@@ -4,9 +4,9 @@ Official dynamic site extension (**ADR 0007**).
 
 | Doc | Link |
 |-----|------|
-| Artifact model | [`doc/design/ext-web-artifact.md`](../../doc/design/ext-web-artifact.md) |
-| **Layout engineering** | [`doc/design/ext-web-layout-paradigm.md`](../../doc/design/ext-web-layout-paradigm.md) |
-| skill=tools paradigm | [`doc/design/ext-skill-tools-paradigm.md`](../../doc/design/ext-skill-tools-paradigm.md) |
+| Artifact model | [`docs/design/ext-web-artifact.md`](../../doc/design/ext-web-artifact.md) |
+| **Layout engineering** | [`docs/design/ext-web-layout-paradigm.md`](../../doc/design/ext-web-layout-paradigm.md) |
+| skill=tools paradigm | [`docs/design/ext-skill-tools-paradigm.md`](../../doc/design/ext-skill-tools-paradigm.md) |
 
 | Surface | Path |
 |---------|------|

@@ -89,9 +89,16 @@ old/
 /data/dialogue/
 /data/qdagent/
 
-# Accidental duplicate trees (space in name)
+# Accidental duplicate trees (space and quote in name)
+# 只是最后一道防线：deploy/check-layout.sh 会在构建开始时直接失败，
+# 正确的做法是修正生成该路径的未加引号脚本，而不是依赖忽略规则。
 /ext + "/
 /pages/ext + "/
+/.* + "/
+
+# Site runtime state written by marqdo serve (dialogue cache, turn counters)
+/pages/data/*
+!/pages/data/.gitkeep
 
 # Modern workspace artifacts
 /test-results/

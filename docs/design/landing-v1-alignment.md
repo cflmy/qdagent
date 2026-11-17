@@ -2,7 +2,7 @@
 
 首页是由 Marqdo 可执行文档驱动的智能体产品介绍。工作台单独位于 `/app`，公共首页不等待身份、模型与插件接口。
 
-设计稿由内置 imagegen 生成，提示词保存于 [landing-v1-prompt.txt](landing-v1-prompt.txt)，原稿为 [landing-v1.png](landing-v1.png)。实际返回尺寸为 **1003 × 1568**，以这个实际尺寸建立对齐基准，不以提示词请求尺寸代替成品尺寸。
+设计稿由内置 imagegen 生成，提示词保存于 [landing-v1-prompt.txt](assets/landing-v1-prompt.txt)，原稿为 [landing-v1.png](assets/landing-v1.png)。实际返回尺寸为 **1003 × 1568**，以这个实际尺寸建立对齐基准，不以提示词请求尺寸代替成品尺寸。
 
 ## 设计与实现基准
 
@@ -15,7 +15,7 @@
 | 开始使用区域 | 23 / 1329 | 23 / 1329.375 | 独立容器与留白 |
 | 页脚 | 28 / 1500 | 28 / 1500.375 | 页面总高度约 1568 |
 
-实现截图见 [landing-v1-implemented.png](landing-v1-implemented.png)，手机截图见 [landing-v1-mobile.png](landing-v1-mobile.png)。自动化检查同时覆盖 390、820、1003、1440 和 1920 像素宽度。保留字体栅格化与子像素差异，不宣称原生网页与生成式位图逐像素相同；验收对象是版面、字体、间距、容器边界与交互。
+实现截图见 [landing-v1-implemented.png](assets/landing-v1-implemented.png)，手机截图见 [landing-v1-mobile.png](assets/landing-v1-mobile.png)。自动化检查同时覆盖 390、820、1003、1440 和 1920 像素宽度。保留字体栅格化与子像素差异，不宣称原生网页与生成式位图逐像素相同；验收对象是版面、字体、间距、容器边界与交互。
 
 ## 素材与文案
 
@@ -35,7 +35,7 @@
 
 ## 远程验收
 
-`qdagent-react-go-0.4.1` 已部署到原有 7964 服务。直接访问 `https://agent.qdqc.com` 的真实 Chromium 验收，没有页面 JavaScript 异常；文稿、流程条、卡片组、开始使用区与页脚坐标与上述本机测量一致。远程截图见 [landing-v1-production.png](landing-v1-production.png)。
+`qdagent-react-go-0.4.1` 已部署到原有 7964 服务。直接访问 `https://agent.qdqc.com` 的真实 Chromium 验收，没有页面 JavaScript 异常；文稿、流程条、卡片组、开始使用区与页脚坐标与上述本机测量一致。远程截图见 [landing-v1-production.png](assets/landing-v1-production.png)。
 
 本机与远程登录入口均成功返回身份站授权跳转，回调分别为 `http://127.0.0.1:7964/oidc/callback` 与 `https://agent.qdqc.com/oidc/callback`，包含 S256 和 nonce。用户报告的原始发现故障目前未复现，不将网络恢复等同于已证实原始根因。
 

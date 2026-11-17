@@ -20,7 +20,7 @@ import:
   json: lib/json.mq.md
 ---
 
-工作台使用原生最小布局组件，文件阅读保留官方 View 输出和资源。界面设计与验收说明见 doc/design/工作台第二版.mq.md，所有业务交互仍以 Marqdo 源码表达。
+工作台使用原生最小布局组件，文件阅读保留官方 View 输出和资源。界面设计与验收说明见 docs/design/工作台第二版.mq.md，所有业务交互仍以 Marqdo 源码表达。
 
 ## compose
 
