@@ -1,69 +1,81 @@
 ---
 markup: occlusion
 title: 求道智能体入口
-description: 确认意图，路由 SKILL，并行任务。
+description: 一次确认、一级路由、独立任务并行；生产由 run 交给现有 Marqdo 状态机。
 import:
-  flow: flow/flow.mq.md
+  runtime: runtime/index.mq.md
+  routing: routing.mq.md
   table: lib/table.mq.md
-  json: lib/json.mq.md
 ---
 
 # main
 
-你是求道智能体，只负责意图分解、SKILL 路由和任务并行。
+你是求道根调度器，只做意图确认、下一层路由和独立任务并行。
 
-非空输入先调用「分解意图」，提供 2～3 个简短选项及利弊，等待用户确认一次；允许自由输入。空输入只询问需求。
+新请求非空只确认一次，允许用户点选或自由输入；空请求询问需求。继续中的请求恢复已保存状态，不重新确认。只看当前函数与任务关键文稿，不加载整棵 SKILL。任务独立才并行，任何执行均以权限和真实收据为准。
 
-确认后，单任务调用「路由函数」，多个独立任务调用「拆分并行」。有依赖的任务不得并行。
+## run
 
-只使用宿主注册的 SKILL，不猜路径、不加载整棵技能树、不执行下级业务。下级 SKILL 自行决定后续操作。
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | 必填 | 宿主认证的真实任务现场 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 真正的等待、运行或完成状态 |
+
+这是生产入口：调用经过既有根状态、用户确认、隔离测试和并发门禁的 Marqdo 执行文稿，而不是执行模型拼出的路径。
+
+Return *[由 Marqdo 根状态机推进真实任务](runtime.run(context=`context`))*.
 
 ## 分解意图
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| options | list | 必填 | 2～3 个已在本层登记过的选项原文 |
-| question | text | "" | 选项上方的一句话，可为空 |
+| options | list | 必填 | 2～3 个候选方案的简短说明 |
+| question | text | "" | 唯一确认问题 |
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
-| result | map | `status` 为 `waiting_user` 的暂停信封，含 `question` 与 `options` |
+| result | map | 待宿主展示的候选数据，**不是**用户已确认的收据 |
 
-Use `options`, `question`=""。
+本函数只整理选项，不产生权限或确认。实际等待、自由回答和重入使用生产 run 内的已持久化根状态。
 
-选项内容由模型给出，但“等待”不再是叙述：`flow.main.input` 产出的信封带 `kind` 与登记过的选项，宿主据此渲染并结束本次执行；进程退出、状态落盘，用户作答后才重新进入。门面文稿以 `# main` 类组织，跨文稿调用要带类名，这就是这里不写 `flow.input` 的原因。
+1. table.len(xs=`options`) < 2 or table.len(xs=`options`) > 3
+  *None*
 
-选项必须是本次文稿里出现过的原文，框架不排序、不改写、不补“其他”。空列表同样暂停，宿主按“没有可选项”处理，框架不替调用方决定是否继续。
+`choice` =
 
-`status` 只是把信封的暂停含义告诉宿主，值来自这一次真实调用；模型没有接口声称用户已经确认。
+| status | question | options |
+|---|---|---|
+| waiting_user | `question` | `options` |
 
-We **envelope = flow.main.input(options=`options`, question=`question`)**.
-Return *table.put(in=`envelope`, at="status", value="waiting_user")*.
+Return *`choice`*.
 
 ## 路由函数
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| skill | text | 必填 | 已注册的 SKILL ID |
-| registry | map | 必填 | 宿主提供的可信注册表 |
+| mode | text | 必填 | 已确认的开发方式 |
 
-只选择下一层 SKILL，不展开子技能。
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 已安装 SKILL 的真实文稿和函数 |
 
-**path = > json.get value=`registry` key=`skill`**
+复用现有 routing.resolve，只接收受控开发方式。不存在的能力明确拒绝，不把模型回答视为路径或额外执行权限。
 
-1. not `path`
-  *None*
-
-*path*
+Return *[在真实 Marqdo 文稿中解析下一级](routing.resolve(mode=`mode`))*.
 
 ## 拆分并行
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| tasks | list | 必填 | 拆分后已授权的 SKILL 子任务 |
+| context | map | 必填 | 已确认方案和受控工作区 |
 
-将多个用户需求拆为独立任务，每项只包含目标 SKILL 和必要输入。宿主将 SKILL ID 校验并转换为可执行任务后，才允许并行。
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 有界并发和独立证据聚合 |
 
-并行结果分别保留成功、失败和未确定状态，不因单个失败丢弃其他结果。
+子任务来自已确认的方案，运行时计算真实依赖与许可后使用 Marqdo subtask.run_many，不执行模型直接提交的文件路径。失败和未知结果保留，不伪造完成。
 
-*> flow.parallel tasks=`tasks` limit=3 timeout_ms=30000
+Return *[复用原生子任务调度与验收](runtime.parallel(context=`context`))*.

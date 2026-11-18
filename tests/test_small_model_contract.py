@@ -19,7 +19,10 @@ class SmallModelContract(unittest.TestCase):
         src = (ROOT / "ext/root-skill/index.mq.md").read_text(encoding="utf-8")
         self.assertLessEqual(len(src.encode("utf-8")), 3200)
         names = re.findall(r"^## ([^\r\n]+)$", src, flags=re.MULTILINE)
-        self.assertEqual(names, ["分解意图", "路由函数", "拆分并行"])
+        self.assertEqual(names, ["run", "分解意图", "路由函数", "拆分并行"])
+        self.assertIn("runtime: runtime/index.mq.md", src)
+        self.assertIn("runtime.run(context=", src)
+        self.assertNotIn("flow/flow.mq.md", src)
         self.assertIn("markup: occlusion", src)
 
     def test_transport_stays_transport(self):
@@ -51,6 +54,38 @@ class SmallModelContract(unittest.TestCase):
         self.assertNotRegex(src, r"(?m)^## ")
         self.assertNotIn("tool_calls", src)
         self.assertNotIn("api_key", src)
+
+
+    def test_live_prompt_uses_versioned_single_document_not_history_replay(self):
+        src = (ROOT / "ext/root-skill/runtime/prompts.mq.md").read_text(encoding="utf-8")
+        self.assertIn("memory: memory.mq.md", src)
+        self.assertIn("memory.sync(context=", src)
+        self.assertNotIn('table.slice(list=`history`', src)
+        self.assertNotIn('for recent as entry', src)
+        memory = (ROOT / "ext/root-skill/runtime/memory.mq.md").read_text(encoding="utf-8")
+        self.assertIn("## render", memory)
+        self.assertIn("## sync", memory)
+        self.assertIn("root_memory_sync", memory)
+        self.assertIn("core.prose", memory)
+
+    def test_native_memory_write_is_revision_locked_and_bounded(self):
+        rust = (ROOT / "ext/qdagent/native/src/root_skill.rs").read_text(encoding="utf-8")
+        self.assertIn('if operation=="root_memory_sync"', rust)
+        self.assertIn('saved["revision"].as_u64()!=Some(revision)', rust)
+        self.assertIn("super::lifecycle", rust)
+        self.assertIn("super::atomic(&target,doc)", rust)
+        self.assertIn("16*1024", rust)
+        self.assertIn('symlink_metadata(&target)', rust)
+        dep = (ROOT / "ext/qdagent/native/Cargo.toml").read_text(encoding="utf-8")
+        self.assertIn('features = ["cli"]', dep)
+
+    def test_cookbook_exposes_executable_reference_functions(self):
+        src = (ROOT / "skills/marqdo-dev/native-agent-control.mq.md").read_text(encoding="utf-8")
+        for name in ("run", "inspect", "memory_preview", "route", "parallel"):
+            self.assertRegex(src, rf"(?m)^## {name}$")
+        self.assertIn("runtime.run", src)
+        self.assertIn("memory.render", src)
+        self.assertIn("routing.resolve", src)
 
 
 if __name__ == "__main__":
