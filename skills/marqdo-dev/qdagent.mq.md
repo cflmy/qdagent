@@ -7,7 +7,7 @@ import:
   result: lib/result.mq.md
 ---
 
-开发先读 AGENTS.md、docs/document-driven-agent.mq.md 与 docs/native-workbook-framework.mq.md。根状态机和全部提示在 ext/root-skill 的普通 Marqdo 函数中，Go 只管理认证、资源和事件，React 复用官方 View。Python 只有模型网络传输，不允许增加工具循环、角色提示、JSON 动作路由或兜底结果。此文件是当前开发入口，已替换旧客户端和旧宿主测试说明，不修改相邻 Marqdo 核心源码。
+开发先读 AGENTS.md、docs/document-driven-agent.mq.md 与 docs/native-workbook-framework.mq.md。 知识编译/证明开发另外按需阅读 docs/knowledge-compilation.mq.md 与 docs/design/knowledge-proof-integration.md，并调用 skills/marqdo-dev/knowledge-evidence.mq.md 的纯决策函数；没有实际 Lean 证书和独立重放，不得让证据等级自动升级。根状态机和全部提示在 ext/root-skill 的普通 Marqdo 函数中，Go 只管理认证、资源和事件，React 复用官方 View。Python 只有模型网络传输，不允许增加工具循环、角色提示、JSON 动作路由或兜底结果。此文件是当前开发入口，已替换旧客户端和旧宿主测试说明，不修改相邻 Marqdo 核心源码。
 
 安装登记只维护 ext/plugins.mq.md 的字面表，界面和权限共用官方读取器。业务能力直接写成可读函数，不增加中央别名表。新增系统缺口使用本仓库 ABI 插件；作者与独立测试隔离，失败保留未完成。正文和可执行函数分别可读，参数返回表紧邻标题，函数叙述超过一半。
 

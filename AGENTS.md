@@ -21,4 +21,5 @@
 
 - 多风格产物遵循 `docs/product-variants.mq.md`；风格不能重写正文，并发登记不得覆盖其他结果。
 - 知识编译遵循 `docs/knowledge-compilation.mq.md`；论文与源码先定位来源，再走根流程、冻结独立测试与用户验收，由管理员发布公用版本，普通用户只读引用；上传代码不直接执行，自写回不能改变已审阅控制流。
+- **Marqdo 2.9.1 知识证明接入**遵循 `docs/design/knowledge-proof-integration.md`；按需使用官方锚点、指纹、依赖审计、compose/replay 与独立实验，严格区分 `model_proved` 和完整运行时正确性。不得用本地 JSON、Lean 失败或知识链接伪造证明，实际未接入的 ABI/UI 不能宣布上线。只在知识子 SKILL 使用 `skills/marqdo-dev/knowledge-evidence.mq.md` 进行纯下一步决策。
 - 统一身份、公共知识、用量与单函数调用遵循 `docs/access-and-quotas.mq.md`；管理员身份仅来自已验证的身份站角色，额度在模型实际传输边界原子计量，不能依赖前端隐藏入口。
