@@ -18,7 +18,11 @@ G4 增量读取：`runtime_reference` 不再对超过 16 KiB 的参考直接拒�
 
 G5 依赖门禁：新增金样 tests/root-dag-scheduling.mq.md 固定 dependencies_ready 语义——普通函数不等运行依赖、research/document 在前置证据缺失时保持等待且不消耗模型、独立单元并行、缺失单元显式未就绪。金样暴露并修复了 proof.unit 返回契约漂移与 proof.ready 对缺失单元的崩溃。
 
-仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收、token 用量计量、1B/3B–4B 模型对照评测；知识证明 K1–K4 未接入。
+K1 知识证明投影（已验证）：新增 `runtime_knowledge_proof` 只读 ABI 操作与 ext/knowledge `projections` 接口，inspect 返回精确 mq:// 符号身份（模块、声明位置）、proof_deps 返回官方收据/义务报告（无 Lean 工具链时如实保持 not_established，不包装成已证明）、impact 返回影响集合；官方 CLI 是唯一解析器，边界只加 90 秒超时、256 KiB 输出上限、目标越界拒绝与可重建的私有收据缓存。Rust 测试 19 项通过；金样 tests/knowledge-projections.mq.md 端到端验证生产符号 inspect、最小夹具 proof_deps 与两类拒绝分支。仓库根的全项目 proof-deps 触发上游"一个语义根一个工程"的 ext/ 双根重复收集诊断，投影因此始终使用显式 target 子工程。
+
+K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_evidence 节——最多六条收据按"符号：等级/状态（范围）"逐字转写、节首声明 model_proved 不是运行时正确性、超限显式提示、字段缺省整体缺席保持逐字节兼容；收据是确认进根状态的快照，渲染层不读文件系统、不重推等级，过期由保存方重新投影。金样拆为 main/evidence 两段分别通过叙述比门禁。同时修复 root-dag 金样提交时即低于叙述比（31%）的已提交缺陷，文档门禁脚本的严重度过滤改用工具链 python3（环境无 jq）。
+
+仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收、token 用量计量、1B/3B–4B 模型对照评测；知识证明 K2（Lean 重放/compose/replay 执行）、K3 的可见卡片与调用收据 UI 部分、K4 真实模型对照评测未接入。
 
 ## 已核实的仓库现状
 
