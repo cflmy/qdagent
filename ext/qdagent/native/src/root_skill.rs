@@ -119,7 +119,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   let root=std::env::temp_dir().join(format!("qd-memory-sync-{}-{}",std::process::id(),unique));
   fs::create_dir_all(root.join("data/dialogue/proj")).unwrap();
   fs::write(root.join("data/dialogue/proj/root-skill.json"),r#"{"revision":3,"phase":"intent"}"#).unwrap();
-  let doc="---\\nmarkup: occlusion\\ntitle: 测试记忆\\n---\\n\\n# 会话\\n\\n- 目标：安全目标\\n";
+  let doc="---\nmarkup: occlusion\ntitle: 测试记忆\n---\n\n# 会话\n\n- 目标：安全目标\n";
   let mut args=json!({"operation":"root_memory_sync","root":root,"workspace":root,"revision":3,"memory":doc});
   let receipt=dispatch(&args).unwrap();
   assert_eq!(receipt["revision"],3);

@@ -18,19 +18,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Fetch matching Marqdo source for the path dependency
         run: git clone --depth 1 --branch v2.9.1 https://github.com/cflmy/marqdo.git ../marqdo
-      - name: Regenerate the lockfile against the published Marqdo 2.9.1 source
-        run: |
-          cargo generate-lockfile --manifest-path ext/qdagent/native/Cargo.toml
-          python3 - <<'PY'
-          import base64
-          from pathlib import Path
-          raw=Path("ext/qdagent/native/Cargo.lock").read_bytes()
-          encoded=base64.b64encode(raw).decode("ascii")
-          print("CARGO_LOCK_BEGIN")
-          for i in range(0,len(encoded),96):
-              print("CARGO_LOCK_CHUNK:"+encoded[i:i+96])
-          print("CARGO_LOCK_END")
-          PY
       - name: Compile real ABI plugin with feature gating and run memory CAS test
         run: cargo test --manifest-path ext/qdagent/native/Cargo.toml --locked --lib root_skill::tests::memory_sync_rejects_stale_and_executable_documents
 
