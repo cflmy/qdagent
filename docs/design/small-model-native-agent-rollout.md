@@ -20,9 +20,11 @@ G5 依赖门禁：新增金样 tests/root-dag-scheduling.mq.md 固定 dependenci
 
 K1 知识证明投影（已验证）：新增 `runtime_knowledge_proof` 只读 ABI 操作与 ext/knowledge `projections` 接口，inspect 返回精确 mq:// 符号身份（模块、声明位置）、proof_deps 返回官方收据/义务报告（无 Lean 工具链时如实保持 not_established，不包装成已证明）、impact 返回影响集合；官方 CLI 是唯一解析器，边界只加 90 秒超时、256 KiB 输出上限、目标越界拒绝与可重建的私有收据缓存。Rust 测试 19 项通过；金样 tests/knowledge-projections.mq.md 端到端验证生产符号 inspect、最小夹具 proof_deps 与两类拒绝分支。仓库根的全项目 proof-deps 触发上游"一个语义根一个工程"的 ext/ 双根重复收集诊断，投影因此始终使用显式 target 子工程。
 
+K2 证明执行（同步+异步已验证）：新增 `runtime_knowledge_prove`（compose/replay/detect）与 `runtime_knowledge_proof_job`（start/status/cancel）。compose 对显式语义根执行官方统一模块证明组合，replay 独立复核私有缓存内的证书，detect 以 `lean --version` 报告工具链事实；无 Lean 时官方诊断 `proof.compose_lean_missing` 逐字上浮（stderr 有界捕获 8 KiB），绝不包装成成功或占位证书。异步作业在私有目录派生脱离进程组的孩子（自带超时），status 依据内核进程状态与产物推导 running/done/failed/cancelled（僵尸不判为运行），cancel 在核对 /proc 命令行确为本边界的官方 knowledge 子进程后才向整组 SIGKILL，外来 PID 一律拒绝。Rust 测试 22 项通过；金样 tests/knowledge-proof-execution.mq.md 固定无 Lean 分支与三类拒绝；真实 CLI 证据：start → status failed 携带官方诊断、start(ext/root-skill) → cancel → status cancelled。Lean 重放成功路径与 compose 真实证书内容待安装 Lean 的部署环境验收。
+
 K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_evidence 节——最多六条收据按"符号：等级/状态（范围）"逐字转写、节首声明 model_proved 不是运行时正确性、超限显式提示、字段缺省整体缺席保持逐字节兼容；收据是确认进根状态的快照，渲染层不读文件系统、不重推等级，过期由保存方重新投影。金样拆为 main/evidence 两段分别通过叙述比门禁。同时修复 root-dag 金样提交时即低于叙述比（31%）的已提交缺陷，文档门禁脚本的严重度过滤改用工具链 python3（环境无 jq）。
 
-仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收、token 用量计量、1B/3B–4B 模型对照评测；知识证明 K2（Lean 重放/compose/replay 执行）、K3 的可见卡片与调用收据 UI 部分、K4 真实模型对照评测未接入。
+仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收、token 用量计量、1B/3B–4B 模型对照评测；K2 的 Lean 重放成功路径（需安装 Lean 的部署环境）、K3 的可见卡片与调用收据 UI 部分、K4 真实模型对照评测未接入。
 
 ## 已核实的仓库现状
 
