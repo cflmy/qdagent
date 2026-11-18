@@ -8,7 +8,7 @@ description: 一个纯函数只选择下一项检查，不发证明或授权。
 
 本 SKILL 仅供知识领域子智能体调用。数据必须来自真实源码、证明/测试收据和当前版本校验，不是模型猜测。返回**建议动作**而不是可信等级或可执行路径。任何动作仍需要上层实际已登记工具及权限检查。根入口不加载本 SKILL。
 
-## next
+## advise
     + `grade`
     + `source_current`=False
     + `kernel_replayed`=False

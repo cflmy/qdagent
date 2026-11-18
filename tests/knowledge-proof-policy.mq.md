@@ -10,13 +10,13 @@ import:
 
 本用例不执行 Lean、不获取外部权限，仅运行开发示例的纯 Marqdo 函数，检查过期、抽象证明、运行时声明、外部假设及反例边界。
 
-We **stale = policy.next(grade="model_proved",source_current=False,kernel_replayed=True)**.
-We **unreplayed = policy.next(grade="model_proved",source_current=True,kernel_replayed=False)**.
-We **model = policy.next(grade="model_proved",source_current=True,kernel_replayed=True)**.
-We **runtime = policy.next(grade="model_proved",source_current=True,kernel_replayed=True,runtime_claim=True)**.
-We **unknown = policy.next(grade="unknown",source_current=True)**.
-We **assumed = policy.next(grade="assumed",source_current=True)**.
-We **refuted = policy.next(grade="refuted",source_current=True)**.
+We **stale = policy.advise(grade="model_proved",source_current=False,kernel_replayed=True)**.
+We **unreplayed = policy.advise(grade="model_proved",source_current=True,kernel_replayed=False)**.
+We **model = policy.advise(grade="model_proved",source_current=True,kernel_replayed=True)**.
+We **runtime = policy.advise(grade="model_proved",source_current=True,kernel_replayed=True,runtime_claim=True)**.
+We **unknown = policy.advise(grade="unknown",source_current=True)**.
+We **assumed = policy.advise(grade="assumed",source_current=True)**.
+We **refuted = policy.advise(grade="refuted",source_current=True)**.
 We **_ = test.assert(condition=(`stale` == "reindex_source"),message="stale receipt must reindex")**.
 We **_ = test.assert(condition=(`unreplayed` == "replay_proof"),message="missing replay")**.
 We **_ = test.assert(condition=(`model` == "cite_model_scope_only"),message="abstract model cannot prove runtime")**.
