@@ -203,3 +203,35 @@ func TestModelPermitUsesPrivateRunAndEveryAttempt(t *testing.T) {
 		t.Fatal("stopped run authorized")
 	}
 }
+
+func TestContextBytesMeterAtProviderBoundary(t *testing.T) {
+	s := testServer(t)
+	// The quota row is created by the atomic consume, then the event pump
+	// attaches the context size the ABI measured before the provider attempt.
+	if _, err := s.store.consumeModel("limited", "builtin-smart", "run1:unit1:writer:2:1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.store.consumeModel("limited", "builtin-smart", "run1:unit2:research:3:1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.recordModelBytes("run1", "unit1", "writer", 2, 1, 4096); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.recordModelBytes("run1", "unit2", "research", 3, 1, 1024); err != nil {
+		t.Fatal(err)
+	}
+	// Replayed events must not double count, and unknown identities are inert.
+	if err := s.store.recordModelBytes("run1", "unit1", "writer", 2, 1, 4096); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.recordModelBytes("run1", "ghost", "writer", 9, 1, 999999); err != nil {
+		t.Fatal(err)
+	}
+	u, err := s.store.accountUsage("limited")
+	if err != nil || u.ContextBytes != 5120 {
+		t.Fatal("context bytes", u.ContextBytes, err)
+	}
+	if u.SmartUsed != 2 {
+		t.Fatal("quota count must stay attempt-based", u.SmartUsed)
+	}
+}

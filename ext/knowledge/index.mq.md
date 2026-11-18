@@ -428,6 +428,23 @@ We **args = table.put(in=table.put(in=None,at="kind",value="compose"),at="target
 We **args = table.put(in=`args`,at="timeout",value=`timeout`)**.
 Return *io.native(context=`context`,operation="runtime_knowledge_prove",payload=`args`)*.
 
+## lean_environment
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | required | 可信所有者，不接收模型提交的身份 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | {installed, version}；缺失不是失败 |
+
+Use `context`。
+
+Lean 安装检测是环境事实而不是证明结论：这条函数只回答本边界能否启动 Lean（PATH 中的 `lean --version`），不声称任何定理已成立。不安装 Lean 时返回 installed=false 与 versions=null，调用方据此选择"依赖分析层面"的结果或向用户说明需要安装；检测本身不写文件、不联网、不执行任何知识函数。部署环境装上 Lean 后，同一份 compose/replay 接口会产生内核复核过的证书；两种环境的差异必须在结果里如实呈现，不能由本边界掩盖或补齐。
+
+We **args = table.put(in=None,at="kind",value="detect")**.
+Return *io.native(context=`context`,operation="runtime_knowledge_prove",payload=`args`)*.
+
 ## replay_proof
 
 | 参数 | 类型 | 默认 | 说明 |

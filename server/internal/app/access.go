@@ -32,6 +32,7 @@ type AccountUsage struct {
 	SmartDailyLimit int    `json:"smart_daily_limit"`
 	SmartUsed       int    `json:"smart_used"`
 	SmartRemaining  int    `json:"smart_remaining"`
+	ContextBytes    int    `json:"context_bytes"`
 	ResetsAt        string `json:"resets_at"`
 }
 
@@ -48,11 +49,21 @@ func (s *Store) migrateAccess() error {
 		`CREATE TABLE IF NOT EXISTS qd_access_policy(id INTEGER PRIMARY KEY CHECK(id=1),task_limit INTEGER NOT NULL,smart_daily_limit INTEGER NOT NULL)`,
 		`INSERT OR IGNORE INTO qd_access_policy VALUES(1,3,50)`,
 		`CREATE TABLE IF NOT EXISTS qd_account_limits(principal TEXT PRIMARY KEY,task_limit INTEGER NOT NULL,smart_daily_limit INTEGER NOT NULL,updated_by TEXT NOT NULL,updated_ms INTEGER NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS qd_model_usage(request_id TEXT PRIMARY KEY,owner TEXT NOT NULL,model TEXT NOT NULL,day TEXT NOT NULL,created_ms INTEGER NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS qd_model_usage(request_id TEXT PRIMARY KEY,owner TEXT NOT NULL,model TEXT NOT NULL,day TEXT NOT NULL,created_ms INTEGER NOT NULL,context_bytes INTEGER NOT NULL DEFAULT 0)`,
 		`CREATE INDEX IF NOT EXISTS qd_model_usage_owner_day ON qd_model_usage(owner,day,model)`,
 		`CREATE TABLE IF NOT EXISTS qd_access_audit(id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,target TEXT NOT NULL,operation TEXT NOT NULL,payload TEXT NOT NULL,created_ms INTEGER NOT NULL)`,
 	} {
 		if _, err := s.db.Exec(query); err != nil {
+			return err
+		}
+	}
+	// Databases created before token metering need the context-bytes column.
+	var columns int
+	if err := s.db.QueryRow(`SELECT count(*) FROM pragma_table_info('qd_model_usage') WHERE name='context_bytes'`).Scan(&columns); err != nil {
+		return err
+	}
+	if columns == 0 {
+		if _, err := s.db.Exec(`ALTER TABLE qd_model_usage ADD COLUMN context_bytes INTEGER NOT NULL DEFAULT 0`); err != nil {
 			return err
 		}
 	}
@@ -97,6 +108,9 @@ func (s *Store) accountUsage(owner string) (AccountUsage, error) {
 		return u, err
 	}
 	if err = s.db.QueryRow(`SELECT count(*) FROM qd_model_usage WHERE owner=? AND day=? AND model='builtin-smart'`, owner, day).Scan(&u.SmartUsed); err != nil {
+		return u, err
+	}
+	if err = s.db.QueryRow(`SELECT COALESCE(sum(context_bytes),0) FROM qd_model_usage WHERE owner=? AND day=?`, owner, day).Scan(&u.ContextBytes); err != nil {
 		return u, err
 	}
 	u.SmartRemaining = -1
@@ -237,6 +251,7 @@ func (s *Server) updateAccess(w http.ResponseWriter, r *http.Request, i identity
 // Called immediately before each provider attempt, including children and retries.
 // The single SQL insertion serializes concurrent requests; a repeated identity is denied.
 // Shared slots (builtin-smart and shared-*) share one daily limit and are recorded as builtin-smart.
+// Bytes measured at the same transport boundary are accumulated later by recordModelBytes.
 func (s *Store) consumeModel(owner, model, requestID string) (AccountUsage, error) {
 	if !sharedModelSelection(model) {
 		day, _ := quotaDay(time.Now())
@@ -261,6 +276,20 @@ func (s *Store) consumeModel(owner, model, requestID string) (AccountUsage, erro
 		return AccountUsage{}, errSmartLimit
 	}
 	return s.accountUsage(owner)
+}
+
+// recordModelBytes attaches the context size measured by the Marqdo ABI just
+// before the provider attempt (the model_start event) to the usage row that
+// consumeModel already serialized. The UPDATE only touches a row that exists
+// for this run/unit/role/step/attempt identity; a mismatch is ignored so that
+// quota identity stays the only authority on what was charged.
+func (s *Store) recordModelBytes(runID, unit, role string, step, attempt, bytes int) error {
+	if runID == "" || unit == "" || step < 1 || attempt < 1 || bytes <= 0 {
+		return nil
+	}
+	key := fmt.Sprintf("%s:%s:%s:%d:%d", runID, unit, role, step, attempt)
+	_, err := s.db.Exec(`UPDATE qd_model_usage SET context_bytes=? WHERE request_id=? AND context_bytes=0`, bytes, key)
+	return err
 }
 
 type modelPermitInput struct {

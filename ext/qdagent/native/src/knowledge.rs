@@ -101,9 +101,12 @@ pub(super) fn prove(v:&Value)->Result<Value,String>{
  command.arg(format!("-s")).arg("KILL").arg(timeout.to_string()).args(["marqdo","knowledge","--json"]);
  match kind{
   "compose"=>{command.arg("compose").arg(&root).arg("-o").arg(cache(c)?);}
-  "replay"=>{let rel=super::text(v,"certificate")?;let certificate=super::descendants(&cache(c)?.join(&rel),&cache(c)?)?;command.arg("replay").arg(&certificate).arg(&root);}
+  "replay"=>{let rel=super::text(v,"certificate")?;let cache=cache(c)?;let certificate=if rel.starts_with('/'){super::descendants(Path::new(&rel),&cache)?}else{super::descendants(&cache.join(&rel),&cache)?};command.arg("replay").arg(&certificate).arg(&root);}
   _=>return Err("unknown knowledge proof kind".into()),
  }
+ // Lean only builds artifacts contained in its root directory; run the child
+ // from the private cache so proof products stay inside the sandbox root.
+ command.current_dir(cache(c)?);
  let raw=process(command,None,262144)?;
  let report:Value=serde_json::from_slice(&raw).map_err(|e|e.to_string())?;
  Ok(json!({"kind":kind,"report":report}))
@@ -125,9 +128,10 @@ fn proof_command(c:&Value,v:&Value)->Result<(Command,String,String),String>{
  command.args(["-s","KILL"]).arg(timeout.to_string()).args(["marqdo","knowledge","--json"]);
  match kind{
   "compose"=>command.arg("compose").arg(&root).arg("-o").arg(cache(c)?),
-  "replay"=>{let rel=super::text(v,"certificate")?;let certificate=super::descendants(&cache(c)?.join(&rel),&cache(c)?)?;command.arg("replay").arg(&certificate).arg(&root)}
+  "replay"=>{let rel=super::text(v,"certificate")?;let cache=cache(c)?;let certificate=if rel.starts_with('/'){super::descendants(Path::new(&rel),&cache)?}else{super::descendants(&cache.join(&rel),&cache)?};command.arg("replay").arg(&certificate).arg(&root)}
   _=>return Err("unknown knowledge proof kind".into()),
  };
+ command.current_dir(cache(c)?);
  Ok((command,kind.to_string(),timeout.to_string()))
 }
 fn alive(pid:u32)->bool{

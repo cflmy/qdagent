@@ -282,6 +282,19 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 				seenFinal = true
 			}
 		}
+		if e.Kind == "model_start" {
+			// Token metering: the ABI measured this attempt's context right before
+			// the provider call; attach it to the row consumeModel already charged.
+			unit, _ := e.Data["id"].(string)
+			role, _ := e.Data["role"].(string)
+			step, _ := e.Data["step"].(float64)
+			attempt, _ := e.Data["attempt"].(float64)
+			bytes, _ := e.Data["n"].(float64)
+			if unit == "" {
+				unit, _ = e.Data["unit_id"].(string)
+			}
+			_ = s.store.recordModelBytes(r.ID, unit, role, int(step), int(attempt), int(bytes))
+		}
 		if err = s.store.appendEvent(r.ID, e.Kind, e.Data); err != nil {
 			cancel()
 			break
