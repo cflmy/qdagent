@@ -133,7 +133,7 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 		}
 		if !resume {
 			ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
-			_, err = s.workflow.invoke(ctx, "begin", ctxMap, map[string]any{"user_input": question, "message_id": randomID()})
+			_, err = s.workflow.invoke(ctx, "state.mq.md", "begin", ctxMap, map[string]any{"user_input": question, "message_id": randomID()})
 			cancel()
 			if err != nil {
 				return Run{}, err

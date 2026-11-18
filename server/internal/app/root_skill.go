@@ -18,10 +18,14 @@ import (
 // and the acceptance rules remain in the installed root-skill Marqdo document.
 type rootRuntime struct{ store *Store }
 
-func (r *rootRuntime) invoke(ctx context.Context, member string, c map[string]any, args map[string]any) (map[string]any, error) {
+// invoke calls one member on the root-skill document that owns it. The
+// entry index.mq.md only exposes run; user authority and clarification
+// live in their own documents, so the host binds each call to the exact
+// owning file instead of an alias table.
+func (r *rootRuntime) invoke(ctx context.Context, document, member string, c map[string]any, args map[string]any) (map[string]any, error) {
 	args["context"] = c
 	raw, _ := json.Marshal(args)
-	command := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(r.store.root, "ext/root-skill/index.mq.md"), member, "--args-json", "-", "--effects", "plugin,fs.read,fs.write,process.exec,environment.read", "--fs-root", c["workspace"].(string), "--json")
+	command := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(r.store.root, "ext/root-skill", document), member, "--args-json", "-", "--effects", "plugin,fs.read,fs.write,process.exec,environment.read", "--fs-root", c["workspace"].(string), "--json")
 	command.Stdin = bytes.NewReader(raw)
 	command.Dir = r.store.root
 	command.Env = append(os.Environ(), "MARQDO_LIB="+filepath.Join(r.store.root, "lib"), "MARQDO_EXT="+filepath.Join(r.store.root, "ext"))
@@ -233,7 +237,7 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
-	state, err := s.supervisor.workflow.invoke(ctx, "respond", c, map[string]any{"revision": input.Revision, "action": input.Action, "answer": input.Answer, "choice": input.Choice, "settings": settings, "accept_stubs": input.AcceptStubs})
+	state, err := s.supervisor.workflow.invoke(ctx, "state.mq.md", "respond", c, map[string]any{"revision": input.Revision, "action": input.Action, "answer": input.Answer, "choice": input.Choice, "settings": settings, "accept_stubs": input.AcceptStubs})
 	cancel()
 	s.supervisor.mu.Unlock()
 	if err != nil {
