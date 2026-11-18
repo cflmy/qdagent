@@ -2,7 +2,7 @@
 # Validate the document runtime before building an installable image.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-for dependency in marqdo rg jq; do
+for dependency in marqdo rg python3; do
     if ! command -v "$dependency" >/dev/null; then
         printf 'Missing document-check dependency: %s\n' "$dependency" >&2
         exit 1
@@ -16,7 +16,9 @@ while IFS= read -r source; do
     fi
     if [[ -n "$diagnostics" ]]; then
         printf '%s\n' "$diagnostics"
-        if jq -se 'any(.severity == "error")' <<< "$diagnostics" >/dev/null; then
+        if python3 -c 'import json,sys; v=json.load(sys.stdin); ds=v if isinstance(v,list) else [v]; raise SystemExit(1 if any(isinstance(d,dict) and d.get("severity")=="error" for d in ds) else 0)' <<< "$diagnostics"; then
+            : # diagnostics carry no error
+        else
             failed=1
         fi
     fi

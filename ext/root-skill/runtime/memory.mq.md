@@ -26,6 +26,8 @@ import:
 
 投影的字段固定对应 docs/design/small-model-native-agent-rollout.md 的约定：状态版本、目标、当前阶段、当前登记意图、任务与依赖、证据、待解决问题、最新用户输入与用户选择。所有动态值先经 core.prose 转成叙述：用户文本中的代码符号、花括号或伪指令只是数据，进入文稿后不构成可执行语句；整个产物没有 `##` 函数段，因此即使被误当 SKILL 加载也没有可调用入口。
 
+知识证据是 K3 的可选字段：根状态里的 knowledge_evidence 携带官方投影产出的收据（精确符号、证据等级、状态与作用域），render 最多摘录六条并逐条注明"model_proved 不是运行时正确性"，超出部分只留显式提示，不堆积上下文。字段缺省或为空时这一节整体不出现，旧状态投影保持逐字节兼容。收据的等级与状态原样转写，不在此重新推断；来源或依赖变化后的失效由保存收据的一方重新投影并更新状态，render 不读取文件系统，也不猜测收据是否过期。
+
 这份文稿是唯一默认跨轮注入的现场，刻意排除的内容同样重要：原始完整聊天、长网页抓取、工具 stdout、未经确认的模型推测、密钥与内部测试内容一律不进入投影。它们仍保存在私有审计与真实状态中供回看与验收，但不作为模型默认上下文——"保留审计却不默认回灌"是宪法对记忆层的硬约束。证据行固定写明"以实际调用收据和独立验收为准"，防止模型把这份叙述本身当成完成凭证。
 
 实现上先写死文稿头部（occlusion 标记、标题与"不可作为工具执行"的描述），再逐行拼接各字段，每行末尾固定空行分隔。拼接顺序即阅读顺序，字段名与 tests/fixtures/small-model/memory.mq.md 的固定标题一一对应，因此投影测试可以按字段核对。任何新增字段都必须同时修改本函数与该约定文档，不能只在前端或提示词里追加一个名词。
@@ -35,6 +37,10 @@ import:
 调用方只有 runtime/prompts.mq.md 的意图与规划分支：它们把 sync 返回的文稿原文交给模型请求组装，不再自行读取 history。其他角色（实现、测试、交付）不取得这份文稿，保持各自的隔离现场；因此对本函数的修改只需要重新核对投影金样与 prompts 的组装契约，不影响独立测试的冻结案例。
 
 失败路径同样明确：state 缺少字段时按空值投影而不是抛错，这样初始化中的任务也能得到结构完整的文稿；sync 的 ABI 拒绝（过期修订、超限、非法目标）会原样返回错误，不在这里吞掉或包装成成功。
+
+摘录格式的稳定性同样重要：每条收据一行、固定"符号：等级/状态（范围）"的顺序，前端与测试都按这个形状核对。等级词表来自官方证据投影（例如 model_proved、unverified），本函数不发明新等级，也不把缺少等级的收据渲染成已证明——缺字段时 core.prose 输出空文本，行内留空即是真实的"未知"。
+
+与 K1 投影接口的分工：runtime/knowledge.mq.md 的 projections 负责按符号取得实时官方投影，本函数只转写已进入根状态的收据快照。这个分工保持"单一事实源"——收据由规划阶段显式保存进状态并经用户确认，记忆层不做自己的知识检索，避免每轮默认回灌新的外部内容。
 
 最新输入只取历史最后一条：旧回复、被拒绝的候选与已合并的确认都不进入下一轮现场。若根状态没有历史（例如刚由宿主初始化），最新输入与用户选择留空，文稿仍保持完整字段结构，下游按"缺少输入"处理而不是猜测。draft_units 存在时任务与依赖取草稿视图，否则取已确认单元，两种来源都原样列出，不做合并或裁剪。
 
@@ -56,6 +62,16 @@ We **doc = "---\nmarkup: occlusion\ntitle: 任务关键状态\ndescription: 仅�
 We **doc = `doc` + "- 状态版本：" + str(`revision`) + "\n\n- 目标：" + `goal` + "\n\n"**.
 We **doc = `doc` + "- 当前阶段：" + core.prose(content=`phase`) + "\n\n- 当前登记意图（以人工确认状态为准）：" + `choices` + "\n\n"**.
 We **doc = `doc` + "- 任务与依赖：" + `units` + "\n\n- 证据：以实际调用收据和独立验收为准，不从本文稿推断完成。\n\n"**.
+We **evidence = json.get(value=`state`,key="knowledge_evidence")**.
+1. `evidence`
+  We **doc = `doc` + "- 知识证据（等级与状态来自官方投影；model_proved 不是运行时正确性）：\n\n"**.
+  We **count = 0**.
+  - [逐条摘录官方投影的收据，最多六条](for evidence as receipt)
+    1. `count` < 6
+      We **count = `count` + 1**.
+      We **doc = `doc` + "  - " + core.prose(content=json.get(value=`receipt`,key="symbol")) + "：" + core.prose(content=json.get(value=`receipt`,key="level")) + "/" + core.prose(content=json.get(value=`receipt`,key="status")) + "（范围 " + core.prose(content=json.get(value=`receipt`,key="scope")) + "）\n\n"**.
+  1. table.len(xs=`evidence`) > 6
+    We **doc = `doc` + "  - 其余收据未摘录：请按符号精确读取官方投影，不在此堆积上下文。\n\n"**.
 We **doc = `doc` + "- 待解决问题：" + `pending` + "\n\n- 最新用户输入：" + `message` + "\n\n- 用户选择：" + `decision` + "\n\n- 下一步：遵循当前阶段和待确认状态推进，不重复已成功步骤。\n"**.
 Return *`doc`*.
 
