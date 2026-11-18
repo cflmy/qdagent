@@ -14,6 +14,7 @@
 .library-card-top{display:flex;align-items:center;justify-content:space-between;gap:15px}
 .library-icon{display:grid;place-items:center;width:46px;height:46px;flex-shrink:0;border-radius:12px;background:#edf0e3;color:#7d9063}
 .library-status{font-size:10px;color:#91a17e;white-space:nowrap}
+.library-assurance{color:#7d9063;font-weight:500}
 .library-card h2{font:400 21px/1.55 var(--font-serif,Georgia,serif);color:#434d35;overflow-wrap:anywhere;margin:24px 0 10px}
 .library-card>p{font-size:11px;line-height:1.8;color:#9b9c8c;margin:0 0 25px}
 .library-card footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #ecebdf;margin-top:auto;padding-top:18px}
@@ -62,6 +63,9 @@
 .knowledge-result h3,.knowledge-provenance h3{font-size:12px;font-weight:500;color:#77886a;margin:0 0 15px}
 .knowledge-provenance{border-top:1px solid #e0e4d4;margin-top:30px;padding-top:25px}
 .knowledge-provenance>p{font-size:11px;color:#8b987d;line-height:1.9}
+.knowledge-assurance{font-size:11px;color:#4d5b3e;line-height:1.9;background:#f2f4e9;border:1px solid #e0e4d4;border-radius:8px;padding:10px 12px;margin:0 0 14px}
+.knowledge-assurance strong{color:#434d35}
+.knowledge-assurance small{display:block;color:#8b987d;margin-top:4px}
 .knowledge-provenance article{display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:12px;margin-bottom:13px}
 .knowledge-provenance strong{overflow-wrap:anywhere;font-weight:400}
 .knowledge-provenance small{grid-column:2;color:#9ca68f;font-size:10px;line-height:1.5}
