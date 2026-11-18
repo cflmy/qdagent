@@ -217,6 +217,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   "runtime_knowledge_contract"=>knowledge::contract(v),
   "runtime_knowledge_verification"=>knowledge::verification(v),
   "runtime_knowledge_proof"=>knowledge::proof(v),
+  "runtime_knowledge_prove"=>knowledge::prove(v),
   "runtime_search"|"runtime_ocr_submit"|"runtime_ocr_poll"=>{
    let c=context(v)?;private_request(c)?;
    if !matches!(c["role"].as_str(),Some("implement"|"research"|"outline"|"intent")){return Err("service is outside this role's context".into())}

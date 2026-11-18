@@ -406,6 +406,49 @@ Use `context`, `kind`, `symbol`=None, `query`=None, `target`=None。
 We **args = table.put(in=table.put(in=table.put(in=table.put(in=None,at="kind",value=`kind`),at="symbol",value=`symbol`),at="query",value=`query`),at="target",value=`target`)**.
 Return *io.native(context=`context`,operation="runtime_knowledge_proof",payload=`args`)*.
 
+## compose_proof
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | required | 可信所有者，不接收模型提交的身份 |
+| target | text | required | 项目内相对目录或文稿（一个语义根） |
+| timeout | number | None | 秒；缺省 120，上限 600 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 官方 compose 的真实结果；失败保留诊断 |
+
+Use `context`, `target`, `timeout`=None。
+
+这是 K2 的真实证明执行：官方 `marqdo knowledge compose` 对显式 target 的语义根做统一模块证明组合，证书与产物只写入私有缓存目录，不触碰已发布知识版本。环境没有 Lean 工具链时如实返回 lean_missing 类诊断——缺工具链是事实，不是失败被隐藏；证书字段只由官方命令输出填写，任何本地推断、占位或"看起来成功"的回退都被本边界拒绝。
+
+`model_proved`（lean_kernel_proved_model）只表示 Lean 内核复核过的纯函数证明，永远不等于运行时正确性、设备行为或独立测试结论；消费方必须区分这两个维度。超时与输出上限由 ABI 固定，超时按真实失败处理，不产生部分证书。
+
+We **args = table.put(in=table.put(in=None,at="kind",value="compose"),at="target",value=`target`)**.
+We **args = table.put(in=`args`,at="timeout",value=`timeout`)**.
+Return *io.native(context=`context`,operation="runtime_knowledge_prove",payload=`args`)*.
+
+## replay_proof
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | required | 可信所有者，不接收模型提交的身份 |
+| certificate | text | required | 私有缓存内的证书相对路径 |
+| target | text | required | 证书对应的语义根 |
+| timeout | number | None | 秒；缺省 120，上限 600 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 官方 replay 的真实结果；失败保留诊断 |
+
+Use `context`, `certificate`, `target`, `timeout`=None。
+
+独立重放不信任签发时的环境：同一份证书必须能在干净边界里由官方 `marqdo knowledge replay` 复核。证书路径限定在私有缓存目录内（compose 的产物或显式存放的副本），目标越界与缺失证书都是明确失败。重放失败说明证书与当前语义根或工具链不一致，此时证据等级回退为未验证，调用方必须让用户看到失败，不能沿用旧等级。
+
+We **args = table.put(in=table.put(in=table.put(in=None,at="kind",value="replay"),at="certificate",value=`certificate`),at="target",value=`target`)**.
+We **args = table.put(in=`args`,at="timeout",value=`timeout`)**.
+Return *io.native(context=`context`,operation="runtime_knowledge_prove",payload=`args`)*.
+
 ## selected_contract
 
 | 参数 | 类型 | 默认 | 说明 |

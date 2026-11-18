@@ -41,7 +41,7 @@ fn manager(c:&Value)->Result<(),String>{if matches!(c["admin_role"].as_str(),Som
 fn valid(id:&str)->bool{id.len()==36&&id.bytes().all(|b|b.is_ascii_hexdigit()||b==b'-')}
 fn entry(c:&Value,id:&str)->Result<PathBuf,String>{if !valid(id){return Err("invalid knowledge identity".into())}let base=scope(c)?;let path=base.join(id).join("index.mq.md");super::descendants(&path,&base)}
 fn read(path:&Path,max:usize)->Result<Vec<u8>,String>{let f=fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(path).map_err(|e|e.to_string())?;let mut bytes=vec![];f.take(max as u64+1).read_to_end(&mut bytes).map_err(|e|e.to_string())?;if bytes.len()>max{return Err("knowledge material exceeds bound".into())}Ok(bytes)}
-fn process(mut cmd:Command,stdin:Option<&[u8]>,max:usize)->Result<Vec<u8>,String>{cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());let mut p=cmd.spawn().map_err(|e|e.to_string())?;if let Some(input)=stdin{p.stdin.take().ok_or("missing stdin")?.write_all(input).map_err(|e|e.to_string())?;}else{drop(p.stdin.take());}let mut out=vec![];p.stdout.take().ok_or("missing stdout")?.take(max as u64+1).read_to_end(&mut out).map_err(|e|e.to_string())?;if out.len()>max{let _=p.kill();let _=p.wait();return Err("knowledge output exceeds bound".into())}if !p.wait().map_err(|e|e.to_string())?.success(){if let Ok(report)=serde_json::from_slice::<Value>(&out){if let Some(message)=report["error"]["message"].as_str(){return Err(format!("{}: {}",report["error"]["code"].as_str().unwrap_or("knowledge.execution"),message.chars().take(1200).collect::<String>()))}}return Err("knowledge command failed or timed out".into())}Ok(out)}
+fn process(mut cmd:Command,stdin:Option<&[u8]>,max:usize)->Result<Vec<u8>,String>{cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());let mut p=cmd.spawn().map_err(|e|e.to_string())?;if let Some(input)=stdin{p.stdin.take().ok_or("missing stdin")?.write_all(input).map_err(|e|e.to_string())?;}else{drop(p.stdin.take());}let mut err=vec![];if let Some(mut pipe)=p.stderr.take(){let _=pipe.take(max.min(8192) as u64+1).read_to_end(&mut err);}let mut out=vec![];p.stdout.take().ok_or("missing stdout")?.take(max as u64+1).read_to_end(&mut out).map_err(|e|e.to_string())?;if out.len()>max{let _=p.kill();let _=p.wait();return Err("knowledge output exceeds bound".into())}if !p.wait().map_err(|e|e.to_string())?.success(){if let Ok(report)=serde_json::from_slice::<Value>(&out){if let Some(message)=report["error"]["message"].as_str(){return Err(format!("{}: {}",report["error"]["code"].as_str().unwrap_or("knowledge.execution"),message.chars().take(1200).collect::<String>()))}}let detail=String::from_utf8_lossy(&err).trim().chars().take(400).collect::<String>();if !detail.is_empty(){return Err(detail)}return Err("knowledge command failed or timed out".into())}Ok(out)}
 fn lock(base:&Path)->Result<fs::File,String>{let f=fs::OpenOptions::new().create(true).truncate(false).read(true).write(true).custom_flags(libc::O_NOFOLLOW).open(base.join("execution.lock")).map_err(|e|e.to_string())?;if unsafe{libc::flock(f.as_raw_fd(),libc::LOCK_EX)}!=0{return Err("knowledge lock failed".into())}Ok(f)}
 pub(super) fn extract(v:&Value)->Result<Value,String>{let c=super::context(v)?;manager(c)?;let root=Path::new(super::text(c,"workspace")?);let rel=super::text(v,"path")?;if !rel.starts_with("uploads/"){return Err("only supplied uploads can be compiled".into())}let path=super::descendants(&root.join(rel),&root.join("uploads"))?;let bytes=read(&path,50*1024*1024)?;let hash=super::digest(&bytes);
  let (text,format)=if path.extension().is_some_and(|x|x.eq_ignore_ascii_case("pdf")){if !bytes.starts_with(b"%PDF-"){return Err("invalid PDF signature".into())}let mut cmd=Command::new("timeout");cmd.args(["-s","KILL","35","pdftotext","-layout","-enc","UTF-8"]).arg(&path).arg("-");(String::from_utf8(process(cmd,None,1024*1024)?).map_err(|_|"PDF text is not UTF-8")?,"pdf") }else{if bytes.len()>1024*1024{return Err("source text exceeds 1 MiB".into())}(String::from_utf8(bytes).map_err(|_|"upload PDF or UTF-8 source text")?,"source")};
@@ -77,6 +77,41 @@ pub(super) fn proof(v:&Value)->Result<Value,String>{
  let raw=process(command,None,262144)?;
  let report:Value=serde_json::from_slice(&raw).map_err(|e|e.to_string())?;
  Ok(json!({"kind":kind,"report":report}))
+}
+// K2: real composition/replay execution through the official CLI. Lean is a
+// detected environment fact; its absence is reported, never papered over, and
+// certificate fields are only filled from official command output.
+pub(super) fn prove(v:&Value)->Result<Value,String>{
+ let c=super::context(v)?;let kind=super::text(v,"kind")?;
+ let project=Path::new(super::text(c,"project")?).to_path_buf();
+ let timeout=v["timeout"].as_u64().unwrap_or(120).clamp(5,600);
+ if kind=="detect"{
+  let mut command=Command::new("timeout");
+  command.args(["-s","KILL","10","lean","--version"]);
+  return match process(command,None,4096){
+   Ok(out)=>{let version=String::from_utf8_lossy(&out).trim().to_string();Ok(json!({"kind":"detect","installed":true,"version":version}))}
+   Err(_)=>Ok(json!({"kind":"detect","installed":false,"version":null})),
+  };
+ }
+ let root=match v["target"].as_str(){
+  Some(rel)=>{let joined=project.join(rel);let path=joined.canonicalize().map_err(|e|e.to_string())?;if !path.starts_with(project.canonicalize().map_err(|e|e.to_string())?){return Err("knowledge proof target escapes the project".into())}path}
+  None=>project.clone(),
+ };
+ let mut command=Command::new("timeout");
+ command.arg(format!("-s")).arg("KILL").arg(timeout.to_string()).args(["marqdo","knowledge","--json"]);
+ match kind{
+  "compose"=>{command.arg("compose").arg(&root).arg("-o").arg(cache(c)?);}
+  "replay"=>{let rel=super::text(v,"certificate")?;let certificate=super::descendants(&cache(c)?.join(&rel),&cache(c)?)?;command.arg("replay").arg(&certificate).arg(&root);}
+  _=>return Err("unknown knowledge proof kind".into()),
+ }
+ let raw=process(command,None,262144)?;
+ let report:Value=serde_json::from_slice(&raw).map_err(|e|e.to_string())?;
+ Ok(json!({"kind":kind,"report":report}))
+}
+fn cache(c:&Value)->Result<PathBuf,String>{
+ let cache=Path::new(super::text(c,"workspace")?).join(".knowledge-projections");
+ fs::create_dir_all(&cache).map_err(|e|e.to_string())?;
+ Ok(cache)
 }
 // Compare the official AST while ignoring only source locations and map iteration order.
 // Managed writeback blocks move subsequent statements without changing behavior.
@@ -152,5 +187,24 @@ mod proof_tests{
   assert!(deps["report"]["proof_completion"].as_str().unwrap().contains("not_established"));
   assert!(proof(&json!({"context":ctx,"kind":"inspect","symbol":"add","target":"../../escape"})).is_err());
   assert!(proof(&json!({"context":ctx,"kind":"astral"})).is_err());
+ }
+}
+#[cfg(test)]
+mod prove_tests{
+ use super::*;
+ #[test]fn knowledge_proof_executes_honestly_without_lean(){
+  let temp=crate::document_bundle::Temporary::new().unwrap();
+  let project=temp.0.join("proj");fs::create_dir_all(&project).unwrap();
+  fs::write(project.join("tiny.mq.md"),"---\nmarkup: occlusion\ntitle: t\n---\n\n## add\n\n| 参数 | 类型 | 默认 | 说明 |\n|---|---|---|---|\n| a | number | required | 加数 |\n| b | number | required | 被加数 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | number | 和 |\n\nUse `a`, `b`。\n\n固定纯函数示例。\n\nReturn *`a` + `b`*.\n").unwrap();
+  let workspace=temp.0.join("ws");fs::create_dir_all(&workspace).unwrap();
+  let ctx=json!({"id":"knowledge","owner":"tester","admin_role":"admin","knowledge_scope":"public","project":project.to_string_lossy(),"workspace":workspace.to_string_lossy()});
+  let detected=prove(&json!({"context":ctx,"kind":"detect"})).unwrap();
+  assert_eq!(detected["installed"],false);
+  let composed=prove(&json!({"context":ctx,"kind":"compose"}));
+  let message=composed.unwrap_err();
+  assert!(message.to_lowercase().contains("lean"),"honest lean absence, got: {message}");
+  assert!(prove(&json!({"context":ctx,"kind":"replay","certificate":"missing/cert.json"})).is_err());
+  assert!(prove(&json!({"context":ctx,"kind":"compose","target":"../../escape"})).is_err());
+  assert!(prove(&json!({"context":ctx,"kind":"astral"})).is_err());
  }
 }
