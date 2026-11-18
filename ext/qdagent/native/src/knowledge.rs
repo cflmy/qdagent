@@ -58,6 +58,26 @@ pub(super) fn publish(v:&Value)->Result<Value,String>{let c=super::context(v)?;m
 pub(super) fn list(v:&Value)->Result<Value,String>{let base=scope(super::context(v)?)?;let mut out=vec![];for d in fs::read_dir(base).map_err(|e|e.to_string())?.take(300){let d=d.map_err(|e|e.to_string())?;if d.file_type().map_err(|e|e.to_string())?.is_dir(){if let Ok(raw)=read(&d.path().join("record.json"),65536){if let Ok(record)=serde_json::from_slice::<Value>(&raw){out.push(record)}}}}out.sort_by(|a,b|b["compiled_at"].as_u64().cmp(&a["compiled_at"].as_u64()));Ok(json!(out))}
 pub(super) fn document(v:&Value)->Result<Value,String>{let c=super::context(v)?;let path=entry(c,super::text(v,"id")?)?;let _guard=lock(path.parent().ok_or("entry parent")?)?;let raw=read(&path,1024*1024)?;let record:Value=serde_json::from_slice(&read(&path.with_file_name("record.json"),65536)?).map_err(|e|e.to_string())?;if record["sha256"]!=super::digest(&raw){return Err("knowledge source changed; review and republish".into())}for (file,key) in [("abstract.mq.md","abstract_sha256"),("verification.json","verification_sha256"),("decisions.mq.md","journal_sha256")]{if super::digest(&read(&path.with_file_name(file),4*1024*1024)?)!=record[key]{return Err("knowledge evidence changed; review and republish".into())}}check_evidence(path.parent().ok_or("entry parent")?,&record)?;Ok(json!({"source":String::from_utf8(raw).map_err(|_|"text knowledge required")?,"record":record,"root":path.parent().ok_or("entry parent")?}))}
 pub(super) fn reference(c:&Value,rel:&str)->Result<Value,String>{let parts=rel.split('/').collect::<Vec<_>>();if parts.len()!=3||parts[0]!="compiled"||parts[2]!="index.mq.md"{return Err("invalid compiled knowledge reference".into())}let path=entry(c,parts[1])?;let raw=read(&path.with_file_name("abstract.mq.md"),16384)?;Ok(json!({"source":String::from_utf8(raw.clone()).map_err(|_|"text reference required")?,"sha256":super::digest(&raw),"path":rel}))}
+// K1: read-only official knowledge projections. The official CLI is the only
+// parser; this boundary adds bounds, a private receipt cache and JSON framing.
+pub(super) fn proof(v:&Value)->Result<Value,String>{
+ let c=super::context(v)?;let kind=super::text(v,"kind")?;
+ let project=Path::new(super::text(c,"project")?).to_path_buf();
+ let root=match v["target"].as_str(){
+  Some(rel)=>{let joined=project.join(rel);let path=joined.canonicalize().map_err(|e|e.to_string())?;if !path.starts_with(project.canonicalize().map_err(|e|e.to_string())?){return Err("knowledge projection target escapes the project".into())}path}
+  None=>project.clone(),
+ };
+ let mut command=Command::new("timeout");command.args(["-s","KILL","90","marqdo","knowledge","--json"]);
+ match kind{
+  "inspect"=>{command.arg("inspect").arg(super::text(v,"symbol")?).arg(&root);}
+  "proof_deps"=>{let cache=Path::new(super::text(c,"workspace")?).join(".knowledge-projections");fs::create_dir_all(&cache).map_err(|e|e.to_string())?;command.arg("proof-deps").arg(&root).arg("-o").arg(cache);}
+  "impact"=>{let query=super::text(v,"query")?;if query.is_empty()||query.chars().count()>200{return Err("invalid impact query".into())}command.arg("impact").arg(query).arg(&root);}
+  _=>return Err("unknown knowledge projection kind".into()),
+ }
+ let raw=process(command,None,262144)?;
+ let report:Value=serde_json::from_slice(&raw).map_err(|e|e.to_string())?;
+ Ok(json!({"kind":kind,"report":report}))
+}
 // Compare the official AST while ignoring only source locations and map iteration order.
 // Managed writeback blocks move subsequent statements without changing behavior.
 fn program_identity(mut module:marqdo::ast::Module)->String{
@@ -114,3 +134,23 @@ pub(super) fn writeback(v:&Value)->Result<Value,String>{
 }
 
 pub(super) fn verification(v:&Value)->Result<Value,String>{let data=document(v)?;let root=Path::new(data["root"].as_str().ok_or("knowledge root missing")?);serde_json::from_slice(&read(&root.join("verification.json"),4*1024*1024)?).map_err(|e|e.to_string())}
+#[cfg(test)]
+mod proof_tests{
+ use super::*;
+ #[test]fn knowledge_projections_are_official_read_only(){
+  let temp=crate::document_bundle::Temporary::new().unwrap();
+  let project=temp.0.join("proj");fs::create_dir_all(&project).unwrap();
+  fs::write(project.join("tiny.mq.md"),"---\nmarkup: occlusion\ntitle: t\n---\n\n## add\n\n| 参数 | 类型 | 默认 | 说明 |\n|---|---|---|---|\n| a | integer | required | 加数 |\n| b | integer | required | 被加数 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | integer | 和 |\n\nUse `a`, `b`。\n\n固定纯函数示例。\n\nReturn *`a` + `b`*.\n").unwrap();
+  let workspace=temp.0.join("ws");fs::create_dir_all(&workspace).unwrap();
+  let ctx=json!({"id":"knowledge","owner":"tester","admin_role":"admin","knowledge_scope":"public","project":project.to_string_lossy(),"workspace":workspace.to_string_lossy()});
+  let inspected=proof(&json!({"context":ctx,"kind":"inspect","symbol":"add"})).unwrap();
+  let symbol=&inspected["report"]["symbols"][0];
+  assert_eq!(symbol["id"],"mq://proj/tiny/function/add");
+  assert_eq!(symbol["kind"],"function");
+  let deps=proof(&json!({"context":ctx,"kind":"proof_deps"})).unwrap();
+  assert_eq!(deps["report"]["schema_version"],1);
+  assert!(deps["report"]["proof_completion"].as_str().unwrap().contains("not_established"));
+  assert!(proof(&json!({"context":ctx,"kind":"inspect","symbol":"add","target":"../../escape"})).is_err());
+  assert!(proof(&json!({"context":ctx,"kind":"astral"})).is_err());
+ }
+}

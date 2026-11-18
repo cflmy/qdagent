@@ -383,6 +383,29 @@ Use `context`, `id`, `function`。
 We **args = table.put(in=table.put(in=None,at="id",value=`id`),at="function",value=`function`)**.
 Return *io.native(context=`context`,operation="runtime_knowledge_contract",payload=`args`)*.
 
+## projections
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | required | 可信所有者，不接收模型提交的身份 |
+| kind | text | required | inspect / proof_deps / impact 之一 |
+| symbol | text | None | inspect：精确符号 URI（mq://…）或声明名 |
+| query | text | None | impact：语义影响查询 |
+| target | text | None | 项目内相对目录或文稿；缺省为整个项目 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 官方只读投影的真实结果；失败保留诊断 |
+
+Use `context`, `kind`, `symbol`=None, `query`=None, `target`=None。
+
+这是 K1 的按需只读接口：锚点与精确 SymbolId（inspect）、证明收据与跨模块义务（proof_deps）、语义影响（impact）都由官方 `marqdo knowledge` 命令产生，本边界只加超时、输出上限、目标越界拒绝与私有收据缓存，不新增任何解析器。inspect 返回稳定符号身份（mq:// 标识、模块、声明位置）；proof_deps 在没有 Lean 工具链时如实报告依赖分析未确立，绝不把缺工具链包装成已证明；impact 只报告影响集合，不执行任何函数。
+
+读取不执行文稿，也不建立任何权限：证据等级是数据的属性，不是调用者的属性。`model_proved` 只表示 Lean 内核复核过的纯函数证明，永远不能代替运行时正确性与独立测试；消费方必须区分这两个维度。收据缓存位于私有数据目录，可随时重建；源码或依赖变化后重新投影会得到新结果，旧投影不自动失效他人已发布知识的记录。
+
+We **args = table.put(in=table.put(in=table.put(in=table.put(in=None,at="kind",value=`kind`),at="symbol",value=`symbol`),at="query",value=`query`),at="target",value=`target`)**.
+Return *io.native(context=`context`,operation="runtime_knowledge_proof",payload=`args`)*.
+
 ## selected_contract
 
 | 参数 | 类型 | 默认 | 说明 |
