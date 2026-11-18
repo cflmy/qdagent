@@ -8,7 +8,7 @@ G1 生产入口一致（已验证）：`marqdo call ext/root-skill/index.mq.md r
 
 传输 ABI 重建：`ext/native/libqdagent_transport.so` 与 `qdagent-worker` 由本仓源码按锁定的 Marqdo 2.9.1 依赖构建，可在受支持 glibc 加载；Cargo.lock 固定 indexmap 2.7.1（2.14.2 需要 Rust 1.85，构建工具链为 1.81，与上游一致）。
 
-G2 确认语义（CLI+HTTP 已验证）：真实链路 begin → clarify_intent → run(等待) → respond：点选确认推进到 outline 并记录历史；自由输入（answer）逐字记录且不推进阶段；重复确认 409；跨用户 404；超界并发与未授权模型 400；过期修订返回 root.stale_confirmation；插件停用拒绝启动；刷新读取同一已提交修订。`go test ./...` 全部通过（含真实 Marqdo call 路径）。
+G2 确认语义（CLI+HTTP 已验证）：真实链路 begin → clarify_intent → run(等待) → respond：点选确认推进到 outline 并记录历史；自由输入（answer）逐字记录且不推进阶段；重复确认 409；跨用户 404；超界并发与未授权模型 400；过期修订返回 root.stale_confirmation；插件停用拒绝启动；刷新读取同一已提交修订。多轮恢复：在已有 outline 状态上注入新用户输入，begin 追加历史、保留目标、修订推进并开启新确认循环，旧检查点因版本过期不可再确认。`go test ./...` 全部通过（含真实 Marqdo call 路径）。
 
 能力面同步：按上游 v2.9.1 引入 `ext/ai/flow|workflow|context|recovery`，`ext/native/libagent.so` 由源码重建；新增离线金样 `tests/ext/ai-native-flow.mq.md`（解析失败关闭、scope 投影、ContextPackV2、持久 input/reply 门禁）与 `tests/ext/ai-native-workflow.mq.md`（open/inspect/list/next/commit/tick、混合并行结局保留成功兄弟、retry_plan/retry_commit 只读恢复），行为与上游测试逐断言一致。
 
@@ -34,7 +34,7 @@ G2 确认语义（CLI+HTTP 已验证）：真实链路 begin → clarify_intent 
 |---|---|---|
 | G0 宪法与测试 | AGENTS/README 指向唯一规则、短入口、纯传输 Python、静态 CI | 完成 |
 | G1 生产入口一致 | `marqdo check` + 实际 `marqdo call ... run`、导入解析及权限拒绝负例 | 已通过真实 CLI 与宿主形态 context 验证（见上方增量记录） |
-| G2 一次真实确认 | input/reply 绑定可信会话、版本；点选/自由输入；重复/刷新/取消和冲突恢复 | 确认语义经真实 CLI 与 HTTP 测试验证；浏览器端取消与多轮恢复待验收 |
+| G2 一次真实确认 | input/reply 绑定可信会话、版本；点选/自由输入；重复/刷新/取消和冲突恢复 | 确认语义与多轮恢复经真实 CLI 与 HTTP 测试验证；浏览器端取消与真实 Web 恢复待验收 |
 | G3 单份记忆 | `memory.mq.md` 版本核对、原子保存；不再注入 N 轮旧消息；崩溃/并发不丢事实 | 代码接线、ABI 构建与基本 CAS 负例通过；待全链恢复测试 |
 | G4 小范围按需读取 | 当前函数、当前能力、限定来源；超限显式增量读取，不丢关键契约 | 待执行 |
 | G5 有界 DAG 并发 | 依赖、权限、取消、失败隔离、未知外部效果核对与真实收据 | 待执行 |
