@@ -285,9 +285,13 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    let c=context(v)?;if !matches!(c["role"].as_str(),Some("intent"|"outline")){return Err("reference is outside this role's context".into())}
    let rel=text(v,"path")?;if !rel.ends_with(".md"){return Err("knowledge document required".into())}
    if rel.starts_with("compiled/"){return knowledge::reference(c,rel)}
-   let base=Path::new(text(c,"project")?).join("kb");let path=descendants(&base.join(rel),&base)?;
-   let raw=fs::read(&path).map_err(|e|e.to_string())?;if raw.len()>16*1024{return Err("selected reference exceeds context budget".into())}
-   let source=String::from_utf8(raw.clone()).map_err(|_|"text reference required")?;Ok(json!({"source":source,"sha256":digest(&raw),"path":rel}))
+   let base=Path::new(text(c,"project")?).join("kb");let path=descendants(&base.join(rel),&base).map_err(|e|format!("reference resolve {rel:?} under {base:?}: {e}"))?;
+   let raw=fs::read(&path).map_err(|e|format!("reference read {path:?}: {e}"))?;let source=String::from_utf8(raw.clone()).map_err(|_|"text reference required")?;
+   let total=source.chars().count();let offset=v["offset"].as_u64().unwrap_or(0) as usize;
+   if offset>total{return Err("reference offset beyond document".into())}
+   let mut sections=vec![];if let Ok(module)=parser(&source){for function in &module.functions{sections.push(json!({"name":function.name,"line":function.span.line}))}}
+   let window:Vec<char>=source.chars().skip(offset).take(16*1024).collect();let next=offset+window.len();
+   Ok(json!({"source":window.into_iter().collect::<String>(),"sha256":digest(&raw),"path":rel,"offset":offset,"total":total,"next_offset":if next<total{json!(next)}else{json!(null)},"sections":sections}))
   },
   "runtime_reuse"=>{
    let c=context(v)?;private_request(c)?;if c["role"]!="outline"{return Err("reuse query is outside planning context".into())}
@@ -330,4 +334,22 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   let caller=parser("## act\n\nReturn *api.accept(value=\"valid\")*.\n").unwrap();let checked=call_preflight::check(&caller,&allowed,api,&[]);assert!(checked.is_ok(),"{checked:?}");
  }
  #[test]fn intent_cannot_carry_hidden_executable_statements(){assert!(dispatch(&json!({"operation":"runtime_intent","source":"## scope\n\n公开业务意图。\n"})).is_ok());assert!(dispatch(&json!({"operation":"runtime_intent","source":"## scope\n\nWe **secret = 8**.\n"})).is_err());}
+ #[test]fn reference_reads_bounded_slices_with_section_index(){
+  let temp=crate::document_bundle::Temporary::new().unwrap();
+  let project=temp.0.join("project");let kb=project.join("kb");fs::create_dir_all(&kb).unwrap();
+  let mut body=String::new();for i in 0..900{body.push_str(&format!("第{i}段：知识材料按需读取的分片验证内容，保持每段足够长度。\n\n"));}
+  fs::write(kb.join("long.md"),format!("---\nmarkup: occlusion\ntitle: long\n---\n\n开头段落。\n\n## alpha\n\nA 节内容。\n\n## beta\n\nB 节内容。\n\n{body}")).unwrap();
+  let ctx=json!({"role":"outline","project":project.to_string_lossy()});
+  let first=dispatch(&json!({"operation":"runtime_reference","context":ctx,"path":"long.md"})).unwrap();
+  assert_eq!(first["offset"],0);assert!(first["total"].as_u64().unwrap()>16384);
+  let next=first["next_offset"].as_u64().expect("large reference must offer an explicit next offset");
+  let names:Vec<&str>=first["sections"].as_array().unwrap().iter().filter_map(|s|s["name"].as_str()).collect();
+  assert!(names.contains(&"alpha")&&names.contains(&"beta"),"{names:?}");
+  let second=dispatch(&json!({"operation":"runtime_reference","context":ctx,"path":"long.md","offset":next})).unwrap();
+  assert!(second["next_offset"].is_null());assert_eq!(first["sha256"],second["sha256"]);
+  assert!(dispatch(&json!({"operation":"runtime_reference","context":ctx,"path":"long.md","offset":99999999})).is_err());
+  fs::write(kb.join("small.md"),"---\nmarkup: occlusion\ntitle: s\n---\n\n## one\n\n只有一节。\n").unwrap();
+  let one=dispatch(&json!({"operation":"runtime_reference","context":ctx,"path":"small.md"})).unwrap();
+  assert!(one["next_offset"].is_null());assert_eq!(one["sections"][0]["name"],"one");
+ }
 }
