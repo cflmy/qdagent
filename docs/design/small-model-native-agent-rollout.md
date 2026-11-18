@@ -30,7 +30,9 @@ G3 记忆全链恢复（ABI 级已验证）：新增 Rust 测试固定并发 CAS
 
 K4 离线场景（已验证）：Rust 测试固化三条拒绝证据——篡改叶模块定理后，已签发的组合证书重放报 `proof.unified_generated_source_changed`；恢复原文后同一证书恢复可重放；假定理永远不会产出 `lean_kernel_proved_model` 结果或"完整运行时语义"声明。两条测试在无 Lean 环境显式跳过并打印原因，有 Lean 环境真实执行（约 2 秒）。同时把既有的 no-Lean 测试改为环境自感知：检测结果必须与真实工具链状态一致，有 Lean 时 compose/replay 必须成功，无 Lean 时官方诊断逐字上浮。crate 测试 25 项，在两种 PATH 下均通过。
 
-真实小模型评测（K4 主体）需要的受控模型端点在本环境不可达：本机无 Ollama 服务，也没有供应商密钥；因此该关口保持未验证。知识证据决策技能（skills/marqdo-dev/knowledge-evidence.mq.md）的 open_obligations/unverified_premise → verify_premises、opaque/plugin_unproved → audit_deps 扩展同样受阻：该文件与 .github/workflows、docs/design/knowledge-proof-integration.md、tests/knowledge-proof-policy.mq.md、ext/root-skill/index.mq.md 等来自远端拉取的权威文件均为 root 只读（agent 用户无 sudo），需要文件所有者在部署侧应用。
+真实小模型评测（K4 主体）需要的受控模型端点在本环境不可达：本机无 Ollama 服务，也没有供应商密钥；因此该关口保持未验证。知识证据决策技能（skills/marqdo-dev/knowledge-evidence.mq.md）已扩展并验证：open_obligations/unverified_premise → verify_premises、opaque/plugin_unproved → audit_deps，四个新用例纳入 tests/knowledge-proof-policy.mq.md 金样并通过。此前这些文件为 root 只读，所有者已放宽权限，改动已落地。
+
+CI 门禁已接线：.github/workflows/small-model-contract.yml 现在解析并运行 knowledge-projections、knowledge-proof-execution、root-dag-scheduling 与 flow/workflow 金样，并检查 proof-modular/proof-scope/ambiguous-scope 夹具；新增命令在有无 Lean 两种 PATH 下都在本机执行通过。
 
 K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_evidence 节——最多六条收据按"符号：等级/状态（范围）"逐字转写、节首声明 model_proved 不是运行时正确性、超限显式提示、字段缺省整体缺席保持逐字节兼容；收据是确认进根状态的快照，渲染层不读文件系统、不重推等级，过期由保存方重新投影。金样拆为 main/evidence 两段分别通过叙述比门禁。同时修复 root-dag 金样提交时即低于叙述比（31%）的已提交缺陷，文档门禁脚本的严重度过滤改用工具链 python3（环境无 jq）。K3 的可见卡片层（前端源码）已接入：知识卡显示发布时记录的证据等级，详情页"来源与审阅"节首显示等级说明并声明 model_proved 类证明不等于运行时正确性；tsc+vite 构建通过（dist 由部署构建，不入库）。
 
