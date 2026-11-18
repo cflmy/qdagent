@@ -398,9 +398,11 @@ Use `observed`。
 
 判断结果不是成功，不改变模型身份、用户范围或消息。错误不属于这些已知类别时直接返回原错误，用户能看见真实原因。该判断只用于模型生成，不能套在任意有副作用的工具上，更不能重放已完成的文件写入或来源登记。
 
-例如，服务返回五百零三时，相同模型请求可以在短暂停顿后重新发送；如果返回四百零一，则需要修正模型服务的授权配置，继续请求没有意义。这里只检查运输层已经报告的错误，不读取网页内容来选择权限，也不会把错误文本作为程序执行。连续两次失败后保持未完成，并保留每次尝试的独立输出与诊断。根流程不会因为某家服务暂时异常而切换到另一模型，用户看到的模型身份应始终与实际请求一致。
+例如，服务返回五百零三时，相同模型请求可以在短暂停顿后重新发送；如果返回四百零一，则需要修正模型服务的授权配置，继续请求没有意义。连接被明示拒绝（本机服务未启动、端口关闭）同样不属于暂时故障：重发不会让服务出现，用户需要先恢复服务，因此这类诊断在通用连接判断之前单独排除。这里只检查运输层已经报告的错误，不读取网页内容来选择权限，也不会把错误文本作为程序执行。连续两次失败后保持未完成，并保留每次尝试的独立输出与诊断。根流程不会因为某家服务暂时异常而切换到另一模型，用户看到的模型身份应始终与实际请求一致。
 
-传输层也会提供中文事实诊断。域名解析失败、连接中断与读取超时可能是短暂波动，和已知的英文网络诊断遵循同一次数上限。本机服务未启动或明确拒绝连接时，用户应先恢复服务，原样重发没有帮助，因此中文的连接拒绝不属于暂时故障。安全连接与证书失败也不能靠放宽验证来修复。这个判断不把诊断文字交给系统命令，不自动重启宿主服务；服务恢复属于管理员操作，智能体仍只能在已有授权和剩余额度内发起请求。
+传输层也会提供中文事实诊断。域名解析失败、连接中断与读取超时可能是短暂波动，和已知的英文网络诊断遵循同一次数上限。本机服务未启动或明确拒绝连接时，用户应先恢复服务，原样重发没有帮助，因此显式的拒绝连接（无论英文 refused 还是中文的拒绝连接/连接被拒绝）在通用连接判断之前就被排除，不属于暂时故障。安全连接与证书失败也不能靠放宽验证来修复。这个判断不把诊断文字交给系统命令，不自动重启宿主服务；服务恢复属于管理员操作，智能体仍只能在已有授权和剩余额度内发起请求。
 
 We **message = json.stringify(value=`observed`)**.
+1. text.contains(text=`message`,sub="refused") or text.contains(text=`message`,sub="拒绝连接") or text.contains(text=`message`,sub="连接被拒绝")
+  Return *False*.
 Return *(text.contains(text=`message`,sub="HTTP 429") or text.contains(text=`message`,sub="HTTP 502") or text.contains(text=`message`,sub="HTTP 503") or text.contains(text=`message`,sub="HTTP 504") or text.contains(text=`message`,sub="timed out") or text.contains(text=`message`,sub="deadline exceeded") or text.contains(text=`message`,sub="connection") or text.contains(text=`message`,sub="Connection") or text.contains(text=`message`,sub="rate limit") or text.contains(text=`message`,sub="超时") or text.contains(text=`message`,sub="连接中断") or text.contains(text=`message`,sub="域名解析失败"))*.
