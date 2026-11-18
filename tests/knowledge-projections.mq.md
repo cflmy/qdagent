@@ -51,4 +51,37 @@ We **_ = test.assert(condition=`honest`,message="missing Lean must stay honestly
 We **_ = test.assert(condition=(not access(`escape`,"ok")),message="target must not leave the project")**.
 **unknown = > knowledge.projections(context=`ctx`,kind="astral")**.
 We **_ = test.assert(condition=(not access(`unknown`,"ok")),message="unknown projection must be rejected")**.
+## ambiguous
+
+歧义锚点是 K4 的拒绝场景之一：同一个声明名在两个模块里各有一份实现时，官方 inspect 必须报 ambiguous=true 并列出全部候选符号，绝不允许按"名字相同"猜测合并成一条证据。本段固定这条诚实性——如果实现退回"取第一个匹配"或按字面名去重，断言会立即失败；如果实现拒绝回答（返回错误或空列表），同样失败，因为歧义本身是真实且有信息量的答案。
+
+两个候选的 SymbolId 都必须携带各自模块的身份（mq://ambiguous-scope/alpha/… 与 …/beta/…），调用方据此选择或反问用户，而不是在不确定时继续执行。本段不做任何绑定选择：选择属于上层规划，投影层只负责把歧义如实呈现。
+
+夹具的构造也是断言的一部分：两个模块各自通过文档门禁、各自带参数表、各自返回不同实现（甲返回 a+b，乙返回 a+b+1），因此"同名"不是文档缺陷而是真实世界会出现的命名冲突。若实现按文件顺序取第一个匹配，第二条候选的 id 断言与 distinct 断言会同时失败；若实现把两个模块合并成一个符号，模块身份断言失败。'
+
+这条边界与 K1 的"精确身份"一致：证据锚点必须是 mq:// 全名，函数名的字面文本不足以绑定任何收据；歧义时唯一正确的行为是把它交回调用方。
+
+在真实任务里，歧义往往来自同一领域的两份知识版本、或上游把工具函数与业务函数同名发布。宿主或子 SKILL 遇到 ambiguous=true 时应当反问用户要引用哪一份，而不是让模型"看着像"就选一个；这条规则与根流程"一次确认"的要求一致，也避免把两份不同实现的证据混在一条收据里。本段因此同时是"证据不得跨实现混合"的回归断言。
+
+实现细节上，本段只读取官方 inspect 的报告字段：ambiguous、symbols、每项的 id 与来源行。没有任何"猜测合并"的逻辑被允许出现在边界或投影层；若未来官方报告改名，本段断言失败并要求同步更新，而不是悄悄放宽判据。
+
+与其它段落的分工保持清晰：主段验证生产符号的可解析与证明义务的诚实汇报，本段只验证歧义呈现，二者都不绑定任何执行。歧义夹具与 proof-scope 一样是独立语义根，因此投影不会扫到仓库其它文稿；两个模块各自的定理表为空，理由是本段测试的是符号身份而不是证明，避免把两个场景耦合在一起。
+
+最后，本段的通过条件里没有"任选其一"：两个候选都必须出现、id 必须不同、甲模块身份必须可检索。实现若因误判而返回空列表、返回单个候选或把 ambiguous 写成 false，三种退化都会失败。这条严格性来自 K4 的目标——小模型不能靠"看起来对"绕过证据身份，歧义必须显式回到用户或规划层。宿主在展示候选时应当连同来源行一起显示，让用户能在两分钟内做出选择，而不是被迫打开源码比对；本段断言的 id 与模块身份正是展示所需的字段，断言与界面需求一致而不是两套判据。候选列表的顺序不构成优先级：官方按模块名排序，调用方不得把第一个当成默认选择，这条规则在此明确写出以避免实现层引入隐式偏好。
+
+**ctx = > json.parse text="{\"id\":\"knowledge\",\"owner\":\"tester\",\"admin_role\":\"admin\",\"knowledge_scope\":\"public\",\"project\":\"/workspace/qdagent\",\"workspace\":\"/tmp/golden-knowledge\",\"root\":\"/tmp/golden-knowledge\"}"**.
+**seen = > knowledge.projections(context=`ctx`,kind="inspect",symbol="add",target="tests/fixtures/ambiguous-scope")**.
+We **_ = test.assert(condition=access(`seen`,"ok"),message="inspect must answer even when the name is ambiguous")**.
+**report = > access(access(`seen`,"value"),"report")**.
+We **_ = test.assert(condition=(access(`report`,"ambiguous") == True),message="same-name symbols must be reported ambiguous")**.
+**symbols = > access(`report`,"symbols")**.
+We **_ = test.assert(condition=(table.len(xs=`symbols`) == 2),message="both candidates must be listed")**.
+**first = > table.at(xs=`symbols`,i=0)**.
+**second = > table.at(xs=`symbols`,i=1)**.
+We **distinct = access(`first`,"id") != access(`second`,"id")**.
+We **_ = test.assert(condition=`distinct`,message="candidates keep their own symbol identity")**.
+**alpha = > text.contains(text=json.stringify(value=`symbols`),sub="mq://ambiguous-scope/alpha/function/alpha/add")**.
+We **_ = test.assert(condition=`alpha`,message="module identity must survive in the candidate list")**.
+Return *"knowledge-ambiguous-ok"*.
+
 Return *"knowledge-projections-ok"*.
