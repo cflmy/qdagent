@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -219,5 +220,27 @@ func TestRootHTTPStubDisclosureAndPartialAcceptance(t *testing.T) {
 	}
 	if stored.Status != "incomplete" {
 		t.Fatal("partial delivery must not be reported as a full success", stored.Status)
+	}
+}
+
+func TestEmptyInputNeverStartsARun(t *testing.T) {
+	s := testServer(t)
+	task, err := s.store.createTask("test-owner", "空输入")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "/api/tasks/" + task.ID + "/runs"
+	for _, body := range []string{`{"question":""}`, `{"question":"   "}`, `{"question":"` + strings.Repeat("目", 70000) + `"}`} {
+		got := request(s, http.MethodPost, path, body)
+		if got.Code != 400 || !strings.Contains(got.Body.String(), "invalid_question") {
+			t.Fatal("empty or oversized input must be rejected before any run starts", got.Code, got.Body.String())
+		}
+	}
+	var runs int
+	if err = s.store.db.QueryRow(`SELECT count(*) FROM qd_runs WHERE task_id=?`, task.ID).Scan(&runs); err != nil {
+		t.Fatal(err)
+	}
+	if runs != 0 {
+		t.Fatal("rejected input must not create a run row", runs)
 	}
 }
