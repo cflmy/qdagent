@@ -292,11 +292,18 @@ mod prove_tests{
   fs::write(project.join("tiny.mq.md"),"---\nmarkup: occlusion\ntitle: t\n---\n\n## add\n\n| 参数 | 类型 | 默认 | 说明 |\n|---|---|---|---|\n| a | number | required | 加数 |\n| b | number | required | 被加数 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | number | 和 |\n\nUse `a`, `b`。\n\n固定纯函数示例。\n\nReturn *`a` + `b`*.\n").unwrap();
   let workspace=temp.0.join("ws");fs::create_dir_all(&workspace).unwrap();
   let ctx=json!({"id":"knowledge","owner":"tester","admin_role":"admin","knowledge_scope":"public","project":project.to_string_lossy(),"workspace":workspace.to_string_lossy()});
+  let lean_present=std::process::Command::new("lean").arg("--version").output().map(|o|o.status.success()).unwrap_or(false);
   let detected=prove(&json!({"context":ctx,"kind":"detect"})).unwrap();
-  assert_eq!(detected["installed"],false);
+  assert_eq!(detected["installed"],lean_present,"detection must match the real toolchain state");
   let composed=prove(&json!({"context":ctx,"kind":"compose"}));
-  let message=composed.unwrap_err();
-  assert!(message.to_lowercase().contains("lean"),"honest lean absence, got: {message}");
+  if lean_present{
+   let report=composed.unwrap();
+   assert_eq!(report["report"]["schema_version"],1);
+   assert_eq!(report["report"]["full_marqdo_runtime_semantics_proved"],false);
+  }else{
+   let message=composed.unwrap_err();
+   assert!(message.to_lowercase().contains("lean"),"honest lean absence, got: {message}");
+  }
   assert!(prove(&json!({"context":ctx,"kind":"replay","certificate":"missing/cert.json"})).is_err());
   assert!(prove(&json!({"context":ctx,"kind":"compose","target":"../../escape"})).is_err());
   assert!(prove(&json!({"context":ctx,"kind":"astral"})).is_err());
@@ -322,8 +329,13 @@ mod proof_job_tests{
    if let Some(detail)=status["error"].as_str(){error=detail.to_string();}
    if state!="running"{break}
   }
-  assert_eq!(state,"failed","no-Lean compose must land in failed, got {state}");
-  assert!(error.to_lowercase().contains("lean"),"honest lean diagnostic, got: {error}");
+  let lean_present=std::process::Command::new("lean").arg("--version").output().map(|o|o.status.success()).unwrap_or(false);
+  if lean_present{
+   assert_eq!(state,"done","compose with Lean must land in done, got {state}");
+  }else{
+   assert_eq!(state,"failed","no-Lean compose must land in failed, got {state}");
+   assert!(error.to_lowercase().contains("lean"),"honest lean diagnostic, got: {error}");
+  }
   // Foreign pidfiles are never signalled.
   let fake=proof_job(&json!({"context":ctx,"kind":"start","proof":"compose","target":"."})).unwrap();
   let fake_job=fake["job"].as_str().unwrap().to_string();
@@ -366,5 +378,61 @@ mod proof_cancel_tests{
   let status=proof_job(&json!({"context":ctx,"kind":"status","job":"job-fakecancel"})).unwrap();
   assert_eq!(status["state"],"cancelled");
   let _=child.wait();
+ }
+}
+// K4 offline scenarios: tampered sources, false theorems and unsolved premises
+// must never yield a certificate; a genuine certificate replays only against
+// the exact source it was issued for.
+#[cfg(test)]
+mod k4_evidence_tests{
+ use super::*;
+ fn lean_installed()->bool{
+  std::process::Command::new("lean").arg("--version").output().map(|o|o.status.success()).unwrap_or(false)
+ }
+ fn fixture(name:&str)->PathBuf{
+  Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..").join("tests/fixtures").join(name)
+ }
+ fn sandbox(name:&str)->(PathBuf,PathBuf,Value){
+  let unique=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+  let base=std::env::temp_dir().join(format!("qd-k4-{name}-{}-{unique}",std::process::id()));
+  let project=base.join("project");let workspace=base.join("ws");
+  fs::create_dir_all(&project).unwrap();fs::create_dir_all(&workspace).unwrap();
+  for entry in fs::read_dir(fixture(name)).unwrap(){
+   let entry=entry.unwrap();fs::copy(entry.path(),project.join(entry.file_name())).unwrap();
+  }
+  let ctx=json!({"id":"knowledge","owner":"tester","admin_role":"admin","knowledge_scope":"public","project":project.to_string_lossy(),"workspace":workspace.to_string_lossy()});
+  (base,project,ctx)
+ }
+ #[test]fn composition_replay_rejects_a_tampered_source(){
+  if !lean_installed(){eprintln!("skipping k4 tamper test: lean not installed");return}
+  let (base,project,ctx)=sandbox("proof-modular");
+  let composed=prove(&json!({"context":ctx,"kind":"compose","target":".","timeout":240})).unwrap();
+  let artifact=composed["report"]["results"][0]["artifact"].as_str().unwrap().to_string();
+  assert!(artifact.starts_with(&*ctx["workspace"].as_str().unwrap()),"artifact must live in the private cache");
+  let ok=prove(&json!({"context":ctx,"kind":"replay","certificate":artifact,"target":".","timeout":240})).unwrap();
+  assert_eq!(ok["report"]["evidence"]["kernel_replayed"],true);
+  // Tamper with the leaf theorem the certificate depends on.
+  let leaf=project.join("math.mq.md");
+  let original=fs::read_to_string(&leaf).unwrap();
+  fs::write(&leaf,original.replace("结果 = n + 1","结果 = n + 2")).unwrap();
+  let tampered=prove(&json!({"context":ctx,"kind":"replay","certificate":artifact,"target":".","timeout":240})).unwrap_err();
+  assert!(tampered.contains("source_changed"),"tampered source must be rejected, got: {tampered}");
+  // Restoring the exact source restores replayability of the same certificate.
+  fs::write(&leaf,original).unwrap();
+  let restored=prove(&json!({"context":ctx,"kind":"replay","certificate":artifact,"target":".","timeout":240})).unwrap();
+  assert_eq!(restored["report"]["evidence"]["kernel_replayed"],true);
+  fs::remove_dir_all(base).unwrap();
+ }
+ #[test]fn an_unproven_theorem_never_produces_a_certificate(){
+  if !lean_installed(){eprintln!("skipping k4 false-theorem test: lean not installed");return}
+  let (base,project,ctx)=sandbox("proof-scope");
+  // A claim the implementation cannot satisfy must stay unproved, not become a
+  // green certificate; compose reports an empty result set rather than a proof.
+  fs::write(project.join("index.mq.md"),"---\nmarkup: occlusion\ntitle: broken\n---\n\n## 加一\n\n+ `n`\n\n| 定理 | 结论 | 前提 | 策略 |\n|---|---|---|---|\n| 假定理 | 结果 = n + 2 | | auto |\n\n*`n` + 1*\n").unwrap();
+  let composed=prove(&json!({"context":ctx,"kind":"compose","target":".","timeout":240})).unwrap();
+  let results=composed["report"]["results"].as_array().cloned().unwrap_or_default();
+  assert!(results.iter().all(|row|row["status"]!="lean_kernel_proved_model"),"a false theorem must never be reported as proved: {composed}");
+  assert_eq!(composed["report"]["full_marqdo_runtime_semantics_proved"],false);
+  fs::remove_dir_all(base).unwrap();
  }
 }
