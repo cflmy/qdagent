@@ -28,6 +28,10 @@ G3 记忆全链恢复（ABI 级已验证）：新增 Rust 测试固定并发 CAS
 
 用量计量（已验证）：`qd_model_usage` 增加 context_bytes 列（原地迁移），事件泵把 ABI 在 model_start 测量的上下文字节数附加到 consumeModel 已序列化的用量行（单条 UPDATE，事件重放为无操作，未知身份惰性），账户用量按日汇总字节；Go 测试固定 4096+1024 求和、防重复计数与"配额计数仍按尝试"的独立性。
 
+K4 离线场景（已验证）：Rust 测试固化三条拒绝证据——篡改叶模块定理后，已签发的组合证书重放报 `proof.unified_generated_source_changed`；恢复原文后同一证书恢复可重放；假定理永远不会产出 `lean_kernel_proved_model` 结果或"完整运行时语义"声明。两条测试在无 Lean 环境显式跳过并打印原因，有 Lean 环境真实执行（约 2 秒）。同时把既有的 no-Lean 测试改为环境自感知：检测结果必须与真实工具链状态一致，有 Lean 时 compose/replay 必须成功，无 Lean 时官方诊断逐字上浮。crate 测试 25 项，在两种 PATH 下均通过。
+
+真实小模型评测（K4 主体）需要的受控模型端点在本环境不可达：本机无 Ollama 服务，也没有供应商密钥；因此该关口保持未验证。知识证据决策技能（skills/marqdo-dev/knowledge-evidence.mq.md）的 open_obligations/unverified_premise → verify_premises、opaque/plugin_unproved → audit_deps 扩展同样受阻：该文件与 .github/workflows、docs/design/knowledge-proof-integration.md、tests/knowledge-proof-policy.mq.md、ext/root-skill/index.mq.md 等来自远端拉取的权威文件均为 root 只读（agent 用户无 sudo），需要文件所有者在部署侧应用。
+
 K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_evidence 节——最多六条收据按"符号：等级/状态（范围）"逐字转写、节首声明 model_proved 不是运行时正确性、超限显式提示、字段缺省整体缺席保持逐字节兼容；收据是确认进根状态的快照，渲染层不读文件系统、不重推等级，过期由保存方重新投影。金样拆为 main/evidence 两段分别通过叙述比门禁。同时修复 root-dag 金样提交时即低于叙述比（31%）的已提交缺陷，文档门禁脚本的严重度过滤改用工具链 python3（环境无 jq）。K3 的可见卡片层（前端源码）已接入：知识卡显示发布时记录的证据等级，详情页"来源与审阅"节首显示等级说明并声明 model_proved 类证明不等于运行时正确性；tsc+vite 构建通过（dist 由部署构建，不入库）。
 
 仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收（真实多模型并发与取消传播）、1B/3B–4B 模型对照评测；K4 真实模型对照评测未接入。Lean 工具链已在本机验证（上游 toolchain 自带 4.35.0），部署环境需同样安装并对齐版本。K3 的可见卡片层（前端源码）已接入，生产界面验收随部署进行。
@@ -67,5 +71,7 @@ K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_e
 静态契约检查使用 `python3 -m unittest discover -s tests -p 'test_small_model_contract.py' -v`，本基线不需要 Marqdo/LLM。文档门禁使用 `bash deploy/check-document-runtime.sh`，实际 Marqdo 官方解析器检查包括 `tests/small-model-memory.mq.md` 的新控制金样。真实执行使用 `marqdo run tests/small-model-memory.mq.md --json`，无需模型的 `memory.render` 投影与最新输入隔离断言必须另行执行。
 
 另需实际 `marqdo call`、用户恢复/冲突注入、受限并行、来源读取及模型端到端验收。不得把这些后续关口标注为“已验证”。
+
+Lean 相关的证明验收需要工具链在 PATH 中；本仓使用上游 toolchain 自带的 4.35.0：`export PATH=/workspace/marqdo/target/toolchain/lean-4.35.0-linux/bin:$PATH` 后运行 `cargo test --release`（K4 篡改/假定理测试真实执行）与 `marqdo run tests/knowledge-proof-execution.mq.md --emit-result`（走 Lean 分支）；去掉该 PATH 后同一命令走无 Lean 分支，两者都必须返回 knowledge-proof-execution-ok。
 
 基础生产调用路径已在主分支改造，但本文及新增知识证明设计不意味着部署完成。后续实现仍应先增加失败负例，再完成真实宿主/模型/授权效果实测；不修改相邻 Marqdo 源码。
