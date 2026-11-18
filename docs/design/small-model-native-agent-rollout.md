@@ -20,11 +20,17 @@ G5 依赖门禁：新增金样 tests/root-dag-scheduling.mq.md 固定 dependenci
 
 K1 知识证明投影（已验证）：新增 `runtime_knowledge_proof` 只读 ABI 操作与 ext/knowledge `projections` 接口，inspect 返回精确 mq:// 符号身份（模块、声明位置）、proof_deps 返回官方收据/义务报告（无 Lean 工具链时如实保持 not_established，不包装成已证明）、impact 返回影响集合；官方 CLI 是唯一解析器，边界只加 90 秒超时、256 KiB 输出上限、目标越界拒绝与可重建的私有收据缓存。Rust 测试 19 项通过；金样 tests/knowledge-projections.mq.md 端到端验证生产符号 inspect、最小夹具 proof_deps 与两类拒绝分支。仓库根的全项目 proof-deps 触发上游"一个语义根一个工程"的 ext/ 双根重复收集诊断，投影因此始终使用显式 target 子工程。
 
-K2 证明执行（同步+异步已验证）：新增 `runtime_knowledge_prove`（compose/replay/detect）与 `runtime_knowledge_proof_job`（start/status/cancel）。compose 对显式语义根执行官方统一模块证明组合，replay 独立复核私有缓存内的证书，detect 以 `lean --version` 报告工具链事实；无 Lean 时官方诊断 `proof.compose_lean_missing` 逐字上浮（stderr 有界捕获 8 KiB），绝不包装成成功或占位证书。异步作业在私有目录派生脱离进程组的孩子（自带超时），status 依据内核进程状态与产物推导 running/done/failed/cancelled（僵尸不判为运行），cancel 在核对 /proc 命令行确为本边界的官方 knowledge 子进程后才向整组 SIGKILL，外来 PID 一律拒绝。Rust 测试 22 项通过；金样 tests/knowledge-proof-execution.mq.md 固定无 Lean 分支与三类拒绝；真实 CLI 证据：start → status failed 携带官方诊断、start(ext/root-skill) → cancel → status cancelled。Lean 重放成功路径与 compose 真实证书内容待安装 Lean 的部署环境验收。
+K2 证明执行（同步+异步+Lean 成功路径已验证）：新增 `runtime_knowledge_prove`（compose/replay/detect）与 `runtime_knowledge_proof_job`（start/status/cancel）。compose 对显式语义根执行官方统一模块证明组合，replay 独立复核私有缓存内的证书，detect 以 `lean --version` 报告工具链事实；无 Lean 时官方诊断 `proof.compose_lean_missing` 逐字上浮（stderr 有界捕获 8 KiB），绝不包装成成功或占位证书。异步作业在私有目录派生脱离进程组的孩子（自带超时），status 依据内核进程状态与产物推导 running/done/failed/cancelled（僵尸不判为运行），cancel 在核对 /proc 命令行确为本边界的官方 knowledge 子进程后才向整组 SIGKILL，外来 PID 一律拒绝。Rust 测试 22 项通过；金样 tests/knowledge-proof-execution.mq.md 固定无 Lean 分支与三类拒绝；真实 CLI 证据：start → status failed 携带官方诊断、start(ext/root-skill) → cancel → status cancelled。
+
+Lean 成功路径已用真实 Lean 4.35 工具链验证：新增三模块可证夹具 tests/fixtures/proof-modular（叶模块算术定理、复合模块两次顺序调用、调用方带正负分支），compose 产出 `status=lean_kernel_proved_model`、`grade=model_proved` 的官方证书，replay 独立复核出 `kernel_replayed=true`、`current_source_verified=true`；同一证书套用到另一个语义根被拒绝；篡改源码后重放报 `proof.unified_generated_source_changed`（K4 篡改场景的部署前证据）。ABI 让 compose/replay 在私有缓存目录内执行（Lean 只接受其根目录内的产物），replay 接受缓存内绝对路径、越界先拒绝；知识子 SKILL 暴露 lean_environment，金样按探测结果分支，有无 Lean 两种环境均通过。
+
+G3 记忆全链恢复（ABI 级已验证）：新增 Rust 测试固定并发 CAS 写入——八个写者对同一可信修订各写不同文档，且磁盘上已存在撕裂的半份记忆；每个写者都到达终态、至少一个可信写者落盘、持久化文档必须恰为某一份完整写者文档（绝不混合或残缺）；过期修订永远不能覆盖已落盘记忆，读路径保持持久修订与惰性文档。撕裂遗留文件在同步时被完整替换，覆盖"根状态已推进、记忆写一半"的崩溃窗口。
+
+用量计量（已验证）：`qd_model_usage` 增加 context_bytes 列（原地迁移），事件泵把 ABI 在 model_start 测量的上下文字节数附加到 consumeModel 已序列化的用量行（单条 UPDATE，事件重放为无操作，未知身份惰性），账户用量按日汇总字节；Go 测试固定 4096+1024 求和、防重复计数与"配额计数仍按尝试"的独立性。
 
 K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_evidence 节——最多六条收据按"符号：等级/状态（范围）"逐字转写、节首声明 model_proved 不是运行时正确性、超限显式提示、字段缺省整体缺席保持逐字节兼容；收据是确认进根状态的快照，渲染层不读文件系统、不重推等级，过期由保存方重新投影。金样拆为 main/evidence 两段分别通过叙述比门禁。同时修复 root-dag 金样提交时即低于叙述比（31%）的已提交缺陷，文档门禁脚本的严重度过滤改用工具链 python3（环境无 jq）。K3 的可见卡片层（前端源码）已接入：知识卡显示发布时记录的证据等级，详情页"来源与审阅"节首显示等级说明并声明 model_proved 类证明不等于运行时正确性；tsc+vite 构建通过（dist 由部署构建，不入库）。
 
-仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收、token 用量计量、1B/3B–4B 模型对照评测；K2 的 Lean 重放成功路径（需安装 Lean 的部署环境）、K4 真实模型对照评测未接入。K3 的可见卡片层（前端源码）已接入，生产界面验收随部署进行。
+仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收（真实多模型并发与取消传播）、1B/3B–4B 模型对照评测；K4 真实模型对照评测未接入。Lean 工具链已在本机验证（上游 toolchain 自带 4.35.0），部署环境需同样安装并对齐版本。K3 的可见卡片层（前端源码）已接入，生产界面验收随部署进行。
 
 ## 已核实的仓库现状
 
@@ -45,7 +51,7 @@ K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_e
 | G0 宪法与测试 | AGENTS/README 指向唯一规则、短入口、纯传输 Python、静态 CI | 完成 |
 | G1 生产入口一致 | `marqdo check` + 实际 `marqdo call ... run`、导入解析及权限拒绝负例 | 已通过真实 CLI 与宿主形态 context 验证（见上方增量记录） |
 | G2 一次真实确认 | input/reply 绑定可信会话、版本；点选/自由输入；重复/刷新/取消和冲突恢复 | 确认语义与多轮恢复经真实 CLI 与 HTTP 测试验证；浏览器端取消与真实 Web 恢复待验收 |
-| G3 单份记忆 | `memory.mq.md` 版本核对、原子保存；不再注入 N 轮旧消息；崩溃/并发不丢事实 | 代码接线、ABI 构建与基本 CAS 负例通过；待全链恢复测试 |
+| G3 单份记忆 | `memory.mq.md` 版本核对、原子保存；不再注入 N 轮旧消息；崩溃/并发不丢事实 | 代码接线、ABI 构建、基本 CAS 负例、八写者并发与撕裂恢复测试通过；token 用量计量在模型边界按尝试原子记账并汇总字节 |
 | G4 小范围按需读取 | 当前函数、当前能力、限定来源；超限显式增量读取，不丢关键契约 | KB 参考的有界分片、节索引与显式增量读取已实现并经真实 CLI 验证（16 KiB 窗口、next_offset、越界拒绝、摘要稳定） |
 | G5 有界 DAG 并发 | 依赖、权限、取消、失败隔离、未知外部效果核对与真实收据 | 依赖门禁语义金样验证（运行依赖≠开发顺序、缺证据阻塞下游、独立单元并行、缺失单元显式未就绪）；真实多模型并发、取消传播与外部效果收据待宿主实测 |
 | G6 小模型实测 | 1B、3B～4B、全上下文基线的同任务对照与失败记录 | 待执行 |
