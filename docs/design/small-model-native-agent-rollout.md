@@ -24,6 +24,10 @@ K2 证明执行（同步+异步+Lean 成功路径已验证）：新增 `runtime_
 
 Lean 成功路径已用真实 Lean 4.35 工具链验证：新增三模块可证夹具 tests/fixtures/proof-modular（叶模块算术定理、复合模块两次顺序调用、调用方带正负分支），compose 产出 `status=lean_kernel_proved_model`、`grade=model_proved` 的官方证书，replay 独立复核出 `kernel_replayed=true`、`current_source_verified=true`；同一证书套用到另一个语义根被拒绝；篡改源码后重放报 `proof.unified_generated_source_changed`（K4 篡改场景的部署前证据）。ABI 让 compose/replay 在私有缓存目录内执行（Lean 只接受其根目录内的产物），replay 接受缓存内绝对路径、越界先拒绝；知识子 SKILL 暴露 lean_environment，金样按探测结果分支，有无 Lean 两种环境均通过。
 
+模型重试策略（已验证）：新增金样 tests/model-retry-policy.mq.md 固定 io.retryable 的分类矩阵——503/超时/连接重置/域名解析属于可恢复，401、预算、程序错误与三种"明确拒绝连接"措辞不可重试。该金样暴露并修复了一个真实语义漂移：通用 connection 判断把"connection refused"误判为暂时波动，与文档"明确拒绝连接时原样重发没有帮助"矛盾；拒绝语义现在在通用连接判断之前短路，叙述同步说明。金样已接入文档门禁与 CI。
+
+宿主取消传播（已验证）：以阻塞桩驱动两个不相关任务并发，停止其中一个只终结自身并如实记录 cancelled，另一个保持 running 且仍活动，二次停止后两者都如实 cancelled——失败隔离与取消传播在宿主层固定，无需真实模型。注意这不是浏览器端到端验收：界面按钮与真实 Web 恢复仍在部署环境验收。
+
 部分成功与未接通项披露（已验证）：新增宿主测试固定验收路径——review 状态下存在未接通项时，未显式知悉的验收被拒绝且阶段保持在 review；显式 accept_stubs=true 的验收记录 delivery_status=partial，任务状态为 incomplete，部分成功不会被报告成完整成功。该测试暴露并修复了一个真实契约漂移：早于用量/数量字段的历史状态没有 settings 记录，验收路径却直接取键并崩溃，与"缺少新字段的历史配置保持零"的承诺矛盾；settings_change 现按缺失字段回退。宿主根 SKILL 调用失败时也会携带受限的 stderr 尾部诊断，而不是只给一句通用提示。空输入同样在宿主边界被固定：空串、纯空白与超长问题一律 invalid_question，且不会创建任何运行行，因此状态机永远不会记录一条空的人工决定。无效 SKILL 调用也已固定：以宿主形状的私有请求驱动生产 preflight，候选正文调用不存在的函数时被官方边界判为 validation_failed，诊断点名被拒函数与可调用集合，工具从未启动——这条覆盖不需要真实模型。
 
 G3 记忆全链恢复（ABI 级已验证）：新增 Rust 测试固定并发 CAS 写入——八个写者对同一可信修订各写不同文档，且磁盘上已存在撕裂的半份记忆；每个写者都到达终态、至少一个可信写者落盘、持久化文档必须恰为某一份完整写者文档（绝不混合或残缺）；过期修订永远不能覆盖已落盘记忆，读路径保持持久修订与惰性文档。撕裂遗留文件在同步时被完整替换，覆盖"根状态已推进、记忆写一半"的崩溃窗口。
