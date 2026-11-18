@@ -1,0 +1,12 @@
+name: Small-model Marqdo architecture contract
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+jobs:
+  static-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s tests -p 'test_small_model_contract.py' -v
