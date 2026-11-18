@@ -12,7 +12,11 @@ G2 确认语义（CLI+HTTP 已验证）：真实链路 begin → clarify_intent 
 
 能力面同步：按上游 v2.9.1 引入 `ext/ai/flow|workflow|context|recovery`，`ext/native/libagent.so` 由源码重建；新增离线金样 `tests/ext/ai-native-flow.mq.md`（解析失败关闭、scope 投影、ContextPackV2、持久 input/reply 门禁）与 `tests/ext/ai-native-workflow.mq.md`（open/inspect/list/next/commit/tick、混合并行结局保留成功兄弟、retry_plan/retry_commit 只读恢复），行为与上游测试逐断言一致。
 
-文档门禁恢复：`deploy/check-document-runtime.sh` 对全部 123 份来源 `marqdo check --narrative-ratio` 通过；此前 docker-auth 数据表缺少节标题、四份文稿叙述比低于 50% 的已提交缺陷已修复。
+文档门禁恢复：`deploy/check-document-runtime.sh` 对全部来源 `marqdo check --narrative-ratio` 通过；此前 docker-auth 数据表缺少节标题、四份文稿叙述比低于 50% 的已提交缺陷已修复。
+
+G4 增量读取：`runtime_reference` 不再对超过 16 KiB 的参考直接拒绝，改为返回有界窗口（offset/total/next_offset/分节索引/全文摘要）；`knowledge.reference` 暴露 offset 形参并在未读完时给出显式续读提示。真实 CLI 验证 33 KB 材料的三段读取与终止条件；新增 ABI 测试固定分片语义。
+
+G5 依赖门禁：新增金样 tests/root-dag-scheduling.mq.md 固定 dependencies_ready 语义——普通函数不等运行依赖、research/document 在前置证据缺失时保持等待且不消耗模型、独立单元并行、缺失单元显式未就绪。金样暴露并修复了 proof.unit 返回契约漂移与 proof.ready 对缺失单元的崩溃。
 
 仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收、token 用量计量、1B/3B–4B 模型对照评测；知识证明 K1–K4 未接入。
 
@@ -36,8 +40,8 @@ G2 确认语义（CLI+HTTP 已验证）：真实链路 begin → clarify_intent 
 | G1 生产入口一致 | `marqdo check` + 实际 `marqdo call ... run`、导入解析及权限拒绝负例 | 已通过真实 CLI 与宿主形态 context 验证（见上方增量记录） |
 | G2 一次真实确认 | input/reply 绑定可信会话、版本；点选/自由输入；重复/刷新/取消和冲突恢复 | 确认语义与多轮恢复经真实 CLI 与 HTTP 测试验证；浏览器端取消与真实 Web 恢复待验收 |
 | G3 单份记忆 | `memory.mq.md` 版本核对、原子保存；不再注入 N 轮旧消息；崩溃/并发不丢事实 | 代码接线、ABI 构建与基本 CAS 负例通过；待全链恢复测试 |
-| G4 小范围按需读取 | 当前函数、当前能力、限定来源；超限显式增量读取，不丢关键契约 | 待执行 |
-| G5 有界 DAG 并发 | 依赖、权限、取消、失败隔离、未知外部效果核对与真实收据 | 待执行 |
+| G4 小范围按需读取 | 当前函数、当前能力、限定来源；超限显式增量读取，不丢关键契约 | KB 参考的有界分片、节索引与显式增量读取已实现并经真实 CLI 验证（16 KiB 窗口、next_offset、越界拒绝、摘要稳定） |
+| G5 有界 DAG 并发 | 依赖、权限、取消、失败隔离、未知外部效果核对与真实收据 | 依赖门禁语义金样验证（运行依赖≠开发顺序、缺证据阻塞下游、独立单元并行、缺失单元显式未就绪）；真实多模型并发、取消传播与外部效果收据待宿主实测 |
 | G6 小模型实测 | 1B、3B～4B、全上下文基线的同任务对照与失败记录 | 待执行 |
 | K0 知识证明开发基线 | 明确 Marqdo 2.9.1 的锚点、证据等级、Lean 组合边界、下一步纯函数与 CI | 完成 |
 | K1–K4 知识证明生产接入 | 按需索引、授权证明/重放、来源失效传播、UI 收据、真实小模型评测 | 待实现；参见知识证明接入设计 |
