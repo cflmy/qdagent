@@ -6,6 +6,12 @@
 
 界面继承纸色、橄榄绿和 Marqdo View 的阅读风格。对话是普通 Markdown，实际任务调用普通 Marqdo 函数，最终执行形式是 `marqdo call`。模型文字不是执行证据，工具输入、退出和结果作为独立事件保留。
 
+## 小模型优先的 Marqdo 原生路线
+
+开发优先遵循 [短上下文与单文稿记忆宪法](docs/small-model-native-agent.mq.md) 和 [分阶段落地账本](docs/design/small-model-native-agent-rollout.md)。根 SKILL 只负责一次确认、一级路由和任务并行拆分；模型按需读取当前函数与必要片段，不再采用整棵工具树或多轮聊天灌入的开发模式。Go 负责认证与事件，Python 仅负责网络传输。
+
+**目前是基础设计与静态防回退阶段**：生产 `runtime/prompts.mq.md` 尚未替换为单份 `memory.mq.md`，真实根入口、暂停恢复和 1B 模型基准均需按账本逐项验证，不宣称已经完成。
+
 ## 当前架构
 
 | 层 | 实现 | 职责 |
