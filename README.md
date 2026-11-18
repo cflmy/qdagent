@@ -10,7 +10,7 @@
 
 开发优先遵循 [短上下文与单文稿记忆宪法](docs/small-model-native-agent.mq.md) 和 [分阶段落地账本](docs/design/small-model-native-agent-rollout.md)。根 SKILL 只负责一次确认、一级路由和任务并行拆分；模型按需读取当前函数与必要片段，不再采用整棵工具树或多轮聊天灌入的开发模式。Go 负责认证与事件，Python 仅负责网络传输。
 
-**目前是基础设计与静态防回退阶段**：生产 `runtime/prompts.mq.md` 尚未替换为单份 `memory.mq.md`，真实根入口、暂停恢复和 1B 模型基准均需按账本逐项验证，不宣称已经完成。
+**本次生产代码改造（尚待真实运行验收）**：短根入口新增 run 转发既有 Marqdo 根状态机；意图和框架角色的模型输入通过 memory.sync 获取单份由根状态投影的 `memory.mq.md`，不再附六轮旧聊天。插件使用根状态版本锁原子保存。示例控制函数见 [原生智能体控制手册](skills/marqdo-dev/native-agent-control.mq.md)。真实 ABI 编译、CLI、宿主集成和 1B 模型基准必须按迁移账本逐项验收。
 
 ## 当前架构
 

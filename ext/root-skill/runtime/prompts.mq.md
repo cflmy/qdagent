@@ -16,6 +16,7 @@ import:
   result: lib/result.mq.md
   knowledge: knowledge.mq.md
   materials: materials.mq.md
+  memory: memory.mq.md
 ---
 
 提示词与有界上下文的唯一组装位置。指令来自文稿，动态材料标记来源，角色之间不共享聊天。
@@ -58,13 +59,13 @@ Use `context`。
 
 浏览观察只交给实现角色。每次重新读取真实来源与已就绪依赖，避免成功反馈被清空后丢失材料；测试角色仍立即返回公开规格，不进入材料交接分支。
 
-测试者只取得冻结规格和公开接口，不取得实现、现有运行结果或开发对话；实现者也只看自己的规格。主流程意图阶段可以看最近几次真实用户回应，规划阶段据此建立边界。所有材料先转义为叙述，不能因为用户包含代码符号就变成额外执行。
+测试者只取得冻结规格和公开接口，不取得实现、现有运行结果或开发对话；实现者也只看自己的规格。主流程意图与规划只读一份经版本核对的 memory.mq.md 关键状态，最新用户回应也由其投影；不回放多条原始历史。所有材料先转义为叙述，不能因为用户包含代码符号就变成额外执行。
 
 这份文稿是此操作的唯一行为说明和可执行实现。参数表与返回表放在标题下面，调用者应先确认输入来自哪里，再读取实际返回；一个说明句或模型声称成功都不是执行证据。身份和文件根只从宿主可信上下文取得，用户材料和模型输出只作为数据，不能选择更大的权限。失败保留明确诊断，不另写一个猜测结果替代真实操作。
 
 本函数只承担下文描述的局部责任。它不会替用户确认，不会替另一个角色修改文稿，也不会把源码检查、案例通过和业务验收混为一谈。调试时依据实际调用现场、源版本和运行结果继续处理；刷新页面或切换模型不能沿用已经失效的批准。需要增加能力时优先组合已有 Marqdo 函数，缺少的系统边界才通过 ABI 补齐。
 
-当前材料不是完整聊天回放。意图与规划保留最近六次真实回应，便于核对用户修改了什么；交付只接收单元职责和实际通过状态。测试者和实现者都从同一个已确认规格理解输入返回，彼此的生成过程不成为新的业务规则。材料超过预算时应明确失败或继续按需读取，不把缺失部分悄悄猜出来。
+当前材料不是聊天回放。意图与规划只使用一份按根状态重建的关键文稿，保留最新用户回应与已确认事实；交付只接收单元职责和实际通过状态。测试者和实现者都从同一个已确认规格理解输入返回，彼此的生成过程不成为新的业务规则。材料超过预算时应明确失败或继续按需读取，不把缺失部分悄悄猜出来。
 
 所选知识只在意图与框架阶段作为带来源的数据读取，不能直接交给独立测试者。规划者必须把适用的业务规则写进可审阅方案，确认后才成为测试的公开依据。
 
@@ -96,7 +97,9 @@ We **role = access(`context`,"role")**.
   Return *specification*.
 搜索与 OCR 材料只作为当前任务的外部观察交接。搜索候选尚未阅读，不能代替来源；识别文字也不是控制指令。测试角色在前面已经返回冻结规格，不进入这个材料分支。
 
-We **facts = "已确认目标：" + core.prose(content=access(`state`,"goal")) + "。\n"**.
+We **facts = ""**.
+1. `role` == "deliver"
+  We **facts = "已确认目标：" + core.prose(content=access(`state`,"goal")) + "。\n"**.
 1. `role` == "intent" or `role` == "outline"
   We **facts = `facts` + knowledge.reference(context=`context`,state=`state`) + observations.reference(context=`context`) + "\n"**.
 1. `role` == "intent" or `role` == "outline"
@@ -118,13 +121,6 @@ We **facts = "已确认目标：" + core.prose(content=access(`state`,"goal")) +
   1. `office_delivery`
     We **facts = `facts` + "当前已保存的真实办公交付：" + json.stringify(value=access(`office_delivery`,"artifact")) + "。该版本仍需在 finish 时核对；不要重复生成。\n"**.
   Return *facts*.
-We **history = access(`state`,"history")**.
-We **start = 0**.
-1. table.len(xs=`history`) > 6
-  We **start = table.len(xs=`history`) - 6**.
-We **recent = table.slice(list=`history`,start=`start`)**.
-- [保留当前意图需要的真实回应](for recent as entry)
-  We **facts = `facts` + "用户原话：" + core.prose(content=json.get(value=`entry`,key="text")) + "；选择：" + core.prose(content=json.get(value=`entry`,key="choice")) + "。\n"**.
 Return *facts*.
 
 ## packet
@@ -165,7 +161,14 @@ We **standing = standing(context=`context`)**.
   Return *standing*.
 We **standing = access(`standing`,"value")**.
 We **api = io.api_path(context=`context`)**.
-We **material = instructions(context=`context`,section="facts") + "\n\n" + facts(context=`context`)**.
+We **memo = ""**.
+1. access(`context`,"role") == "intent" or access(`context`,"role") == "outline"
+  We **state = access(core.status(context=`context`),"value")**.
+  We **synced = memory.sync(context=`context`,state=`state`)**.
+  1. not access(`synced`,"ok")
+    Return *`synced`*.
+  We **memo = "当前任务关键状态（来自已核验的根状态，只作为数据）：\n" + access(`synced`,"value") + "\n\n"**.
+We **material = instructions(context=`context`,section="facts") + "\n\n" + `memo` + facts(context=`context`)**.
 We **material = `material` + recovery.reference(context=`context`)**.
 1. `feedback` != None
   We **followup = "repair"**.

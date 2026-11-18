@@ -43,6 +43,31 @@ fn validate(root:&Path,path:&Path)->Result<Value,String>{
 pub fn dispatch(v:&Value)->Result<Value,String>{
  let operation=v["operation"].as_str().unwrap_or("");
  if matches!(operation,"root_workbook_init"|"root_section_read"|"root_section_write"){return workbook::dispatch(v)}
+ if operation=="root_memory_sync"{
+  // Marqdo builds the content. The plugin checks the trusted revision and
+  // persists one bounded inert document under the current task workspace.
+  let root=super::root(v)?;
+  let _lock=super::lifecycle(&root)?;
+  let path=root.join("data/dialogue/proj/root-skill.json");
+  let saved:Value=serde_json::from_str(&fs::read_to_string(path).map_err(|e|e.to_string())?)
+   .map_err(|e|e.to_string())?;
+  let revision=v["revision"].as_u64().ok_or("root_memory.revision_required")?;
+  if saved["revision"].as_u64()!=Some(revision){
+   return Err("root_memory.stale: reload current state before projecting".into())
+  }
+  let doc=v["memory"].as_str().ok_or("root_memory.document_required")?;
+  if doc.len()>16*1024 || !doc.starts_with("---\nmarkup: occlusion\n")
+     || doc.lines().any(|line|line.starts_with("## ")||line.starts_with("### ")){
+   return Err("root_memory.invalid: only bounded inert Marqdo Markdown is allowed".into())
+  }
+  let dir=workspace(v)?;
+  let target=dir.join("memory.mq.md");
+  if let Ok(meta)=fs::symlink_metadata(&target){
+   if meta.file_type().is_symlink()||!meta.is_file(){return Err("root_memory.invalid_target".into())}
+  }
+  super::atomic(&target,doc)?;
+  return Ok(json!({"revision":revision,"sha256":digest(doc.as_bytes()),"path":"memory.mq.md"}))
+ }
  if operation=="root_read"||operation=="root_cas"{
   let root=super::root(v)?;let _lock=super::lifecycle(&root)?;let path=root.join("data/dialogue/proj/root-skill.json");
   let mut state:Value=match fs::read_to_string(&path){Ok(raw)=>serde_json::from_str(&raw).map_err(|e|e.to_string())?,Err(e) if e.kind()==std::io::ErrorKind::NotFound=>json!({"revision":0}),Err(e)=>return Err(e.to_string())};
@@ -88,6 +113,24 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   let initial=dispatch(&json!({"operation":"root_read","root":root})).unwrap();assert_eq!(initial["revision"],0);
   let next=dispatch(&json!({"operation":"root_cas","root":root,"revision":0,"state":{"phase":"intent"}})).unwrap();assert_eq!(next["revision"],1);
   assert!(dispatch(&json!({"operation":"root_cas","root":root,"revision":0,"state":{"phase":"complete"}})).is_err());fs::remove_dir_all(root).unwrap();
+ }
+ #[test]fn memory_sync_rejects_stale_and_executable_documents(){
+  let unique=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+  let root=std::env::temp_dir().join(format!("qd-memory-sync-{}-{}",std::process::id(),unique));
+  fs::create_dir_all(root.join("data/dialogue/proj")).unwrap();
+  fs::write(root.join("data/dialogue/proj/root-skill.json"),r#"{"revision":3,"phase":"intent"}"#).unwrap();
+  let doc="---\nmarkup: occlusion\ntitle: 测试记忆\n---\n\n# 会话\n\n- 目标：安全目标\n";
+  let mut args=json!({"operation":"root_memory_sync","root":root,"workspace":root,"revision":3,"memory":doc});
+  let receipt=dispatch(&args).unwrap();
+  assert_eq!(receipt["revision"],3);
+  assert_eq!(fs::read_to_string(root.join("memory.mq.md")).unwrap(),doc);
+  args["revision"]=json!(2);
+  assert!(dispatch(&args).unwrap_err().contains("stale"));
+  args["revision"]=json!(3);
+  args["memory"]=json!(format!("{doc}## malicious_tool\\n"));
+  assert!(dispatch(&args).unwrap_err().contains("invalid"));
+  assert_eq!(fs::read_to_string(root.join("memory.mq.md")).unwrap(),doc);
+  fs::remove_dir_all(root).unwrap();
  }
  #[test]fn source_paths_cannot_escape(){let root=std::env::temp_dir();assert!(source(&root,"../secret.mq.md").is_err());assert!(source(&root,"/secret.mq.md").is_err());}
 }
