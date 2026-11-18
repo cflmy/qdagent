@@ -22,7 +22,7 @@ K1 知识证明投影（已验证）：新增 `runtime_knowledge_proof` 只读 A
 
 K2 证明执行（同步+异步已验证）：新增 `runtime_knowledge_prove`（compose/replay/detect）与 `runtime_knowledge_proof_job`（start/status/cancel）。compose 对显式语义根执行官方统一模块证明组合，replay 独立复核私有缓存内的证书，detect 以 `lean --version` 报告工具链事实；无 Lean 时官方诊断 `proof.compose_lean_missing` 逐字上浮（stderr 有界捕获 8 KiB），绝不包装成成功或占位证书。异步作业在私有目录派生脱离进程组的孩子（自带超时），status 依据内核进程状态与产物推导 running/done/failed/cancelled（僵尸不判为运行），cancel 在核对 /proc 命令行确为本边界的官方 knowledge 子进程后才向整组 SIGKILL，外来 PID 一律拒绝。Rust 测试 22 项通过；金样 tests/knowledge-proof-execution.mq.md 固定无 Lean 分支与三类拒绝；真实 CLI 证据：start → status failed 携带官方诊断、start(ext/root-skill) → cancel → status cancelled。Lean 重放成功路径与 compose 真实证书内容待安装 Lean 的部署环境验收。
 
-K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_evidence 节——最多六条收据按"符号：等级/状态（范围）"逐字转写、节首声明 model_proved 不是运行时正确性、超限显式提示、字段缺省整体缺席保持逐字节兼容；收据是确认进根状态的快照，渲染层不读文件系统、不重推等级，过期由保存方重新投影。金样拆为 main/evidence 两段分别通过叙述比门禁。同时修复 root-dag 金样提交时即低于叙述比（31%）的已提交缺陷，文档门禁脚本的严重度过滤改用工具链 python3（环境无 jq）。
+K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_evidence 节——最多六条收据按"符号：等级/状态（范围）"逐字转写、节首声明 model_proved 不是运行时正确性、超限显式提示、字段缺省整体缺席保持逐字节兼容；收据是确认进根状态的快照，渲染层不读文件系统、不重推等级，过期由保存方重新投影。金样拆为 main/evidence 两段分别通过叙述比门禁。同时修复 root-dag 金样提交时即低于叙述比（31%）的已提交缺陷，文档门禁脚本的严重度过滤改用工具链 python3（环境无 jq）。K3 的可见卡片层（前端源码）已接入：知识卡显示发布时记录的证据等级，详情页"来源与审阅"节首显示等级说明并声明 model_proved 类证明不等于运行时正确性；tsc+vite 构建通过（dist 由部署构建，不入库）。
 
 仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收、token 用量计量、1B/3B–4B 模型对照评测；K2 的 Lean 重放成功路径（需安装 Lean 的部署环境）、K3 的可见卡片与调用收据 UI 部分、K4 真实模型对照评测未接入。
 
