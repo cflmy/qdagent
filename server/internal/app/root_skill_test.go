@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -242,5 +243,93 @@ func TestEmptyInputNeverStartsARun(t *testing.T) {
 	}
 	if runs != 0 {
 		t.Fatal("rejected input must not create a run row", runs)
+	}
+}
+
+func TestInvalidSkillCallRejectedBeforeExecution(t *testing.T) {
+	if _, err := exec.LookPath("marqdo"); err != nil {
+		t.Skip("requires installed Marqdo and root ABI")
+	}
+	project, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := testServer(t)
+	if err = os.RemoveAll(filepath.Join(s.store.root, "ext")); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"ext", "lib", "pages"} {
+		if err = os.Symlink(filepath.Join(project, name), filepath.Join(s.store.root, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	task, err := s.store.createTask("test-owner", "无效调用校验")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := s.store.taskContext("test-owner", task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "run-invalid-call"
+	c["run_id"] = runID
+	c["role"] = "writer"
+	dir := filepath.Join(c["root"].(string), "data/dialogue/proj/runtime", runID)
+	if err = os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	private := map[string]any{"context": c, "model": map[string]any{"selection_id": "builtin-local"}}
+	raw, _ := json.Marshal(private)
+	if err = os.WriteFile(filepath.Join(dir, "request.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	api := filepath.Join(project, "ext/root-skill/runtime/value.mq.md")
+	args := map[string]any{
+		"context": c,
+		"args": map[string]any{
+			"api":    api,
+			"source": "---\nmarkup: occlusion\nimport:\n  api: " + api + "\n---\n\n## act\n\n本次调用由根文稿提供有限接口。\n\n**x = > api.not_a_function(a=1)**.\n",
+		},
+		"step": 1,
+	}
+	body, _ := json.Marshal(args)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "marqdo", "call", filepath.Join(s.store.root, "ext/root-skill/runtime/io.mq.md"), "preflight", "--args-json", "-", "--effects", "plugin,fs.read,fs.write,process.exec,environment.read", "--fs-root", c["workspace"].(string), "--json")
+	cmd.Stdin = bytes.NewReader(body)
+	cmd.Dir = s.store.root
+	cmd.Env = append(os.Environ(), "QDAGENT_RUN_REQUEST_FILE="+filepath.Join(dir, "request.json"), "QDAGENT_ACTOR_FILE="+filepath.Join(dir, "actor.json"), "MARQDO_LIB="+filepath.Join(s.store.root, "lib"), "MARQDO_EXT="+filepath.Join(s.store.root, "ext"))
+	out, err := cmd.Output()
+	if err != nil {
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		// A rejected candidate may surface as a nonzero exit with the official
+		// diagnostic on stdout; that is still evidence of a pre-execution refusal.
+		if len(out) == 0 {
+			t.Fatalf("preflight command failed: %v %s", err, stderr.String())
+		}
+	}
+	var envelope struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			OK               bool           `json:"ok"`
+			Value            map[string]any `json:"value"`
+			ValidationFailed bool           `json:"validation_failed"`
+			Error            struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		} `json:"result"`
+	}
+	if err = json.Unmarshal(out, &envelope); err != nil {
+		t.Fatal(err, string(out))
+	}
+	if envelope.Result.OK {
+		t.Fatalf("an unknown function must be rejected before execution: %s", string(out))
+	}
+	if !envelope.Result.ValidationFailed {
+		t.Fatalf("rejection must be labelled validation_failed: %s", string(out))
+	}
+	if !strings.Contains(envelope.Result.Error.Message, "not_a_function") {
+		t.Fatalf("the diagnostic must name the rejected function: %s", string(out))
 	}
 }
