@@ -333,3 +333,71 @@ func TestInvalidSkillCallRejectedBeforeExecution(t *testing.T) {
 		t.Fatalf("the diagnostic must name the rejected function: %s", string(out))
 	}
 }
+
+func TestStopPropagatesWithoutTouchingUnrelatedRuns(t *testing.T) {
+	// A blocking, silent stub keeps both native entry processes alive so the
+	// supervisor's cancellation path can be observed without any model.
+	stub := filepath.Join(t.TempDir(), "blocking-marqdo")
+	script := "#!/usr/bin/env python3\nimport time\ntime.sleep(120)\n"
+	if err := os.WriteFile(stub, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	s := testServer(t)
+	first, err := s.store.createTask("test-owner", "并发任务甲")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.store.createTask("test-owner", "并发任务乙")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MARQDO_BIN", stub)
+	runA, err := s.supervisor.start("test-owner", first.ID, "builtin-local", "甲", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runB, err := s.supervisor.start("test-owner", second.ID, "builtin-local", "乙", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFor := func(cond func() bool, message string) {
+		deadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(deadline) {
+			if cond() {
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		t.Fatal(message)
+	}
+	waitFor(func() bool {
+		s.supervisor.mu.Lock()
+		defer s.supervisor.mu.Unlock()
+		return len(s.supervisor.active) == 2
+	}, "both unrelated runs should start concurrently")
+	got := request(s, http.MethodPost, "/api/runs/"+runA.ID+"/stop", "")
+	if got.Code != 202 {
+		t.Fatal(got.Code, got.Body.String())
+	}
+	waitFor(func() bool {
+		stopped, e := s.store.run("test-owner", runA.ID)
+		return e == nil && stopped.Status == "cancelled"
+	}, "the cancelled run must record its real terminal state")
+	alive, err := s.store.run("test-owner", runB.ID)
+	if err != nil || alive.Status != "running" {
+		t.Fatal("stopping one run must not cancel an unrelated run", alive, err)
+	}
+	s.supervisor.mu.Lock()
+	remaining := len(s.supervisor.active)
+	s.supervisor.mu.Unlock()
+	if remaining != 1 {
+		t.Fatal("the unrelated run must stay active", remaining)
+	}
+	if got = request(s, http.MethodPost, "/api/runs/"+runB.ID+"/stop", ""); got.Code != 202 {
+		t.Fatal(got.Code)
+	}
+	waitFor(func() bool {
+		stopped, e := s.store.run("test-owner", runB.ID)
+		return e == nil && stopped.Status == "cancelled"
+	}, "the second stop must cancel the remaining run")
+}
