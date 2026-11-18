@@ -114,5 +114,23 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   let next=dispatch(&json!({"operation":"root_cas","root":root,"revision":0,"state":{"phase":"intent"}})).unwrap();assert_eq!(next["revision"],1);
   assert!(dispatch(&json!({"operation":"root_cas","root":root,"revision":0,"state":{"phase":"complete"}})).is_err());fs::remove_dir_all(root).unwrap();
  }
+ #[test]fn memory_sync_rejects_stale_and_executable_documents(){
+  let unique=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+  let root=std::env::temp_dir().join(format!("qd-memory-sync-{}-{}",std::process::id(),unique));
+  fs::create_dir_all(root.join("data/dialogue/proj")).unwrap();
+  fs::write(root.join("data/dialogue/proj/root-skill.json"),r#"{"revision":3,"phase":"intent"}"#).unwrap();
+  let doc="---\\nmarkup: occlusion\\ntitle: 测试记忆\\n---\\n\\n# 会话\\n\\n- 目标：安全目标\\n";
+  let mut args=json!({"operation":"root_memory_sync","root":root,"workspace":root,"revision":3,"memory":doc});
+  let receipt=dispatch(&args).unwrap();
+  assert_eq!(receipt["revision"],3);
+  assert_eq!(fs::read_to_string(root.join("memory.mq.md")).unwrap(),doc);
+  args["revision"]=json!(2);
+  assert!(dispatch(&args).unwrap_err().contains("stale"));
+  args["revision"]=json!(3);
+  args["memory"]=json!(format!("{doc}## malicious_tool\\n"));
+  assert!(dispatch(&args).unwrap_err().contains("invalid"));
+  assert_eq!(fs::read_to_string(root.join("memory.mq.md")).unwrap(),doc);
+  fs::remove_dir_all(root).unwrap();
+ }
  #[test]fn source_paths_cannot_escape(){let root=std::env::temp_dir();assert!(source(&root,"../secret.mq.md").is_err());assert!(source(&root,"/secret.mq.md").is_err());}
 }
