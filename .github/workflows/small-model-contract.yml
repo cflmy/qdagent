@@ -48,3 +48,7 @@ jobs:
           marqdo check skills/marqdo-dev/native-agent-control.mq.md --json
           marqdo check tests/small-model-memory.mq.md --json
           marqdo run tests/small-model-memory.mq.md --json
+          marqdo check docs/knowledge-compilation.mq.md --json
+          marqdo check skills/marqdo-dev/knowledge-evidence.mq.md --json
+          marqdo check tests/knowledge-proof-policy.mq.md --json
+          marqdo run tests/knowledge-proof-policy.mq.md --json

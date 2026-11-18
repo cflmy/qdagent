@@ -104,3 +104,33 @@ Return *"列表在工作台，详情独立阅读；原生 View 负责语法、�
 多文件预览使用官方解析器取得依赖闭包，只在授权根内制作有界的临时副本，不执行文稿。发布复制同一份经过审阅的依赖，并在读取、调用与写回时检查摘要。公式、侧注、来源跳转和窄屏布局需要浏览器证据；结构检查通过不能代替人类阅读体验。最后仍由用户验收，手工编辑也不自动获得发布许可。
 
 Return *"沿用论文结构，正文解释知识，实现通过意图引用连接；精确验证入口与依赖，不混入开发过程。"*.
+
+## knowledge_identity
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | text | Marqdo 2.9.1 的知识锚点与可重建索引约束 |
+
+知识身份通过 SemanticProject 的 SymbolId、函数内唯一标签锚点、定义/依赖指纹与真实源码位置建立。编译生成 anchors、claims、refs、graph、proof-index 与 proof-obligations 等投影；引用是导航关系，不会执行函数，也不代表整段被 Lean 证明。重复锚点、失效源码或不匹配闭包必须拒绝复用。用户选择的知识只按当前函数范围读取必要接口，不把整个知识库导入根模型。实现细节与上游证据参见 docs/design/knowledge-proof-integration.md。
+
+Return *"稳定地址 + 内容与依赖指纹 + 可重建索引；引用不等于执行或已证。"*.
+
+## knowledge_assurance
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | text | 形式证明与经验验证不能混淆的边界 |
+
+遵循 Marqdo v2.9.1 的三层可信性：L1 来源与结构、L2 精确作用域中的 Lean 形式证明、L3 实际执行和实验。当前统一模块证明仅面向无副作用、静态绑定、有界整数抽象模型及有限分支/顺序调用 DAG；不证明一般动态 number 到 Lean Int 的语义对应、插件效应、异常、循环、递归、并发或真实量子设备结论。proof-deps 的依赖审计成功不是完整调用方定理；compose 与 replay 的真实证书只允许报告 model_proved，不擅自写 proved。证据状态必须区分 model_proved、tested、assumed、unknown、refuted 与 stale，且当前源码/闭包、kernel_replayed、runtime_correspondence_verified 分开校验。
+
+Return *"能证明则核验精确模型；不能证明仍保留真实测试、来源与未知义务，不制造已证。"*.
+
+## knowledge_agent
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | text | 小模型对知识编译和证明的逐层调用流程 |
+
+根 SKILL 只路由知识领域；子 SKILL 先索引目标锚点，再按需取得函数契约和证据摘要。发现已核验的当前证书可引用其受限范围；证书过期重编译，模型证明未重放则请求受控重放，超出可证子集转真实测试/实验或明确待定。仅将短证据收据的身份、等级、作用域、来源摘要和下一义务存入唯一 memory.mq.md，不能粘贴 Lean 日志或让模型直接调用 shell。纯下一步策略示例：skills/marqdo-dev/knowledge-evidence.mq.md；详细的待实现 API、验收与权限边界见 docs/design/knowledge-proof-integration.md。当前 qdagent 的知识 UI/ABI 自动证明接入仍待独立开发和验收。
+
+Return *"只读当前符号的必要证据，选择下一步检查；证明等级与实际执行权限始终分离。"*.
