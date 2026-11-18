@@ -449,6 +449,31 @@ We **args = table.put(in=table.put(in=table.put(in=None,at="kind",value="replay"
 We **args = table.put(in=`args`,at="timeout",value=`timeout`)**.
 Return *io.native(context=`context`,operation="runtime_knowledge_prove",payload=`args`)*.
 
+## proof_job
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| context | map | required | 可信所有者，不接收模型提交的身份 |
+| action | text | required | start / status / cancel 之一 |
+| proof | text | None | start：compose 或 replay |
+| target | text | None | start：项目内相对目录或文稿 |
+| certificate | text | None | start 且 proof=replay：私有缓存内的证书相对路径 |
+| timeout | number | None | start：秒；缺省 120，上限 600 |
+| job | text | None | status/cancel：start 返回的作业身份 |
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | start 返回作业身份；status/cancel 返回真实状态 |
+
+Use `context`, `action`, `proof`=None, `target`=None, `certificate`=None, `timeout`=None, `job`=None。
+
+异步执行让长证明不阻塞用户交互：start 在私有作业目录里派生脱离进程组的孩子（自带超时，输出落盘），立即返回作业身份；status 依据真实进程状态与产物文件推导 running/done/failed/cancelled，done 时携带与同步路径同形的官方报告；cancel 在验证 /proc 命令行确为本边界的官方 knowledge 子进程后才向整组发送 SIGKILL，拒绝一切外来 PID，取消后证据按真实失败处理。作业目录私有且可重建，不进入已发布知识版本。
+
+状态推导是诚实的：作业失败（无 Lean、超时、编译错误）时携带官方诊断原样上浮，不产生部分证书；僵尸进程不判为运行。小模型一次只做一件事：start 或查询，或在用户明确要求下取消——不轮询自旋，不假设完成。
+
+We **args = table.put(in=table.put(in=table.put(in=table.put(in=table.put(in=table.put(in=None,at="kind",value=`action`),at="proof",value=`proof`),at="target",value=`target`),at="certificate",value=`certificate`),at="timeout",value=`timeout`),at="job",value=`job`)**.
+Return *io.native(context=`context`,operation="runtime_knowledge_proof_job",payload=`args`)*.
+
 ## selected_contract
 
 | 参数 | 类型 | 默认 | 说明 |

@@ -108,6 +108,96 @@ pub(super) fn prove(v:&Value)->Result<Value,String>{
  let report:Value=serde_json::from_slice(&raw).map_err(|e|e.to_string())?;
  Ok(json!({"kind":kind,"report":report}))
 }
+// K2 async half: proof jobs run detached with their own timeout, results land
+// in a private per-job directory, status is derived from real process and
+// file state, and cancel only ever kills a process we can prove is our own
+// official knowledge child (cmdline check before any signal).
+fn jobs_dir(c:&Value)->Result<PathBuf,String>{let dir=cache(c)?.join("jobs");fs::create_dir_all(&dir).map_err(|e|e.to_string())?;Ok(dir)}
+fn proof_command(c:&Value,v:&Value)->Result<(Command,String,String),String>{
+ let kind=super::text(v,"proof")?;
+ let project=Path::new(super::text(c,"project")?).to_path_buf();
+ let root=match v["target"].as_str(){
+  Some(rel)=>{let joined=project.join(rel);let path=joined.canonicalize().map_err(|e|e.to_string())?;if !path.starts_with(project.canonicalize().map_err(|e|e.to_string())?){return Err("knowledge proof target escapes the project".into())}path}
+  None=>project.clone(),
+ };
+ let timeout=v["timeout"].as_u64().unwrap_or(120).clamp(5,600);
+ let mut command=Command::new("timeout");
+ command.args(["-s","KILL"]).arg(timeout.to_string()).args(["marqdo","knowledge","--json"]);
+ match kind{
+  "compose"=>command.arg("compose").arg(&root).arg("-o").arg(cache(c)?),
+  "replay"=>{let rel=super::text(v,"certificate")?;let certificate=super::descendants(&cache(c)?.join(&rel),&cache(c)?)?;command.arg("replay").arg(&certificate).arg(&root)}
+  _=>return Err("unknown knowledge proof kind".into()),
+ };
+ Ok((command,kind.to_string(),timeout.to_string()))
+}
+fn alive(pid:u32)->bool{
+ // kill(pid,0) cannot distinguish zombies; read the kernel state instead.
+ let Ok(stat)=fs::read_to_string(format!("/proc/{pid}/stat")) else {return false};
+ let Some(close)=stat.rfind(')') else {return false};
+ let rest=stat[close+1..].trim_start();
+ let Some(state)=rest.chars().next() else {return false};
+ state!='Z'
+}
+pub(super) fn proof_job(v:&Value)->Result<Value,String>{
+ let c=super::context(v)?;let kind=super::text(v,"kind")?;
+ let jobs=jobs_dir(c)?;
+ match kind{
+  "start"=>{
+   let (mut command,proof,timeout)=proof_command(c,v)?;
+   let stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos();
+   let id=format!("job-{}",super::digest(format!("{}-{}-{}",stamp,std::process::id(),proof).as_bytes())[..20].to_string());
+   let dir=jobs.join(&id);fs::create_dir(&dir).map_err(|e|e.to_string())?;
+   let out=fs::File::create(dir.join("out.json")).map_err(|e|e.to_string())?;
+   let err=fs::File::create(dir.join("err.txt")).map_err(|e|e.to_string())?;
+   command.stdin(Stdio::null()).stdout(out).stderr(err);
+   #[cfg(unix)]
+   {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0);
+   }
+   let child=command.spawn().map_err(|e|e.to_string())?;
+   fs::write(dir.join("pid"),child.id().to_string()).map_err(|e|e.to_string())?;
+   fs::write(dir.join("meta.json"),json!({"kind":proof,"timeout":timeout,"started":stamp}).to_string()).map_err(|e|e.to_string())?;
+   Ok(json!({"kind":"start","job":id}))
+  }
+  "status"|"cancel"=>{
+   let job=super::text(v,"job")?;
+   if !job.chars().all(|ch|ch.is_ascii_alphanumeric()||ch=='-')||job.len()>64{return Err("invalid job identity".into())}
+   let dir=jobs.join(&job);
+   let pidfile=super::descendants(&dir.join("pid"),&jobs)?;
+   let pid:u32=fs::read_to_string(&pidfile).map_err(|_|"unknown proof job".to_string())?.trim().parse().map_err(|_|"corrupt proof job".to_string())?;
+   if kind=="cancel"{
+    // Only kill a process we can prove is our own official knowledge child.
+    let cmdline=fs::read_to_string(format!("/proc/{pid}/cmdline")).unwrap_or_default().replace('\u{0}'," ");
+    if !cmdline.contains("marqdo")||!cmdline.contains("knowledge"){return Err("refusing to cancel a foreign process".into())}
+    unsafe{libc::killpg(pid as i32,libc::SIGKILL)};
+    fs::write(dir.join("cancelled"),"1").map_err(|e|e.to_string())?;
+   }
+   let cancelled=dir.join("cancelled").exists();
+   let state=if cancelled{"cancelled"}
+    else if alive(pid){"running"}
+    else if dir.join("out.json").exists(){
+     match fs::read(dir.join("out.json")){
+      Ok(raw) if !raw.is_empty()&&serde_json::from_slice::<Value>(&raw).is_ok()=>"done",
+      _=>"failed",
+     }
+    }else{"failed"};
+   let mut out=json!({"kind":kind,"job":job,"state":state});
+   if state=="done"{
+    let raw=read(&dir.join("out.json"),262144)?;
+    let report:Value=serde_json::from_slice(&raw).map_err(|e|e.to_string())?;
+    out["report"]=report;
+   }
+   if state=="failed"||state=="cancelled"{
+    let tail=fs::read(dir.join("err.txt")).unwrap_or_default();
+    let detail=String::from_utf8_lossy(&tail).trim().chars().take(400).collect::<String>();
+    if !detail.is_empty(){out["error"]=json!(detail)}
+   }
+   Ok(out)
+  }
+  _=>return Err("unknown proof job kind".into()),
+ }
+}
 fn cache(c:&Value)->Result<PathBuf,String>{
  let cache=Path::new(super::text(c,"workspace")?).join(".knowledge-projections");
  fs::create_dir_all(&cache).map_err(|e|e.to_string())?;
@@ -206,5 +296,71 @@ mod prove_tests{
   assert!(prove(&json!({"context":ctx,"kind":"replay","certificate":"missing/cert.json"})).is_err());
   assert!(prove(&json!({"context":ctx,"kind":"compose","target":"../../escape"})).is_err());
   assert!(prove(&json!({"context":ctx,"kind":"astral"})).is_err());
+ }
+}
+#[cfg(test)]
+mod proof_job_tests{
+ use super::*;
+ #[test]fn knowledge_jobs_run_detached_with_safe_cancel(){
+  let temp=crate::document_bundle::Temporary::new().unwrap();
+  let project=temp.0.join("proj");fs::create_dir_all(&project).unwrap();
+  fs::write(project.join("tiny.mq.md"),"---\nmarkup: occlusion\ntitle: t\n---\n\n## add\n\n| 参数 | 类型 | 默认 | 说明 |\n|---|---|---|---|\n| a | number | required | 加数 |\n| b | number | required | 被加数 |\n\n| 返回 | 类型 | 说明 |\n|---|---|---|\n| result | number | 和 |\n\nUse `a`, `b`。\n\n固定纯函数示例。\n\nReturn *`a` + `b`*.\n").unwrap();
+  let workspace=temp.0.join("ws");fs::create_dir_all(&workspace).unwrap();
+  let ctx=json!({"id":"knowledge","owner":"tester","admin_role":"admin","knowledge_scope":"public","project":project.to_string_lossy(),"workspace":workspace.to_string_lossy()});
+  let started=proof_job(&json!({"context":ctx,"kind":"start","proof":"compose","target":"."})).unwrap();
+  let job=started["job"].as_str().unwrap().to_string();
+  // Poll until the job leaves running (no Lean -> it must fail honestly).
+  let mut state=String::new();let mut error=String::new();
+  for _ in 0..100{
+   std::thread::sleep(std::time::Duration::from_millis(100));
+   let status=proof_job(&json!({"context":ctx,"kind":"status","job":job})).unwrap();
+   state=status["state"].as_str().unwrap().to_string();
+   if let Some(detail)=status["error"].as_str(){error=detail.to_string();}
+   if state!="running"{break}
+  }
+  assert_eq!(state,"failed","no-Lean compose must land in failed, got {state}");
+  assert!(error.to_lowercase().contains("lean"),"honest lean diagnostic, got: {error}");
+  // Foreign pidfiles are never signalled.
+  let fake=proof_job(&json!({"context":ctx,"kind":"start","proof":"compose","target":"."})).unwrap();
+  let fake_job=fake["job"].as_str().unwrap().to_string();
+  let dir=temp.0.join("ws").join(".knowledge-projections").join("jobs").join(&fake_job);
+  fs::write(dir.join("pid"),"1").unwrap();
+  let refused=proof_job(&json!({"context":ctx,"kind":"cancel","job":fake_job}));
+  let message=refused.unwrap_err();
+  assert!(message.contains("foreign"),"must refuse foreign pidfiles, got: {message}");
+  assert!(proof_job(&json!({"context":ctx,"kind":"status","job":"../escape"})).is_err());
+  assert!(proof_job(&json!({"context":ctx,"kind":"status","job":"ghost"})).is_err());
+ }
+}
+#[cfg(test)]
+mod proof_cancel_tests{
+ use super::*;
+ #[test]fn knowledge_jobs_cancel_their_own_group_only(){
+  let temp=crate::document_bundle::Temporary::new().unwrap();
+  let workspace=temp.0.join("ws");fs::create_dir_all(&workspace).unwrap();
+  let ctx=json!({"id":"knowledge","owner":"tester","admin_role":"admin","knowledge_scope":"public","project":temp.0.to_string_lossy(),"workspace":workspace.to_string_lossy()});
+  let jobs=workspace.join(".knowledge-projections").join("jobs");
+  fs::create_dir_all(&jobs).unwrap();
+  let fake_bin=temp.0.join("marqdo");
+  fs::write(&fake_bin,"#!/bin/sh\nexec sleep 30\n").unwrap();
+  {
+   use std::os::unix::fs::PermissionsExt;
+   fs::set_permissions(&fake_bin,fs::Permissions::from_mode(0o755)).unwrap();
+  }
+  let mut command=Command::new(&fake_bin);
+  command.arg("knowledge").arg("compose");
+  {
+   use std::os::unix::process::CommandExt;
+   command.process_group(0);
+  }
+  let mut child=command.spawn().unwrap();
+  let dir=jobs.join("job-fakecancel");fs::create_dir(&dir).unwrap();
+  fs::write(dir.join("pid"),child.id().to_string()).unwrap();
+  fs::write(dir.join("err.txt"),"").unwrap();
+  let cancelled=proof_job(&json!({"context":ctx,"kind":"cancel","job":"job-fakecancel"})).unwrap();
+  assert_eq!(cancelled["state"],"cancelled");
+  let status=proof_job(&json!({"context":ctx,"kind":"status","job":"job-fakecancel"})).unwrap();
+  assert_eq!(status["state"],"cancelled");
+  let _=child.wait();
  }
 }
