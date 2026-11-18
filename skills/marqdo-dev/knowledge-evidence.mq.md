@@ -25,7 +25,7 @@ description: 一个纯函数只选择下一项检查，不发证明或授权。
 
 Use `grade`, `source_current`=False, `kernel_replayed`=False, `runtime_claim`=False。
 
-源码变化优先索引与失效传播；Lean Int 抽象证明只能在核验闭包且独立重放后用于引用，要求运行时性质还需单独测试。未解义务继续取实际证据，不让小模型扩容上下文并自行宣布证明成立。
+源码变化优先索引与失效传播；Lean Int 抽象证明只能在核验闭包且独立重放后用于引用，要求运行时性质还需单独测试。未解义务继续取实际证据，不让小模型扩容上下文并自行宣布证明成立。等级词表只使用本仓与上游已定义的取值：model_proved、proved、tested、assumed、refuted、stale、unknown，以及 proof-deps 报告的 open_obligations/unverified_premise 与不透明调用的 opaque/plugin_unproved；后两类分别导向"核验前提"和"依赖审计"，而不是笼统地重新拿证据——小模型据此做一项可验证动作，而不是扩大读取范围。
 
 1. not `source_current` or `grade` == "stale"
   Return *"reindex_source"*.
@@ -39,6 +39,10 @@ Use `grade`, `source_current`=False, `kernel_replayed`=False, `runtime_claim`=Fa
   1. `runtime_claim`
     Return *"test_runtime_correspondence"*.
   Return *"cite_model_scope_only"*.
+1. `grade` == "open_obligations" or `grade` == "unverified_premise"
+  Return *"verify_premises"*.
+1. `grade` == "opaque" or `grade` == "plugin_unproved"
+  Return *"audit_deps"*.
 1. `grade` == "tested"
   Return *"review_test_scope"*.
 1. `grade` == "proved"

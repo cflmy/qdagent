@@ -52,3 +52,19 @@ jobs:
           marqdo check skills/marqdo-dev/knowledge-evidence.mq.md --json
           marqdo check tests/knowledge-proof-policy.mq.md --json
           marqdo run tests/knowledge-proof-policy.mq.md --json
+          marqdo check tests/knowledge-projections.mq.md --narrative-ratio --json
+          marqdo run tests/knowledge-projections.mq.md --json
+          marqdo check tests/knowledge-proof-execution.mq.md --narrative-ratio --json
+          marqdo run tests/knowledge-proof-execution.mq.md --json
+          marqdo check tests/root-dag-scheduling.mq.md --narrative-ratio --json
+          marqdo run tests/root-dag-scheduling.mq.md --json
+          marqdo check tests/ext/ai-native-flow.mq.md --narrative-ratio --json
+          marqdo run tests/ext/ai-native-flow.mq.md --json
+          marqdo check tests/ext/ai-native-workflow.mq.md --narrative-ratio --json
+          marqdo run tests/ext/ai-native-workflow.mq.md --json
+          marqdo check tests/fixtures/proof-modular/math.mq.md --narrative-ratio --json
+          marqdo check tests/fixtures/proof-modular/ops.mq.md --narrative-ratio --json
+          marqdo check tests/fixtures/proof-modular/main.mq.md --narrative-ratio --json
+          marqdo check tests/fixtures/proof-scope/index.mq.md --narrative-ratio --json
+          marqdo check tests/fixtures/ambiguous-scope/alpha.mq.md --narrative-ratio --json
+          marqdo check tests/fixtures/ambiguous-scope/beta.mq.md --narrative-ratio --json
