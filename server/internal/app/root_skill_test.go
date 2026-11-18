@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -128,5 +130,94 @@ func TestRootHTTPHumanAuthorityModelsAndPluginGate(t *testing.T) {
 	}
 	if _, err = s.supervisor.start("test-owner", task.ID, "builtin-local", "继续", ""); err == nil {
 		t.Fatal("disabled root skill bypassed mandatory workflow")
+	}
+}
+
+func TestRootHTTPStubDisclosureAndPartialAcceptance(t *testing.T) {
+	if _, err := exec.LookPath("marqdo"); err != nil {
+		t.Skip("requires installed Marqdo and root ABI")
+	}
+	project, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := testServer(t)
+	if err = os.RemoveAll(filepath.Join(s.store.root, "ext")); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"ext", "lib", "pages"} {
+		if err = os.Symlink(filepath.Join(project, name), filepath.Join(s.store.root, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.supervisor.workflow = &rootRuntime{store: s.store}
+	task, err := s.store.createTask("test-owner", "未接通项验收")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := s.store.taskContext("test-owner", task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspace := c["workspace"].(string)
+	if err = os.MkdirAll(filepath.Join(workspace, "solution"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	deliveryText := "# 交付\n\n已实现的正文示例。\n"
+	if err = os.WriteFile(filepath.Join(workspace, "solution/index.mq.md"), []byte(deliveryText), 0600); err != nil {
+		t.Fatal(err)
+	}
+	unitText := "unit-1-body"
+	if err = os.WriteFile(filepath.Join(workspace, "solution/unit-1.txt"), []byte(unitText), 0600); err != nil {
+		t.Fatal(err)
+	}
+	sum := func(text string) string {
+		h := sha256.Sum256([]byte(text))
+		return hex.EncodeToString(h[:])
+	}
+	suiteSum := sum("frozen-suite")
+	state := map[string]any{
+		"revision": 7, "phase": "review", "title": "未接通项验收", "goal": "披露未接通项",
+		"intent_confirmed": true, "outline_confirmed": true,
+		"units": []any{map[string]any{
+			"id": 1, "title": "正文单元", "mode": "document", "status": "ready",
+			"path": "solution/unit-1.txt", "sha256": sum(unitText),
+			"tests": map[string]any{"sha256": suiteSum, "suite": map[string]any{"kind": "cases"}},
+			"trial": map[string]any{"passed": true, "assurance": "independent_cases", "suite_sha256": suiteSum},
+		}},
+		"delivery": map[string]any{"path": "solution/index.mq.md", "check": map[string]any{
+			"ok": true, "value": map[string]any{"sha256": sum(deliveryText), "dependencies": nil}}},
+		"pending": map[string]any{"kind": "review", "stubs": []any{map[string]any{"label": "未接通：设备实验"}}},
+		"history": []any{},
+	}
+	raw, _ := json.Marshal(state)
+	if err = os.WriteFile(filepath.Join(c["root"].(string), "data/dialogue/proj/root-skill.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	path := "/api/tasks/" + task.ID + "/workflow/respond"
+	withoutStubs, _ := json.Marshal(map[string]any{"revision": 7, "action": "accept"})
+	got := request(s, http.MethodPost, path, string(withoutStubs))
+	if got.Code == 200 {
+		t.Fatal("acceptance must not silently swallow disclosed stubs")
+	}
+	after, err := s.supervisor.workflow.snapshot(task.ID)
+	if err != nil || after["phase"] != "review" {
+		t.Fatal("failed acceptance must keep the review phase", after, err)
+	}
+	withStubs, _ := json.Marshal(map[string]any{"revision": 7, "action": "accept", "accept_stubs": true})
+	got = request(s, http.MethodPost, path, string(withStubs))
+	if got.Code != 200 {
+		t.Fatal(got.Code, got.Body.String())
+	}
+	final, err := s.supervisor.workflow.snapshot(task.ID)
+	if err != nil || final["phase"] != "complete" || final["delivery_status"] != "partial" {
+		t.Fatal("accepted-stubs delivery must be recorded as partial", final, err)
+	}
+	stored, err := s.store.task("test-owner", task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != "incomplete" {
+		t.Fatal("partial delivery must not be reported as a full success", stored.Status)
 	}
 }

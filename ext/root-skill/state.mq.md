@@ -487,10 +487,13 @@ Use `state`, `previous_phase`, `action`, `settings`。
   Return *result.error(code="root.concurrency",message="并发数需在一到八之间",operation="settings_change")*.
 数量约束改变后必须重新形成真实框架，旧确认不会自动适配新的职责边界。配置验证失败时当前用户决定也不会被部分提交。
 
-We **previous = json.get(value=access(`state`,"settings"),key="expected_units")**.
+We **prior = json.get(value=`state`,key="settings")**.
+1. not `prior`
+  We **prior = table.empty_map()**.
+We **previous = json.get(value=`prior`,key="expected_units")**.
 1. `previous` == None
   We **previous = 0**.
-重新对齐意图时允许真实用户重新选择业务函数数量。旧范围先保留为只读历史，新的数量仍需经过后续框架检查，不会预先批准未来实现。
+重新对齐意图时允许真实用户重新选择业务函数数量。旧范围先保留为只读历史，新的数量仍需经过后续框架检查，不会预先批准未来实现。读取历史配置时按缺失字段处理而不是直接取键：早于数量字段的状态没有 settings 记录，这种情况应回退到零（不限定），不能因为取不到键就让整个用户回应失败。
 
 We **expected = json.get(value=`settings`,key="expected_units")**.
 1. `expected` == None

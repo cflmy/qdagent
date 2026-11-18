@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -29,8 +30,17 @@ func (r *rootRuntime) invoke(ctx context.Context, document, member string, c map
 	command.Stdin = bytes.NewReader(raw)
 	command.Dir = r.store.root
 	command.Env = append(os.Environ(), "MARQDO_LIB="+filepath.Join(r.store.root, "lib"), "MARQDO_EXT="+filepath.Join(r.store.root, "ext"))
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
 	output, err := command.Output()
 	if err != nil {
+		detail := strings.TrimSpace(stderr.String())
+		if detail != "" {
+			if len(detail) > 300 {
+				detail = detail[:300]
+			}
+			return nil, fmt.Errorf("根 SKILL 调用失败：%s", detail)
+		}
 		return nil, errors.New("根 SKILL 调用失败，请检查已安装插件与源码诊断")
 	}
 	var envelope struct {
