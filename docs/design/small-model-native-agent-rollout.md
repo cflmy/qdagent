@@ -29,7 +29,8 @@
 ## 验收命令及边界
 
 - `python3 -m unittest discover -s tests -p 'test_small_model_contract.py' -v`：本 PR 的静态检查，不需要 Marqdo/LLM。
-- `bash deploy/check-document-runtime.sh`：依赖真实 Marqdo、rg、jq 的已有检查；CI 静态检查不能冒充其结果。
+- `bash deploy/check-document-runtime.sh`：实际 Marqdo 官方解析器检查包括 `tests/small-model-memory.mq.md` 的新控制金样。
+- `marqdo run tests/small-model-memory.mq.md --json`：真正执行无需模型的 `memory.render` 投影与最新输入隔离断言，必须另行执行。
 - 另需实际 `marqdo call`、用户恢复/冲突注入、受限并行、来源读取及模型端到端验收。不得把这些后续关口标注为“已验证”。
 
 当前 PR 不直接修改生产调用链、不替用户部署、不动相邻 Marqdo 源码。所有后续改动应先增加对应失败负例，再完成行为和实测。

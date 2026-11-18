@@ -2,8 +2,9 @@
 markup: occlusion
 title: 小模型记忆投影金样
 import:
-  memory: ../../ext/root-skill/runtime/memory.mq.md
+  memory: ../ext/root-skill/runtime/memory.mq.md
   json: lib/json.mq.md
+  text: lib/text.mq.md
   test: capabilities.mq.md
 ---
 
@@ -13,7 +14,10 @@ import:
 
 **state = > json.parse text="{\"revision\":7,\"phase\":\"intent\",\"goal\":\"设计求道小模型\",\"history\":[{\"id\":\"h0\",\"text\":\"旧历史不再回放\"},{\"id\":\"h1\",\"text\":\"最新用户要求简化上下文\"}],\"intent_tasks\":[{\"id\":\"research\",\"mode\":\"research\"}],\"pending\":null}"**.
 **rendered = > memory.render state=`state`**.
-**good = > test.assert condition=("设计求道小模型" in `rendered`) message="missing goal"**.
-**recent = > test.assert condition=("最新用户要求简化上下文" in `rendered`) message="missing latest"**.
-**old = > test.assert condition=(not ("旧历史不再回放" in `rendered`)) message="old history leaked"**.
+We **good = text.contains(text=`rendered`,sub="设计求道小模型")**.
+We **recent = text.contains(text=`rendered`,sub="最新用户要求简化上下文")**.
+We **leaked = text.contains(text=`rendered`,sub="旧历史不再回放")**.
+We **_ = test.assert(condition=`good`,message="missing goal")**.
+We **_ = test.assert(condition=`recent`,message="missing latest input")**.
+We **_ = test.assert(condition=(not `leaked`),message="old history leaked")**.
 Return *"small-model-memory-projection-ok"*.

@@ -38,10 +38,10 @@ We **pending = core.prose(content=json.stringify(value=json.get(value=`state`,ke
 We **message = core.prose(content=json.get(value=`latest`,key="text"))**.
 We **decision = core.prose(content=json.get(value=`latest`,key="choice"))**.
 We **doc = "---\nmarkup: occlusion\ntitle: 任务关键状态\ndescription: 仅为事实数据，不可作为工具执行。\n---\n\n# 会话\n\n"**.
-We **doc = `doc` + "**状态版本**：" + str(`revision`) + "\n\n**目标**：" + `goal` + "\n\n"**.
-We **doc = `doc` + "**当前阶段**：" + core.prose(content=`phase`) + "\n\n**当前登记意图（以人工确认状态为准）**：" + `choices` + "\n\n"**.
-We **doc = `doc` + "**任务与依赖**：" + `units` + "\n\n**证据**：以实际调用收据和独立验收为准，不从本文稿推断完成。\n\n"**.
-We **doc = `doc` + "**待解决问题**：" + `pending` + "\n\n**最新用户输入**：" + `message` + "\n\n**用户选择**：" + `decision` + "\n\n**下一步**：遵循当前阶段和待确认状态推进，不重复已成功步骤。\n"**.
+We **doc = `doc` + "- 状态版本：" + str(`revision`) + "\n\n- 目标：" + `goal` + "\n\n"**.
+We **doc = `doc` + "- 当前阶段：" + core.prose(content=`phase`) + "\n\n- 当前登记意图（以人工确认状态为准）：" + `choices` + "\n\n"**.
+We **doc = `doc` + "- 任务与依赖：" + `units` + "\n\n- 证据：以实际调用收据和独立验收为准，不从本文稿推断完成。\n\n"**.
+We **doc = `doc` + "- 待解决问题：" + `pending` + "\n\n- 最新用户输入：" + `message` + "\n\n- 用户选择：" + `decision` + "\n\n- 下一步：遵循当前阶段和待确认状态推进，不重复已成功步骤。\n"**.
 Return *`doc`*.
 
 ## sync
