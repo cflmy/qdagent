@@ -52,7 +52,7 @@ Return *"只看自己的任务、自己的函数和必要证据；缺什么再�
 
 用户确认或真实执行证据才允许更新；使用现有工作区身份检查、源 revision/digest CAS、原子写入、并发冲突显式合并。子任务提交自己的可验证收据，根程序合并，不允许子任务用旧版本覆盖他人更新。原始消息、文件、冻结测试和审计仍可单独存储用于回看/验收，**但不再默认注入模型**。改变用户目标必须重新确认，不以记忆文件伪造确认。
 
-现有运行文稿仍交接部分近期历史；这项契约需要后续真实修改 `runtime/prompts.mq.md` 并验收后才能宣布落地。静态例子见 `tests/fixtures/small-model/memory.mq.md`。
+当前 `runtime/prompts.mq.md` 的意图/框架角色已接入 `memory.sync`，不再回放六轮近期历史；原生保存有 CLI 和 Rust 单元测试证据，但真实 Web 多轮恢复、token 用量、角色隔离和 1B 模型成功率仍待验收。纯数据示例见 `tests/fixtures/small-model/memory.mq.md`，可执行投影测试见 `tests/small-model-memory.mq.md`。
 
 Return *"会话只注入一份有版本的关键文稿；历史只供审计而非完整提示。"*.
 
