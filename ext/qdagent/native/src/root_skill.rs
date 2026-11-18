@@ -132,5 +132,28 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   assert_eq!(fs::read_to_string(root.join("memory.mq.md")).unwrap(),doc);
   fs::remove_dir_all(root).unwrap();
  }
+ #[test]fn concurrent_memory_syncs_never_lose_or_tear_facts(){
+  let unique=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+  let root=std::env::temp_dir().join(format!("qd-memory-race-{}-{}",std::process::id(),unique));
+  fs::create_dir_all(root.join("data/dialogue/proj")).unwrap();
+  fs::write(root.join("data/dialogue/proj/root-skill.json"),r#"{"revision":5,"phase":"outline"}"#).unwrap();
+  // Simulate a crash that left a torn, half-written memory behind.
+  fs::write(root.join("memory.mq.md"),"---\nmarkup: occlusion\ntitle: 半份\n").unwrap();
+  let docs=(0..8).map(|i|format!("---\nmarkup: occlusion\ntitle: 并发记忆\n---\n\n# 会话\n\n- 目标：并发目标\n- 写者：{i}\n- 阶段：outline\n")).collect::<Vec<_>>();
+  let mut handles=vec![];
+  for doc in docs.clone(){
+   let args=json!({"operation":"root_memory_sync","root":root,"workspace":root,"revision":5,"memory":doc});
+   handles.push(std::thread::spawn(move||dispatch(&args)));
+  }
+  let results=handles.into_iter().map(|h|h.join().unwrap()).collect::<Vec<_>>();
+  assert_eq!(results.len(),8,"every writer must reach a terminal verdict");
+  assert!(results.iter().any(|r|r.is_ok()),"at least one writer with the trusted revision must land");
+  let written=fs::read_to_string(root.join("memory.mq.md")).unwrap();
+  assert!(docs.iter().any(|d|*d==written),"the persisted memory must equal exactly one complete writer document, never a mix");
+  assert!(!written.contains("## "),"no partially appended or torn content");
+  assert!(dispatch(&json!({"operation":"root_memory_sync","root":root,"workspace":root,"revision":4,"memory":docs[0].clone()})).unwrap_err().contains("stale"));
+  assert_eq!(fs::read_to_string(root.join("memory.mq.md")).unwrap(),written);
+  fs::remove_dir_all(root).unwrap();
+ }
  #[test]fn source_paths_cannot_escape(){let root=std::env::temp_dir();assert!(source(&root,"../secret.mq.md").is_err());assert!(source(&root,"/secret.mq.md").is_err());}
 }
