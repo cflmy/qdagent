@@ -24,7 +24,7 @@ import:
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
-| result | map | 本单元记录 |
+| result | any | 命中时的单元记录；身份不存在时为 None，调用方必须拒绝 |
 
 Use `state`, `unit_id`。
 
@@ -217,6 +217,8 @@ Use `context`, `item`。
 
 来源规则升级会使旧的文档来源证明失效。重新验证仍使用已冻结契约，不把空快照伪装为重新读取成功，也不影响无需外部来源的固定值函数。
 
+1. not `item`
+  Return *False*.
 We **trial = json.get(value=`item`,key="trial")**.
 We **tests = json.get(value=`item`,key="tests")**.
 1. not core.evidence_current(tests=`tests`,trial=`trial`)

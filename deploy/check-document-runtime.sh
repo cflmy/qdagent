@@ -8,7 +8,7 @@ for dependency in marqdo rg jq; do
         exit 1
     fi
 done
-sources=$(rg --files ext/knowledge ext/root-skill ext/browser ext/search ext/ocr ext/plugins.mq.md pages/control/plugins.mq.md docs skills/marqdo-dev deploy/index.mq.md deploy/manage.mq.md deploy/agent-verify.mq.md deploy/model-key.mq.md deploy/services.mq.md tests/small-model-memory.mq.md tests/ext/ai-native-flow.mq.md tests/ext/ai-native-workflow.mq.md tests/fixtures/document-agent tests/fixtures/function-sections.mq.md tests/fixtures/office-scenario.mq.md tests/fixtures/knowledge-scenario.mq.md ext/office pages/agent/catalog.mq.md pages/agent/executor.mq.md -g '*.mq.md') || exit 1
+sources=$(rg --files ext/knowledge ext/root-skill ext/browser ext/search ext/ocr ext/plugins.mq.md pages/control/plugins.mq.md docs skills/marqdo-dev deploy/index.mq.md deploy/manage.mq.md deploy/agent-verify.mq.md deploy/model-key.mq.md deploy/services.mq.md tests/small-model-memory.mq.md tests/root-dag-scheduling.mq.md tests/ext/ai-native-flow.mq.md tests/ext/ai-native-workflow.mq.md tests/fixtures/document-agent tests/fixtures/function-sections.mq.md tests/fixtures/office-scenario.mq.md tests/fixtures/knowledge-scenario.mq.md ext/office pages/agent/catalog.mq.md pages/agent/executor.mq.md -g '*.mq.md') || exit 1
 failed=0
 while IFS= read -r source; do
     if ! diagnostics=$(marqdo check "$source" --narrative-ratio --json); then
