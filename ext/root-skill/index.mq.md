@@ -15,6 +15,7 @@ import:
 新请求非空只确认一次，允许用户点选或自由输入；空请求询问需求。继续中的请求恢复已保存状态，不重新确认。只看当前函数与任务关键文稿，不加载整棵 SKILL。任务独立才并行，任何执行均以权限和真实收据为准。
 
 ## run
+    + `context`
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -29,6 +30,8 @@ import:
 Return *[由 Marqdo 根状态机推进真实任务](runtime.run(context=`context`))*.
 
 ## 分解意图
+    + `options`
+    + `question`=""
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -53,6 +56,7 @@ Return *[由 Marqdo 根状态机推进真实任务](runtime.run(context=`context
 Return *`choice`*.
 
 ## 路由函数
+    + `mode`
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -67,6 +71,7 @@ Return *`choice`*.
 Return *[在真实 Marqdo 文稿中解析下一级](routing.resolve(mode=`mode`))*.
 
 ## 拆分并行
+    + `context`
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|

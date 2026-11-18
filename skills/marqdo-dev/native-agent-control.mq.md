@@ -14,6 +14,7 @@ import:
 对新任务，宿主先使用已有 state.begin 记录真实用户消息；随后调用 run。出现 waiting_user 时停止，不执行子任务。用户点选或自由输入由已有 state.respond 结合 revision 校验保存，再调用 run。既有根状态负责阶段与独立测试，不能由模型输出一段 JSON 越过确认。多意图由根运行时按依赖就绪进行并行，以下 parallel 只适合已经确认过的任务。
 
 ## run
+    + `context`
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -28,6 +29,7 @@ import:
 Return *[实际推进当前阶段](runtime.run(context=`context`))*.
 
 ## inspect
+    + `context`
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -42,6 +44,7 @@ Return *[实际推进当前阶段](runtime.run(context=`context`))*.
 Return *[读取已保存的真实状态](state.status(context=`context`))*.
 
 ## memory_preview
+    + `state`
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -56,6 +59,7 @@ Return *[读取已保存的真实状态](state.status(context=`context`))*.
 Return *[预览关键事实的单份文稿](memory.render(state=`state`))*.
 
 ## route
+    + `mode`
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -70,6 +74,7 @@ Return *[预览关键事实的单份文稿](memory.render(state=`state`))*.
 Return *[根据现有文稿选择下一级](routing.resolve(mode=`mode`))*.
 
 ## parallel
+    + `context`
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
