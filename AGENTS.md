@@ -1,14 +1,15 @@
-# 求道最小实验：不可重新扩张的范围
+# 求道 CLI 实验 · 最小架构开发约束
 
-这是一个**刻意极简**、可破坏兼容的 Marqdo 原生智能体实验，不是 Web 产品。
+此分支只做 **`marqdo run index.mq.md` 的纯 Marqdo CLI 智能体**，禁止再次扩大成产品栈。
 
-- 保留根 `index.mq.md`、`memory.mq.md`，和**恰好两个**领域入口：`skills/model/index.mq.md`、`skills/chat/index.mq.md`。
-- 所有 Agent 行为写为 `.mq.md` 函数；调用必须能由 `index → chat → model → 官方 ext/ai/llm` 阅读和追踪。
-- 禁止引入 Python、Go、Rust 私有 agent runtime、HTTP server、前端、Docker、另一个 Agent Loop、工具注册表、自动路由目录、多代理与兼容层。
-- 模型的请求参数、记忆来源、执行文稿必须在 Marqdo 源码中可见；禁止外部框架自动灌入历史或系统消息。
-- 需要附加上下文时，在 Marqdo 函数中**显式**读取并传给模型，不从外部宿主偷偷拼接；目前只有问题、记忆、当前文稿三个输入。
-- 只使用已安装的官方 Marqdo `ext/ai/llm.mq.md` 与标准 `lib/`。**不复制**整套扩展库到此仓库；需要修改运行时基础能力时上游到 `cflmy/marqdo`。
-- 不自动写记忆；用户明确调用 `remember` 才保留。禁止把模型成功返回当作真实执行成功或数据已验证。
-- 不为“将来可能需要”加模块。只有最小聊天闭环跑通并有实际需求时，才讨论扩展。
+- `index.mq.md` 的 `# main` 是唯一启动入口：`input` 读取终端、`while` 循环、处理退出/记忆命令及打印输出。严禁改回 `marqdo call index.mq.md run` 作为正式启动流程。
+- 恰好保留两个 SKILL：`skills/chat/index.mq.md` 和 `skills/model/index.mq.md`。chat 管理当前对话和记忆读取，model 只调用官方 Marqdo `ext/ai/llm.mq.md`；根控制循环。
+- 不要为 TTY、消息派发、状态机另加 Python/Go/JS/Rust 服务、Shell REPL、HTTP API、Docker 或前端。
+- 最近四轮历史由根中的 Marqdo 列表保存，只在本次运行期间有效；`memory.mq.md` 仅由 `/remember` 明确写入。
+- 所有模型消息来自文稿中的 GFM 表及明确传递的输入/记忆/当前文稿。禁止模型调用前由外部框架注入系统上下文和隐式聊天历史。
+- 在聊天 SKILL 内需要更多上下文时先用 Marqdo 函数显式读取，再传给模型 SKILL；不要把大型通用 `context` 字典作为每个函数参数。
+- 只依赖官方 Marqdo CLI、它安装的 `ext/ai/llm.mq.md` 和标准 `lib/`；不要复制整个扩展库到本仓库。
+- 必须保留真实模型错误；失败不应加入成功对话历史，模型返回也不等于任何外部效果得到验证。
+- 可在真实需求出现后进一步研究流式 token 输出、单行/多行编辑、自动上下文选择，但不预先增加新的服务或 SKILL。
 
-此分支保留 Git 历史，可从以前提交检索被删除的系统。没有运行测试时不得声称可用。
+仓库长期只保留这 8 个文件。没有执行真实验收时，不得声称 CLI 已实际成功运行。
