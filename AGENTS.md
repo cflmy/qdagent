@@ -1,25 +1,15 @@
-# 求道开发约束
+# qdagent v3 — 新智能体开发契约
 
-先阅读 `docs/small-model-native-agent.mq.md` 和 `docs/document-driven-agent.mq.md`，其架构与验收要求适用于后续开发。
+当前实验分支的唯一架构文档：`docs/architecture/CAPABILITY_AGENT_V3.md`；新增 SKILL 请阅读 `docs/architecture/SKILL_AUTHORING.md`。**不得把旧 `ext/root-skill/` 当作新架构模板或产品入口。**
 
-- 普通 `.mq.md` 函数就是 SKILL 和工具；不增加业务工具注册表、别名路由或模型动作 JSON 协议。
-- 所有模型指令和提示模板只写在 `.mq.md`，包括角色、重试、修复与结束条件。Go、Rust、Python、TypeScript 不得补充提示词。
-- 根流程与业务状态迁移由 Marqdo 执行；宿主只承担受限 I/O、认证、资源限制和事件转发。
-- **小模型短现场**：根只做一次确认、一级路由与独立任务拆分；模型一次只看当前目标、当前函数、一个任务记忆及少量已授权候选。不得重新塞入全量会话、工具目录或 SKILL 树。
-- **唯一跨轮注入**：每个任务一份工作区 `memory.mq.md`，经确认或真实证据更新，CAS/原子写，保留审计却不默认回灌。当前生产接线尚未完成，必须按 `docs/design/small-model-native-agent-rollout.md` 实测关闭缺口。
-- **最少但充分**：资料定向读取，必要规则不能静默截断；任务有依赖才串行，无依赖按 Marqdo 原生调度并行，失败/未知外部写入保留真实状态。
-- 实现与测试模型隔离；测试输入只来自已确认规格的无执行语义投影，不得包含实现控制流或开发对话。
-- 不修改相邻 Marqdo 仓库源码；功能缺口用 qdagent 的 ABI 插件或本地扩展版本解决。
-- 并行以主方案的 `##` 函数段为单位，遵循 `docs/function-section-concurrency.mq.md`；运行依赖不应串行化普通函数的编写，独立快照只用于试运行。
-- 语法由官方解析器判断，禁止另写正则解析器。真实失败保留未完成，不能生成兜底业务结果。
-- 文档只有一个根 `docs/`：架构规范在顶层，设计记录与图在 `docs/design/`，能力缺口在 `docs/gaps/`，迁移计划在 `docs/next/`；不再新建 `doc/` 或第二个文档根。顶层目录名不得包含空格或引号。
+- 唯一生产智能体入口：`agent/index.mq.md`。Go 仅负责身份、HTTP、存储、进程、配额、事件；Python 只负责传输。业务模型提示和工作流控制只允许写在可审阅的 Marqdo 文稿中。
+- 新能力放进 `skills/<slug>/index.mq.md`，声明 `description`、`agent_effects` 并暴露 `## run(context,goal)`。默认只由此入口对根可见。新增 SKILL 不修改根的业务路由代码。
+- 能力索引由**实际源码**与 Marqdo 官方 parser 派生。不能再建第二套人工工具 Schema、固定业务模式分派表或 Python Agent 工具循环。
+- 一个小模型步骤只输出一个已安装的候选 ID。只有真正需要生成源码/文档时才能进入对应 SKILL，让模型生成相应结构。失败最多一次纯格式修复，禁止无限纠错。
+- `memory.mq.md` 是唯一默认的跨轮模型上下文投影，状态、用户确认、原始审计、知识图与证明证书均有各自的可信存储。模型不能通过编辑记忆授予权限。
+- 带外部效果或写入的能力必须通过身份验证、源码哈希绑定的用户批准与真实调用收据；未知效果不可自动重放。
+- 简单任务直接调用领域 SKILL；需要跨轮/多阶段/并发才使用 `workflows/` 和 Marqdo 原生 `ext/ai/workflow`、`subtask`。根不应知道软件开发的特定阶段。
+- L1 源码/锚点、L2 受限 Lean 模型证明、L3 真实测试/实验分别记录。不能把 `model_proved` 当成完整运行时证明。
+- 旧 root-skill 源码目前仅为历史资料，不再作为新代码的 import 依赖。所有新模块尽量从 `agent/`、`skills/`、`workflows/`、官方 `ext/` 和 `lib/` 组合。
 
-- 阶段回看、文件名展示与复合意图路由遵循 `docs/task-journey-and-routing.mq.md`；只读回看不得触发执行，方案必须覆盖全部已确认待办，展示名称不得替代存储身份。
-- 任务归档、删除、参数预检、错误经验和可读执行详情遵循 `docs/task-lifecycle-and-recovery.mq.md`；经验按角色与真实接口版本隔离，不能自动重放工具或借修复改变冻结测试。
-- Word/PPT 与后续办公格式遵循 `docs/office-skills.mq.md`；正文来自已验证函数段，编辑保留旧版，不把任意上传 Office 包交给排版引擎，不用复杂版式的宣传代替实际能力。
-- 办公模板遵循 `docs/office-layout-contracts.mq.md`：每种布局一个 Marqdo 函数，参数表声明内容预算和素材条件；所有创建与修订在写入前复用同一整份预检，不凑字、缩字或静默裁剪，不把 ZIP 有效当成版式已验证。
-
-- 多风格产物遵循 `docs/product-variants.mq.md`；风格不能重写正文，并发登记不得覆盖其他结果。
-- 知识编译遵循 `docs/knowledge-compilation.mq.md`；论文与源码先定位来源，再走根流程、冻结独立测试与用户验收，由管理员发布公用版本，普通用户只读引用；上传代码不直接执行，自写回不能改变已审阅控制流。
-- **Marqdo 2.9.1 知识证明接入**遵循 `docs/design/knowledge-proof-integration.md`；按需使用官方锚点、指纹、依赖审计、compose/replay 与独立实验，严格区分 `model_proved` 和完整运行时正确性。不得用本地 JSON、Lean 失败或知识链接伪造证明，实际未接入的 ABI/UI 不能宣布上线。只在知识子 SKILL 使用 `skills/marqdo-dev/knowledge-evidence.mq.md` 进行纯下一步决策。
-- 统一身份、公共知识、用量与单函数调用遵循 `docs/access-and-quotas.mq.md`；管理员身份仅来自已验证的身份站角色，额度在模型实际传输边界原子计量，不能依赖前端隐藏入口。
+**当前阶段只开发，不测试，不合并主分支。** 文稿的语法、Go/Rust 构建、React 与真实模型运行状态都尚未验收。任何缺口必须清楚记录，不要冒充生产已可用。
