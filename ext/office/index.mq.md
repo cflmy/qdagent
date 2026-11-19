@@ -4,10 +4,10 @@ title: 办公插件：文档与演示的可执行手册
 import:
   fs: lib/fs.mq.md
   table: lib/table.mq.md
-  call: ../../pages/control/call.mq.md
+  call: ext/qdagent/call.mq.md
 ---
 
-先在根文稿中确认目标与验收，再直接调用本文件 create 函数交付真实报告和幻灯片。入口负责工程目录与可信模板，package.mq.md 负责受限工作根内的纯 Marqdo 生成。每个版本保留可读源稿，失败不伪造文件。
+本模块可以由独立办公 SKILL 直接调用。效果权限和用户确认归通用 Agent，文件生成与布局由本模块负责。入口负责工程目录与可信模板，package.mq.md 负责受限工作根内的纯 Marqdo 生成。每个版本保留可读源稿，失败不伪造文件。
 
 
 ## handbook

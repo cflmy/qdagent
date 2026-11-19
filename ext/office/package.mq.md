@@ -17,7 +17,7 @@ import:
   json: lib/json.mq.md
   uuid: lib/uuid.mq.md
   result: lib/result.mq.md
-  artifacts: ../../pages/agent/artifacts.mq.md
+  artifacts: artifacts.mq.md
   export: export.mq.md
   re: lib/re.mq.md
 ---

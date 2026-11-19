@@ -38,3 +38,12 @@ Use `context`, `kind`, `data`。
 
 We **args = table.put(in=None,at="kind",value=`kind`)**.
 Return *native(context=`context`,operation="runtime_event",payload=table.put(in=`args`,at="data",value=`data`))*.
+
+## current
+
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| result | map | 当前进程经宿主签发的只读身份现场 |
+
+We **out = native(context=table.empty_map(),operation="runtime_context",payload=table.empty_map())**.
+Return *`out`*.

@@ -8,7 +8,7 @@ import:
   table: lib/table.mq.md
   re: lib/re.mq.md
   result: lib/result.mq.md
-  artifacts: ../../pages/agent/artifacts.mq.md
+  artifacts: artifacts.mq.md
 ---
 
 结构快照由 Marqdo 写入并与实际文件绑定；它不是模型的工具协议。

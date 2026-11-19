@@ -2,9 +2,8 @@
 markup: occlusion
 title: 并行产物的登记事务
 import:
-  io: ext/root-skill/runtime/io.mq.md
+  io: agent/io.mq.md
   table: lib/table.mq.md
-  sys: lib/sys.mq.md
 ---
 
 ## save
@@ -23,5 +22,8 @@ Use `entry`。
 
 文件根来自当前调用进程，路径固定在任务私有目录，模型不能选择其他会话。锁只覆盖登记事务，不覆盖内容创作、打包和排版；不同风格因此真正同时生成。每个变体独立登记，失败不借另一变体的成功追认完成。这里没有提示词、版式规则或阶段路由，只补齐并发文件操作能力。
 
-We **context = table.put(in=None,at="workspace",value=sys.cwd())**.
+We **trusted = io.current()**.
+1. not access(`trusted`,"ok")
+  Return *`trusted`*.
+We **context = access(`trusted`,"value")**.
 Return *io.native(context=`context`,operation="runtime_office_record",payload=table.put(in=None,at="entry",value=`entry`))*.

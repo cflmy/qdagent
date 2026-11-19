@@ -3,7 +3,7 @@ markup: occlusion
 title: Office 排版插件：从已登记文稿导出 PDF
 import:
   json: lib/json.mq.md
-  artifacts: ../../pages/agent/artifacts.mq.md
+  artifacts: artifacts.mq.md
   engineering: ext/engineering/index.mq.md
   fs: lib/fs.mq.md
   sys: lib/sys.mq.md
