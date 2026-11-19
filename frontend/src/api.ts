@@ -22,7 +22,6 @@ export interface Plugin {id:string;name:string;description:string;version:string
 export interface Message {turn:number;question:string;answer:string;run_id:string;status:string}
 export interface Run {id:string;task_id:string;status:string;answer:string;question:string;model:string;created_ms:number}
 export interface RunEvent {seq:number;run_id:string;kind:string;data:Record<string,unknown>;created_ms:number}
-export interface Plan {goal:string;acceptance:string;steps:{id:number;title:string;status:string;evidence?:string}[]}
 export interface WorkspaceFile {path:string;name:string;size:number;modified_ms:number}
 export interface Artifact {id:string;title:string;kind:string;path:string;source:string;bytes:number;group_id?:string;theme?:{id:string;label:string;tagline?:string;transition?:string};pdf?:{path:string;id:string}}
 export interface AgentState {

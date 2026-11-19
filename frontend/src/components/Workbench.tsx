@@ -1,5 +1,14 @@
-import {Check,CheckSquare,ChevronDown,Download,FileCode2,FileText,GitBranch,Presentation} from 'lucide-react';
-import {type Artifact,type Files,type Plan,sizeLabel,statusText} from '../api';
-export function PlanCard({plan}:{plan:Plan}){const complete=plan.steps.filter(s=>['completed','succeeded','done'].includes(s.status)).length;return <section className="plan-card"><header><CheckSquare size={19}/><strong>任务进度</strong><span>{complete}/{plan.steps.length}</span><details className="plan-acceptance"><summary>目标与验收</summary><p>{plan.goal}</p><p>{plan.acceptance}</p></details></header><progress value={complete} max={plan.steps.length} aria-label="已完成的计划步骤"/><ol>{plan.steps.map(step=><li key={step.id}><span className={`plan-check ${step.status}`}>{['completed','succeeded','done'].includes(step.status)&&<Check size={12}/>}</span><span>{step.id}. {step.title}</span><small>{statusText[step.status]||step.status}</small></li>)}</ol></section>}
-export function Deliverables({artifacts,task,onPreview}:{artifacts:Artifact[];task:string;onPreview:(path:string)=>void}){if(!artifacts.length)return null;return <section className="deliverables" aria-label="已生成产物">{artifacts.map(a=><article className="artifact" key={a.id}><div className={`file-mark ${a.kind}`}>{a.kind==='pptx'?<Presentation size={21}/>:<FileText size={21}/>}</div><div className="artifact-copy"><strong>{a.title}</strong><span>{a.kind.toUpperCase()} · {sizeLabel(a.bytes)}</span></div><button className="icon-button" title="阅读源稿" onClick={()=>onPreview(a.source)}><FileCode2 size={17}/></button><a className="icon-button" title="下载文件" href={`/api/tasks/${encodeURIComponent(task)}/download?path=${encodeURIComponent(a.path)}`}><Download size={17}/></a></article>)}</section>}
-export function Children({children}:{children:Files['children']}){if(!children?.length)return null;return <section className="child-tasks">{children.map(child=><article key={child.id}><GitBranch size={16}/><div><strong>{child.role}</strong><p>{child.goal}</p></div><span className={`state-tag ${child.status}`}>{statusText[child.status]||child.status}</span></article>)}</section>}
+import {Download, FileCode2, FileText, Presentation} from 'lucide-react';
+import {type Artifact, sizeLabel} from '../api';
+
+/** UI projection of persisted deliverables; never infer completion from a file label. */
+export function Deliverables({artifacts,task,onPreview}:{artifacts:Artifact[];task:string;onPreview:(path:string)=>void}){
+ if(!artifacts.length)return null;
+ return <section className="deliverables" aria-label="已生成产物">{artifacts.map(a=>
+  <article className="artifact" key={a.id}>
+   <div className={`file-mark ${a.kind}`}>{a.kind==='pptx'?<Presentation size={21}/>:<FileText size={21}/>}</div>
+   <div className="artifact-copy"><strong>{a.title}</strong><span>{a.kind.toUpperCase()} · {sizeLabel(a.bytes)}</span></div>
+   <button className="icon-button" title="阅读源稿" onClick={()=>onPreview(a.source)}><FileCode2 size={17}/></button>
+   <a className="icon-button" title="下载文件" href={`/api/tasks/${encodeURIComponent(task)}/download?path=${encodeURIComponent(a.path)}`}><Download size={17}/></a>
+  </article>)}</section>;
+}

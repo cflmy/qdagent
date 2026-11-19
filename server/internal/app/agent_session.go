@@ -15,14 +15,11 @@ import (
 	"time"
 )
 
-// This host projects state and authenticates human responses. Stage transitions
-// and the acceptance rules remain in the installed Marqdo agent session document.
+// This is an authenticated transport for task state and human effect approval.
+// All domain policy is owned by the Marqdo agent session document.
 type agentRuntime struct{ store *Store }
 
-// invoke calls one member on the agent document that owns it. The
-// entry index.mq.md only exposes run; user authority and clarification
-// live in their own documents, so the host binds each call to the exact
-// owning file instead of an alias table.
+// Invoke a fixed Marqdo session member with an ephemeral host attestation.
 func (r *agentRuntime) invoke(ctx context.Context, document, member string, c map[string]any, args map[string]any) (map[string]any, error) {
 	args["context"] = c
 	raw, _ := json.Marshal(args)
@@ -49,7 +46,7 @@ func (r *agentRuntime) invoke(ctx context.Context, document, member string, c ma
 			}
 			return nil, fmt.Errorf("智能体会话 调用失败：%s", detail)
 		}
-		return nil, errors.New("根 SKILL 调用失败，请检查已安装插件与源码诊断")
+		return nil, errors.New("智能体会话调用失败，请检查已安装插件与源码诊断")
 	}
 	var envelope struct {
 		OK     bool `json:"ok"`
@@ -63,7 +60,7 @@ func (r *agentRuntime) invoke(ctx context.Context, document, member string, c ma
 		} `json:"result"`
 	}
 	if json.Unmarshal(output, &envelope) != nil || !envelope.OK {
-		return nil, errors.New("根 SKILL 返回格式无效")
+		return nil, errors.New("智能体会话返回格式无效")
 	}
 	if !envelope.Result.OK {
 		return nil, fmt.Errorf("%s：%s", envelope.Result.Error.Code, envelope.Result.Error.Message)
