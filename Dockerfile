@@ -19,6 +19,9 @@ WORKDIR /app
 COPY .marqdo/docker-context/bin/marqdo /usr/local/bin/marqdo
 COPY --from=server-build /out/qdagent /usr/local/bin/qdagent
 COPY --from=frontend-build --chown=10001:10001 /build/frontend/dist /app/frontend/dist
+COPY --chown=10001:10001 agent/ /app/agent/
+COPY --chown=10001:10001 skills/ /app/skills/
+COPY --chown=10001:10001 workflows/ /app/workflows/
 COPY --chown=10001:10001 lib/ /app/lib/
 COPY --chown=10001:10001 ext/ /app/ext/
 COPY --chown=10001:10001 pages/ /app/pages/

@@ -16,14 +16,14 @@ import (
 )
 
 // This host projects state and authenticates human responses. Stage transitions
-// and the acceptance rules remain in the installed root-skill Marqdo document.
-type rootRuntime struct{ store *Store }
+// and the acceptance rules remain in the installed Marqdo agent session document.
+type agentRuntime struct{ store *Store }
 
-// invoke calls one member on the root-skill document that owns it. The
+// invoke calls one member on the agent document that owns it. The
 // entry index.mq.md only exposes run; user authority and clarification
 // live in their own documents, so the host binds each call to the exact
 // owning file instead of an alias table.
-func (r *rootRuntime) invoke(ctx context.Context, document, member string, c map[string]any, args map[string]any) (map[string]any, error) {
+func (r *agentRuntime) invoke(ctx context.Context, document, member string, c map[string]any, args map[string]any) (map[string]any, error) {
 	args["context"] = c
 	raw, _ := json.Marshal(args)
 	command := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(r.store.root, "agent", document), member, "--args-json", "-", "--effects", "plugin,fs.read,fs.write,process.exec,environment.read", "--fs-root", c["workspace"].(string), "--json")
@@ -37,7 +37,7 @@ func (r *rootRuntime) invoke(ctx context.Context, document, member string, c map
     if actorErr = actorFile.Close(); actorErr != nil { return nil, actorErr }
     command.Env = append(os.Environ(), "QDAGENT_ACTOR_FILE="+actorFile.Name())
 	command.Dir = r.store.root
-	command.Env = append(os.Environ(), "MARQDO_LIB="+filepath.Join(r.store.root, "lib"), "MARQDO_EXT="+filepath.Join(r.store.root, "ext"))
+	command.Env = append(command.Env, "MARQDO_LIB="+filepath.Join(r.store.root, "lib"), "MARQDO_EXT="+filepath.Join(r.store.root, "ext"))
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	output, err := command.Output()
@@ -47,7 +47,7 @@ func (r *rootRuntime) invoke(ctx context.Context, document, member string, c map
 			if len(detail) > 300 {
 				detail = detail[:300]
 			}
-			return nil, fmt.Errorf("根 SKILL 调用失败：%s", detail)
+			return nil, fmt.Errorf("智能体会话 调用失败：%s", detail)
 		}
 		return nil, errors.New("根 SKILL 调用失败，请检查已安装插件与源码诊断")
 	}
@@ -70,7 +70,7 @@ func (r *rootRuntime) invoke(ctx context.Context, document, member string, c map
 	}
 	return envelope.Result.Value, nil
 }
-func (r *rootRuntime) snapshot(task string) (map[string]any, error) {
+func (r *agentRuntime) snapshot(task string) (map[string]any, error) {
 	if !validID(task) {
 		return nil, errors.New("invalid task")
 	}
@@ -87,29 +87,29 @@ func (r *rootRuntime) snapshot(task string) (map[string]any, error) {
 	err = json.NewDecoder(io.LimitReader(file, 2<<20)).Decode(&state)
 	return state, err
 }
-func (s *Server) workflow(w http.ResponseWriter, r *http.Request, i identity) {
+func (s *Server) agentStatus(w http.ResponseWriter, r *http.Request, i identity) {
 	task, ok := s.owned(w, r, i)
 	if !ok {
 		return
 	}
-	if s.supervisor.workflow == nil {
+	if s.supervisor.agent == nil {
 		writeError(w, 503, "workflow_unavailable", "根 SKILL 未准备好")
 		return
 	}
-	state, err := s.supervisor.workflow.snapshot(task.ID)
+	state, err := s.supervisor.agent.snapshot(task.ID)
 	if err != nil {
-		writeError(w, 500, "workflow_read", "根流程读取失败")
+		writeError(w, 500, "workflow_read", "智能体会话读取失败")
 		return
 	}
 	writeJSON(w, 200, map[string]any{"workflow": state})
 }
 // A human reply changes only a revision-pinned pending authorization.
 // The domain skill and its effects are not parameters of this API.
-func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i identity) {
+func (s *Server) respondAgent(w http.ResponseWriter, r *http.Request, i identity) {
  task,ok:=s.owned(w,r,i)
  if !ok{return}
  if task.Archived!=0{writeError(w,409,"task_archived","任务已归档");return}
- if s.supervisor.workflow==nil{writeError(w,503,"agent_unavailable","智能体不可用");return}
+ if s.supervisor.agent==nil{writeError(w,503,"agent_unavailable","智能体不可用");return}
  var input struct {
   Revision int64 `json:"revision"`
   Action string `json:"action"`
@@ -132,7 +132,7 @@ func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i ident
  c,err:=s.store.taskContext(i.Principal,task.ID)
  if err!=nil{s.supervisor.mu.Unlock();writeError(w,500,"agent_context","任务状态不可用");return}
  ctx,cancel:=context.WithTimeout(r.Context(),35*time.Second)
- saved,err:=s.supervisor.workflow.invoke(ctx,"session.mq.md","respond",c,map[string]any{
+ saved,err:=s.supervisor.agent.invoke(ctx,"session.mq.md","respond",c,map[string]any{
   "revision":input.Revision,"action":input.Action,"answer":input.Answer,"choice":input.Choice,
  })
  cancel();s.supervisor.mu.Unlock()

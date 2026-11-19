@@ -72,17 +72,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("DELETE /api/models/{id}", s.auth.protect(s.deleteModel))
 	m.HandleFunc("GET /api/plugins", s.auth.protect(s.plugins))
 	m.HandleFunc("PATCH /api/plugins/{id}", s.auth.protect(s.togglePlugin))
-	m.HandleFunc("GET /api/knowledge", s.auth.protect(s.knowledge))
-	m.HandleFunc("GET /api/knowledge/reference", s.auth.protect(s.knowledgeReference))
-	m.HandleFunc("POST /api/tasks/{id}/knowledge/prepare", s.auth.protect(s.prepareKnowledge))
-	m.HandleFunc("POST /api/tasks/{id}/knowledge/publish", s.auth.protect(s.publishKnowledge))
-	m.HandleFunc("GET /api/knowledge/{knowledge}/contract", s.auth.protect(s.knowledgeContract))
-	m.HandleFunc("GET /api/knowledge/{knowledge}/source", s.auth.protect(s.knowledgeSource))
-	m.HandleFunc("GET /api/knowledge/{knowledge}/document", s.auth.protect(s.knowledgeDocument))
-	m.HandleFunc("POST /api/knowledge/{knowledge}/verify", s.auth.protect(s.verifyKnowledge))
-	m.HandleFunc("POST /api/knowledge/{knowledge}/execute", s.auth.protect(s.executeKnowledge))
-	m.HandleFunc("GET /api/tasks/{id}/workflow", s.auth.protect(s.workflow))
-	m.HandleFunc("POST /api/tasks/{id}/workflow/respond", s.auth.protect(s.respondWorkflow))
+	m.HandleFunc("GET /api/tasks/{id}/agent", s.auth.protect(s.agentStatus))
+	m.HandleFunc("POST /api/tasks/{id}/agent/respond", s.auth.protect(s.respondAgent))
 	m.HandleFunc("GET /api/tasks/{id}/files", s.auth.protect(s.files))
 	m.HandleFunc("GET /api/tasks/{id}/preview", s.auth.protect(s.preview))
 	m.HandleFunc("GET /api/tasks/{id}/download", s.auth.protect(s.download))
@@ -480,67 +471,6 @@ func (s *Server) togglePlugin(w http.ResponseWriter, r *http.Request, i identity
 	}
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
-func (s *Server) knowledge(w http.ResponseWriter, r *http.Request, i identity) {
-	out := []map[string]any{}
-	root := filepath.Join(s.store.root, "kb")
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, e error) error {
-		if e != nil {
-			return nil
-		}
-		if len(out) >= 100 {
-			return fs.SkipAll
-		}
-		if !d.IsDir() && d.Type()&os.ModeSymlink == 0 && strings.HasSuffix(d.Name(), ".md") {
-			rel, _ := filepath.Rel(root, path)
-			out = append(out, map[string]any{"id": filepath.ToSlash(rel), "name": strings.TrimSuffix(d.Name(), ".md"), "status": "reference"})
-		}
-		return nil
-	})
-
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
-	compiled, err := s.knowledgeCall(ctx, "list", s.knowledgeContext(i), map[string]any{})
-	if err != nil {
-		writeError(w, 503, "knowledge_unavailable", "知识服务暂时无法加载，请重试")
-		return
-	}
-	if entries, ok := compiled.([]any); ok {
-		for _, entry := range entries {
-			if item, ok := entry.(map[string]any); ok {
-				out = append(out, item)
-			}
-		}
-	}
-	drafts := []map[string]any{}
-	tasks, _ := s.store.tasks(i.Principal)
-	for _, task := range tasks {
-		var compilation map[string]any
-		readBoundedJSON(filepath.Join(s.workspace(task), ".agent/knowledge-compilation.json"), &compilation)
-		if compilation == nil {
-			continue
-		}
-		phase := "intent"
-		document := "solution/plan.mq.md"
-		if s.supervisor.workflow != nil {
-			state, _ := s.supervisor.workflow.snapshot(task.ID)
-			if p, ok := state["phase"].(string); ok {
-				phase = p
-			}
-			if phase == "review" || phase == "complete" {
-				document = "solution/index.mq.md"
-				if delivery, ok := state["delivery"].(map[string]any); ok {
-					if path, ok := delivery["path"].(string); ok && path != "" {
-						document = path
-					}
-				}
-			}
-		}
-		if manageRole(s.store.accountRole(i.Principal)) {
-			drafts = append(drafts, map[string]any{"task": task.ID, "title": compilation["title"], "phase": phase, "document": document})
-		}
-	}
-	writeJSON(w, 200, map[string]any{"sources": out, "compilations": drafts, "can_manage": manageRole(s.store.accountRole(i.Principal)), "visibility": "public"})
-}
 func (s *Server) workspace(t Task) string {
 	return filepath.Join(s.store.root, "data/workspaces", t.ID)
 }
@@ -583,11 +513,11 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 	var children []map[string]any
 	readBoundedJSON(filepath.Join(root, ".agent/children.json"), &children)
 	readBoundedJSON(filepath.Join(root, ".agent/plan.json"), &plan)
-	var workflow map[string]any
-	if s.supervisor.workflow != nil {
-		workflow, _ = s.supervisor.workflow.snapshot(t.ID)
+	var agent map[string]any
+	if s.supervisor.agent != nil {
+		agent, _ = s.supervisor.agent.snapshot(t.ID)
 	}
-	names := recordedFileNames(workflow, artifacts)
+	names := recordedFileNames(nil, artifacts)
 	for _, file := range out {
 		if path, ok := file["path"].(string); ok {
 			if name := names[path]; name != "" {
@@ -595,7 +525,7 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 			}
 		}
 	}
-	writeJSON(w, 200, map[string]any{"files": out, "plan": plan, "artifacts": artifacts, "children": children, "workflow": workflow})
+	writeJSON(w, 200, map[string]any{"files": out, "plan": plan, "artifacts": artifacts, "children": children, "agent": agent})
 }
 func readBoundedJSON(path string, v any) {
 	f, e := os.Open(path)
@@ -694,7 +624,7 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request, i identity) {
 	if strings.HasSuffix(path, ".mq.md") {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
-		raw, e := s.marqdo(ctx, "pages/agent/previews.mq.md", "show", s.workspace(t), map[string]string{"path": path}, "plugin,fs.read,fs.write,process.exec,random.read,environment.read")
+		raw, e := s.marqdo(ctx, "agent/preview.mq.md", "show", s.workspace(t), map[string]string{"path": path}, "plugin,fs.read,fs.write,process.exec,random.read,environment.read")
 		if e != nil {
 			writeError(w, 422, "view_error", "Marqdo View 暂时无法解析此文件，可下载源码查看")
 			return

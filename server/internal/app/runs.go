@@ -39,12 +39,12 @@ type supervisor struct {
 	active   map[string]context.CancelFunc
 	closing  bool
 	wg       sync.WaitGroup
-	workflow *rootRuntime
+	agent    *agentRuntime
 	weights  map[string]int
 }
 
 func newSupervisor(s *Store) *supervisor {
-	return &supervisor{store: s, active: map[string]context.CancelFunc{}, workflow: &rootRuntime{store: s}, weights: map[string]int{}}
+	return &supervisor{store: s, active: map[string]context.CancelFunc{}, agent: &agentRuntime{store: s}, weights: map[string]int{}}
 }
 func (s *Store) run(owner, id string) (Run, error) {
 	var r Run
@@ -122,33 +122,15 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 		}
 	}
 	weight := 1
-	if s.workflow != nil {
+	if s.agent != nil {
 		var running int
 		s.store.db.QueryRow(`SELECT count(*) FROM qd_runs WHERE task_id=? AND status='running'`, task).Scan(&running)
-		if running != 0 {
-			return Run{}, errors.New("此任务正在执行，请先停止或等待")
-		}
+		if running != 0 { return Run{}, errors.New("此任务正在执行，请先停止或等待") }
 		if !resume {
-			ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
-			_, err = s.workflow.invoke(ctx, "session.mq.md", "begin", ctxMap, map[string]any{"user_input": question, "message_id": randomID()})
+			ctx, cancel := context.WithTimeout(context.Background(),35*time.Second)
+			_,err=s.agent.invoke(ctx,"session.mq.md","begin",ctxMap,map[string]any{"user_input":question,"message_id":randomID()})
 			cancel()
-			if err != nil {
-				return Run{}, err
-			}
-		}
-		state, readErr := s.workflow.snapshot(task)
-		if readErr != nil {
-			return Run{}, readErr
-		}
-		if state["phase"] == "parallel" {
-			if settings, ok := state["settings"].(map[string]any); ok {
-				if n, ok := settings["concurrency"].(float64); ok {
-					weight = int(n)
-				}
-			}
-		}
-		if weight < 1 || weight > 8 {
-			return Run{}, errors.New("根流程并发配置无效")
+			if err!=nil{return Run{},err}
 		}
 	}
 	used := 0
@@ -201,42 +183,6 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 	} else {
 		s.finish(r, turn, "failed", "模型额度服务不可用")
 		return
-	}
-	if s.workflow != nil {
-		payload["agent_v3"] = true
-		state, stateErr := s.workflow.snapshot(r.Task)
-		if stateErr != nil {
-			s.finish(r, turn, "failed", "根流程读取失败")
-			return
-		}
-		selected := map[string]bool{}
-		if settings, ok := state["settings"].(map[string]any); ok {
-			if id, ok := settings["test_model"].(string); ok {
-				selected[id] = true
-			}
-			if id, ok := settings["child_model"].(string); ok {
-				selected[id] = true
-			}
-			if ids, ok := settings["unit_models"].(map[string]any); ok {
-				for _, raw := range ids {
-					if id, ok := raw.(string); ok {
-						selected[id] = true
-					}
-				}
-			}
-		}
-		children := map[string]any{}
-		for id := range selected {
-			if id != "" && id != "inherit" {
-				cfg, e := s.store.resolveModel(owner, id)
-				if e != nil {
-					s.finish(r, turn, "failed", "子模型配置不可用")
-					return
-				}
-				children[id] = cfg
-			}
-		}
-		payload["child_models"] = children
 	}
 	stdout, wait, err := nativeEntry(ctx, s.store.root, c, payload)
 	if err != nil {
