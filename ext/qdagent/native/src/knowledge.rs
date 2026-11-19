@@ -358,7 +358,9 @@ mod proof_cancel_tests{
   let jobs=workspace.join(".knowledge-projections").join("jobs");
   fs::create_dir_all(&jobs).unwrap();
   let fake_bin=temp.0.join("marqdo");
-  fs::write(&fake_bin,"#!/bin/sh\nexec sleep 30\n").unwrap();
+  // No exec: the interpreter keeps our marqdo argv visible in /proc, which is
+  // exactly what the cancel guard checks before signalling.
+  fs::write(&fake_bin,"#!/bin/sh\nsleep 30\n").unwrap();
   {
    use std::os::unix::fs::PermissionsExt;
    fs::set_permissions(&fake_bin,fs::Permissions::from_mode(0o755)).unwrap();
@@ -373,7 +375,16 @@ mod proof_cancel_tests{
   let dir=jobs.join("job-fakecancel");fs::create_dir(&dir).unwrap();
   fs::write(dir.join("pid"),child.id().to_string()).unwrap();
   fs::write(dir.join("err.txt"),"").unwrap();
-  let cancelled=proof_job(&json!({"context":ctx,"kind":"cancel","job":"job-fakecancel"})).unwrap();
+  // The child may need a moment to reach exec, so the /proc cmdline check is
+  // retried briefly instead of assuming instant readiness.
+  let mut cancelled=Err("not attempted".to_string());
+  for _ in 0..50{
+   match proof_job(&json!({"context":ctx,"kind":"cancel","job":"job-fakecancel"})){
+    Ok(value)=>{cancelled=Ok(value);break}
+    Err(e)=>{cancelled=Err(e);std::thread::sleep(std::time::Duration::from_millis(20));}
+   }
+  }
+  let cancelled=cancelled.expect("cancel must eventually see our own child");
   assert_eq!(cancelled["state"],"cancelled");
   let status=proof_job(&json!({"context":ctx,"kind":"status","job":"job-fakecancel"})).unwrap();
   assert_eq!(status["state"],"cancelled");

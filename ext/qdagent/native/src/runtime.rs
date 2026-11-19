@@ -176,7 +176,8 @@ fn model(v:&Value)->Result<Value,String>{
   if output.2!=0||response["ok"]!=true{return Err(response["message"].as_str().unwrap_or("模型额度请求未获授权").into())}
   event(c,"model_usage",response)?;
  }else if config["selection_id"].is_string(){return Err("模型额度服务不可用，未发送请求".into())}
- let child=c["unit_id"].is_string();event(c,if child{"child_model_start"}else{"model_start"},json!({"id":unit,"call_id":model_call_id,"attempt":attempt,"step":step,"title":v["title"],"model":selected,"role":role,"sources":origins,"context_bytes":v["messages"].to_string().len()}))?;
+ let actual_model=config["model"].as_str().unwrap_or(&selected).to_string();
+ let child=c["unit_id"].is_string();event(c,if child{"child_model_start"}else{"model_start"},json!({"id":unit,"call_id":model_call_id,"attempt":attempt,"step":step,"title":v["title"],"model":actual_model,"selection":selected,"role":role,"sources":origins,"context_bytes":v["messages"].to_string().len()}))?;
  let mut cmd=Command::new("python3");cmd.arg(project.join("worker/provider.py")).current_dir(&project).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());let mut process=cmd.spawn().map_err(|e|e.to_string())?;
  let body=json!({"model":config,"messages":messages}).to_string();if body.len()>2*1024*1024{return Err("model request exceeded bound".into())}process.stdin.take().unwrap().write_all(body.as_bytes()).map_err(|e|e.to_string())?;
  let stdout=process.stdout.take().unwrap();let stderr=process.stderr.take().unwrap();let errors=std::thread::spawn(move||{let mut b=vec![];let _=stderr.take(65536).read_to_end(&mut b);});

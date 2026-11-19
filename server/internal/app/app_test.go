@@ -359,3 +359,20 @@ journal=open(os.path.join(os.path.dirname(os.environ['QDAGENT_RUN_REQUEST_FILE']
 	}
 	t.Setenv("MARQDO_BIN", path)
 }
+
+// TestMain lets the production quota-helper protocol run against this test
+// binary: the supervisor passes os.Executable() as the quota helper, so a
+// gated real-model test needs the same --authorize-model-request entry point.
+func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "--authorize-model-request" {
+		root := os.Getenv("QDAGENT_ROOT")
+		if root == "" {
+			root = "."
+		}
+		if err := AuthorizeModelRequest(root, os.Stdin, os.Stdout); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
+	os.Exit(m.Run())
+}

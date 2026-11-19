@@ -289,7 +289,12 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 			role, _ := e.Data["role"].(string)
 			step, _ := e.Data["step"].(float64)
 			attempt, _ := e.Data["attempt"].(float64)
-			bytes, _ := e.Data["n"].(float64)
+			// The ABI reports the measured packet size as context_bytes; older
+			// events used `n`, so accept both without double counting.
+			bytes, _ := e.Data["context_bytes"].(float64)
+			if bytes == 0 {
+				bytes, _ = e.Data["n"].(float64)
+			}
 			if unit == "" {
 				unit, _ = e.Data["unit_id"].(string)
 			}

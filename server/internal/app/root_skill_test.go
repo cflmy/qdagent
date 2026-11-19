@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -400,4 +401,167 @@ func TestStopPropagatesWithoutTouchingUnrelatedRuns(t *testing.T) {
 		stopped, e := s.store.run("test-owner", runB.ID)
 		return e == nil && stopped.Status == "cancelled"
 	}, "the second stop must cancel the remaining run")
+}
+
+// A controlled real-model run: gated so CI without a local model stays green.
+// It asserts only truthful structure (a real model attempt happened, metering
+// captured its context, the run reached a real terminal/waiting state) and
+// never that a small model produced good business content.
+func TestRealSmallModelRootFlowWhenAvailable(t *testing.T) {
+	if os.Getenv("QDAGENT_TEST_LOCAL_MODEL") != "1" {
+		t.Skip("set QDAGENT_TEST_LOCAL_MODEL=1 with a local Ollama model to run")
+	}
+	endpoint := os.Getenv("QDAGENT_OLLAMA_URL")
+	if endpoint == "" {
+		endpoint = "http://127.0.0.1:11434"
+	}
+	probe, err := http.Get(endpoint + "/api/tags")
+	if err != nil {
+		t.Skipf("local model endpoint unavailable: %v", err)
+	}
+	probe.Body.Close()
+	project, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := os.MkdirTemp(filepath.Join(project, ".agent"), "e2e-root-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(base) })
+	for _, name := range []string{"ext", "lib", "pages", "kb", "frontend", "worker"} {
+		if err = hardlinkTree(filepath.Join(project, name), filepath.Join(base, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("QDAGENT_DEV_OWNER", "test-owner")
+	s, err := New(base, filepath.Join(base, "frontend/dist"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	s.supervisor.workflow = &rootRuntime{store: s.store}
+	task, err := s.store.createTask("test-owner", "真实小模型接线")
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := os.Getenv("QDAGENT_OLLAMA_MODEL")
+	if model == "" {
+		model = "qwen2.5-0.5b"
+	}
+	run, err := s.supervisor.start("test-owner", task.ID, "builtin-local", "请用两句话说明你的能力。", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(300 * time.Second)
+	var last Run
+	for time.Now().Before(deadline) {
+		last, _ = s.store.run("test-owner", run.ID)
+		if last.Status != "running" {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if last.Status == "running" {
+		t.Fatalf("real-model run did not finish within the deadline")
+	}
+	events, err := s.store.runEvents(run.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	modelStarts, startsWithContext := 0, 0
+	for _, e := range events {
+		if e.Kind != "model_start" {
+			continue
+		}
+		modelStarts++
+		var data map[string]any
+		if json.Unmarshal(e.Data, &data) == nil {
+			n, _ := data["context_bytes"].(float64)
+			if n == 0 {
+				n, _ = data["n"].(float64)
+			}
+			if n > 0 {
+				startsWithContext++
+			}
+		}
+	}
+	if modelStarts == 0 {
+		var detail []string
+		for _, e := range events {
+			detail = append(detail, e.Kind+":"+string(e.Data))
+		}
+		t.Fatalf("no real model attempt was recorded (status %s, answer %q): %v", last.Status, last.Answer, detail)
+	}
+	if startsWithContext == 0 {
+		t.Fatal("model attempts must carry their measured context size")
+	}
+	var bytes int
+	if err = s.store.db.QueryRow(`SELECT COALESCE(sum(context_bytes),0) FROM qd_model_usage WHERE owner='test-owner'`).Scan(&bytes); err != nil {
+		t.Fatal(err)
+	}
+	if bytes == 0 {
+		t.Fatal("real model attempts must be metered at the transport boundary")
+	}
+	causes := map[string]int{}
+	succeeded := 0
+	for _, e := range events {
+		if e.Kind == "model_end" {
+			var data map[string]any
+			if json.Unmarshal(e.Data, &data) == nil && data["status"] == "succeeded" {
+				succeeded++
+			}
+		}
+		if e.Kind == "recovery" {
+			var data map[string]any
+			if json.Unmarshal(e.Data, &data) == nil {
+				if cause, ok := data["cause"].(string); ok && cause != "" {
+					causes[cause]++
+				}
+			}
+		}
+	}
+	t.Logf("model=%s status=%s attempts=%d model_ended_ok=%d metered_bytes=%d causes=%v answer=%q", model, last.Status, modelStarts, succeeded, bytes, causes, last.Answer)
+}
+
+// hardlinkTree mirrors a repository directory into a temporary root without
+// copying bytes, so the sandboxed run sees real files inside its granted root.
+func hardlinkTree(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return os.MkdirAll(dst, 0700)
+		}
+		if info.IsDir() {
+			if rel == filepath.Join("ext", "qdagent") {
+				return filepath.SkipDir
+			}
+			return os.MkdirAll(filepath.Join(dst, rel), 0700)
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+		target := filepath.Join(dst, rel)
+		if err = os.Link(path, target); err != nil {
+			in, e := os.Open(path)
+			if e != nil {
+				return e
+			}
+			defer in.Close()
+			out, e := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
+			if e != nil {
+				return e
+			}
+			defer out.Close()
+			_, e = io.Copy(out, in)
+			return e
+		}
+		return nil
+	})
 }
