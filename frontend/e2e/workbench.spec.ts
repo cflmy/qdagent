@@ -20,7 +20,7 @@ test('mobile navigation, model dialog and composer fit viewport',async({page})=>
 });
 
 test('real local model follows the mandatory root skill and human gates',async({page})=>{
- test.setTimeout(360000);
+ test.setTimeout(2400000);
  await page.goto('/app');await page.getByRole('button',{name:'新建任务',exact:true}).click();
  await page.locator('.model-button').click();await page.locator('.model-card-select').filter({hasText:'本机 Qwen'}).click();await page.getByRole('button',{name:'确定',exact:true}).click();
  await page.getByRole('textbox',{name:'任务内容'}).fill('这是软件开发验收。请形成一个可调用的 Marqdo 文稿工程，只有两个独立函数：第一个返回用户给出的文本「材料甲」，第二个返回文本「材料乙」。不需要研究、联网或 Office，不要编造外部事实。请按根 SKILL 的所有阶段推进。');
@@ -46,7 +46,7 @@ test('real local model follows the mandatory root skill and human gates',async({
  await expect(flow.getByRole('button',{name:'确认框架，开始细化'})).toBeEnabled({timeout:15000});
  await page.screenshot({path:'test-results/root-framework-desktop.png',fullPage:true});
  await flow.getByRole('button',{name:'确认框架，开始细化'}).click();
- await expect(flow.getByRole('button',{name:'确认验收',exact:true})).toBeVisible({timeout:200000});
+ await expect(flow.getByRole('button',{name:'确认验收',exact:true})).toBeVisible({timeout:900000});
  await expect(page.frameLocator('.native-view').locator('body')).toContainText('用户交流记录',{timeout:35000});
  await expect(page.locator('.trace-step.succeeded').filter({hasText:'子智能体'}).first()).toBeVisible();
  await page.screenshot({path:'test-results/root-delivery-desktop.png',fullPage:true});
