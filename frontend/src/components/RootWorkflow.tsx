@@ -1,37 +1,64 @@
-import {useEffect,useState} from 'react';
-import {ArrowRight,Check,CheckCircle2,ChevronDown,FileCode2,GitBranch,Layers,LoaderCircle,MessageCircleQuestion,Settings2,ShieldCheck} from 'lucide-react';
-import type {Model,RunEvent,RootState,RootResponse} from '../api';
-import {IntentTodos} from './IntentTodos';
-import {StageHistory,stageIndex} from './StageHistory';
-import {ExecutionReceipt} from './ExecutionReceipt';
-const stages=['意图拆解','基本方案','按函数段并行','方案落地'];
-const phaseIndex:Record<string,number>={intent:0,outline:1,refine:2,implement:3,review:3,complete:4};
-const actions:Record<string,string>={pending:'待开始',written:'已校验，待试运行',ready:'试运行通过',running:'执行中',failed:'需要修复'};
-export function RootWorkflow({state,models,busy,readOnly=false,events,onRespond,onPreview,onContinue}:{state:RootState;models:Model[];busy:boolean;readOnly?:boolean;events:RunEvent[];onRespond:(response:RootResponse)=>Promise<void>;onPreview:(path:string)=>void;onContinue:()=>void}){
- const [viewedStage,setViewedStage]=useState<number|null>(null),[historyRevision,setHistoryRevision]=useState<number|null>(null);
- const [answer,setAnswer]=useState(''),[choice,setChoice]=useState(''),[saving,setSaving]=useState(false),[error,setError]=useState(''),[acceptStubs,setAcceptStubs]=useState(false);
- const [expectedUnits,setExpectedUnits]=useState(state.settings?.expected_units||0);
- const [officeThemes,setOfficeThemes]=useState<string[]>(state.settings?.office_themes||['paper','midnight','coral']);
- const [concurrency,setConcurrency]=useState(state.settings?.concurrency||2),[childModel,setChildModel]=useState(state.settings?.child_model||'inherit'),[testModel,setTestModel]=useState(state.settings?.test_model||'inherit'),[unitModels,setUnitModels]=useState<Record<string,string>>(state.settings?.unit_models||{});
- useEffect(()=>{setOfficeThemes(state.settings?.office_themes||['paper','midnight','coral']);setExpectedUnits(state.settings?.expected_units||0);setAnswer('');setChoice('');setError('');setAcceptStubs(false);setConcurrency(state.settings?.concurrency||2);setChildModel(state.settings?.child_model||'inherit');setTestModel(state.settings?.test_model||'inherit');setUnitModels(state.settings?.unit_models||{})},[state.revision]);
- const effectiveStage=readOnly?(viewedStage??stageIndex(state.phase)):viewedStage;
- const pending=state.pending,index=phaseIndex[state.phase]??0,units=state.units||[],ready=units.filter(u=>u.status==='ready').length;
- const independentReady=units.length>0&&units.every(u=>u.tests&&u.trial?.passed&&['independent_cases','independent_contract'].includes(u.trial.assurance)&&u.trial.suite_sha256===u.tests.sha256);
- async function submit(action:string){setSaving(true);setError('');try{await onRespond({revision:state.revision,action,answer,choice,concurrency,office_themes:officeThemes,expected_units:expectedUnits,child_model:childModel,test_model:testModel,unit_models:unitModels,accept_stubs:acceptStubs})}catch(e){setError((e as Error).message)}finally{setSaving(false)}}
- const modelOptions=<><option value="inherit">跟随主智能体</option>{models.map(m=><option key={m.id} value={m.id}>{m.label}{m.notice?' · 服务需处理':''}</option>)}</>;
- return <section className="root-workflow" aria-label="根 SKILL 流程"><header className="root-heading"><span><Layers size={17}/>根 SKILL</span><small>文档驱动 · v{state.revision}</small>{!!state.stage_history?.length&&<button className="text-button stage-history-shortcut" onClick={()=>{setViewedStage(stageIndex(state.phase));setHistoryRevision(null)}}>阶段记录</button>}{readOnly?<b>已归档 · 只读</b>:state.phase==='complete'?<b><CheckCircle2 size={14}/>已验收{state.delivery_status==='partial'?' · 含已披露限制':''}</b>:pending?<b>等待你的{pending.kind==='intent'?'回答':pending.kind==='outline'?'确认':'验收'}</b>:null}</header>
- <ol className="root-stages" aria-label="四阶段导航">{stages.map((title,i)=>{const available=i<=Math.min(index,3)||(state.stage_history||[]).some(record=>stageIndex(record.phase)===i);const active=effectiveStage===null?i===Math.min(index,3):i===effectiveStage;return <li key={title} className={(i<index?'done ':'')+(active?'current':'')}><button disabled={!available} aria-pressed={active} aria-label={`查看${title}`} onClick={()=>{setHistoryRevision(null);setViewedStage(i===index&&state.phase!=='complete'?null:i)}}><span>{i<index?<Check size={12}/>:i+1}</span><strong>{title}</strong></button>{i<3&&<ArrowRight size={12}/>}</li>})}</ol>
- {effectiveStage!==null?<><div className="stage-back">{!readOnly&&<button className="text-button" onClick={()=>setViewedStage(null)}>返回{state.phase==='complete'?'完成概览':'当前步骤'}</button>}</div><StageHistory stage={effectiveStage!} state={state} revision={historyRevision} onRevision={setHistoryRevision} onPreview={onPreview}/></>:null}
- <div hidden={effectiveStage!==null}>
- {state.intent_tasks?.length?<IntentTodos tasks={state.intent_tasks} units={units} phase={state.phase}/>:null}
- {pending?.kind==='intent'?<div className="root-question"><div className="root-section-caption"><MessageCircleQuestion size={16}/>先把目标对齐</div><p className="root-summary">{pending.summary}</p><h3>{pending.question}</h3><fieldset><legend className="sr-only">选择你的意图</legend>{pending.choices?.map((item,i)=><label key={i} className={choice===item?'selected':''}><input type="radio" name={'intent-'+state.revision} value={item} checked={choice===item} onChange={()=>setChoice(item)}/><span>{item}</span><Check size={14}/></label>)}</fieldset><label className="root-freeform">也可以自由输入<textarea value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="补充你的使用场景、交付形式或限制条件…" rows={3} maxLength={4000}/></label><label className="root-freeform">限制业务函数数量（可选）<select aria-label="业务函数数量" value={expectedUnits} onChange={e=>setExpectedUnits(Number(e.target.value))}><option value={0}>不限定，按业务拆分</option>{Array.from({length:8},(_,i)=><option key={i} value={i+1}>恰好 {i+1} 个业务函数</option>)}</select></label><div className="root-actions"><span>可以多轮澄清，确认后才开始规划。</span><button className="button" disabled={saving||busy||(!answer.trim()&&!choice)} onClick={()=>submit('answer')}>继续澄清</button><button className="button primary" disabled={saving||busy||(!answer.trim()&&!choice)} onClick={()=>submit('confirm_intent')}>{saving?<LoaderCircle size={15} className="spin"/>:<Check size={15}/>}确认意图并规划</button></div></div>:null}
- {pending?.kind==='outline'?<div className="root-framework"><div className="root-section-caption"><FileCode2 size={16}/>先审阅框架，再并行实施</div><h3>{state.title}</h3><p>{state.acceptance}</p><button className="root-document-link" onClick={()=>onPreview(pending.path!)}><FileCode2 size={19}/><span><strong>基本方案.mq.md</strong><small>用官方 View 阅读实际骨架</small></span><ArrowRight size={16}/></button><div className="root-unit-contracts">{units.map(unit=><article key={unit.id}><code>unit_{unit.id}</code><strong>{unit.title}</strong><p>{unit.purpose}</p>{!!unit.depends_on?.length&&<small>依赖：{unit.depends_on.join('、')}</small>}</article>)}</div><details className="root-settings" open><summary><Settings2 size={15}/>子智能体与并发配置<ChevronDown size={14}/></summary>{(state.artifact_kind==='pptx'||state.artifact_kind==='docx')&&<><p>风格变体共用已验证正文，按下方并发数生成。至少选择一种。</p><div className="office-theme-options">{[['paper','留白画廊'],['midnight','极夜星图'],['coral','日落编辑部'],['sage','竹影纸笺']].map(([id,label])=><label key={id} className={'theme-'+id}><input type="checkbox" checked={officeThemes.includes(id)} onChange={()=>setOfficeThemes(old=>old.includes(id)?old.length>1?old.filter(x=>x!==id):old:[...old,id])}/><i/>{label}</label>)}</div></>}<div className="root-settings-grid"><label>同时执行的单元数<select value={concurrency} onChange={e=>setConcurrency(Number(e.target.value))}>{Array.from({length:8},(_,i)=><option key={i} value={i+1}>{i+1} 个</option>)}</select></label><label>默认子模型<select value={childModel} onChange={e=>setChildModel(e.target.value)}>{modelOptions}</select></label><label>独立测试模型<select value={testModel} onChange={e=>setTestModel(e.target.value)}>{modelOptions}</select></label></div>{units.length>1&&<div className="root-unit-models">{units.map(unit=><label key={unit.id}><span>{unit.title}</span><select aria-label={unit.title+'的模型'} value={unitModels[unit.id]||''} onChange={e=>setUnitModels(v=>({...v,[unit.id]:e.target.value}))}><option value="">使用默认子模型</option>{modelOptions}</select></label>)}</div>}<p>只对本工程生效。模型需属于当前账号或平台共享；未通过校验的单元不会被标为完成。</p></details><label className="root-freeform">修改意见（可选）<textarea rows={2} value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="需要调整职责、依赖或验收条件，可以先重新规划。"/></label><div className="root-actions"><button className="button" disabled={saving||busy} onClick={()=>submit('revise')}>调整方案</button><button className="button primary" disabled={saving||busy} onClick={()=>submit('confirm_outline')}>{saving?<LoaderCircle size={15} className="spin"/>:<GitBranch size={15}/>}确认框架，开始细化</button></div></div>:null}
- {!pending&&state.phase==='refine'?<div className="root-refinement"><div className="root-section-caption"><GitBranch size={16}/>独立测试，逐段实现<span>{ready}/{units.length} 通过试运行</span></div>{state.workbook&&<button className="root-document-link" onClick={()=>onPreview(state.workbook!.path)}><FileCode2 size={19}/><span><strong>主方案 · index.mq.md</strong><small>各子智能体分别填写一个 ## 函数段，保留其余段落</small></span><ArrowRight size={16}/></button>}<div className="root-children">{units.map(unit=>{const childEvents=events.filter(e=>String(e.data.id)===unit.id&&e.kind.startsWith('child_'));const lifecycle=childEvents.filter(e=>e.kind==='child_start'||e.kind==='child_end').at(-1);const status=unit.status==='ready'?'ready':String(lifecycle?.data.status||unit.status);return <details className={'root-child '+status} key={unit.id}><summary><span className="root-child-icon">{status==='ready'?<Check size={14}/>:status==='running'?<LoaderCircle size={14} className="spin"/>:<GitBranch size={14}/>}</span><strong>{unit.title}</strong><small>{actions[status]||status}</small><ChevronDown size={13}/></summary><div><p>{unit.purpose}</p>{unit.tests&&<p>独立测试已冻结 · {unit.tests.count} 项{unit.tests.kind==='document'?'文档契约':'案例'}</p>}{unit.specification&&<button className="text-button" onClick={()=>onPreview(unit.specification!.path)}>阅读测试者可见的意图文稿</button>}{unit.path&&<button className="text-button" onClick={()=>onPreview(unit.path!)}>{unit.function?`阅读主文稿 · ## ${unit.function}`:'阅读单元文稿'}</button>}{unit.artifact&&<button className="text-button" onClick={()=>onPreview(unit.artifact!.path)}>阅读实际正文</button>}{unit.sha256&&<code className="root-hash">SHA256 {unit.sha256.slice(0,16)}…</code>}{childEvents.filter(e=>['child_tool_start','child_tool_end','child_end'].includes(e.kind)).map(e=><details className="root-child-receipt" key={e.seq}><summary>{String(e.data.name||e.data.title||'交接')} · {String(e.data.status||'开始调用')}</summary><ExecutionReceipt value={e.data} onPreview={onPreview}/></details>)}</div></details>})}</div>{!busy&&<><label className="root-freeform">需要调整职责或验收？<textarea rows={2} value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="填写反馈后返回框架规划；已有文稿与诊断仍保留。"/></label><div className="root-actions"><button className="button" disabled={saving} onClick={()=>submit('revise')}>调整框架</button><button className="button" onClick={onContinue}>继续处理未通过的单元</button></div></>}</div>:null}
- {pending?.kind==='review'?<div className="root-review"><div className="root-section-caption"><ShieldCheck size={16}/>核对实际交付</div><h3>{state.title}</h3><p>{independentReady?'所有单元已经完成编译检查与独立测试，整合入口也进行了独立冒烟验证。请对照目标验收业务内容。':'这份历史交付缺少当前独立测试证据。文稿仍可阅读，请选择反馈并调整方案，重新确认框架后完成验证。'}</p><button className="root-document-link" onClick={()=>onPreview(pending.path!)}><FileCode2 size={20}/><span><strong>index.mq.md</strong><small>实现、用户交流与工程说明在同一份入口</small></span><ArrowRight size={16}/></button>{units.filter(unit=>unit.artifact).map(unit=><button className="text-button" key={unit.id} onClick={()=>onPreview(unit.artifact!.path)}>阅读正文 · {unit.title}</button>)}{!!pending.stubs?.length&&<div className="root-stubs"><strong>以下功能明确尚未接通</strong><pre>{JSON.stringify(pending.stubs,null,2)}</pre><label><input type="checkbox" checked={acceptStubs} onChange={e=>setAcceptStubs(e.target.checked)}/>我已了解这些限制，按当前范围验收；交付将标为部分完成。</label></div>}<label className="root-freeform">验收反馈（可选）<textarea rows={2} value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="需要修改的内容可以随反馈返回方案阶段。"/></label><div className="root-actions"><button className="button" disabled={saving||busy} onClick={()=>submit('revise')}>反馈并调整方案</button><button className="button primary" disabled={saving||busy||!independentReady||!!pending.stubs?.length&&!acceptStubs} onClick={()=>submit('accept')}>{saving?<LoaderCircle size={15} className="spin"/>:<CheckCircle2 size={15}/>}确认验收</button></div></div>:null}
- {state.phase==='complete'&&<div className="root-completed"><CheckCircle2 size={27}/><div><strong>{state.delivery_status==='partial'?'已按披露范围验收':'四阶段流程已完成'}</strong><p>点击上方任意阶段，回看意图、方案、函数段与验收记录。</p></div><button className="button" onClick={()=>onPreview(state.delivery?.path||'solution/index.mq.md')}>阅读交付文稿</button></div>}
- {!pending&&['outline','implement'].includes(state.phase)&&<div className="root-current"><p>{state.phase==='outline'?'正在编写可审阅的基本方案。':'正在整合业务实现、用户交流与工程说明。'}</p>{state.phase==='outline'&&!!state.draft_units?.length&&<><small>已保存 {state.draft_units.length} 项职责草稿，尚未发表和确认</small><div className="root-unit-contracts">{state.draft_units.map(unit=><article key={unit.id}><code>{unit.id}</code><strong>{unit.title}</strong><p>{unit.purpose}</p></article>)}</div></>}{!busy&&<button className="button" onClick={onContinue}>继续当前阶段</button>}</div>}
- {state.phase!=='intent'&&state.phase!=='complete'&&!busy&&<div className="root-actions root-realign"><span>目标或分工发生变化？保留历史后重新确认。</span><button className="text-button" disabled={saving} onClick={()=>submit('revise_intent')}>重新对齐意图</button></div>}
- </div>
- {error&&<p className="root-error" role="alert">{error}</p>}
- </section>;
+import {useState} from 'react'
+import {Check, ChevronDown, CircleHelp, FileCode2, Layers3, LoaderCircle, Play, ShieldCheck, X} from 'lucide-react'
+import type {Model, RootResponse, RootState, RunEvent} from '../api'
+
+/**
+ * Capability Agent V3 task projection. This component never constructs a plan,
+ * infers authority from a model reply or knows the software-development stages.
+ * All confirmations use the exact backend revision; they authorize the single
+ * installed skill whose source digest is pinned in the pending gate.
+ */
+export function RootWorkflow({
+ state, busy, readOnly=false, onRespond, onContinue
+}:{
+ state:RootState
+ models:Model[]
+ busy:boolean
+ readOnly?:boolean
+ events:RunEvent[]
+ onRespond:(response:RootResponse)=>Promise<void>
+ onPreview:(path:string)=>void
+ onContinue:()=>void
+}) {
+ const [saving,setSaving]=useState(false)
+ const [error,setError]=useState('')
+ const pending=state.pending
+ const complete=state.phase==='complete'
+ const waiting=state.phase==='waiting_user' && pending?.kind==='effect_approval'
+ async function respond(action:'approve'|'deny'){
+  setError('')
+  setSaving(true)
+  try{await onRespond({revision:state.revision,action,answer:'',choice:action})}
+  catch(e){setError(e instanceof Error?e.message:'确认未完成')}
+  finally{setSaving(false)}
+ }
+ return <section className="root-workflow agent-capability" aria-label="Marqdo 能力智能体">
+  <header className="root-heading">
+   <span><Layers3 size={17}/>求道 · 能力智能体</span>
+   <small>Marqdo Native · revision {state.revision}</small>
+   {complete?<b><Check size={14}/>{state.status==='succeeded'?'已完成':'执行已结束'}</b>:
+    waiting?<b><CircleHelp size={14}/>等待效果授权</b>:<b>按需执行</b>}
+  </header>
+  <div className="root-current">
+   <p>{state.goal||'当前没有已提交的任务'}</p>
+   {!!state.selected_skill&&<p><FileCode2 size={15}/>使用能力：<code>{state.selected_skill}</code></p>}
+   {state.status==='incomplete'&&<p>任务尚未完成。可以继续查询证据或选择其他能力。</p>}
+  </div>
+  {waiting&&<div className="root-question">
+   <div className="root-section-caption"><ShieldCheck size={16}/>已安装 SKILL 的效果授权</div>
+   <h3>{pending.question||'是否批准本次能力调用？'}</h3>
+   <p>能力：<code>{pending.skill}</code></p>
+   <p>授权只适用于此能力和当前源码版本。源码改变后需要重新确认；拒绝不会执行工具。</p>
+   <div className="root-actions">
+    <button className="button" disabled={busy||saving||readOnly} onClick={()=>respond('deny')}><X size={15}/>拒绝</button>
+    <button className="button primary" disabled={busy||saving||readOnly} onClick={()=>respond('approve')}>{saving?<LoaderCircle size={15} className="spin"/>:<ShieldCheck size={15}/>}批准本次执行</button>
+   </div>
+  </div>}
+  {!!error&&<p role="alert" className="error-card">{error}</p>}
+  {complete&&!!state.answer&&<details className="root-completed">
+   <summary>最近一次实际结果 <ChevronDown size={14}/></summary>
+   <p>{state.answer}</p>
+  </details>}
+  {!complete&&!waiting&&!busy&&!readOnly&&<div className="root-actions"><button className="button" onClick={onContinue}><Play size={14}/>继续当前任务</button></div>}
+ </section>
 }
