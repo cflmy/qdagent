@@ -83,11 +83,6 @@ for folder in ("agent", "skills", "workflows", "ext/office", "ext/qdagent"):
                 if imp.startswith("skills/") or imp.startswith("workflows/"):
                     report("agent/index.mq.md", "root must not import a specific skill or workflow")
 
-if errors:
-    print("Architecture violations:", file=sys.stderr)
-    for error in errors:
-        print(" - " + error, file=sys.stderr)
-    sys.exit(1)
 # This rule applies to internal framework documents as well as SKILL entrypoints.
 for folder in ("agent", "skills", "workflows"):
     for doc in (ROOT / folder).rglob("*.mq.md"):

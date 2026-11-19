@@ -35,7 +35,8 @@ def render() -> str:
         description = metadata(source, "description")
         if not description or len(description) > 240:
             raise ValueError(f"Invalid description: {name}")
-        rows.append(f"| {name} | {description.replace('|', '\\|')} |")
+        safe_description = description.replace("|", "&#124;")
+        rows.append(f"| {name} | {safe_description} |")
     return START + "\n" + "\n".join(rows) + "\n" + END
 
 

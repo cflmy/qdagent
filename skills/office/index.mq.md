@@ -16,11 +16,6 @@ import:
 
 ## run
 
-| 参数 | 类型 | 说明 |
-|---|---|---|
-
-
-
 We **raw_input = io.input()**.
 1. not access(`raw_input`,"ok")
   Return *`raw_input`*.
