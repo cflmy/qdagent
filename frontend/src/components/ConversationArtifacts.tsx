@@ -10,7 +10,7 @@ export function ConversationArtifacts({task,files,events,onPreview}:{task:string
  const others=artifacts.filter(a=>!styled.includes(a));
  if(!artifacts.length&&!live)return null;
  return <section className="conversation-artifacts" aria-label="对话中的产物">
-  {(styled.length>0||live)&&<div className="conversation-variants"><ArtifactGallery task={task} artifacts={styled} events={events} onOpen={onPreview} themes={files?.workflow?.settings.office_themes}/></div>}
+  {(styled.length>0||live)&&<div className="conversation-variants"><ArtifactGallery task={task} artifacts={styled} events={events} onOpen={onPreview}/></div>}
   <Deliverables task={task} artifacts={others} onPreview={onPreview}/>
  </section>;
 }

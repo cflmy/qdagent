@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import {Check, ChevronDown, CircleHelp, FileCode2, Layers3, LoaderCircle, Play, ShieldCheck, X} from 'lucide-react'
-import type {Model, RootResponse, RootState, RunEvent} from '../api'
+import type {Model, AgentResponse, AgentState, RunEvent} from '../api'
 
 /**
  * Capability Agent V3 task projection. This component never constructs a plan,
@@ -8,15 +8,15 @@ import type {Model, RootResponse, RootState, RunEvent} from '../api'
  * All confirmations use the exact backend revision; they authorize the single
  * installed skill whose source digest is pinned in the pending gate.
  */
-export function RootWorkflow({
+export function AgentSession({
  state, busy, readOnly=false, onRespond, onContinue
 }:{
- state:RootState
+ state:AgentState
  models:Model[]
  busy:boolean
  readOnly?:boolean
  events:RunEvent[]
- onRespond:(response:RootResponse)=>Promise<void>
+ onRespond:(response:AgentResponse)=>Promise<void>
  onPreview:(path:string)=>void
  onContinue:()=>void
 }) {

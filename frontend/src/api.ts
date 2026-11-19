@@ -25,14 +25,13 @@ export interface RunEvent {seq:number;run_id:string;kind:string;data:Record<stri
 export interface Plan {goal:string;acceptance:string;steps:{id:number;title:string;status:string;evidence?:string}[]}
 export interface WorkspaceFile {path:string;name:string;size:number;modified_ms:number}
 export interface Artifact {id:string;title:string;kind:string;path:string;source:string;bytes:number;group_id?:string;theme?:{id:string;label:string;tagline?:string;transition?:string};pdf?:{path:string;id:string}}
-export interface SkillRoute {mode:string;document:string;function:string;label:string}
-export interface IntentTask {id:string;title:string;purpose:string;mode:string;route:SkillRoute;artifact_kind?:string;office_route?:Pick<SkillRoute,'label'|'document'|'function'>}
-export interface Decision {actor?:string;action?:string;text?:string;choice?:string;question?:string;summary?:string;revision?:number}
-export interface StageRecord {phase:string;revision:number;goal?:string;title?:string;summary?:string;acceptance?:string;pending?:RootState["pending"];units?:RootUnit[];intent_tasks?:IntentTask[];settings?:RootState["settings"];history?:Decision[];decision?:Decision;document?:{path:string;sha256:string}}
-export interface RootUnit {intent_id?:string;route?:SkillRoute;function?:string;artifact?:{path:string;sha256:string};tests?:{count:number;sha256:string;kind?:string};trial?:{passed:boolean;assurance:string;suite_sha256?:string};specification?:{path:string;executable_statements:number};id:string;title:string;purpose:string;mode?:string;depends_on?:string[];status:string;path?:string;sha256?:string}
-export interface RootState {artifact_kind?:string;intent_tasks?:IntentTask[];stage_history?:StageRecord[];history?:Decision[];workbook?:{path:string;outline_sha256:string};revision:number;phase:string;goal:string;title?:string;acceptance?:string;summary?:string;units:RootUnit[];draft_units?:RootUnit[];settings:{office_themes?:string[];expected_units?:number;concurrency:number;child_model:string;test_model?:string;unit_models:Record<string,string>};pending?:{kind:string;question?:string;summary?:string;choices?:string[];path?:string;stubs?:unknown[];skill?:string;source_sha256?:string;options?:string[]};delivery?:{path:string};delivery_status?:string;status?:string;answer?:string;approved_skill?:string|null;selected_skill?:string|null}
-export interface RootResponse {revision:number;action:string;answer:string;choice:string;office_themes?:string[];expected_units?:number;concurrency?:number;child_model?:string;test_model?:string;unit_models?:Record<string,string>;accept_stubs?:boolean}
-export interface Files {workflow?:RootState;files:WorkspaceFile[];plan?:Plan;artifacts?:Artifact[];children?:{id:string;role:string;goal:string;status:string}[]}
+export interface AgentState {
+ revision:number;phase:string;goal:string;status?:string;answer?:string;
+ approved_skill?:string|null;selected_skill?:string|null;
+ pending?:{kind:string;question?:string;skill?:string;source_sha256?:string;options?:string[]};
+}
+export interface AgentResponse {revision:number;action:string;answer:string;choice:string}
+export interface Files {agent?:AgentState;files:WorkspaceFile[];artifacts?:Artifact[]}
 export interface Preview {kind:string;filename:string;title:string;source?:string;html?:string}
 export function useRun(id:string,onDone:()=>void){
  const [state,setState]=useState<{id:string;events:RunEvent[];answer:string;status:string;connection:string}>({id:'',events:[],answer:'',status:'',connection:''});const done=useRef(onDone);done.current=onDone;
