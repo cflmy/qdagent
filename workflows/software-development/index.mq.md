@@ -6,6 +6,7 @@ import:
   workflow: ext/ai/workflow.mq.md
   table: lib/table.mq.md
   json: lib/json.mq.md
+  io: ../../agent/io.mq.md
   result: lib/result.mq.md
 ---
 
@@ -22,9 +23,13 @@ import:
 
 Use `context`, `goal`。
 
-We **steps = json.parse(text='[{"id":"contract","kind":"model","prompt":"Confirm the minimal public function contract","options":["clarify","ready"]},{"id":"approval","kind":"input","question":"Approve the scoped development work?","options":["approve","deny"]},{"id":"end","kind":"return"}]')**.
+**steps = > json.parse text=[{"id":"contract","kind":"model","prompt":"Confirm the minimal public function contract","options":["clarify","ready"]},{"id":"approval","kind":"input","question":"Approve the scoped development work?","options":["approve","deny"]},{"id":"end","kind":"return"}]**.
+We **revision = io.native(context=`context`,operation="agent_source_revision",payload=table.put(in=None,at="path",value="workflows/software-development/index.mq.md"))**.
+1. not access(`revision`,"ok")
+  Return *`revision`*.
+We **source_revision = access(`revision`,"value")**.
 We **run_id = access(`context`,"task_id")**.
-Return *workflow.open(id=`run_id`,steps=`steps`,source_revision="agent-v3",session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.
+Return *workflow.open(id=`run_id`,steps=`steps`,source_revision=`source_revision`,session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.
 
 ## advance
     + `context`
@@ -35,4 +40,7 @@ Return *workflow.open(id=`run_id`,steps=`steps`,source_revision="agent-v3",sessi
 
 Use `context`。
 
-Return *workflow.tick(id=access(`context`,"task_id"),source_revision="agent-v3",session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.
+We **revision = io.native(context=`context`,operation="agent_source_revision",payload=table.put(in=None,at="path",value="workflows/software-development/index.mq.md"))**.
+1. not access(`revision`,"ok")
+  Return *`revision`*.
+Return *workflow.tick(id=access(`context`,"task_id"),source_revision=access(`revision`,"value"),session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.

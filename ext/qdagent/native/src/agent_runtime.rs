@@ -118,16 +118,32 @@ fn call(c:&Value,v:&Value)->Result<Value,String>{
  let envelope:Value=serde_json::from_slice(&output).map_err(|_|"agent.skill.invalid_marqdo_result")?;
  if envelope["ok"]!=true{return Err(format!("agent.skill.marqdo_error: {}",envelope["error"]))}
  if envelope["result"]["ok"]==false{return Err(format!("agent.skill.domain_failure: {}",envelope["result"]["error"]))}
+ let value=if envelope["result"]["ok"]==true {&envelope["result"]["value"]} else {&envelope["result"]};
+ let observed=value["status"].as_str().unwrap_or("");
+ let status=if matches!(observed,"waiting_model"|"waiting_input"|"needs_source_read"|"draft_needs_compiler_review"|"incomplete"|"blocked"|"uncertain"){
+  "incomplete"
+ }else{"succeeded"};
  if digest(&fs::read(source).map_err(|e|e.to_string())?)!=spec["sha256"]{
   return Err("agent.skill.source_changed_after_execution".into())
  }
- Ok(json!({"status":"succeeded","result":envelope["result"],"skill":name,"source_sha256":spec["sha256"],"evidence":"marqdo_call"}))
+ Ok(json!({"status":status,"result":envelope["result"],"skill":name,"source_sha256":spec["sha256"],"evidence":"marqdo_call"}))
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
  let c=context(v)?;
  match v["operation"].as_str().ok_or("operation missing")?{
   "agent_catalog_list"=>catalog(c),
   "agent_catalog_resolve"=>skill(c,v["skill"].as_str().ok_or("skill required")?),
+  "agent_source_revision"=>{
+   let rel=v["path"].as_str().ok_or("relative source required")?;
+   if !rel.starts_with("workflows/")||!rel.ends_with(".mq.md")||rel.split('/').any(|s|s==".."||s=="."||s.is_empty()){
+    return Err("agent.source.invalid".into())
+   }
+   let project=project(c)?;
+   let base=project.join("workflows").canonicalize().map_err(|e|e.to_string())?;
+   let file=project.join(rel).canonicalize().map_err(|e|e.to_string())?;
+   if !file.starts_with(base)||!file.is_file(){return Err("agent.source.outside_project".into())}
+   Ok(json!(digest(&fs::read(file).map_err(|e|e.to_string())?)))
+  },
   "agent_skill_call"=>call(c,v),
   "agent_session_read"=>{let r=root(c)?;let _lock=super::lifecycle(&r)?;read(&r)},
   "agent_memory_sync"=>{

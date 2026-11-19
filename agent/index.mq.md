@@ -134,11 +134,12 @@ We **receipt = executor.call(context=`context`,skill=`selected`,goal=`goal`)**.
   Return *`failed`*.
 We **actual = access(`receipt`,"value")**.
 We **answer = str(json.get(value=`actual`,key="result"))**.
-We **saved_final = session.finish(context=`context`,status="succeeded",answer=`answer`,skill=`selected`)**.
+We **completed_status = json.get(value=`actual`,key="status")**.
+We **saved_final = session.finish(context=`context`,status=`completed_status`,answer=`answer`,skill=`selected`)**.
 `output` =
   
 | answer | status |
 |---|---|
-| `answer` | "succeeded" |
+| `answer` | `completed_status` |
 
 Return *`output`*.
