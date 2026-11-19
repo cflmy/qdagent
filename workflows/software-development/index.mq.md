@@ -20,7 +20,7 @@ import:
 
 
 
-**steps = > json.parse text=[{"id":"contract","kind":"model","prompt":"Confirm the minimal public function contract","options":["clarify","ready"]},{"id":"approval","kind":"input","question":"Approve the scoped development work?","options":["approve","deny"]},{"id":"end","kind":"return"}]**.
+**steps = > json.parse text=[{"id":"approval","kind":"input","question":"是否同意本次开发工作进入独立验证阶段？","options":["approve","deny"]},{"id":"acceptance","kind":"input","question":"请审阅独立测试与真实结果后决定是否验收。","options":["accept","reject"]},{"id":"end","kind":"return"}]**.
 We **revision = io.native(operation="agent_source_revision",payload=table.put(in=None,at="path",value="workflows/software-development/index.mq.md"))**.
 1. not access(`revision`,"ok")
   Return *`revision`*.

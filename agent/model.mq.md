@@ -21,7 +21,7 @@ import:
 
 Use `role`="chat", `step`=1。
 
-We **memo = memory.sync()**.
+We **memo = memory.read()**.
 1. not access(`memo`,"ok")
   Return *`memo`*.
 We **args = table.put(in=None,at="role",value=`role`)**.

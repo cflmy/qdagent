@@ -73,7 +73,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    let workspace=Path::new(c["workspace"].as_str().ok_or("workspace required")?).canonicalize().map_err(|e|e.to_string())?;
    let memory_path=workspace.join("memory.mq.md");
    let memory=fs::read_to_string(&memory_path).map_err(|_|"agent.model.memory_missing")?;
-   if !memory.starts_with("# 任务关键事实")||memory.len()>8192{return Err("agent.model.memory_invalid".into())}
+   if !(memory.starts_with("# 任务记忆")||memory.starts_with("# 任务关键事实"))||memory.len()>8192{return Err("agent.model.memory_invalid".into())}
    if source.len()>65536||input.len()>16000{return Err("agent.model.source_or_input_budget".into())}
    let mut runtime_actor=c.clone();
    runtime_actor["role"]=json!(role);
@@ -115,6 +115,22 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   },
   "agent_skill_call"=>execute::call(c,v),
   "agent_session_read"=>{let r=root(c)?;let _lock=super::lifecycle(&r)?;read(&r)},
+  "agent_memory_read"=>{
+   let workspace=Path::new(c["workspace"].as_str().ok_or("workspace required")?).canonicalize().map_err(|e|e.to_string())?;
+   let target=workspace.join("memory.mq.md");
+   if let Ok(m)=fs::symlink_metadata(&target){
+    if m.file_type().is_symlink()||!m.is_file(){return Err("agent.memory.invalid_target".into())}
+   }else{
+    // The memory is an actual durable document, not a new prompt generated on
+    // each model call. Never overwrite it to replay conversation state.
+    super::atomic(&target,"# 任务记忆\\n\\n尚未沉淀长期知识。\\n")?;
+   }
+   let content=fs::read_to_string(&target).map_err(|e|e.to_string())?;
+   if content.len()>8192||!(content.starts_with("# 任务记忆")||content.starts_with("# 任务关键事实")){
+    return Err("agent.memory.inert_budget_required".into())
+   }
+   Ok(json!(content))
+  },
   "agent_memory_sync"=>{
    let r=root(c)?;let _lock=super::lifecycle(&r)?;let s=read(&r)?;
    let rev=v["revision"].as_u64().ok_or("agent.memory.revision_required")?;

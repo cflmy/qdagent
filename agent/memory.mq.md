@@ -1,29 +1,20 @@
 ---
 markup: occlusion
-title: 唯一跨轮模型记忆
-description: 由可信状态生成无执行权的 memory.mq.md，不重放聊天历史。
+title: 求道唯一持久记忆文稿
+description: 模型读取一份实际存在的 memory.mq.md，不重放或重写完整聊天。
 import:
-  session: session.mq.md
   io: io.mq.md
   table: lib/table.mq.md
-  json: lib/json.mq.md
 ---
 
-此文稿只将真实状态投影为 Markdown。身份、批准、原始收据和证明不存入模型记忆。模型每轮只读取这份投影，不能通过修改它获取权限。
+# memory
 
-## sync
+memory.mq.md 在用户自己的工作区。它是一份可长期积累、受容量约束的 Markdown 文稿，而不是每轮重新拼接的历史、角色提示词或会话快照。真正的权限、版本和执行收据另存。默认模型调用仅读取它；谁能更新记忆须由专门的受控写入能力决定，不能由模型答复擅自改写。
+
+## read
 
 | 返回 | 类型 | 说明 |
 |---|---|---|
-| result | text | 原生 CAS 保存的只读记忆文稿 |
+| result | text | 真实持久记忆文稿；首次不存在才创建 |
 
-We **saved = session.status()**.
-1. not access(`saved`,"ok")
-  Return *`saved`*.
-We **state = access(`saved`,"value")**.
-We **goal = json.stringify(value=json.get(value=`state`,key="goal"))**.
-We **phase = json.stringify(value=json.get(value=`state`,key="phase"))**.
-We **selected = json.stringify(value=json.get(value=`state`,key="selected_skill"))**.
-We **body = "# 任务关键事实\n\n- 用户目标：" + str(`goal`) + "\n- 阶段：" + str(`phase`) + "\n- 已选能力：" + str(`selected`) + "\n\n这只是无执行权的状态投影。\n"**.
-We **args = table.put(in=None,at="revision",value=access(`state`,"revision"))**.
-Return *io.native(operation="agent_memory_sync",payload=table.put(in=`args`,at="memory",value=`body`))*.
+Return *io.native(operation="agent_memory_read",payload=table.empty_map())*.
