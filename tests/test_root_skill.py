@@ -22,7 +22,14 @@ class RootTests(unittest.TestCase):
  def tearDown(self):self.temp.cleanup()
  def raw(self,member,context=None,**args):
   env={**os.environ,'MARQDO_LIB':str(PROJECT/'lib'),'MARQDO_EXT':str(PROJECT/'ext')}
-  source=PROJECT/'ext/root-skill/index.mq.md'
+  # Marqdo binds a function only against artifacts declared in the entry file,
+  # so begin/clarify_intent/respond/outline live in their owning documents.
+  owners={'begin':'state.mq.md','respond':'state.mq.md','status':'state.mq.md',
+          'clarify_intent':'intent.mq.md','outline':'planning.mq.md',
+          'author_select':'authoring.mq.md','author_text':'authoring.mq.md',
+          'author_unit':'authoring.mq.md','refine':'authoring.mq.md','trial_unit':'authoring.mq.md',
+          'integrate':'delivery.mq.md'}
+  source=PROJECT/'ext/root-skill'/owners.get(member,'index.mq.md')
   if '.' in member:
    module,member=member.split('.',1);source=PROJECT/f'ext/root-skill/{module}.mq.md'
   proc=subprocess.run(['marqdo','call',str(source),member,'--args-json','-','--effects','plugin,fs.read,fs.write,process.exec,environment.read','--fs-root',str(self.root/'work'),'--json'],input=json.dumps({**args,'context':context or self.context}),text=True,capture_output=True,env=env,timeout=90,cwd=self.root/'work')
