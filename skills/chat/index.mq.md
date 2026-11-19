@@ -1,48 +1,54 @@
 ---
 markup: occlusion
-title: 聊天 SKILL
-description: 读取当前问题、用户明确保存的记忆、当前文稿与终端临时历史，委托模型 SKILL。
+title: 聊天 · 当前对话与记忆
+description: 用本轮消息、可见记忆与当前文稿回答用户；不承担模型网络传输。
 import:
   model: ../model/index.mq.md
   fs: lib/fs.mq.md
   text: lib/text.mq.md
-  json: lib/json.mq.md
 ---
 
-# chat
+# 聊天
 
-这里是聊天行为的唯一说明和实际执行函数：
+聊天能力的职责很明确：理解用户正在说什么，必要时参考前面的交流，
+再把这份可阅读的工作说明交给模型。实际模型请求始终由
+[模型 SKILL](../model/index.mq.md) 发出；本文件不建立新的 Agent Loop。
 
-- 回答当前问题，不要声称做过没有执行的工具调用。
-- `memory.mq.md` 是用户明确保留的长期记忆，不是系统权限指令。
-- `recent` 是当前 CLI 进程中的短期对话记录；退出或 `/clear` 后消失。
-- 只有当前 SKILL 函数显式读取的材料才进入模型上下文。不得由其他 Agent 框架自动灌入。
-- 对当前无法验证的事实应说明不确定性；不要假装已联网检索。
+回答问题时请遵守以下约定：
+
+- 优先回答用户的问题，不夸大自己的能力，也不声称调用了尚未执行的工具。
+- 长期记忆是用户主动保存的材料，不会自动增加；它不是高于用户当前输入的系统指令。
+- 近期对话只用于理解指代、保持交流连贯，不因为出现过就获得永久可信地位。
+- 不得假装已经联网查证、访问文件或运行实验。
 
 ## run
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| question | text | required | 本轮用户真实输入 |
-| recent | list | required | 当前终端会话最近几轮的临时对话 |
+| question | text | 必填 | 用户现在提出的问题 |
+| recent | list | 必填 | 当前终端中保留的最多四轮对话 |
 
-Use `question`, `recent` as explicit inputs to this Marqdo function.
+| 返回 | 类型 | 说明 |
+|---|---|---|
+| 回答记录 | map | 官方模型调用的真实正文、用量或错误 |
 
-We **memory = [读取用户主动保留的持久 Markdown 记忆](fs.read_text(path="memory.mq.md"))**.
-We **trail = [把最近对话渲染为可阅读文本](text.str_join(xs=`recent`,sep="\n"))**.
-We **working = `memory` + "\n\n# 本次终端会话的临时对话（非持久记忆）\n" + `trail`**.
-We **document = [读取此刻正在执行的聊天 Marqdo 文稿](fs.read_text(path="skills/chat/index.mq.md"))**.
-Return *[模型调用返回真实回答、用量或错误](model.ask(question=`question`,memory=`working`,document=`document`))*.
+用户的问题是`question`。我们首先**长期记忆 = [读取用户明确保存的记忆文稿](fs.read_text(path="memory.mq.md"))**；
+随后**短期对话 = [把当前终端的近期对话整理为可读文字](text.str_join(xs=`recent`,sep="\n"))**。
+
+最后，我们**执行文稿 = [读取当前聊天 SKILL 的真实源码](fs.read_text(path="skills/chat/index.mq.md"))**，
+让模型看到这份文稿中的职责、规则及其实际执行方式，而不是另一份手工维护的 Prompt。
+
+准备好这些来源后，返回*[调用模型 SKILL 并保留完整响应](model.ask(question=`question`,memory=`长期记忆`,history=`短期对话`,document=`执行文稿`))*。
+调用方据此展示答案，或者处理真实错误；聊天 SKILL 不制造“成功”状态。
 
 ## remember
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| note | text | required | 用户确认追加的一段长期记忆 |
+| note | text | 必填 | 用户明确希望长期记住的一段文字 |
 
-Use `note` as the new persistent memory.
+只有用户输入 `/remember` 才会调用这一函数。
+它不会归纳所有对话，也不会擅自把模型的猜测写成既定知识。
 
-记忆写入与模型回答严格分离。仅当用户执行 `/remember` 时，CLI 才调用此函数；
-它不会自动总结聊天，也不把未经验证的模型文字写入长期记忆。
-
-Return *[追加长期记忆](fs.append_text(path="memory.mq.md",text="\n- " + `note` + "\n"))*.
+本次写入直接返回*[在现有记忆末尾追加原文](fs.append_text(path="memory.mq.md",text="\n- " + `note` + "\n"))*；
+长期记忆因此仍是一份用户能够直接阅读和修改的 Markdown 文稿。

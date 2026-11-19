@@ -1,114 +1,86 @@
-# 求道 · 纯 Marqdo 终端智能体
+# 求道 · 两个 SKILL 的 Marqdo 终端智能体
 
-**一个 CLI 入口、两个 SKILL，完全使用 Marqdo 执行。** 不需要 Python、Go、私有 Rust 插件、Web 后端或前端。
+求道的主入口就是一份可读、可执行的文稿：`index.mq.md`。
+它负责持续读取用户输入、显示模型回答和管理少量临时对话。聊天原则由
+[聊天文稿](skills/chat/index.mq.md) 说明，真实模型调用则完整保存在
+[模型文稿](skills/model/index.mq.md) 里。
 
-## 启动：只有这一条主命令
+**不使用 Python、额外 Agent 框架、前后端服务或私有原生插件。**
 
-```bash
+## 启动
+
+先安装 [Marqdo CLI](https://github.com/cflmy/marqdo) 和官方 LLM 扩展：
+
+```sh
+marqdo ext add llm
+```
+
+配置相应的 OpenAI-compatible API 环境变量（示例见 `.env.example`），
+然后直接从仓库根目录启动：
+
+```sh
 marqdo run index.mq.md
 ```
 
-在仓库根目录启动后，Marqdo 直接运行 `# main`。其中 `input(prompt="你 >")` 不断从终端读取下一行，
-内置 `while` 循环调用聊天 SKILL，模型通过 Marqdo 官方 LLM 扩展返回答案。
+Marqdo 原生 `input` 负责终端输入，主文稿自己的循环负责多轮对话。
+如需约束读取的工作目录，可以运行 `marqdo run index.mq.md --fs-root .`。
 
-终端示意（示例文字，不是已经验证的模型回复）：
+## 终端会话
 
 ```text
 求道 · Marqdo CLI
-输入消息开始对话；/help 查看命令，/exit 退出。
-你 > 你好
-求道 > 你好！有什么需要帮助的吗？
-你 > 你还记得我们刚才聊了什么？
-求道 > 我们刚才互相问候了。
+直接输入消息开始对话；/help 查看命令，/exit 退出。
+
+你 > 你好！
+求道 > 你好！有什么可以帮助你？
+
 你 > /remember
-记忆 > 用户喜欢用 Marqdo 文稿直接定义智能体。
-求道 > 已追加记忆到 memory.mq.md。
+记忆 > 我希望程序本身像一份文档一样清晰。
+求道 > 已写入 memory.mq.md。
+
 你 > /exit
 求道 > 再见。
 ```
 
-## 环境配置
+上面只表示终端交互的预期格式，**不是已经跑通的测试记录**。
 
-需要已安装的 [Marqdo CLI](https://github.com/cflmy/marqdo)，以及官方 LLM 扩展：
-
-```bash
-marqdo ext add llm
-```
-
-Marqdo LLM 扩展可从环境变量取得 OpenAI-compatible 模型配置（参见 `.env.example`）：
-
-```bash
-export OPENAI_API_KEY='your-key'
-export OPENAI_BASE_URL='https://api.openai.com/v1'
-export OPENAI_MODEL='your-model-name'
-marqdo run index.mq.md
-```
-
-`marqdo run` 使用自身的运行时权限机制，**不是** `marqdo call --effects` 的语法。
-如果要限定文件根，可使用 `marqdo run index.mq.md --fs-root .`。
-没有 Python dotenv 脚本、没有 HTTP 服务器、没有额外命令包装器。
-
-## 终端命令
-
-| 输入 | 行为 |
+| 终端输入 | 作用 |
 |---|---|
-| 普通文本 | 发送一轮模型对话，然后继续等待下一行 |
-| `/help` | 显示命令清单 |
-| `/memory` | 打印磁盘中唯一的长期记忆文稿 |
-| `/remember` | 提示用户输入一条确切记忆，追加到 `memory.mq.md` |
-| `/clear` | 清空当前进程的临时历史，不修改长期记忆 |
-| `/exit`、`/quit`、`/退出` | 正常结束会话 |
-| 空行 / Ctrl-D | 结束会话（当前极简版本） |
-| Ctrl-C | 由 Marqdo 的终端输入处理器终止 |
+| 普通消息 | 在终端继续对话，并保留最近四轮 |
+| `/help` | 显示支持的命令 |
+| `/memory` | 查看 `memory.mq.md` 的真实内容 |
+| `/remember` | 明确追加一条长期记忆 |
+| `/clear` | 清空进程内的临时对话，不影响磁盘 |
+| `/exit`、`/quit`、`/退出` | 结束会话 |
+| 空行 | 结束会话 |
 
-当前版本接收**单行消息**，模型回复在本轮调用完成后一次性显示；没有增量 token 流、交互式多行输入或额外 UI，便于保持最小闭环。
-
-## 执行链路完全在文稿中
+## 从文稿中看见实际执行
 
 ```text
-marqdo run index.mq.md
-           │
-     # main 内置 input + while
-           │
-    skills/chat/index.mq.md
-        ├─ read memory.mq.md
-        ├─ read skills/chat/index.mq.md
-        └─ read 本次 CLI 最近四轮
-           │
-    skills/model/index.mq.md
-        └─ handle.ask(messages=GFM表)
-           │
-    Marqdo 官方 ext/ai/llm.mq.md
-           │
-    OpenAI-compatible / Ollama-compatible HTTP
+index.mq.md  ──── 自己的 input / while 会话循环
+     │
+     └── skills/chat/index.mq.md
+              │ 读取 memory.mq.md
+              │ 读取当前 chat 文稿
+              │ 合并显式保留的短期历史
+              │
+              └── skills/model/index.mq.md
+                       │ GFM 表格列出所有模型消息
+                       └── Marqdo 官方 ext/ai/llm.mq.md
 ```
 
-**最近四轮**（用户与求道共最多 8 条）是当前 `index.mq.md` 的内存列表，借助
-`table.append`、`table.slice` 显式管理。它不写入磁盘，也不会从外部框架偷偷拼进模型。
-聊天 SKILL 用 `text.str_join` 把它明确投影到当轮的短期工作记忆。
-长期记忆只来自仓库根目录的 `memory.mq.md`；它也只能由用户的 `/remember` 显式改变。
+- `index.mq.md` 讲清终端会话和命令的生命周期；
+- `chat` 文稿讲清问题、记忆、近期历史和当前文稿从哪里来；
+- `model` 文稿直接把传给模型的角色与内容写成 GFM 表格。
 
-模型 SKILL 的消息表仍然由 `.mq.md` 自己生成，实际模型来源是：
-当前用户问题、选中的工作记忆和当前执行的聊天文稿。
-未来按需加载其他上下文时，也应优先扩展 Marqdo 函数，而不是重新引入 Agent 框架。
+本版把“每一行都像普通程序”改为“**先描述目的，再在句子中执行必要操作**”。
+两份 SKILL 是正常的 `##` 函数，可被独立 `marqdo call` 调试，但正式入口始终是 `marqdo run`。
 
-## 仓库范围与开发说明
+## 项目边界
 
-```text
-index.mq.md
-memory.mq.md
-skills/
-  chat/index.mq.md
-  model/index.mq.md
-README.md
-AGENTS.md
-.env.example
-.gitignore
-```
+仍然只有八个文件：`index.mq.md`、`memory.mq.md`、两份 SKILL、`README.md`、
+`AGENTS.md`、`.env.example` 和 `.gitignore`。没有扩展产品栈。
 
-此分支只维护以上 8 个文件，不新增 `server/`、`frontend/`、`worker/`、Python 脚本、
-另一个 Agent Loop 或手工工具注册表。两个 SKILL 也可以使用 `marqdo call`
-分别检查函数，但**正式对话入口始终为 `marqdo run index.mq.md`**。
-
-这是实验源码。本次对照过上游的 `input`、while 和 `llm.create/ask` 接口，
-但没有在这里运行真实终端或联网模型测试；还需要在本机验证当前 Marqdo 版本的实际行为。
+本次对照了官方编写指南及语言语法，但当前工作环境没有 Marqdo CLI；
+没有声称已通过编译、终端或联网对话测试。可在实际运行时先检查
+`marqdo check index.mq.md --narrative-ratio`，再验证循环、文件权限和模型返回。
