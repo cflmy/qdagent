@@ -77,3 +77,28 @@ jobs:
         run: python3 -m unittest tests.test_root_skill -v
       - name: Context economy measurement stays reproducible
         run: python3 tests/context_economy.py 19655 27320 19200
+  knowledge-compilation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poppler for PDF source extraction
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+      - name: Install published Marqdo 2.9.1 CLI
+        run: |
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/cflmy/marqdo/releases/download/v2.9.1/marqdo-2.9.1-x86_64-unknown-linux-gnu.zip \
+            --output /tmp/marqdo-2.9.1.zip
+          mkdir -p /tmp/marqdo-release
+          unzip -q /tmp/marqdo-2.9.1.zip -d /tmp/marqdo-release
+          cli="$(find /tmp/marqdo-release -type f -name marqdo | head -n 1)"
+          test -n "$cli"
+          chmod +x "$cli"
+          mkdir -p "$HOME/.local/bin"
+          cp "$cli" "$HOME/.local/bin/marqdo"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Knowledge compilation keeps real source locations and test isolation
+        env:
+          MARQDO_LIB: ${{ github.workspace }}/lib
+          MARQDO_EXT: ${{ github.workspace }}/ext
+        working-directory: tests
+        run: python3 -m unittest test_knowledge_compilation -v
