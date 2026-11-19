@@ -18,8 +18,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Fetch matching Marqdo source for the path dependency
         run: git clone --depth 1 --branch v2.9.1 https://github.com/cflmy/marqdo.git ../marqdo
-      - name: Compile real ABI plugin with feature gating and run memory CAS test
-        run: cargo test --manifest-path ext/qdagent/native/Cargo.toml --locked --lib root_skill::tests::memory_sync_rejects_stale_and_executable_documents
+      - name: Compile the real ABI plugin and run the full library test set
+        run: cargo test --manifest-path ext/qdagent/native/Cargo.toml --locked --lib
 
   marqdo-document-smoke:
     runs-on: ubuntu-latest
@@ -70,3 +70,10 @@ jobs:
           marqdo check tests/fixtures/proof-scope/index.mq.md --narrative-ratio --json
           marqdo check tests/fixtures/ambiguous-scope/alpha.mq.md --narrative-ratio --json
           marqdo check tests/fixtures/ambiguous-scope/beta.mq.md --narrative-ratio --json
+      - name: Root-flow behaviour tests against the real CLI
+        env:
+          MARQDO_LIB: ${{ github.workspace }}/lib
+          MARQDO_EXT: ${{ github.workspace }}/ext
+        run: python3 -m unittest tests.test_root_skill -v
+      - name: Context economy measurement stays reproducible
+        run: python3 tests/context_economy.py 19655 27320 19200
