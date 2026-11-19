@@ -1,29 +1,29 @@
 ---
 markup: occlusion
-title: 任务唯一模型记忆投影
-description: 将已核验的状态投影成不可执行 Markdown，不存储聊天回放。
+title: 唯一跨轮模型记忆
+description: 由可信状态生成无执行权的 memory.mq.md，不重放聊天历史。
 import:
   session: session.mq.md
-  context: context.mq.md
   io: io.mq.md
   table: lib/table.mq.md
+  json: lib/json.mq.md
 ---
 
-记忆来自真正的状态修订，原始对话和证据日志不进入默认模型提示。memory.mq.md 不含可执行函数，也不被解释器作为新的授权事实。写入使用原生版本核对、锁及原子替换；冲突失败而不是默默保留旧记忆。
+此文稿只将真实状态投影为 Markdown。身份、批准、原始收据和证明不存入模型记忆。模型每轮只读取这份投影，不能通过修改它获取权限。
 
 ## sync
-    + `context`
 
-| 参数 | 类型 | 说明 |
+| 返回 | 类型 | 说明 |
 |---|---|---|
-| context | map | 可信用户与任务根 |
+| result | text | 原生 CAS 保存的只读记忆文稿 |
 
-Use `context`。
-
-We **loaded = session.status(context=`context`)**.
-1. not access(`loaded`,"ok")
-  Return *`loaded`*.
-We **state = access(`loaded`,"value")**.
-We **body = context.memory(state=`state`)**.
+We **saved = session.status()**.
+1. not access(`saved`,"ok")
+  Return *`saved`*.
+We **state = access(`saved`,"value")**.
+We **goal = json.stringify(value=json.get(value=`state`,key="goal"))**.
+We **phase = json.stringify(value=json.get(value=`state`,key="phase"))**.
+We **selected = json.stringify(value=json.get(value=`state`,key="selected_skill"))**.
+We **body = "# 任务关键事实\n\n- 用户目标：" + str(`goal`) + "\n- 阶段：" + str(`phase`) + "\n- 已选能力：" + str(`selected`) + "\n\n这只是无执行权的状态投影。\n"**.
 We **args = table.put(in=None,at="revision",value=access(`state`,"revision"))**.
-Return *io.native(context=`context`,operation="agent_memory_sync",payload=table.put(in=`args`,at="memory",value=`body`))*.
+Return *io.native(operation="agent_memory_sync",payload=table.put(in=`args`,at="memory",value=`body`))*.
