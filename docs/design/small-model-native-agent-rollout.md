@@ -46,9 +46,9 @@ K4 受控对照（已验证，同一任务"请用两句话说明你的能力。"
 | Qwen2.5-3B-Instruct | 0/3 | 14 | 13 | 382 KB | 需要实际调用与返回 ×7、表达式意外 `[` ×6 |
 | Qwen2.5-Coder-3B-Instruct | **3/3** | 10 | 10 | 192 KB | 请先调用 task 保存意图 ×5、需要实际调用与返回 ×1 |
 
-结论与边界：同一份现场、同一个宿主，是否成功取决于模型对契约的遵循能力——Instruct 变体 0/6 全部以 incomplete 结束，Coder 变体平均每次成功约需 3.3 次尝试（恢复回路每次都在真实诊断驱动下重试），说明"一次一个动作 + 真实诊断修复"的回路在真实模型下生效。每次尝试的上下文约 19–27 KB，远小于全上下文基线；计量全部来自传输边界。所有失败都没有被包装成成功，候选原文与诊断保留在私有审计目录。该表覆盖意图阶段单任务，不构成全上下文基线对照。多阶段推进已单独用同一 Coder 模型验证（两次独立运行）：经真实 HTTP 流程提交任务→停在待答问题→以用户身份确认意图→宿主恢复运行，第一次到达 **phase=outline、revision=9、已生成框架文稿**（约 126 秒）；第二次继续以用户身份确认框架，宿主恢复后到达 **phase=implement、revision=15、units=1**（累计约 194 秒），即真实模型完成了意图、框架与函数段草稿三个阶段的工作并进入实现阶段。第三次独立运行（同样三次确认）呈现真实波动：确认框架后停在 **refine（revision 11、units=1）**，随后一次真实"继续"把修订推进到 revision 13，但函数段仍未达到 ready（ready=0、failed=0），耗时约 459 秒——说明小模型在函数段编写阶段会原地推进修订而无法一次达到可验收状态，这属于要记录的真实失败，而不是可跳过的问题。这说明确认之后的阶段迁移在真实模型下连续发生两次，而非偶然；独立测试、验收与交付阶段仍未在该模型下验证。
+结论与边界：同一份现场、同一个宿主，是否成功取决于模型对契约的遵循能力——Instruct 变体 0/6 全部以 incomplete 结束，Coder 变体平均每次成功约需 3.3 次尝试（恢复回路每次都在真实诊断驱动下重试），说明"一次一个动作 + 真实诊断修复"的回路在真实模型下生效。每次尝试的上下文约 19–27 KB，远小于全上下文基线；计量全部来自传输边界。所有失败都没有被包装成成功，候选原文与诊断保留在私有审计目录。该表覆盖意图阶段单任务，不构成全上下文基线对照。多阶段推进已单独用同一 Coder 模型验证（两次独立运行）：经真实 HTTP 流程提交任务→停在待答问题→以用户身份确认意图→宿主恢复运行，第一次到达 **phase=outline、revision=9、已生成框架文稿**（约 126 秒）；第二次继续以用户身份确认框架，宿主恢复后到达 **phase=implement、revision=15、units=1**（累计约 194 秒），即真实模型完成了意图、框架与函数段草稿三个阶段的工作并进入实现阶段。第三次独立运行（同样三次确认）呈现真实波动：确认框架后停在 **refine（revision 11、units=1）**，随后一次真实"继续"把修订推进到 revision 13，但函数段仍未达到 ready（ready=0、failed=0），耗时约 459 秒——说明小模型在函数段编写阶段会原地推进修订而无法一次达到可验收状态，这属于要记录的真实失败，而不是可跳过的问题。这说明确认之后的阶段迁移在真实模型下连续发生两次，而非偶然。3B 级的函数段编写仍会出现"原地推进修订但不 ready"的波动；独立测试、验收与交付阶段后来由更强的 Coder-7B 在浏览器里完整走通（见"真实浏览器验收"一段），3B 级模型尚未走完这些阶段。
 
-真实小模型评测（K4 主体）需要的受控模型端点在本环境不可达：本机无 Ollama 服务，也没有供应商密钥；因此该关口保持未验证。本轮把准备做到可验证的程度并记录确切测量：内置本地槽位的模型名已可通过 `QDAGENT_OLLAMA_MODEL` 配置（槽位身份、协议、配额与权限不变，默认仍是文档中的 Qwen），因此同一槽位可以在 1B 类与 3B 类模型之间切换做对照；本地推理供给的两条路径都被网络阻断——GitHub 代理可下载小资产，但 1.5 GB 的 ollama 归档在约 35 分钟后停在 750 MB（内容长度 1545767640），PyPI 镜像的 torch 多次因连接中断失败。恢复评测时只需：可用的 ollama（或等价 Ollama `/api/chat` 服务）+ 已下载的 GGUF 权重，然后 `export QDAGENT_OLLAMA_MODEL=<模型名>` 并按固定测试集运行。测试集与判据见 docs/small-model-native-agent.mq.md 的固定测试集一节。知识证据决策技能（skills/marqdo-dev/knowledge-evidence.mq.md）已扩展并验证：open_obligations/unverified_premise → verify_premises、opaque/plugin_unproved → audit_deps，四个新用例纳入 tests/knowledge-proof-policy.mq.md 金样并通过。此前这些文件为 root 只读，所有者已放宽权限，改动已落地。
+本地推理环境现状（供复现）：ollama 0.40.16 以 88 MB/s 从 gh-proxy.com 取得，权重经 hf-mirror/ModelScope 下载，目前提供 Qwen2.5-0.5B-Instruct、Qwen2.5-3B-Instruct、Qwen2.5-Coder-3B-Instruct 与 Qwen2.5-Coder-7B-Instruct（均 q4_k_m）。切换方式就是 `export QDAGENT_OLLAMA_MODEL=<模型名>`（槽位身份、协议、配额与权限不变）；模型目录与二进制在 `.agent/`（不入库）。固定测试集的判据见 docs/small-model-native-agent.mq.md。知识证据决策技能（skills/marqdo-dev/knowledge-evidence.mq.md）已扩展并验证：open_obligations/unverified_premise → verify_premises、opaque/plugin_unproved → audit_deps，四个新用例纳入 tests/knowledge-proof-policy.mq.md 金样并通过。此前这些文件为 root 只读，所有者已放宽权限，改动已落地。
 
 CI 门禁已接线：.github/workflows/small-model-contract.yml 现在解析并运行 knowledge-projections、knowledge-proof-execution、root-dag-scheduling 与 flow/workflow 金样，并检查 proof-modular/proof-scope/ambiguous-scope 夹具；新增命令在有无 Lean 两种 PATH 下都在本机执行通过。
 
@@ -70,7 +70,7 @@ K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_e
 
 提示组装：`ext/root-skill/runtime/prompts.mq.md` 现在通过 `memory.sync` 生成单份状态文稿，移除原先六轮回复的循环；真实 ABI 编译与记忆原子写测试已通过，仍需并发恢复和 token 计量验收。
 
-上游能力：Marqdo 2.9.0 `flow.input/reply` 支持保存等待与自由回复；`workflow.commit` 的输入选择要求声明选项，`workflow.tick` 只自动分派明确只读的子步骤。需要验证实际插件、版本和副作用授权边界。
+上游能力：Marqdo **2.9.1** 的 `flow.input/reply` 支持保存等待与自由回复；`workflow.commit` 的输入选择要求声明选项，`workflow.tick` 只自动分派明确只读的子步骤。本仓已按 2.9.1 同步 `ext/ai/flow|workflow|context|recovery` 并用离线金样逐断言验证（`tests/ext/ai-native-flow.mq.md`、`tests/ext/ai-native-workflow.mq.md`），实际插件、版本与副作用授权边界由这些金样和文档门禁固定。
 
 ## 关口与退出条件
 
@@ -78,11 +78,11 @@ K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_e
 |---|---|---|
 | G0 宪法与测试 | AGENTS/README 指向唯一规则、短入口、纯传输 Python、静态 CI | 完成 |
 | G1 生产入口一致 | `marqdo check` + 实际 `marqdo call ... run`、导入解析及权限拒绝负例 | 已通过真实 CLI 与宿主形态 context 验证（见上方增量记录） |
-| G2 一次真实确认 | input/reply 绑定可信会话、版本；点选/自由输入；重复/刷新/取消和冲突恢复 | 确认语义与多轮恢复经真实 CLI 与 HTTP 测试验证；浏览器端取消与真实 Web 恢复待验收 |
+| G2 一次真实确认 | input/reply 绑定可信会话、版本；点选/自由输入；重复/刷新/取消和冲突恢复 | 确认语义与多轮恢复经真实 CLI 与 HTTP 测试验证；真实 Chromium 下 `real local model` 规格完整走通"提交→意图确认→框架确认→细化→交付→验收"，`model-recovery` 规格走通真实模型运行→等待→停止→归档；浏览器内刷新恢复建议部署环境再验一次 |
 | G3 单份记忆 | `memory.mq.md` 版本核对、原子保存；不再注入 N 轮旧消息；崩溃/并发不丢事实 | 代码接线、ABI 构建、基本 CAS 负例、八写者并发与撕裂恢复测试通过；token 用量计量在模型边界按尝试原子记账并汇总字节 |
 | G4 小范围按需读取 | 当前函数、当前能力、限定来源；超限显式增量读取，不丢关键契约 | KB 参考的有界分片、节索引与显式增量读取已实现并经真实 CLI 验证（16 KiB 窗口、next_offset、越界拒绝、摘要稳定） |
 | G5 有界 DAG 并发 | 依赖、权限、取消、失败隔离、未知外部效果核对与真实收据 | 依赖门禁语义金样验证（运行依赖≠开发顺序、缺证据阻塞下游、独立单元并行、缺失单元显式未就绪）；宿主级取消传播与不相关任务并发已用阻塞桩验证（停止一个运行只终结其自身，另一个保持 running 且仍活动，二次停止后两者都如实 cancelled）；真实多模型并发与外部效果收据待真实模型实测 |
-| G6 小模型实测 | 1B、3B～4B、全上下文基线的同任务对照与失败记录 | 待执行 |
+| G6 小模型实测 | 1B、3B～4B、全上下文基线的同任务对照与失败记录 | 已做 0.5B/3B/Coder-3B 的同任务对照（0/3、0/3、3/3 到达 waiting_user）与 7B 的浏览器全流程；每轮上下文 19–27 KiB，约为全目录 2.3%；**全上下文实现的正确率对照仍未做**（需独立基线） |
 | K0 知识证明开发基线 | 明确 Marqdo 2.9.1 的锚点、证据等级、Lean 组合边界、下一步纯函数与 CI | 完成 |
 | K1–K4 知识证明生产接入 | 按需索引、授权证明/重放、来源失效传播、UI 收据、真实小模型评测 | 待实现；参见知识证明接入设计 |
 
