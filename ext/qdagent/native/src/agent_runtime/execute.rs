@@ -4,10 +4,21 @@ pub(super) fn call(c:&Value,v:&Value)->Result<Value,String>{
  let name=v["skill"].as_str().ok_or("skill id required")?;
  let spec=catalog::skill(c,name)?;
  let root=root(c)?;
- let state={let _lock=super::lifecycle(&root)?;read(&root)?};
  let effects=spec["effects"].as_str().unwrap_or("read");
- if effects=="external"||effects=="write"{
-  if state["approved_skill"]!=name||state["approved_source_sha256"]!=spec["sha256"]||state["phase"]!="ready"{return Err("agent.approval_required".into())}
+ {
+  let _lock=super::lifecycle(&root)?;
+  let mut state=read(&root)?;
+  if effects=="external"||effects=="write"{
+   if state["approved_skill"]!=name||state["approved_source_sha256"]!=spec["sha256"]||state["phase"]!="ready"{
+    return Err("agent.approval_required".into())
+   }
+   // The authority is single-use, even if the child exits with an unknown
+   // effect. Never silently run it a second time after cancellation/timeouts.
+   state["approved_skill"]=Value::Null;
+   state["approved_source_sha256"]=Value::Null;
+   state["phase"]=json!("running_skill");
+   save(&root,&mut state)?;
+  }
  }
  let source=Path::new(spec["path"].as_str().ok_or("installed path missing")?);
  let grants=match effects{

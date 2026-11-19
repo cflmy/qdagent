@@ -125,17 +125,27 @@ We **receipt = executor.call(context=`context`,skill=`selected`,goal=`goal`)**.
     | "需要确认本次效果范围。" | "waiting_user" | `request` |
     
     Return *`question`*.
+  We **_ = session.finish(context=`context`,status="incomplete",answer="本次能力失败或效果未知，授权已消耗，不会自动重试。",skill=`selected`)**.
   `failed` =
   
   | answer | status |
   |---|---|
-  | "能力未成功完成，真实错误已保留在执行记录。" | "incomplete" |
+  | "能力未成功完成。操作状态和真实错误需审阅后再重新发起。" | "incomplete" |
   
   Return *`failed`*.
 We **actual = access(`receipt`,"value")**.
 We **answer = str(json.get(value=`actual`,key="result"))**.
-We **completed_status = json.get(value=`actual`,key="status")**.
+We **graded = evidence.classify(receipt=`receipt`)**.
+We **completed_status = access(`graded`,"value")**.
 We **saved_final = session.finish(context=`context`,status=`completed_status`,answer=`answer`,skill=`selected`)**.
+1. not access(`saved_final`,"ok")
+  `not_persisted` =
+  
+  | answer | status |
+  |---|---|
+  | "能力有执行收据，但完成状态未持久化，不能标记为已完成。" | "incomplete" |
+  
+  Return *`not_persisted`*.
 `output` =
   
 | answer | status |

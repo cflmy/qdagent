@@ -21,6 +21,9 @@ Use `receipt`。
 1. not access(`receipt`,"ok")
   Return *result.ok(value="incomplete")*.
 We **value = access(`receipt`,"value")**.
-1. json.get(value=`value`,key="status") == "uncertain"
-  Return *result.ok(value="incomplete")*.
-Return *result.ok(value="succeeded")*.
+We **state = json.get(value=`value`,key="status")**.
+1. `state` == "succeeded"
+  Return *result.ok(value="succeeded")*.
+1. `state` == "failed"
+  Return *result.ok(value="failed")*.
+Return *result.ok(value="incomplete")*.
