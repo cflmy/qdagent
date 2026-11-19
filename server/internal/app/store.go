@@ -175,7 +175,7 @@ func (s *Store) taskContext(owner, id string) (map[string]any, error) {
 			return nil, err
 		}
 	}
-	for _, name := range []string{"libagent.so", "libweb.so", "libllm.so", "libqdagent_transport.so", "qdagent-worker"} {
+	for _, name := range []string{"libagent.so", "libweb.so", "libllm.so", "libqdagent_transport.so"} {
 		dst := filepath.Join(root, "ext/native", name)
 		if _, err = os.Stat(dst); err == nil {
 			continue
