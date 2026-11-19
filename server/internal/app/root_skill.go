@@ -28,6 +28,14 @@ func (r *rootRuntime) invoke(ctx context.Context, document, member string, c map
 	raw, _ := json.Marshal(args)
 	command := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(r.store.root, "agent", document), member, "--args-json", "-", "--effects", "plugin,fs.read,fs.write,process.exec,environment.read", "--fs-root", c["workspace"].(string), "--json")
 	command.Stdin = bytes.NewReader(raw)
+    // Record the actual host-authenticated context in a private, one-call
+    // attestation file. The native plugin refuses bare caller-supplied identity.
+    actorFile, actorErr := os.CreateTemp("", "qdagent-agent-actor-*")
+    if actorErr != nil { return nil, actorErr }
+    defer os.Remove(actorFile.Name())
+    if actorErr = json.NewEncoder(actorFile).Encode(c); actorErr != nil { actorFile.Close(); return nil, actorErr }
+    if actorErr = actorFile.Close(); actorErr != nil { return nil, actorErr }
+    command.Env = append(os.Environ(), "QDAGENT_ACTOR_FILE="+actorFile.Name())
 	command.Dir = r.store.root
 	command.Env = append(os.Environ(), "MARQDO_LIB="+filepath.Join(r.store.root, "lib"), "MARQDO_EXT="+filepath.Join(r.store.root, "ext"))
 	var stderr bytes.Buffer

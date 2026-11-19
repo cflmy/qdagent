@@ -9,7 +9,20 @@ mod catalog;
 mod execute;
 
 fn digest(s:&[u8])->String{format!("{:x}",Sha256::digest(s))}
-fn context(v:&Value)->Result<&Value,String>{v["context"].as_object().map(|_|&v["context"]).ok_or("agent trusted context required".into())}
+fn context(v:&Value)->Result<&Value,String>{
+ let c=v["context"].as_object().map(|_|&v["context"]).ok_or("agent trusted context required".to_string())?;
+ // The caller may supply a context map, but it never establishes authority.
+ // Only the Go host writes this actor attestation for a specific run/call.
+ let path=std::env::var("QDAGENT_ACTOR_FILE").map_err(|_|"agent.actor.host_attestation_required")?;
+ let raw=fs::read(path).map_err(|_|"agent.actor.attestation_unavailable")?;
+ if raw.len()>65536{return Err("agent.actor.attestation_too_large".into())}
+ let verified:Value=serde_json::from_slice(&raw).map_err(|_|"agent.actor.invalid_attestation")?;
+ for field in ["root","project","workspace","owner","task_id"]{
+  let expected=verified[field].as_str().ok_or_else(||format!("agent.actor.missing_{field}"))?;
+  if c[field].as_str()!=Some(expected){return Err(format!("agent.actor.identity_mismatch:{field}"))}
+ }
+ Ok(c)
+}
 fn project(c:&Value)->Result<PathBuf,String>{
  let raw=c["project"].as_str().ok_or("project path missing")?;
  let p=Path::new(raw).canonicalize().map_err(|e|e.to_string())?;
