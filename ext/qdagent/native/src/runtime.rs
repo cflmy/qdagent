@@ -103,7 +103,13 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   "runtime_knowledge_proof_job"=>knowledge::proof_job(v),
   "runtime_search"|"runtime_ocr_submit"|"runtime_ocr_poll"=>{
    let c=context(v)?;private_request(c)?;
-   if !matches!(c["role"].as_str(),Some("research"|"chat"|"agent"|"knowledge")){return Err("service not available to current skill".into())}
+   // A resource role is derived from the installed active document, never
+   // from a model reply or caller-constructed context dictionary.
+   let current=std::env::var("QDAGENT_ACTIVE_DOCUMENT").map_err(|_|"active Marqdo source required")?;
+   let current=Path::new(&current).canonicalize().map_err(|e|e.to_string())?;
+   let project=Path::new(text(c,"project")?).canonicalize().map_err(|e|e.to_string())?;
+   let expected=project.join("skills/research/index.mq.md");
+   if current!=expected{return Err("service restricted to installed research skill".into())}
    let operation=text(v,"operation")?.trim_start_matches("runtime_");
    let mut payload=json!({"operation":operation});
    match operation {
@@ -132,7 +138,10 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   },
   "runtime_browser_open"=>{
    let c=context(v)?;private_request(c)?;
-   if c["role"]!="research"{return Err("browser requires research skill".into())}
+   let current=std::env::var("QDAGENT_ACTIVE_DOCUMENT").map_err(|_|"active Marqdo source required")?;
+   let current=Path::new(&current).canonicalize().map_err(|e|e.to_string())?;
+   let project=Path::new(text(c,"project")?).canonicalize().map_err(|e|e.to_string())?;
+   if current!=project.join("skills/research/index.mq.md"){return Err("browser requires installed research skill".into())}
    crate::browser::open(text(v,"url")?)
   },
   "runtime_context"=>{

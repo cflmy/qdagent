@@ -75,9 +75,11 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    let memory=fs::read_to_string(&memory_path).map_err(|_|"agent.model.memory_missing")?;
    if !memory.starts_with("# 任务关键事实")||memory.len()>8192{return Err("agent.model.memory_invalid".into())}
    if source.len()>65536||input.len()>16000{return Err("agent.model.source_or_input_budget".into())}
+   let mut runtime_actor=c.clone();
+   runtime_actor["role"]=json!(role);
    let packet=json!({
     "operation":"runtime_model_internal",
-    "context":c,
+    "context":runtime_actor,
     "model_id":"inherit",
     "role":role,
     "step":v["step"].as_u64().unwrap_or(1),

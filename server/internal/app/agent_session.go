@@ -21,8 +21,7 @@ type agentRuntime struct{ store *Store }
 
 // Invoke a fixed Marqdo session member with an ephemeral host attestation.
 func (r *agentRuntime) invoke(ctx context.Context, document, member string, c map[string]any, args map[string]any) (map[string]any, error) {
-	args["context"] = c
-	raw, _ := json.Marshal(args)
+		raw, _ := json.Marshal(args)
 	command := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(r.store.root, "agent", document), member, "--args-json", "-", "--effects", "plugin,fs.read,fs.write,process.exec,environment.read", "--fs-root", c["workspace"].(string), "--json")
 	command.Stdin = bytes.NewReader(raw)
     // Record the actual host-authenticated context in a private, one-call
