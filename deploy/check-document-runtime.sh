@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 command -v marqdo >/dev/null || { echo 'marqdo is required' >&2; exit 1; }
 command -v python3 >/dev/null || { echo 'python3 is required' >&2; exit 1; }
+python3 scripts/check_architecture.py
 count=0
 while IFS= read -r source; do
     [[ -z "$source" ]] && continue

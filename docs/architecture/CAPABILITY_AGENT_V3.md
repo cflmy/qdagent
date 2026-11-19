@@ -59,7 +59,7 @@ Go HTTP / authentication / run events
 - 可以导出其他 `##` 函数给高级用户/其他受控文稿复用，但它们**不自动成为根模型工具**；
 - 只读观测、模型输出、草稿、外部数据、实验结论是不同证据；动态语言生成的源码未经编译与审阅不能获得权限。
 
-能力目录由 Rust ABI 读取 `skills/` 实际目录并使用官方 Marqdo parser 检查函数导出；名称由受控目录 slug 决定，摘要与效果来自同一源文件。编译检查与安装是事实，**不会自动成为用户可执行权限**。目前内置：chat、research、code、office、knowledge、quantum、dev。真实权限还受整个 Marqdo 调用的 effects 边界约束。
+能力目录由 Rust ABI 读取 `skills/` 实际目录并使用官方 Marqdo parser 检查函数导出；名称由受控目录 slug 决定，描述与效果从同一文稿的 `description`、`agent_effects` 文件头获取。编译检查与安装是事实，**不会自动成为用户可执行权限**。目前内置：chat、research、code、office、knowledge、quantum、dev。真实权限还受整个 Marqdo 调用的 effects 边界约束。
 
 ### 3. workflows/ —— 可选、可恢复的多阶段程序
 
@@ -109,3 +109,7 @@ qdagent/
 本分支已经写入能力发现、通用 session、效果批准、受控 CLI 调用、领域 SKILL、可选工作流与新前端，但 **尚未运行编译、HTTP、浏览器、Rust、Go、模型或量子插件测试**。因此不能把它宣布为可部署生产版本。
 
 下次独立验证必须按顺序做：官方 Marqdo 解析；Rust crate 的 parser/权限/超时/CAS；Go 服务调用与状态 schema；React 类型与交互；真实小模型路由准确率及 token；SKILL 安装/禁用/源码改动后失效；并发、用户拒绝、外部失败与恢复。必须特别验证版本绑定、每个 skill 的实际插件加载、首次上下文预算、知识证明只读与真实 Office 产物。未经验证，不合并主分支。
+
+## 后续开发入口
+
+新增能力的具体接通步骤与最小示例见 [SKILL 开发指南](SKILL_AUTHORING.md)；不可突破的设计取舍见 [架构决策](DECISIONS.md)。基本目录约束由 `scripts/check_architecture.py` 表达，正式语义仍以 Marqdo 编译器和真实运行证据为准。

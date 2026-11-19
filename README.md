@@ -20,7 +20,11 @@
 
 智能体实际入口是 **[`agent/index.mq.md`](agent/index.mq.md)**，不是仓库根 `index.mq.md`，也不是旧 `ext/root-skill/`。客户端仅将当前真实任务交给此入口；模型不能自行产生可执行工具路径。新 SKILL 由实际源码文件与官方语法解析构成能力索引，不需要写另一个业务注册表。
 
-开发前读 [总体架构](docs/architecture/CAPABILITY_AGENT_V3.md) 和 [SKILL 编写指南](docs/architecture/SKILL_AUTHORING.md)。最小源文件示例见 [minimal-skill.mq.md](docs/examples/minimal-skill.mq.md)。
+**后续开发入口**：先读 [设计决策与理由](docs/architecture/DECISIONS.md)，再按 [SKILL 开发与接通指南](docs/architecture/SKILL_AUTHORING.md) 添加能力，并遵守 [AGENTS.md](AGENTS.md)。完整分层见 [V3 架构基线](docs/architecture/CAPABILITY_AGENT_V3.md)，最小可读文稿样例见 [minimal-skill.mq.md](docs/examples/minimal-skill.mq.md)。
+
+新能力默认只需要 `skills/<slug>/index.mq.md` 的 `description`、`agent_effects`、`run(context,goal)`：能力目录按实际源码和官方 Marqdo 解析器发现它。**不得为了注册一个能力修改根入口、Go 工具枚举或另一张 JSON 注册表。**
+
+提交前可执行 `python3 scripts/check_architecture.py` 检查基本目录约束；它不是正式编译、权限检查或业务验收。
 
 ### 当前语义
 
