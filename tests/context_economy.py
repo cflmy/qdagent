@@ -54,6 +54,14 @@ def main():
         for value in measured:
             print(f"measured turn {value:6d} B  {value/1024:7.1f} KiB  {100*value/catalog:5.1f}% of catalog")
         print(f"average turn  {average:6.0f} B  {average/1024:7.1f} KiB  {100*average/catalog:5.1f}% of catalog")
+        # Token scale: a real local run measured 1037 prompt tokens for 1000
+        # Chinese characters (about 1.04 tokens per character). Bytes are UTF-8,
+        # so an approximate character count is bytes/3 for Chinese text; this is
+        # an estimate for the catalog, not a measured prompt.
+        chars = catalog / 3
+        tokens = chars * 1.04
+        print(f"catalog estimate {tokens:8.0f} tokens at 1.04 tokens/char (measured sample)")
+        print(f"a 32768-token window would need about {tokens/32768:4.1f} full windows")
 
 
 if __name__ == "__main__":
