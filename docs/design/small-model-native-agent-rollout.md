@@ -36,7 +36,7 @@ G3 记忆全链恢复（ABI 级已验证）：新增 Rust 测试固定并发 CAS
 
 K4 离线场景（已验证）：Rust 测试固化三条拒绝证据——篡改叶模块定理后，已签发的组合证书重放报 `proof.unified_generated_source_changed`；恢复原文后同一证书恢复可重放；假定理永远不会产出 `lean_kernel_proved_model` 结果或"完整运行时语义"声明。两条测试在无 Lean 环境显式跳过并打印原因，有 Lean 环境真实执行（约 2 秒）。同时把既有的 no-Lean 测试改为环境自感知：检测结果必须与真实工具链状态一致，有 Lean 时 compose/replay 必须成功，无 Lean 时官方诊断逐字上浮。crate 测试 25 项，在两种 PATH 下均通过。
 
-真实小模型评测（K4 主体）需要的受控模型端点在本环境不可达：本机无 Ollama 服务，也没有供应商密钥；因此该关口保持未验证。知识证据决策技能（skills/marqdo-dev/knowledge-evidence.mq.md）已扩展并验证：open_obligations/unverified_premise → verify_premises、opaque/plugin_unproved → audit_deps，四个新用例纳入 tests/knowledge-proof-policy.mq.md 金样并通过。此前这些文件为 root 只读，所有者已放宽权限，改动已落地。
+真实小模型评测（K4 主体）需要的受控模型端点在本环境不可达：本机无 Ollama 服务，也没有供应商密钥；因此该关口保持未验证。本轮把准备做到可验证的程度并记录确切测量：内置本地槽位的模型名已可通过 `QDAGENT_OLLAMA_MODEL` 配置（槽位身份、协议、配额与权限不变，默认仍是文档中的 Qwen），因此同一槽位可以在 1B 类与 3B 类模型之间切换做对照；本地推理供给的两条路径都被网络阻断——GitHub 代理可下载小资产，但 1.5 GB 的 ollama 归档在约 35 分钟后停在 750 MB（内容长度 1545767640），PyPI 镜像的 torch 多次因连接中断失败。恢复评测时只需：可用的 ollama（或等价 Ollama `/api/chat` 服务）+ 已下载的 GGUF 权重，然后 `export QDAGENT_OLLAMA_MODEL=<模型名>` 并按固定测试集运行。测试集与判据见 docs/small-model-native-agent.mq.md 的固定测试集一节。知识证据决策技能（skills/marqdo-dev/knowledge-evidence.mq.md）已扩展并验证：open_obligations/unverified_premise → verify_premises、opaque/plugin_unproved → audit_deps，四个新用例纳入 tests/knowledge-proof-policy.mq.md 金样并通过。此前这些文件为 root 只读，所有者已放宽权限，改动已落地。
 
 CI 门禁已接线：.github/workflows/small-model-contract.yml 现在解析并运行 knowledge-projections、knowledge-proof-execution、root-dag-scheduling 与 flow/workflow 金样，并检查 proof-modular/proof-scope/ambiguous-scope 夹具；新增命令在有无 Lean 两种 PATH 下都在本机执行通过。
 
