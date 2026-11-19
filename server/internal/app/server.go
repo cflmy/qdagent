@@ -517,7 +517,7 @@ func (s *Server) files(w http.ResponseWriter, r *http.Request, i identity) {
 	if s.supervisor.agent != nil {
 		agent, _ = s.supervisor.agent.snapshot(t.ID)
 	}
-	names := recordedFileNames(nil, artifacts)
+	names := artifactFileNames(artifacts)
 	for _, file := range out {
 		if path, ok := file["path"].(string); ok {
 			if name := names[path]; name != "" {

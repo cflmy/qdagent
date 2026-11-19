@@ -49,7 +49,7 @@ func titledFileName(path, title string) string {
 	return title
 }
 
-func recordedFileNames(workflow map[string]any, artifacts any) map[string]string {
+func artifactFileNames(artifacts any) map[string]string {
 	names := map[string]string{}
 	if entries, ok := artifacts.([]any); ok {
 		for _, entry := range entries {
@@ -72,34 +72,13 @@ func recordedFileNames(workflow map[string]any, artifacts any) map[string]string
 			}
 		}
 	}
-	if units, ok := workflow["units"].([]any); ok {
-		for _, entry := range units {
-			if unit, ok := entry.(map[string]any); ok {
-				title, _ := unit["title"].(string)
-				if title == "" {
-					continue
-				}
-				for key, suffix := range map[string]string{"artifact": "", "specification": "·验收意图"} {
-					if document, ok := unit[key].(map[string]any); ok {
-						if path, ok := document["path"].(string); ok && path != "" {
-							names[path] = titledFileName(path, title+suffix)
-						}
-					}
-				}
-			}
-		}
-	}
 	return names
 }
 
 func (s *Server) downloadFileName(task Task, path string) string {
-	var workflow map[string]any
-	if s.supervisor.workflow != nil {
-		workflow, _ = s.supervisor.workflow.snapshot(task.ID)
-	}
 	var artifacts any
 	readBoundedJSON(filepath.Join(s.workspace(task), ".agent/artifacts.json"), &artifacts)
-	if name := recordedFileNames(workflow, artifacts)[path]; name != "" {
+	if name := artifactFileNames(artifacts)[path]; name != "" {
 		return name
 	}
 	return readableFileName(path)

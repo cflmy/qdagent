@@ -93,15 +93,15 @@ func (s *Server) agentStatus(w http.ResponseWriter, r *http.Request, i identity)
 		return
 	}
 	if s.supervisor.agent == nil {
-		writeError(w, 503, "workflow_unavailable", "根 SKILL 未准备好")
+		writeError(w, 503, "agent_unavailable", "能力智能体尚未准备好")
 		return
 	}
 	state, err := s.supervisor.agent.snapshot(task.ID)
 	if err != nil {
-		writeError(w, 500, "workflow_read", "智能体会话读取失败")
+		writeError(w, 500, "agent_read", "智能体会话读取失败")
 		return
 	}
-	writeJSON(w, 200, map[string]any{"workflow": state})
+	writeJSON(w, 200, map[string]any{"agent": state})
 }
 // A human reply changes only a revision-pinned pending authorization.
 // The domain skill and its effects are not parameters of this API.
@@ -137,7 +137,7 @@ func (s *Server) respondAgent(w http.ResponseWriter, r *http.Request, i identity
  })
  cancel();s.supervisor.mu.Unlock()
  if err!=nil{writeError(w,409,"agent_reply",err.Error());return}
- result:=map[string]any{"workflow":saved}
+ result:=map[string]any{"agent":saved}
  if saved["phase"]=="complete"{
   _,_=s.store.db.Exec(`UPDATE qd_runs SET status='incomplete' WHERE task_id=? AND status='waiting_user'`,task.ID)
   _,_=s.store.db.Exec(`UPDATE qd_tasks SET status='incomplete' WHERE id=?`,task.ID)
