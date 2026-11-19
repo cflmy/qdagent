@@ -41,7 +41,7 @@ func nativeEntry(ctx context.Context, project string, c map[string]any, payload 
 		return nil, nil, closeErr
 	}
 	actor := filepath.Join(dir, "actor.json")
-	args, err := json.Marshal(map[string]any{"context": c})
+	args, err := json.Marshal(map[string]any{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -52,7 +52,7 @@ func nativeEntry(ctx context.Context, project string, c map[string]any, payload 
 	cmd := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(project, "agent/index.mq.md"), "run", "--args-json", "-", "--fs-root", workspace, "--effects", "plugin,fs.read,fs.write,process.exec,environment.read,time.read,random.read", "--json")
 	cmd.Dir = workspace
 	cmd.Stdin = bytes.NewReader(args)
-	cmd.Env = append(os.Environ(), "QDAGENT_RUN_REQUEST_FILE="+private, "QDAGENT_ACTOR_FILE="+actor, "MARQDO_LIB="+filepath.Join(project, "lib"), "MARQDO_EXT="+filepath.Join(project, "ext"))
+	cmd.Env = append(os.Environ(), "QDAGENT_RUN_REQUEST_FILE="+private, "QDAGENT_ACTOR_FILE="+actor, "QDAGENT_ACTIVE_DOCUMENT="+filepath.Join(project, "agent/index.mq.md"), "MARQDO_LIB="+filepath.Join(project, "lib"), "MARQDO_EXT="+filepath.Join(project, "ext"))
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {
 		if cmd.Process != nil {

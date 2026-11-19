@@ -46,6 +46,52 @@ fn save(r:&Path,s:&mut Value)->Result<Value,String>{
 pub fn dispatch(v:&Value)->Result<Value,String>{
  let c=trusted_context(v)?;
  match v["operation"].as_str().ok_or("operation missing")?{
+  "agent_user_input"=>{
+   let root=root(c)?;let _lock=super::lifecycle(&root)?;let state=read(&root)?;
+   let goal=state["goal"].as_str().ok_or("agent.input.no_current_turn")?;
+   if goal.is_empty(){return Err("agent.input.empty".into())}
+   Ok(json!(goal))
+  },
+  "agent_model_turn"=>{
+   // The *only* visible language-model contents are the exact current
+   // input, the inert memory document and the active executable Marqdo source.
+   // No caller-supplied prompt, messages, tool descriptions, or history.
+   if v.get("messages").is_some()||v.get("prompt").is_some()||v.get("sources").is_some()||v.get("context_pack").is_some(){
+    return Err("agent.model.extra_context_forbidden".into())
+   }
+   let role=v["role"].as_str().unwrap_or("chat");
+   if !matches!(role,"route"|"chat"){return Err("agent.model.invalid_role".into())}
+   let document=std::env::var("QDAGENT_ACTIVE_DOCUMENT").map_err(|_|"agent.model.active_document_required")?;
+   let doc=Path::new(&document).canonicalize().map_err(|e|e.to_string())?;
+   let project=project(c)?;
+   let is_root=doc==project.join("agent/index.mq.md");
+   let is_skill=doc.starts_with(project.join("skills"))&&doc.file_name().and_then(|x|x.to_str())==Some("index.mq.md");
+   if !(is_root||is_skill)||!doc.is_file(){return Err("agent.model.active_document_not_installed".into())}
+   let source=fs::read_to_string(&doc).map_err(|e|e.to_string())?;
+   let root=root(c)?;let state={let _lock=super::lifecycle(&root)?;read(&root)?};
+   let input=state["goal"].as_str().ok_or("agent.model.input_missing")?;
+   let workspace=Path::new(c["workspace"].as_str().ok_or("workspace required")?).canonicalize().map_err(|e|e.to_string())?;
+   let memory_path=workspace.join("memory.mq.md");
+   let memory=fs::read_to_string(&memory_path).map_err(|_|"agent.model.memory_missing")?;
+   if !memory.starts_with("# 任务关键事实")||memory.len()>8192{return Err("agent.model.memory_invalid".into())}
+   if source.len()>65536||input.len()>16000{return Err("agent.model.source_or_input_budget".into())}
+   let packet=json!({
+    "operation":"runtime_model_internal",
+    "context":c,
+    "model_id":"inherit",
+    "role":role,
+    "step":v["step"].as_u64().unwrap_or(1),
+    "title":"Marqdo document execution",
+    "messages":[
+      {"role":"system","content":source},
+      {"role":"user","content":memory},
+      {"role":"user","content":input}
+    ],
+    "sources":[doc.to_string_lossy()],
+    "max_context_bytes":100000
+   });
+   crate::runtime::model(&packet)
+  },
   "agent_catalog_list"=>catalog::catalog(c),
   "agent_catalog_resolve"=>catalog::skill(c,v["skill"].as_str().ok_or("skill required")?),
   "agent_source_check"=>{

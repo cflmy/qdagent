@@ -35,8 +35,9 @@ pub(super) fn call(c:&Value,v:&Value)->Result<Value,String>{
   .args(["--effects",grants,"--json"])
   .current_dir(c["workspace"].as_str().unwrap())
   .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+ command.env("QDAGENT_ACTIVE_DOCUMENT",source);
  let mut child=command.spawn().map_err(|e|e.to_string())?;
- let params=json!({"context":c,"goal":v["goal"]}).to_string();
+ let params="{}".to_string();
  child.stdin.take().ok_or("skill stdin missing")?.write_all(params.as_bytes()).map_err(|e|e.to_string())?;
  // Read both pipes concurrently. A large child output must never deadlock a
  // parent that is polling its process status.

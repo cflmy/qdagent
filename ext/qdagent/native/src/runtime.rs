@@ -35,7 +35,7 @@ fn bounded_wait(mut child:std::process::Child,timeout:Duration)->Result<(Vec<u8>
  let started=Instant::now();let status=loop{if let Some(s)=child.try_wait().map_err(|e|e.to_string())?{break s}if started.elapsed()>timeout{let _=child.kill();let _=child.wait();return Err("child process deadline exceeded".into())}std::thread::sleep(Duration::from_millis(10))};
  let o=out.join().map_err(|_|"stdout reader failed")?;let e=err.join().map_err(|_|"stderr reader failed")?;if o.len()>4*1024*1024||e.len()>64*1024{return Err("child output exceeded bound".into())}Ok((o,e,status.code().unwrap_or(-1)))
 }
-fn model(v:&Value)->Result<Value,String>{
+pub(crate) fn model(v:&Value)->Result<Value,String>{
  let c=context(v)?;let req=private_request(c)?;let selected=text(v,"model_id")?;
  let config=if selected=="inherit"||selected==text(&req["context"],"model_selection")?{req["model"].clone()}else{req["child_models"][selected].clone()};if !config.is_object(){return Err("model identity was not authorized by host".into())}
  let messages=v["messages"].as_array().ok_or("Marqdo messages required")?;if messages.is_empty()||messages.len()>12{return Err("invalid message packet".into())}
@@ -140,7 +140,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    serde_json::from_slice(&fs::read(path).map_err(|e|e.to_string())?).map_err(|e|e.to_string())
   },
   "runtime_event"=>{event(context(v)?,text(v,"kind")?,v["data"].clone())?;Ok(json!(true))},
-  "runtime_model"=>model(v),
+  "runtime_model"=>Err("agent.model.use_marqdo_three_sources".into()),
   _=>Err("unsupported v3 runtime operation".into())
  }
 }
