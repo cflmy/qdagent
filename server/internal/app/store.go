@@ -303,6 +303,21 @@ func sharedGroupName(label string) string {
 	return sharedModelGroup
 }
 
+// localModelSettings is the single definition of the builtin local slot: the
+// endpoint and the served model both come from the administrator environment,
+// so the UI label, the resolved request and the documented default agree.
+func localModelSettings() (string, string) {
+	ep := os.Getenv("QDAGENT_OLLAMA_URL")
+	if ep == "" {
+		ep = "http://127.0.0.1:11434"
+	}
+	model := os.Getenv("QDAGENT_OLLAMA_MODEL")
+	if model == "" {
+		model = "qwen3.5:4b-q4_K_M"
+	}
+	return ep, model
+}
+
 func (s *Store) models(owner string) ([]Model, error) {
 	out := []Model{}
 	var shared string
@@ -338,7 +353,8 @@ func (s *Store) models(owner string) ([]Model, error) {
 		return nil, err
 	}
 	sharedRows.Close()
-	out = append(out, Model{ID: "builtin-local", Label: "Qwen 3.5 · 4B", Model: "qwen3.5:4b-q4_K_M", Protocol: "ollama", Builtin: true})
+	_, localModel := localModelSettings()
+	out = append(out, Model{ID: "builtin-local", Label: "本机 Qwen", Model: localModel, Protocol: "ollama", Builtin: true})
 	rows, err := s.db.Query(`SELECT id,label,protocol,model,endpoint,thinking,credential!='' FROM qd_model_profiles WHERE owner=? ORDER BY label,id`, owner)
 	if err != nil {
 		return nil, err
@@ -363,16 +379,7 @@ func (s *Store) models(owner string) ([]Model, error) {
 func (s *Store) resolveModel(owner, id string) (map[string]any, error) {
 	selection := id
 	if id == "builtin-local" {
-		ep := os.Getenv("QDAGENT_OLLAMA_URL")
-		if ep == "" {
-			ep = "http://127.0.0.1:11434"
-		}
-		// The administrator may pin which locally served model backs this slot;
-		// the default stays the documented Qwen, and identity/limits are unaffected.
-		model := os.Getenv("QDAGENT_OLLAMA_MODEL")
-		if model == "" {
-			model = "qwen3.5:4b-q4_K_M"
-		}
+		ep, model := localModelSettings()
 		return map[string]any{"selection_id": selection, "protocol": "ollama", "model": model, "endpoint": ep, "api_key": "", "builtin": true, "thinking": false}, nil
 	}
 	if id == "builtin-smart" {

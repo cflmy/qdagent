@@ -54,7 +54,9 @@ CI 门禁已接线：.github/workflows/small-model-contract.yml 现在解析并�
 
 K3 证据摘录（源码侧已验证）：memory.render 增加可选 knowledge_evidence 节——最多六条收据按"符号：等级/状态（范围）"逐字转写、节首声明 model_proved 不是运行时正确性、超限显式提示、字段缺省整体缺席保持逐字节兼容；收据是确认进根状态的快照，渲染层不读文件系统、不重推等级，过期由保存方重新投影。金样拆为 main/evidence 两段分别通过叙述比门禁。同时修复 root-dag 金样提交时即低于叙述比（31%）的已提交缺陷，文档门禁脚本的严重度过滤改用工具链 python3（环境无 jq）。K3 的可见卡片层（前端源码）已接入：知识卡显示发布时记录的证据等级，详情页"来源与审阅"节首显示等级说明并声明 model_proved 类证明不等于运行时正确性；tsc+vite 构建通过（dist 由部署构建，不入库）。
 
-仍未验证：真实浏览器多轮恢复/取消、受控并发的真实宿主验收（真实多模型并发与取消传播）、1B/3B–4B 模型对照评测；K4 真实模型对照评测未接入。Lean 工具链已在本机验证（上游 toolchain 自带 4.35.0），部署环境需同样安装并对齐版本。K3 的可见卡片层（前端源码）已接入，生产界面验收随部署进行。
+真实浏览器验收（本轮首次在真实 Chromium 下运行）：本地启动 Go 宿主（`../.marqdo/qdagent-go`，dev 身份、本机 Qwen 槽位指向真实 ollama 模型），用仓库自带 Playwright 规格运行。`real Go API` 规格通过（模型目录、插件面板、上传、阅读器、侧栏宽度等真实 HTTP/文件交互）。`real local model` 规格在真实模型下推进到框架审阅：意图确认→宿主恢复→基本方案阶段渲染出 unit_u0/unit_u1、plan.mq.md 与历史版本，随后在"两个函数分别逐字返回材料甲/材料乙"的断言处失败——两次修订后模型仍让两个函数返回同一字符串。这是模型输出质量问题，不是 UI 或门禁问题；规格里第一阶段等待时间已从 90 秒放宽到 240 秒以适配本地 CPU 推理。浏览器端的取消与刷新恢复、以及交付/验收阶段仍未在真实模型下走完。
+
+仍未验证：浏览器交付/验收阶段与真实模型下的取消/刷新恢复、受控并发的真实宿主验收（真实多模型并发与取消传播）、1B/3B–4B 与全上下文基线对照。Lean 工具链已在本机验证（上游 toolchain 自带 4.35.0），部署环境需同样安装并对齐版本。作为本地复现记录：Chromium 需要 `LD_LIBRARY_PATH=/workspace/oa2026/tools/chromelibs/usr/lib/x86_64-linux-gnu:/workspace/oa2026/tools/chromelibs/lib/x86_64-linux-gnu`、`XDG_DATA_DIRS=/workspace/oa2026/tools/chromelibs/usr/share:/usr/share` 与 `FONTCONFIG_PATH=/workspace/oa2026/tools/chromelibs/etc/fonts` 才能稳定渲染（缺字体时 CJK 显示为方块，但不影响交互）。K3 的可见卡片层（前端源码）已接入，生产界面验收随部署进行。
 
 ## 已核实的仓库现状
 

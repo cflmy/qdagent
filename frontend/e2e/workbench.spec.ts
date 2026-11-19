@@ -26,10 +26,10 @@ test('real local model follows the mandatory root skill and human gates',async({
  await page.getByRole('textbox',{name:'任务内容'}).fill('这是软件开发验收。请形成一个可调用的 Marqdo 文稿工程，只有两个独立函数：第一个返回用户给出的文本「材料甲」，第二个返回文本「材料乙」。不需要研究、联网或 Office，不要编造外部事实。请按根 SKILL 的所有阶段推进。');
  await page.getByRole('button',{name:'发送任务',exact:true}).click();
  const flow=page.getByRole('region',{name:'根 SKILL 流程'});
- await expect(flow.getByRole('button',{name:'确认意图并规划'})).toBeVisible({timeout:90000});
+ await expect(flow.getByRole('button',{name:'确认意图并规划'})).toBeVisible({timeout:240000});
  await flow.getByRole('combobox',{name:'业务函数数量',exact:true}).selectOption('2');await flow.locator('input[type=radio]').first().check();await flow.locator('.root-freeform textarea').fill('确认固定文本就是‘材料甲’和‘材料乙’这两个字符串本身，各函数无论输入都直接返回这个字符串；不是等待我另行上传材料，不做输入转换，也不要实际研究。');
  await expect(flow.getByRole('button',{name:'确认意图并规划'})).toBeEnabled({timeout:15000});await flow.getByRole('button',{name:'确认意图并规划'}).click();
- await expect(flow.getByRole('button',{name:'确认框架，开始细化'})).toBeVisible({timeout:90000});
+ await expect(flow.getByRole('button',{name:'确认框架，开始细化'})).toBeVisible({timeout:240000});
  await expect(page.frameLocator('.native-view').locator('body')).toContainText('尚未接通',{timeout:35000});
  const plannedTask=await page.evaluate(()=>localStorage.getItem('qd.task.v4'));
  let planned=(await (await page.request.get(`/api/tasks/${plannedTask}/workflow`)).json()).workflow;
@@ -38,7 +38,7 @@ test('real local model follows the mandatory root skill and human gates',async({
   await flow.locator('.root-freeform textarea').fill('框架正文与我的原意不同，请重新规划两个固定正文职责。第一个 text_unit 的 content 逐字等于材料甲，第二个 content 逐字等于材料乙；不要包含“用户给出的文本”等描述、引号、书名号或其他字符。两个函数都忽略输入。');
   await flow.getByRole('button',{name:'调整方案',exact:true}).click();
   await expect(flow.getByRole('button',{name:'确认框架，开始细化'})).not.toBeVisible({timeout:15000});
-  await expect(flow.getByRole('button',{name:'确认框架，开始细化'})).toBeVisible({timeout:90000});
+  await expect(flow.getByRole('button',{name:'确认框架，开始细化'})).toBeVisible({timeout:240000});
   planned=(await (await page.request.get(`/api/tasks/${plannedTask}/workflow`)).json()).workflow;
  }
  expect(planned.units).toHaveLength(2);expect(planned.units.map((unit:any)=>unit.constant_text).sort()).toEqual(['材料甲','材料乙'].sort());
