@@ -724,3 +724,118 @@ func TestRealModelMultiStageWhenAvailable(t *testing.T) {
 	}
 	t.Logf("MODEL_STAGE3 model=%s phase=%s revision=%v units=%d ready=%d failed=%d delivery_status=%v", model, after3["phase"], after3["revision"], len(after3["units"].([]any)), ready, failed, after3["delivery_status"])
 }
+
+// TestRealModelConcurrentCancelIsolation drives two runs against the real local
+// model at the same time, then cancels one and checks that the other keeps its
+// own state. It asserts only structural facts (independent runs, independent
+// cancellation, own metering) and never claims both small-model answers are
+// good, because a small model may still end in an honest incomplete state.
+func TestRealModelConcurrentCancelIsolation(t *testing.T) {
+	if os.Getenv("QDAGENT_TEST_LOCAL_MODEL") != "1" {
+		t.Skip("set QDAGENT_TEST_LOCAL_MODEL=1 with a local Ollama model to run")
+	}
+	endpoint := os.Getenv("QDAGENT_OLLAMA_URL")
+	if endpoint == "" {
+		endpoint = "http://127.0.0.1:11434"
+	}
+	probe, err := http.Get(endpoint + "/api/tags")
+	if err != nil {
+		t.Skipf("local model endpoint unavailable: %v", err)
+	}
+	probe.Body.Close()
+	s := realModelServer(t)
+	first, err := s.store.createTask("test-owner", "并发真实任务甲")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.store.createTask("test-owner", "并发真实任务乙")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runA, err := s.supervisor.start("test-owner", first.ID, "builtin-local", "请用两句话说明你的能力。", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runB, err := s.supervisor.start("test-owner", second.ID, "builtin-local", "请用一句话说明你的名字。", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFor := func(cond func() bool, message string) {
+		deadline := time.Now().Add(300 * time.Second)
+		for time.Now().Before(deadline) {
+			if cond() {
+				return
+			}
+			time.Sleep(300 * time.Millisecond)
+		}
+		t.Fatal(message)
+	}
+	waitFor(func() bool {
+		s.supervisor.mu.Lock()
+		defer s.supervisor.mu.Unlock()
+		return len(s.supervisor.active) == 2
+	}, "two real-model runs should be active at the same time")
+	attempted := func(runID string) bool {
+		events, err := s.store.runEvents(runID, 0)
+		if err != nil {
+			return false
+		}
+		for _, event := range events {
+			if event.Kind == "model_start" {
+				return true
+			}
+		}
+		return false
+	}
+	waitFor(func() bool { return attempted(runA.ID) && attempted(runB.ID) },
+		"both runs should have made a real model attempt before the cancellation")
+	if got := request(s, http.MethodPost, "/api/runs/"+runA.ID+"/stop", ""); got.Code != 202 {
+		t.Fatalf("stop rejected: %d %s", got.Code, got.Body.String())
+	}
+	waitFor(func() bool {
+		stopped, e := s.store.run("test-owner", runA.ID)
+		return e == nil && stopped.Status == "cancelled"
+	}, "the cancelled real run must record its real terminal state")
+	// The unrelated run must stay alive for a while after the cancellation,
+	// which is what "independent" means here; it may later finish on its own or
+	// be stopped by this test.
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		alive, e := s.store.run("test-owner", runB.ID)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if alive.Status == "cancelled" {
+			t.Fatal("cancelling one real run must never cancel an unrelated run")
+		}
+		if alive.Status != "running" {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	var metered int
+	if err = s.store.db.QueryRow(`SELECT COALESCE(sum(context_bytes),0) FROM qd_model_usage WHERE owner='test-owner'`).Scan(&metered); err != nil {
+		t.Fatal(err)
+	}
+	if metered == 0 {
+		t.Fatal("concurrent real runs must be metered at the transport boundary")
+	}
+	// Each run owns a private session root and workspace root; a shared path
+	// would silently let one run read the other's state.
+	for _, task := range []struct{ ID string }{{first.ID}, {second.ID}} {
+		sessions, err := os.Stat(filepath.Join(s.store.root, "data/sessions", task.ID))
+		if err != nil || !sessions.IsDir() {
+			t.Fatalf("task %s lacks its private session root: %v", task.ID, err)
+		}
+		workspaces, err := os.Stat(filepath.Join(s.store.root, "data/workspaces", task.ID))
+		if err != nil || !workspaces.IsDir() {
+			t.Fatalf("task %s lacks its private workspace root: %v", task.ID, err)
+		}
+	}
+	other, err := s.store.run("test-owner", runB.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("REAL_CONCURRENCY metered=%d other_status=%s", metered, other.Status)
+	request(s, http.MethodPost, "/api/runs/"+runB.ID+"/stop", "")
+}
