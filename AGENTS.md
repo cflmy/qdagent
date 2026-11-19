@@ -1,15 +1,31 @@
-# qdagent v3 — 新智能体开发契约
+# QDAGENT V3 · AI 开发者必须遵守的架构契约
 
-当前实验分支的唯一架构文档：`docs/architecture/CAPABILITY_AGENT_V3.md`；新增 SKILL 请阅读 `docs/architecture/SKILL_AUTHORING.md`。**不得把旧 `ext/root-skill/` 当作新架构模板或产品入口。**
+**此实验分支不兼容 V2，禁止恢复旧根。** 先读 [架构决策](docs/architecture/DECISIONS.md)、[新增能力及接通](docs/architecture/SKILL_AUTHORING.md) 和 [现状与清理边界](docs/architecture/CLEANUP.md)。
 
-- 唯一生产智能体入口：`agent/index.mq.md`。Go 仅负责身份、HTTP、存储、进程、配额、事件；Python 只负责传输。业务模型提示和工作流控制只允许写在可审阅的 Marqdo 文稿中。
-- 新能力放进 `skills/<slug>/index.mq.md`，声明 `description`、`agent_effects` 并暴露 `## run(context,goal)`。默认只由此入口对根可见。新增 SKILL 不修改根的业务路由代码。
-- 能力索引由**实际源码**与 Marqdo 官方 parser 派生。不能再建第二套人工工具 Schema、固定业务模式分派表或 Python Agent 工具循环。
-- 一个小模型步骤只输出一个已安装的候选 ID。只有真正需要生成源码/文档时才能进入对应 SKILL，让模型生成相应结构。失败最多一次纯格式修复，禁止无限纠错。
-- `memory.mq.md` 是唯一默认的跨轮模型上下文投影，状态、用户确认、原始审计、知识图与证明证书均有各自的可信存储。模型不能通过编辑记忆授予权限。
-- 带外部效果或写入的能力必须通过身份验证、源码哈希绑定的用户批准与真实调用收据；未知效果不可自动重放。
-- 简单任务直接调用领域 SKILL；需要跨轮/多阶段/并发才使用 `workflows/` 和 Marqdo 原生 `ext/ai/workflow`、`subtask`。根不应知道软件开发的特定阶段。
-- L1 源码/锚点、L2 受限 Lean 模型证明、L3 真实测试/实验分别记录。不能把 `model_proved` 当成完整运行时证明。
-- 旧 root-skill 源码已删除。所有新模块尽量从 `agent/`、`skills/`、`workflows/`、官方 `ext/` 和 `lib/` 组合。
+## 唯一职责链
 
-**实验分支尚未执行验收，不合并主分支。** 文稿的语法、Go/Rust 构建、React 与真实模型运行状态都尚未验收。任何缺口必须清楚记录，不要冒充生产已可用。
+- `agent/`：唯一通用智能体（会话、可信记忆投影、候选目录、最小决策、授权、执行收据）。根入口是 `agent/index.mq.md`。不得加入办公、开发、量子、浏览器或知识业务分支。
+- `skills/<slug>/index.mq.md`：一个可安装的领域能力。提供 `## run`，声明 `description` 与 `agent_effects`；由源码和官方 Marqdo 解析器自动发现。不得修改根代码注册新能力。
+- `workflows/<domain>/`：仅在多步、依赖、并发或可恢复执行确有必要时使用。每个工作流由对应 SKILL 导入，**不得成为全部对话的强制阶段**。
+- `ext/`、`lib/`：可复用的 Marqdo 基础能力。稳定通用库才进入 `lib/`；通用插件领域函数进入 `ext/`。不是另一套 Agent Loop。
+- `ext/qdagent/native/`：可信身份、操作系统、解析器、资源权限和收据等无法安全由普通 Marqdo 文稿承担的边界。**不写提示词、模型路由、SKILL 业务状态机。**
+- `server/`、`worker/`、`frontend/`：分别是认证/配额/进程与事件、外部服务传输、真实状态与产物展示。禁止另建第二套智能体。
+
+## 新增能力六条硬约束
+
+1. 首选组合已有 `lib/` 与 `ext/`，再创建 `skills/<slug>/index.mq.md`；无需改 `agent/index.mq.md`、`agent/decision.mq.md` 或人工工具注册表。
+2. SKILL 目录名必须匹配 `[a-z0-9-]{1,48}`，不得以 `-` 开头/结束。入口源码提供简短 `description`、明确的 `agent_effects: read|model|compute|external|write` 与 `## run` 的两个显式参数 `context`、`goal`。
+3. 新增外部或写入效果前先定义权限和失败收据；用户批准仅绑定当前能力源码摘要，不能从模型文本、记忆或文件内容获得权限。失败及效果未知时不自动重放。
+4. 模型输出只能是建议、候选或草稿。源码必须经官方编译诊断，行为仍由独立测试、真实操作收据和必要证明支持。不得把 `model_proved` 等同完整正确性。
+5. 领域文稿通过 import 组合自己的 workflow 或扩展。不得引用 `ext/root-skill/`、`pages/`、`skills/marqdo-dev/` 等已经删除的结构，也不得建立新的跨目录业务注册表。
+6. 修改运行时目录/协议须同步维护本文档和开发指南；拒绝“通过加兼容层恢复旧工作流”这种做法。
+
+## 接通路径（只有这一条）
+
+`skills/<slug>/index.mq.md` → `agent/catalog.discover`/ `resolve`（官方解析 + 文件摘要）→ `agent/decision.choose`（精确 ID）→ `agent/session`（必要的用户授权）→ `agent/executor.call`（受控调用 `run(context,goal)`）→ 真实收据。
+
+需要跨步任务时：`skills/<slug>/index.mq.md` import `workflows/<domain>/index.mq.md`；无需增加第二个入口。
+
+## 禁止伪造验收
+
+可以用 `python3 scripts/check_architecture.py` 检查基础目录约束，用 `bash deploy/check-document-runtime.sh` 做官方语法检查（需安装 Marqdo）。**这些都不能替代真实端到端验证。用户本轮要求架构收尾，尚未运行测试、未部署、未合并 master。**
