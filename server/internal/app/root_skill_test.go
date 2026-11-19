@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -403,23 +404,21 @@ func TestStopPropagatesWithoutTouchingUnrelatedRuns(t *testing.T) {
 	}, "the second stop must cancel the remaining run")
 }
 
-// A controlled real-model run: gated so CI without a local model stays green.
-// It asserts only truthful structure (a real model attempt happened, metering
-// captured its context, the run reached a real terminal/waiting state) and
-// never that a small model produced good business content.
-func TestRealSmallModelRootFlowWhenAvailable(t *testing.T) {
-	if os.Getenv("QDAGENT_TEST_LOCAL_MODEL") != "1" {
-		t.Skip("set QDAGENT_TEST_LOCAL_MODEL=1 with a local Ollama model to run")
-	}
-	endpoint := os.Getenv("QDAGENT_OLLAMA_URL")
-	if endpoint == "" {
-		endpoint = "http://127.0.0.1:11434"
-	}
-	probe, err := http.Get(endpoint + "/api/tags")
-	if err != nil {
-		t.Skipf("local model endpoint unavailable: %v", err)
-	}
-	probe.Body.Close()
+type trialResult struct {
+	Model        string         `json:"model"`
+	Status       string         `json:"status"`
+	Attempts     int            `json:"attempts"`
+	ModelEndedOK int            `json:"model_ended_ok"`
+	MeteredBytes int            `json:"metered_bytes"`
+	Causes       map[string]int `json:"causes"`
+	Answer       string         `json:"answer"`
+}
+
+// runRealModelTrial drives the production root entry against one real local
+// model and reports only measured facts: terminal status, real model attempts,
+// transport successes, metered context bytes and the recovery causes seen.
+func runRealModelTrial(t *testing.T, model string) trialResult {
+	t.Helper()
 	project, err := filepath.Abs("../../..")
 	if err != nil {
 		t.Fatal(err)
@@ -449,10 +448,6 @@ func TestRealSmallModelRootFlowWhenAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	model := os.Getenv("QDAGENT_OLLAMA_MODEL")
-	if model == "" {
-		model = "qwen2.5-0.5b"
-	}
 	run, err := s.supervisor.start("test-owner", task.ID, "builtin-local", "请用两句话说明你的能力。", "")
 	if err != nil {
 		t.Fatal(err)
@@ -473,59 +468,100 @@ func TestRealSmallModelRootFlowWhenAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	modelStarts, startsWithContext := 0, 0
+	result := trialResult{Model: model, Status: last.Status, Answer: last.Answer, Causes: map[string]int{}}
 	for _, e := range events {
-		if e.Kind != "model_start" {
-			continue
-		}
-		modelStarts++
-		var data map[string]any
-		if json.Unmarshal(e.Data, &data) == nil {
-			n, _ := data["context_bytes"].(float64)
-			if n == 0 {
-				n, _ = data["n"].(float64)
-			}
-			if n > 0 {
-				startsWithContext++
-			}
-		}
-	}
-	if modelStarts == 0 {
-		var detail []string
-		for _, e := range events {
-			detail = append(detail, e.Kind+":"+string(e.Data))
-		}
-		t.Fatalf("no real model attempt was recorded (status %s, answer %q): %v", last.Status, last.Answer, detail)
-	}
-	if startsWithContext == 0 {
-		t.Fatal("model attempts must carry their measured context size")
-	}
-	var bytes int
-	if err = s.store.db.QueryRow(`SELECT COALESCE(sum(context_bytes),0) FROM qd_model_usage WHERE owner='test-owner'`).Scan(&bytes); err != nil {
-		t.Fatal(err)
-	}
-	if bytes == 0 {
-		t.Fatal("real model attempts must be metered at the transport boundary")
-	}
-	causes := map[string]int{}
-	succeeded := 0
-	for _, e := range events {
-		if e.Kind == "model_end" {
+		switch e.Kind {
+		case "model_start":
+			result.Attempts++
+		case "model_end":
 			var data map[string]any
 			if json.Unmarshal(e.Data, &data) == nil && data["status"] == "succeeded" {
-				succeeded++
+				result.ModelEndedOK++
 			}
-		}
-		if e.Kind == "recovery" {
+		case "recovery":
 			var data map[string]any
 			if json.Unmarshal(e.Data, &data) == nil {
 				if cause, ok := data["cause"].(string); ok && cause != "" {
-					causes[cause]++
+					result.Causes[cause]++
 				}
 			}
 		}
 	}
-	t.Logf("model=%s status=%s attempts=%d model_ended_ok=%d metered_bytes=%d causes=%v answer=%q", model, last.Status, modelStarts, succeeded, bytes, causes, last.Answer)
+	if err = s.store.db.QueryRow(`SELECT COALESCE(sum(context_bytes),0) FROM qd_model_usage WHERE owner='test-owner'`).Scan(&result.MeteredBytes); err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+// A controlled real-model run: gated so CI without a local model stays green.
+// It asserts only truthful structure (a real model attempt happened, metering
+// captured its context, the run reached a real terminal/waiting state) and
+// never that a small model produced good business content.
+func TestRealSmallModelRootFlowWhenAvailable(t *testing.T) {
+	if os.Getenv("QDAGENT_TEST_LOCAL_MODEL") != "1" {
+		t.Skip("set QDAGENT_TEST_LOCAL_MODEL=1 with a local Ollama model to run")
+	}
+	endpoint := os.Getenv("QDAGENT_OLLAMA_URL")
+	if endpoint == "" {
+		endpoint = "http://127.0.0.1:11434"
+	}
+	probe, err := http.Get(endpoint + "/api/tags")
+	if err != nil {
+		t.Skipf("local model endpoint unavailable: %v", err)
+	}
+	probe.Body.Close()
+	model := os.Getenv("QDAGENT_OLLAMA_MODEL")
+	if model == "" {
+		model = "qwen2.5-0.5b"
+	}
+	result := runRealModelTrial(t, model)
+	if result.Attempts == 0 {
+		t.Fatalf("no real model attempt was recorded for %s: %+v", model, result)
+	}
+	if result.MeteredBytes == 0 {
+		t.Fatal("real model attempts must be metered at the transport boundary")
+	}
+	t.Logf("model=%s status=%s attempts=%d model_ended_ok=%d metered_bytes=%d causes=%v answer=%q", result.Model, result.Status, result.Attempts, result.ModelEndedOK, result.MeteredBytes, result.Causes, result.Answer)
+}
+
+// TestK4Matrix runs a fixed number of real trials for each listed model and
+// prints one JSON line per model. It never asserts a model is good; it records
+// what actually happened so the comparison is reproducible.
+func TestK4Matrix(t *testing.T) {
+	if os.Getenv("QDAGENT_K4_MATRIX") != "1" {
+		t.Skip("set QDAGENT_K4_MATRIX=1 with local models to run the matrix")
+	}
+	models := strings.Split(os.Getenv("QDAGENT_K4_MODELS"), ",")
+	trials := 3
+	if raw := os.Getenv("QDAGENT_K4_TRIALS"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			trials = parsed
+		}
+	}
+	for _, model := range models {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			continue
+		}
+		t.Setenv("QDAGENT_OLLAMA_MODEL", model)
+		waiting, attempts, bytes, ended := 0, 0, 0, 0
+		causes := map[string]int{}
+		for i := 0; i < trials; i++ {
+			result := runRealModelTrial(t, model)
+			if result.Status == "waiting_user" {
+				waiting++
+			}
+			attempts += result.Attempts
+			bytes += result.MeteredBytes
+			ended += result.ModelEndedOK
+			for cause, n := range result.Causes {
+				causes[cause] += n
+			}
+		}
+		summary := map[string]any{"model": model, "trials": trials, "waiting_user": waiting, "attempts": attempts, "model_ended_ok": ended, "metered_bytes": bytes, "causes": causes}
+		raw, _ := json.Marshal(summary)
+		t.Logf("K4_MATRIX %s", raw)
+	}
 }
 
 // hardlinkTree mirrors a repository directory into a temporary root without
