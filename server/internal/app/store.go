@@ -367,7 +367,13 @@ func (s *Store) resolveModel(owner, id string) (map[string]any, error) {
 		if ep == "" {
 			ep = "http://127.0.0.1:11434"
 		}
-		return map[string]any{"selection_id": selection, "protocol": "ollama", "model": "qwen3.5:4b-q4_K_M", "endpoint": ep, "api_key": "", "builtin": true, "thinking": false}, nil
+		// The administrator may pin which locally served model backs this slot;
+		// the default stays the documented Qwen, and identity/limits are unaffected.
+		model := os.Getenv("QDAGENT_OLLAMA_MODEL")
+		if model == "" {
+			model = "qwen3.5:4b-q4_K_M"
+		}
+		return map[string]any{"selection_id": selection, "protocol": "ollama", "model": model, "endpoint": ep, "api_key": "", "builtin": true, "thinking": false}, nil
 	}
 	if id == "builtin-smart" {
 		owner = smartModelOwner

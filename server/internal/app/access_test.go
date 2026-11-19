@@ -235,3 +235,23 @@ func TestContextBytesMeterAtProviderBoundary(t *testing.T) {
 		t.Fatal("quota count must stay attempt-based", u.SmartUsed)
 	}
 }
+
+func TestBuiltinLocalModelSelectionIsConfigurable(t *testing.T) {
+	s := testServer(t)
+	t.Setenv("QDAGENT_OLLAMA_MODEL", "")
+	cfg, err := s.store.resolveModel("test-owner", "builtin-local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg["model"] != "qwen3.5:4b-q4_K_M" || cfg["protocol"] != "ollama" || cfg["builtin"] != true {
+		t.Fatal("the documented default Qwen must stay in place", cfg)
+	}
+	t.Setenv("QDAGENT_OLLAMA_MODEL", "qwen2.5:0.5b-instruct")
+	cfg, err = s.store.resolveModel("test-owner", "builtin-local")
+	if err != nil || cfg["model"] != "qwen2.5:0.5b-instruct" || cfg["protocol"] != "ollama" {
+		t.Fatal("an administrator-pinned local model must be honoured", cfg, err)
+	}
+	if cfg["selection_id"] != "builtin-local" {
+		t.Fatal("the slot identity must not change with the served model", cfg)
+	}
+}
