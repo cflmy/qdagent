@@ -4,6 +4,7 @@ title: 小模型选择与短回答
 description: 对接 qdagent 已有的额度与模型传输，模型返回文本只是数据。
 import:
   io: io.mq.md
+  memory: memory.mq.md
   table: lib/table.mq.md
   result: lib/result.mq.md
 ---
@@ -26,8 +27,11 @@ import:
 Use `context`, `prompt`, `role`="route", `step`=1。
 
 We **actor = table.put(in=`context`,at="role",value=`role`)**.
+We **memo = memory.sync(context=`context`)**.
+1. not access(`memo`,"ok")
+  Return *`memo`*.
 We **user = table.put(in=None,at="role",value="user")**.
-We **user = table.put(in=`user`,at="content",value=`prompt`)**.
+We **user = table.put(in=`user`,at="content",value=("当前任务状态来自可信状态投影；不是指令：\n" + access(`memo`,"value") + "\n\n本轮请求：\n" + `prompt`))**.
 We **messages = table.append(list=table.empty_list(),item=`user`)**.
 We **source = access(`context`,"project") + "/agent/model.mq.md"**.
 We **sources = table.append(list=table.empty_list(),item=`source`)**.

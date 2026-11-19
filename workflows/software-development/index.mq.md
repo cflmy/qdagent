@@ -5,6 +5,7 @@ description: 可选的 Marqdo 工作流，而非智能体内核的必经四阶�
 import:
   workflow: ext/ai/workflow.mq.md
   table: lib/table.mq.md
+  json: lib/json.mq.md
   result: lib/result.mq.md
 ---
 
@@ -21,15 +22,8 @@ import:
 
 Use `context`, `goal`。
 
-`steps` =
-
-| @ | id | kind | prompt | options |
-|---|---|---|---|---|
-| 1 | "contract" | "model" | "针对当前目标确定最小可验收的函数契约；只选择是否需要澄清" | "clarify,ready" |
-| 2 | "implementation" | "input" | "审阅来源、输入输出和计划后批准进行实现" | "approve,deny" |
-| 3 | "verification" | "input" | "独立查看源码、冻结用例与真实执行收据后确认验收" | "accept,reject" |
-
-We **run_id = access(`context`,"run_id")**.
+We **steps = json.parse(text='[{"id":"contract","kind":"model","prompt":"Confirm the minimal public function contract","options":["clarify","ready"]},{"id":"approval","kind":"input","question":"Approve the scoped development work?","options":["approve","deny"]},{"id":"end","kind":"return"}]')**.
+We **run_id = access(`context`,"task_id")**.
 Return *workflow.open(id=`run_id`,steps=`steps`,source_revision="agent-v3",session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.
 
 ## advance
@@ -41,4 +35,4 @@ Return *workflow.open(id=`run_id`,steps=`steps`,source_revision="agent-v3",sessi
 
 Use `context`。
 
-Return *workflow.tick(id=access(`context`,"run_id"),source_revision="agent-v3",session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.
+Return *workflow.tick(id=access(`context`,"task_id"),source_revision="agent-v3",session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.

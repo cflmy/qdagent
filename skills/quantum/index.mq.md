@@ -2,7 +2,7 @@
 markup: occlusion
 title: 量子计算与验证
 description: 使用 Marqdo 量子拓展库获取贝尔态仿真与测量的实际数值
-agent_effects: external
+agent_effects: compute
 import:
   quantum: ext/quantum/index.mq.md
   result: lib/result.mq.md

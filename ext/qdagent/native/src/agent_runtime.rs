@@ -51,7 +51,7 @@ fn skill(c:&Value,id:&str)->Result<Value,String>{
  if !module.functions.iter().any(|f|f.name=="run"){return Err("agent.catalog.no_run".into())}
  let purpose=scalar(&source,"description").ok_or("agent.catalog.description_required")?;
  let effects=scalar(&source,"agent_effects").unwrap_or("model".into());
- if !matches!(effects.as_str(),"read"|"model"|"external"|"write"){return Err("agent.catalog.invalid_effects".into())}
+ if !matches!(effects.as_str(),"read"|"model"|"compute"|"external"|"write"){return Err("agent.catalog.invalid_effects".into())}
  Ok(json!({"id":id,"description":purpose,"effects":effects,"sha256":digest(source.as_bytes()),"path":path.to_string_lossy()}))
 }
 fn catalog(c:&Value)->Result<Value,String>{
@@ -80,6 +80,7 @@ fn call(c:&Value,v:&Value)->Result<Value,String>{
  let grants=match effects{
   "read"=>"fs.read",
   "model"=>"plugin,fs.read,process.exec,environment.read",
+  "compute"=>"plugin,fs.read,process.exec,environment.read",
   "external"=>"plugin,fs.read,process.exec,environment.read,network.read",
   "write"=>"plugin,fs.read,fs.write,process.exec,environment.read,network.read,network.write",
   _=>return Err("unknown effects".into()),
@@ -129,6 +130,20 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   "agent_catalog_resolve"=>skill(c,v["skill"].as_str().ok_or("skill required")?),
   "agent_skill_call"=>call(c,v),
   "agent_session_read"=>{let r=root(c)?;let _lock=super::lifecycle(&r)?;read(&r)},
+  "agent_memory_sync"=>{
+   let r=root(c)?;let _lock=super::lifecycle(&r)?;let s=read(&r)?;
+   let rev=v["revision"].as_u64().ok_or("agent.memory.revision_required")?;
+   if s["revision"].as_u64()!=Some(rev){return Err("agent.memory.stale".into())}
+   let source=v["memory"].as_str().ok_or("agent.memory.document_required")?;
+   if source.len()>8*1024||source.lines().any(|l|l.starts_with("## ")||l.starts_with("### "))
+      ||!source.starts_with("# 任务关键事实"){return Err("agent.memory.inert_budget_required".into())}
+   let workspace=Path::new(c["workspace"].as_str().ok_or("workspace required")?).canonicalize().map_err(|e|e.to_string())?;
+   if !workspace.is_dir(){return Err("agent.memory.invalid_workspace".into())}
+   let target=workspace.join("memory.mq.md");
+   if let Ok(m)=fs::symlink_metadata(&target){if m.file_type().is_symlink()||!m.is_file(){return Err("agent.memory.invalid_target".into())}}
+   super::atomic(&target,source)?;
+   Ok(json!(source))
+  },
   "agent_session_begin"=>{
    let message=v["message_id"].as_str().ok_or("message id missing")?;
    let input=v["user_input"].as_str().ok_or("user text missing")?;

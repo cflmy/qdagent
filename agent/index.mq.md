@@ -67,7 +67,12 @@ We **candidates = catalog.discover(context=`context`)**.
   | "能力目录不可用，未执行任何工具。" | "incomplete" |
   
   Return *`unavailable`*.
-We **choice = decision.choose(context=`context`,goal=`goal`,candidates=access(`candidates`,"value"))**.
+We **choice = session.status(context=`context`)**.
+1. json.get(value=`state`,key="approved_skill")
+  We **choice = table.put(in=None,at="ok",value=True)**.
+  We **choice = table.put(in=`choice`,at="value",value=json.get(value=`state`,key="approved_skill"))**.
+2. *
+  We **choice = decision.choose(context=`context`,goal=`goal`,candidates=access(`candidates`,"value"))**.
 1. not access(`choice`,"ok")
   `unrouted` =
   
