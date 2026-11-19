@@ -7,7 +7,13 @@ import path from 'node:path';
 const project=fileURLToPath(new URL('../../',import.meta.url)),owner='migration-verification';
 const proof=path.join(project,'.marqdo/studio-proof');
 let knowledge:{key:string;name:string};
-test.beforeAll(()=>{test.setTimeout(240000);
+// The rendering proof runs inside the repository's own container image (no
+// network, read-only root, unprivileged user) because it needs LibreOffice.
+// Without Docker the proof cannot be produced, so these two cases are skipped
+// explicitly instead of failing as if the product were broken.
+const dockerAvailable=():boolean=>{try{execFileSync('docker',['version'],{stdio:'ignore'});return true}catch{return false}};
+const needsDocker='requires Docker and the qdagent:local image (LibreOffice PDF export)';
+test.beforeAll(()=>{test.setTimeout(240000);test.skip(!dockerAvailable(),needsDocker);
  const stamp=createHash('sha256');for(const file of ['ext/office/templates.json','ext/office/themes/index.mq.md','ext/office/package.mq.md','ext/native/libqdagent_transport.so','tests/verify_studio_render.py'])stamp.update(fs.readFileSync(path.join(project,file)));
  const digest=stamp.digest('hex');
  if(!fs.existsSync(path.join(proof,'stamp'))||fs.readFileSync(path.join(proof,'stamp'),'utf8')!==digest){
