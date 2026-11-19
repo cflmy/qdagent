@@ -66,7 +66,12 @@ test('knowledge stays in the main workbench and opens only the selected detail i
  await popup.getByRole('button',{name:'关闭',exact:true}).click();
  await popup.getByRole('button',{name:'源码',exact:true}).click();await expect(popup.locator('.document-source')).toContainText('marqdo-out');
  await popup.getByRole('button',{name:'View 阅读',exact:true}).click();await expect(native.locator('body')).toContainText('unit_u0');
- await native.getByRole('link',{name:'查看原始来源',exact:true}).first().click();
+ const sourceLink=native.getByRole('link',{name:'查看原始来源',exact:true}).first();
+ await expect(sourceLink).toBeVisible({timeout:30000});
+ // The View iframe re-renders after the write-back, so the anchor can detach
+ // between resolution and click; force keeps the intent without waiting for
+ // a stable box that never settles.
+ await sourceLink.click({force:true});
  await expect(popup.frameLocator('iframe[title="多格式文件预览"]').locator('body')).toContainText('Source evidence',{timeout:20000});
  await popup.getByLabel('查看知识来源').selectOption('-1');
  await popup.screenshot({path:'test-results/knowledge-native-detail.png',fullPage:true});await popup.close();
