@@ -2,7 +2,7 @@
 markup: occlusion
 title: 知识编译与证明
 description: 按来源与语义作用域查询 Marqdo 知识索引、证明依赖或正式证书
-agent_effects: external
+agent_effects: compute
 import:
   io: ../../agent/io.mq.md
   table: lib/table.mq.md
