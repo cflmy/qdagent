@@ -14,22 +14,17 @@ import:
 代码生成与执行有清晰边界。模型可以提出函数实现，但不能自签验收、授予权限、改测试案例或将生成的源码直接安装为 SKILL。建议先检索现有函数的语义身份与契约，只有确实缺少能力才进入生成。软件工程过程可由 workflows/software-development 继续承担。
 
 ## run
-    + `context`
-    + `goal`
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| context | map | 模型与任务身份 |
-| goal | text | 一次函数开发目标 |
 
-Use `context`, `goal`。
 
-We **request = "仅为下述职责提出一份可读 Marqdo .mq.md 源码草稿，必须包含输入、返回、约束，不能声称已测试或证明。无需重新写整个系统。\n" + `goal`**.
-We **answer = model.ask(context=`context`,prompt=`request`,role="chat")**.
+
+We **answer = model.ask(role="chat")**.
 1. not access(`answer`,"ok")
   Return *`answer`*.
 We **source = json.get(value=access(`answer`,"value"),key="text")**.
-We **checked = io.native(context=`context`,operation="agent_source_check",payload=table.put(in=None,at="source",value=`source`))**.
+We **checked = io.native(operation="agent_source_check",payload=table.put(in=None,at="source",value=`source`))**.
 1. not access(`checked`,"ok")
   `invalid` =
 
