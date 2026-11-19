@@ -417,7 +417,7 @@ type trialResult struct {
 // runRealModelTrial drives the production root entry against one real local
 // model and reports only measured facts: terminal status, real model attempts,
 // transport successes, metered context bytes and the recovery causes seen.
-func runRealModelTrial(t *testing.T, model string) trialResult {
+func realModelServer(t *testing.T) *Server {
 	t.Helper()
 	project, err := filepath.Abs("../../..")
 	if err != nil {
@@ -444,6 +444,12 @@ func runRealModelTrial(t *testing.T, model string) trialResult {
 	}
 	t.Cleanup(s.Close)
 	s.supervisor.workflow = &rootRuntime{store: s.store}
+	return s
+}
+
+func runRealModelTrial(t *testing.T, model string) trialResult {
+	t.Helper()
+	s := realModelServer(t)
 	task, err := s.store.createTask("test-owner", "真实小模型接线")
 	if err != nil {
 		t.Fatal(err)
@@ -604,4 +610,69 @@ func hardlinkTree(src, dst string) error {
 		}
 		return nil
 	})
+}
+
+// TestRealModelMultiStageWhenAvailable drives the HTTP flow with a real model:
+// run to the pending question, confirm the intent as the user, then let the
+// host resume into the outline stage. It records what actually happens.
+func TestRealModelMultiStageWhenAvailable(t *testing.T) {
+	if os.Getenv("QDAGENT_TEST_LOCAL_MODEL") != "1" {
+		t.Skip("set QDAGENT_TEST_LOCAL_MODEL=1 with a local Ollama model to run")
+	}
+	s := realModelServer(t)
+	task, err := s.store.createTask("test-owner", "真实多阶段")
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := os.Getenv("QDAGENT_OLLAMA_MODEL")
+	if model == "" {
+		model = "qwen2.5-coder-3b"
+	}
+	runBody, _ := json.Marshal(map[string]any{"question": "请用两句话说明你的能力。", "model": "builtin-local"})
+	got := request(s, http.MethodPost, "/api/tasks/"+task.ID+"/runs", string(runBody))
+	if got.Code != 200 && got.Code != 202 {
+		t.Fatal(got.Code, got.Body.String())
+	}
+	waitIdle := func(label string) {
+		deadline := time.Now().Add(300 * time.Second)
+		for time.Now().Before(deadline) {
+			s.supervisor.mu.Lock()
+			active := len(s.supervisor.active)
+			s.supervisor.mu.Unlock()
+			if active == 0 {
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		t.Fatalf("run did not finish: %s", label)
+	}
+	waitIdle("first run")
+	state, err := s.supervisor.workflow.snapshot(task.ID)
+	if err != nil || state == nil {
+		t.Fatalf("state unavailable: %v", err)
+	}
+	if state["phase"] != "intent" {
+		t.Logf("MODEL_STAGE model=%s phase=%s pending=%v", model, state["phase"], state["pending"])
+		return
+	}
+	pending, _ := state["pending"].(map[string]any)
+	if pending == nil {
+		t.Fatalf("intent stage without a pending question: %v", state)
+	}
+	choices, _ := pending["choices"].([]any)
+	choice := ""
+	if len(choices) > 0 {
+		choice, _ = choices[0].(string)
+	}
+	respond, _ := json.Marshal(map[string]any{"revision": state["revision"], "action": "confirm_intent", "choice": choice, "model": "builtin-local"})
+	got = request(s, http.MethodPost, "/api/tasks/"+task.ID+"/workflow/respond", string(respond))
+	if got.Code != 200 {
+		t.Fatalf("confirm_intent rejected: %d %s", got.Code, got.Body.String())
+	}
+	waitIdle("resume run")
+	after, err := s.supervisor.workflow.snapshot(task.ID)
+	if err != nil || after == nil {
+		t.Fatalf("state unavailable after resume: %v", err)
+	}
+	t.Logf("MODEL_STAGE model=%s phase=%s revision=%v has_outline=%v", model, after["phase"], after["revision"], after["outline_sha256"] != nil)
 }
