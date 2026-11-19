@@ -58,6 +58,8 @@ jobs:
           marqdo run tests/knowledge-proof-execution.mq.md --json
           marqdo check tests/model-retry-policy.mq.md --narrative-ratio --json
           marqdo run tests/model-retry-policy.mq.md --json
+          marqdo check tests/unknown-effect-policy.mq.md --narrative-ratio --json
+          marqdo run tests/unknown-effect-policy.mq.md --json
           marqdo check tests/root-dag-scheduling.mq.md --narrative-ratio --json
           marqdo run tests/root-dag-scheduling.mq.md --json
           marqdo check tests/ext/ai-native-flow.mq.md --narrative-ratio --json
