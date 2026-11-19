@@ -26,7 +26,7 @@ type rootRuntime struct{ store *Store }
 func (r *rootRuntime) invoke(ctx context.Context, document, member string, c map[string]any, args map[string]any) (map[string]any, error) {
 	args["context"] = c
 	raw, _ := json.Marshal(args)
-	command := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(r.store.root, "ext/root-skill", document), member, "--args-json", "-", "--effects", "plugin,fs.read,fs.write,process.exec,environment.read", "--fs-root", c["workspace"].(string), "--json")
+	command := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(r.store.root, "agent", document), member, "--args-json", "-", "--effects", "plugin,fs.read,fs.write,process.exec,environment.read", "--fs-root", c["workspace"].(string), "--json")
 	command.Stdin = bytes.NewReader(raw)
 	command.Dir = r.store.root
 	command.Env = append(os.Environ(), "MARQDO_LIB="+filepath.Join(r.store.root, "lib"), "MARQDO_EXT="+filepath.Join(r.store.root, "ext"))
@@ -66,7 +66,7 @@ func (r *rootRuntime) snapshot(task string) (map[string]any, error) {
 	if !validID(task) {
 		return nil, errors.New("invalid task")
 	}
-	path := filepath.Join(r.store.root, "data/sessions", task, "data/dialogue/proj/root-skill.json")
+	path := filepath.Join(r.store.root, "data/sessions", task, "data/dialogue/proj/agent-state.json")
 	file, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -95,187 +95,47 @@ func (s *Server) workflow(w http.ResponseWriter, r *http.Request, i identity) {
 	}
 	writeJSON(w, 200, map[string]any{"workflow": state})
 }
+// A human reply changes only a revision-pinned pending authorization.
+// The domain skill and its effects are not parameters of this API.
 func (s *Server) respondWorkflow(w http.ResponseWriter, r *http.Request, i identity) {
-	task, ok := s.owned(w, r, i)
-	if !ok {
-		return
-	}
-	if task.Archived != 0 {
-		writeError(w, 409, "task_archived", "任务已归档，请恢复后继续")
-		return
-	}
-	if s.supervisor.workflow == nil {
-		writeError(w, 503, "workflow_unavailable", "根 SKILL 未准备好")
-		return
-	}
-	var input struct {
-		Revision      int64             `json:"revision"`
-		Action        string            `json:"action"`
-		Answer        string            `json:"answer"`
-		Choice        string            `json:"choice"`
-		OfficeThemes  []string          `json:"office_themes"`
-		Concurrency   *int              `json:"concurrency"`
-		ExpectedUnits *int              `json:"expected_units"`
-		ChildModel    string            `json:"child_model"`
-		TestModel     string            `json:"test_model"`
-		UnitModels    map[string]string `json:"unit_models"`
-		AcceptStubs   bool              `json:"accept_stubs"`
-		Model         string            `json:"model"`
-	}
-	if !decode(w, r, &input) {
-		return
-	}
-	if len(input.Answer) > 16000 || len(input.Choice) > 1000 {
-		writeError(w, 400, "response_too_large", "回答过长，请分次补充")
-		return
-	}
-	current, err := s.supervisor.workflow.snapshot(task.ID)
-	if err != nil || current == nil {
-		writeError(w, 409, "workflow_missing", "请先提交任务以开始意图澄清")
-		return
-	}
-	settings, _ := current["settings"].(map[string]any)
-	if settings == nil {
-		settings = map[string]any{"concurrency": float64(2), "child_model": "inherit", "unit_models": map[string]any{}}
-	}
-	if input.OfficeThemes != nil {
-		if len(input.OfficeThemes) < 1 || len(input.OfficeThemes) > 4 {
-			writeError(w, 400, "office_themes", "请选择一至四种风格")
-			return
-		}
-		seen := map[string]bool{}
-		for _, theme := range input.OfficeThemes {
-			if (theme != "sage" && theme != "paper" && theme != "midnight" && theme != "coral") || seen[theme] {
-				writeError(w, 400, "office_themes", "风格无效或重复")
-				return
-			}
-			seen[theme] = true
-		}
-		settings["office_themes"] = input.OfficeThemes
-	}
-	if input.Concurrency != nil {
-		if *input.Concurrency < 1 || *input.Concurrency > 8 {
-			writeError(w, 400, "concurrency", "并发数需在 1–8 之间")
-			return
-		}
-		settings["concurrency"] = *input.Concurrency
-	}
-	if input.ExpectedUnits != nil {
-		if *input.ExpectedUnits < 0 || *input.ExpectedUnits > 8 {
-			writeError(w, 400, "expected_units", "业务函数数量需在 1–8 之间，0 表示不限制")
-			return
-		}
-		settings["expected_units"] = *input.ExpectedUnits
-	}
-	if input.ChildModel != "" {
-		settings["child_model"] = input.ChildModel
-	}
-	if input.TestModel != "" {
-		settings["test_model"] = input.TestModel
-	}
-	if input.UnitModels != nil {
-		known := map[string]bool{}
-		if units, ok := current["units"].([]any); ok {
-			for _, raw := range units {
-				if unit, ok := raw.(map[string]any); ok {
-					if id, ok := unit["id"].(string); ok {
-						known[id] = true
-					}
-				}
-			}
-		}
-		for id := range input.UnitModels {
-			if !known[id] {
-				writeError(w, 400, "unit_model", "模型设置包含未声明的单元")
-				return
-			}
-		}
-		settings["unit_models"] = input.UnitModels
-	}
-	models := []string{}
-	if id, ok := settings["test_model"].(string); ok {
-		models = append(models, id)
-	}
-	if id, ok := settings["child_model"].(string); ok {
-		models = append(models, id)
-	}
-	switch selections := settings["unit_models"].(type) {
-	case map[string]string:
-		for _, id := range selections {
-			models = append(models, id)
-		}
-	case map[string]any:
-		for _, raw := range selections {
-			if id, ok := raw.(string); ok {
-				models = append(models, id)
-			}
-		}
-	}
-	for _, id := range models {
-		if id != "" && id != "inherit" {
-			if _, err = s.store.resolveModel(i.Principal, id); err != nil {
-				writeError(w, 400, "child_model", "子模型不存在或不属于当前账号")
-				return
-			}
-		}
-	}
-	if input.Model == "" {
-		input.Model = "builtin-local"
-	}
-	if _, err = s.store.resolveModel(i.Principal, input.Model); err != nil {
-		writeError(w, 400, "model_unavailable", "请选择当前账号可用的主模型")
-		return
-	}
-	s.supervisor.mu.Lock()
-	latest, stateErr := s.store.task(i.Principal, task.ID)
-	if stateErr != nil || latest.Archived != 0 {
-		s.supervisor.mu.Unlock()
-		writeError(w, 409, "task_archived", "任务已归档，请恢复后继续")
-		return
-	}
-	var active int
-	s.store.db.QueryRow(`SELECT count(*) FROM qd_runs WHERE task_id=? AND status='running'`, task.ID).Scan(&active)
-	if active != 0 {
-		s.supervisor.mu.Unlock()
-		writeError(w, 409, "workflow_busy", "请等当前动作结束后再回应")
-		return
-	}
-	c, err := s.store.taskContext(i.Principal, task.ID)
-	if err != nil {
-		s.supervisor.mu.Unlock()
-		writeError(w, 500, "workflow_context", "任务上下文读取失败")
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
-	state, err := s.supervisor.workflow.invoke(ctx, "state.mq.md", "respond", c, map[string]any{"revision": input.Revision, "action": input.Action, "answer": input.Answer, "choice": input.Choice, "settings": settings, "accept_stubs": input.AcceptStubs})
-	cancel()
-	s.supervisor.mu.Unlock()
-	if err != nil {
-		writeError(w, 409, "workflow_response", err.Error())
-		return
-	}
-	result := map[string]any{"workflow": state}
-	if state["phase"] == "complete" {
-		status := "succeeded"
-		if state["delivery_status"] != "accepted" {
-			status = "incomplete"
-		}
-		_, _ = s.store.db.Exec(`UPDATE qd_runs SET status=? WHERE task_id=? AND status='waiting_user' AND id=(SELECT id FROM qd_runs WHERE task_id=? ORDER BY created_ms DESC LIMIT 1)`, status, task.ID, task.ID)
-		_, _ = s.store.db.Exec(`UPDATE qd_tasks SET status=? WHERE id=?`, map[bool]string{true: "succeeded", false: "incomplete"}[state["delivery_status"] == "accepted"], task.ID)
-	} else {
-		text := "用户回应根流程：" + input.Action
-		if input.Choice != "" {
-			text += "；选择：" + input.Choice
-		}
-		if input.Answer != "" {
-			text += "；补充：" + input.Answer
-		}
-		run, runErr := s.supervisor.startInternal(i.Principal, task.ID, input.Model, text, "", true)
-		if runErr != nil {
-			result["resume_error"] = runErr.Error()
-		} else {
-			result["run"] = run
-		}
-	}
-	writeJSON(w, 200, result)
+ task,ok:=s.owned(w,r,i)
+ if !ok{return}
+ if task.Archived!=0{writeError(w,409,"task_archived","任务已归档");return}
+ if s.supervisor.workflow==nil{writeError(w,503,"agent_unavailable","智能体不可用");return}
+ var input struct {
+  Revision int64 `json:"revision"`
+  Action string `json:"action"`
+  Answer string `json:"answer"`
+  Choice string `json:"choice"`
+  Model string `json:"model"`
+ }
+ if !decode(w,r,&input){return}
+ if input.Action!="approve"&&input.Action!="deny"{
+  writeError(w,400,"agent_reply","只能明确批准或拒绝本次效果");return
+ }
+ if input.Model==""{input.Model="builtin-local"}
+ if _,err:=s.store.resolveModel(i.Principal,input.Model);err!=nil{
+  writeError(w,400,"model_unavailable","模型不可用");return
+ }
+ s.supervisor.mu.Lock()
+ var active int
+ s.store.db.QueryRow(`SELECT count(*) FROM qd_runs WHERE task_id=? AND status='running'`,task.ID).Scan(&active)
+ if active!=0{s.supervisor.mu.Unlock();writeError(w,409,"agent_busy","任务仍在执行");return}
+ c,err:=s.store.taskContext(i.Principal,task.ID)
+ if err!=nil{s.supervisor.mu.Unlock();writeError(w,500,"agent_context","任务状态不可用");return}
+ ctx,cancel:=context.WithTimeout(r.Context(),35*time.Second)
+ saved,err:=s.supervisor.workflow.invoke(ctx,"session.mq.md","respond",c,map[string]any{
+  "revision":input.Revision,"action":input.Action,"answer":input.Answer,"choice":input.Choice,
+ })
+ cancel();s.supervisor.mu.Unlock()
+ if err!=nil{writeError(w,409,"agent_reply",err.Error());return}
+ result:=map[string]any{"workflow":saved}
+ if saved["phase"]=="complete"{
+  _,_=s.store.db.Exec(`UPDATE qd_runs SET status='incomplete' WHERE task_id=? AND status='waiting_user'`,task.ID)
+  _,_=s.store.db.Exec(`UPDATE qd_tasks SET status='incomplete' WHERE id=?`,task.ID)
+ }else{
+  run,err:=s.supervisor.startInternal(i.Principal,task.ID,input.Model,"已批准本次能力效果","",true)
+  if err!=nil{result["resume_error"]=err.Error()}else{result["run"]=run}
+ }
+ writeJSON(w,200,result)
 }

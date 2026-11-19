@@ -49,7 +49,7 @@ func nativeEntry(ctx context.Context, project string, c map[string]any, payload 
 	if err = os.WriteFile(actor, identity, 0600); err != nil {
 		return nil, nil, err
 	}
-	cmd := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(project, "ext/root-skill/index.mq.md"), "run", "--args-json", "-", "--fs-root", workspace, "--effects", "plugin,fs.read,fs.write,process.exec,environment.read,time.read,random.read", "--json")
+	cmd := exec.CommandContext(ctx, env("MARQDO_BIN", "marqdo"), "call", filepath.Join(project, "agent/index.mq.md"), "run", "--args-json", "-", "--fs-root", workspace, "--effects", "plugin,fs.read,fs.write,process.exec,environment.read,time.read,random.read", "--json")
 	cmd.Dir = workspace
 	cmd.Stdin = bytes.NewReader(args)
 	cmd.Env = append(os.Environ(), "QDAGENT_RUN_REQUEST_FILE="+private, "QDAGENT_ACTOR_FILE="+actor, "MARQDO_LIB="+filepath.Join(project, "lib"), "MARQDO_EXT="+filepath.Join(project, "ext"))

@@ -123,9 +123,6 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 	}
 	weight := 1
 	if s.workflow != nil {
-		if !s.store.pluginEnabled(owner, "root-skill") {
-			return Run{}, errors.New("根 SKILL 已停用，请启用后执行任务")
-		}
 		var running int
 		s.store.db.QueryRow(`SELECT count(*) FROM qd_runs WHERE task_id=? AND status='running'`, task).Scan(&running)
 		if running != 0 {
@@ -133,7 +130,7 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 		}
 		if !resume {
 			ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
-			_, err = s.workflow.invoke(ctx, "state.mq.md", "begin", ctxMap, map[string]any{"user_input": question, "message_id": randomID()})
+			_, err = s.workflow.invoke(ctx, "session.mq.md", "begin", ctxMap, map[string]any{"user_input": question, "message_id": randomID()})
 			cancel()
 			if err != nil {
 				return Run{}, err
@@ -143,7 +140,7 @@ func (s *supervisor) startInternal(owner, task, model, question, knowledge strin
 		if readErr != nil {
 			return Run{}, readErr
 		}
-		if state["phase"] == "refine" {
+		if state["phase"] == "parallel" {
 			if settings, ok := state["settings"].(map[string]any); ok {
 				if n, ok := settings["concurrency"].(float64); ok {
 					weight = int(n)
@@ -206,7 +203,7 @@ func (s *supervisor) execute(ctx context.Context, cancel context.CancelFunc, r R
 		return
 	}
 	if s.workflow != nil {
-		payload["root_skill"] = true
+		payload["agent_v3"] = true
 		state, stateErr := s.workflow.snapshot(r.Task)
 		if stateErr != nil {
 			s.finish(r, turn, "failed", "根流程读取失败")
