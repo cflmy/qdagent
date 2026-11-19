@@ -110,7 +110,20 @@ func (s *Server) Handler() http.Handler {
 					w.Header().Set("Access-Control-Allow-Origin", "*")
 				}
 				if p == "file-viewer.html" {
-					w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src data: blob:; media-src blob:; font-src data: blob:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src blob:; form-action 'none'; base-uri 'none'")
+					// The preview frame is sandboxed without allow-same-origin, so its
+					// document origin is opaque and "self" matches nothing. Name this
+					// host explicitly so the PDF worker script can still be loaded and
+					// instantiated from inside the isolated document.
+					host := r.Host
+					if host == "" || strings.ContainsAny(host, " ;'\"") {
+						host = "127.0.0.1"
+					}
+					scheme := "http"
+					if r.TLS != nil {
+						scheme = "https"
+					}
+					self := scheme + "://" + host
+					w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' blob: "+self+"; style-src 'self' 'unsafe-inline'; img-src data: blob:; media-src blob:; font-src data: blob:; connect-src 'self' blob: "+self+"; worker-src 'self' blob: "+self+"; frame-src blob:; form-action 'none'; base-uri 'none'")
 					w.Header().Set("Cache-Control", "no-cache")
 				}
 				http.ServeFile(w, r, filepath.Join(s.frontend, p))

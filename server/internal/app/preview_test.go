@@ -43,8 +43,15 @@ func TestOpaqueViewerCanLoadPublicAssetsButCannotReadPrivateAPIs(t *testing.T) {
 		t.Fatal("isolated preview cannot load its public module")
 	}
 	document := request(s, "GET", "/file-viewer.html", "")
-	if !strings.Contains(document.Header().Get("Content-Security-Policy"), "form-action 'none'") {
+	policy := document.Header().Get("Content-Security-Policy")
+	if !strings.Contains(policy, "form-action 'none'") {
 		t.Fatal("viewer lacks network and document confinement")
+	}
+	// The sandboxed frame has an opaque origin, so "self" matches nothing:
+	// the worker/module policy must name the serving host explicitly or the
+	// isolated PDF worker can never be loaded.
+	if !strings.Contains(policy, "127.0.0.1") || !strings.Contains(policy, "worker-src") {
+		t.Fatalf("viewer policy must name the serving host for worker/module loads: %s", policy)
 	}
 	if request(s, "GET", "/api/models", "").Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("asset CORS policy leaked into account APIs")
