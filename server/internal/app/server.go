@@ -78,7 +78,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/tasks/{id}/preview", s.auth.protect(s.preview))
 	m.HandleFunc("GET /api/tasks/{id}/download", s.auth.protect(s.download))
 	m.HandleFunc("POST /api/tasks/{id}/uploads", s.auth.protect(s.upload))
-	m.Handle("/reader-assets/", http.StripPrefix("/reader-assets/", http.FileServer(http.Dir(filepath.Join(s.store.root, "pages/public/generated")))))
+	m.Handle("/reader-assets/", http.StripPrefix("/reader-assets/", http.FileServer(http.Dir(filepath.Join(s.store.root, "assets/reader")))))
 	m.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/svg+xml")
 		http.ServeFile(w, r, filepath.Join(s.frontend, "favicon.svg"))
