@@ -29,7 +29,16 @@ We **revision = io.native(context=`context`,operation="agent_source_revision",pa
   Return *`revision`*.
 We **source_revision = access(`revision`,"value")**.
 We **run_id = access(`context`,"task_id")**.
-Return *workflow.open(id=`run_id`,steps=`steps`,source_revision=`source_revision`,session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.
+We **opened = workflow.open(id=`run_id`,steps=`steps`,source_revision=`source_revision`,session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))**.
+1. not json.get(value=`opened`,key="ok")
+  Return *`opened`*.
+`pending_workflow` =
+
+| status | checkpoint | next |
+|---|---|---|
+| "workflow_waiting_model" | `opened` | "advance" |
+
+Return *result.ok(value=`pending_workflow`)*.
 
 ## advance
     + `context`

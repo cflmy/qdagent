@@ -118,12 +118,12 @@ fn call(c:&Value,v:&Value)->Result<Value,String>{
  let envelope:Value=serde_json::from_slice(&output).map_err(|_|"agent.skill.invalid_marqdo_result")?;
  if envelope["ok"]!=true{return Err(format!("agent.skill.marqdo_error: {}",envelope["error"]))}
  if envelope["result"]["ok"]==false{return Err(format!("agent.skill.domain_failure: {}",envelope["result"]["error"]))}
- let value=if envelope["result"]["ok"]==true {&envelope["result"]["value"]} else {&envelope["result"]};
+ let value=if envelope["result"]["ok"]==true && !envelope["result"]["value"].is_null(){&envelope["result"]["value"]}else{&envelope["result"]};
  let observed=value["status"].as_str().unwrap_or("");
- let status=if matches!(observed,"waiting_model"|"waiting_input"|"needs_source_read"|"draft_needs_compiler_review"|"incomplete"|"blocked"|"uncertain"){
+ let status=if matches!(observed,"waiting_model"|"waiting_input"|"needs_source_read"|"draft_needs_compiler_review"|"workflow_waiting_model"|"incomplete"|"blocked"|"uncertain"){
   "incomplete"
  }else{"succeeded"};
- if digest(&fs::read(source).map_err(|e|e.to_string())?)!=spec["sha256"]{
+ if digest(&fs::read(source).map_err(|e|e.to_string())?)!=spec["sha256"].as_str().unwrap_or(""){
   return Err("agent.skill.source_changed_after_execution".into())
  }
  Ok(json!({"status":status,"result":envelope["result"],"skill":name,"source_sha256":spec["sha256"],"evidence":"marqdo_call"}))
@@ -165,7 +165,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    let input=v["user_input"].as_str().ok_or("user text missing")?;
    if input.trim().is_empty()||input.len()>16000||message.len()>128||!message.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-'||b==b'_'){return Err("agent.session.invalid_input".into())}
    let r=root(c)?;let _lock=super::lifecycle(&r)?;let mut s=read(&r)?;
-   if s["last_message_id"]==message{return Ok(s)}
+   if s["last_message_id"].as_str()==Some(message){return Ok(s)}
    s["goal"]=json!(input);s["phase"]=json!("ready");s["status"]=json!("running");
    s["pending"]=Value::Null;s["selected_skill"]=Value::Null;s["approved_skill"]=Value::Null;
    s["answer"]=json!("");s["last_message_id"]=json!(message);s["approved_source_sha256"]=Value::Null;save(&r,&mut s)
@@ -175,7 +175,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    let spec=skill(c,name)?;
    let r=root(c)?;let _lock=super::lifecycle(&r)?;let mut s=read(&r)?;
    if s["phase"]!="ready"{return Err("agent.session.not_ready".into())}
-   if s["pending"]["skill"]==name{return Ok(s)}
+   if s["pending"]["skill"].as_str()==Some(name){return Ok(s)}
    s["pending"]=json!({"kind":"effect_approval","skill":name,"source_sha256":spec["sha256"],"question":v["question"],"options":["approve","deny"],"freeform":false});
    s["phase"]=json!("waiting_user");save(&r,&mut s)
   },

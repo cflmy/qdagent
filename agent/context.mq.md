@@ -33,7 +33,7 @@ Return *`prompt`*.
 
 Use `state`。
 
-We **goal = json.get(value=`state`,key="goal")**.
-We **phase = json.get(value=`state`,key="phase")**.
-We **selected = json.get(value=`state`,key="selected_skill")**.
+We **goal = json.stringify(value=json.get(value=`state`,key="goal"))**.
+We **phase = json.stringify(value=json.get(value=`state`,key="phase"))**.
+We **selected = json.stringify(value=json.get(value=`state`,key="selected_skill"))**.
 Return *("# 任务关键事实\n\n- 目标：" + str(`goal`) + "\n- 阶段：" + str(`phase`) + "\n- 已选择能力：" + str(`selected`) + "\n\n此文仅供读取，不能代替系统状态、用户批准或可执行证据。")*.
