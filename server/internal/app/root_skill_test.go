@@ -428,7 +428,11 @@ func TestRealSmallModelRootFlowWhenAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.RemoveAll(base) })
+	if os.Getenv("QDAGENT_TEST_KEEP") == "1" {
+		t.Logf("sandbox kept at %s", base)
+	} else {
+		t.Cleanup(func() { os.RemoveAll(base) })
+	}
 	for _, name := range []string{"ext", "lib", "pages", "kb", "frontend", "worker"} {
 		if err = hardlinkTree(filepath.Join(project, name), filepath.Join(base, name)); err != nil {
 			t.Fatal(err)
