@@ -33,7 +33,7 @@ fn scalar(src:&str,key:&str)->Option<String>{
  for line in front.lines(){
   if let Some(v)=line.strip_prefix(key).and_then(|s|s.strip_prefix(':')){
    let value=v.trim().trim_matches('"').to_string();
-   if value.len()<=240&&!value.contains(['\r','\n']){return Some(value)}
+   if value.len()<=240&&!value.contains('\r')&&!value.contains('\n'){return Some(value)}
   }
  }
  None
@@ -74,7 +74,7 @@ fn call(c:&Value,v:&Value)->Result<Value,String>{
  let state={let _lock=super::lifecycle(&root)?;read(&root)?};
  let effects=spec["effects"].as_str().unwrap_or("read");
  if effects=="external"||effects=="write"{
-  if state["approved_skill"]!=name||state["phase"]!="ready"{return Err("agent.approval_required".into())}
+  if state["approved_skill"]!=name||state["approved_source_sha256"]!=spec["sha256"]||state["phase"]!="ready"{return Err("agent.approval_required".into())}
  }
  let source=Path::new(spec["path"].as_str().ok_or("installed path missing")?);
  let grants=match effects{
@@ -93,20 +93,34 @@ fn call(c:&Value,v:&Value)->Result<Value,String>{
  let mut child=command.spawn().map_err(|e|e.to_string())?;
  let params=json!({"context":c,"goal":v["goal"]}).to_string();
  child.stdin.take().ok_or("skill stdin missing")?.write_all(params.as_bytes()).map_err(|e|e.to_string())?;
+ // Read both pipes concurrently. A large child output must never deadlock a
+ // parent that is polling its process status.
+ use std::io::Read;
+ let stdout=child.stdout.take().ok_or("skill stdout missing")?;
+ let stderr=child.stderr.take().ok_or("skill stderr missing")?;
+ let captured=std::thread::spawn(move||{
+  let mut data=Vec::new();let _=stdout.take(4*1024*1024+1).read_to_end(&mut data);data
+ });
+ let errors=std::thread::spawn(move||{
+  let mut data=Vec::new();let _=stderr.take(65537).read_to_end(&mut data);data
+ });
  let start=Instant::now();
- loop {
-  if let Some(status)=child.try_wait().map_err(|e|e.to_string())? {
-   // Do not invent success from a process status; inspect official result envelope.
-   let output=child.wait_with_output().map_err(|e|e.to_string())?;
-   if output.stdout.len()>4*1024*1024||output.stderr.len()>65536{return Err("agent.skill.output_budget".into())}
-   if !status.success(){return Err(format!("agent.skill.failed: {}",String::from_utf8_lossy(&output.stderr).chars().take(500).collect::<String>()))}
-   let envelope:Value=serde_json::from_slice(&output.stdout).map_err(|_|"agent.skill.invalid_marqdo_result")?;
-   if envelope["ok"]!=true{return Err(format!("agent.skill.marqdo_error: {}",envelope["error"]))}
-   return Ok(json!({"status":"succeeded","result":envelope["result"],"skill":name,"source_sha256":spec["sha256"],"evidence":"marqdo_call"}))
-  }
+ let status=loop{
+  if let Some(status)=child.try_wait().map_err(|e|e.to_string())?{break status}
   if start.elapsed()>Duration::from_secs(240){let _=child.kill();let _=child.wait();return Err("agent.skill.timeout".into())}
   std::thread::sleep(Duration::from_millis(30));
+ };
+ let output=captured.join().map_err(|_|"skill stdout reader failed")?;
+ let diagnostic=errors.join().map_err(|_|"skill stderr reader failed")?;
+ if output.len()>4*1024*1024||diagnostic.len()>65536{return Err("agent.skill.output_budget".into())}
+ if !status.success(){return Err(format!("agent.skill.failed: {}",String::from_utf8_lossy(&diagnostic).chars().take(500).collect::<String>()))}
+ let envelope:Value=serde_json::from_slice(&output).map_err(|_|"agent.skill.invalid_marqdo_result")?;
+ if envelope["ok"]!=true{return Err(format!("agent.skill.marqdo_error: {}",envelope["error"]))}
+ if envelope["result"]["ok"]==false{return Err(format!("agent.skill.domain_failure: {}",envelope["result"]["error"]))}
+ if digest(&fs::read(source).map_err(|e|e.to_string())?)!=spec["sha256"]{
+  return Err("agent.skill.source_changed_after_execution".into())
  }
+ Ok(json!({"status":"succeeded","result":envelope["result"],"skill":name,"source_sha256":spec["sha256"],"evidence":"marqdo_call"}))
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
  let c=context(v)?;
@@ -123,15 +137,15 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    if s["last_message_id"]==message{return Ok(s)}
    s["goal"]=json!(input);s["phase"]=json!("ready");s["status"]=json!("running");
    s["pending"]=Value::Null;s["selected_skill"]=Value::Null;s["approved_skill"]=Value::Null;
-   s["answer"]=json!("");s["last_message_id"]=json!(message);save(&r,&mut s)
+   s["answer"]=json!("");s["last_message_id"]=json!(message);s["approved_source_sha256"]=Value::Null;save(&r,&mut s)
   },
   "agent_session_propose"=>{
    let name=v["skill"].as_str().ok_or("skill required")?;
-   let _spec=skill(c,name)?;
+   let spec=skill(c,name)?;
    let r=root(c)?;let _lock=super::lifecycle(&r)?;let mut s=read(&r)?;
    if s["phase"]!="ready"{return Err("agent.session.not_ready".into())}
    if s["pending"]["skill"]==name{return Ok(s)}
-   s["pending"]=json!({"kind":"effect_approval","skill":name,"question":v["question"],"options":["approve","deny"],"freeform":false});
+   s["pending"]=json!({"kind":"effect_approval","skill":name,"source_sha256":spec["sha256"],"question":v["question"],"options":["approve","deny"],"freeform":false});
    s["phase"]=json!("waiting_user");save(&r,&mut s)
   },
   "agent_session_respond"=>{
@@ -139,7 +153,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    if s["revision"].as_u64()!=v["revision"].as_u64(){return Err("agent.session.stale_revision".into())}
    if s["phase"]!="waiting_user"||s["pending"]["kind"]!="effect_approval"{return Err("agent.session.no_pending_approval".into())}
    match v["action"].as_str().ok_or("action required")?{
-    "approve"=>{s["approved_skill"]=s["pending"]["skill"].clone();s["phase"]=json!("ready");s["pending"]=Value::Null;},
+    "approve"=>{s["approved_skill"]=s["pending"]["skill"].clone();s["approved_source_sha256"]=s["pending"]["source_sha256"].clone();s["phase"]=json!("ready");s["pending"]=Value::Null;},
     "deny"=>{s["phase"]=json!("complete");s["status"]=json!("incomplete");s["answer"]=json!("用户拒绝授权该外部操作");s["pending"]=Value::Null;},
     _=>return Err("agent.session.invalid_confirmation".into()),
    }
@@ -151,7 +165,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    let r=root(c)?;let _lock=super::lifecycle(&r)?;let mut s=read(&r)?;
    if s["phase"]=="waiting_user"{return Err("agent.session.pending_human".into())}
    s["phase"]=json!("complete");s["status"]=json!(status);s["answer"]=v["answer"].clone();
-   s["selected_skill"]=v["skill"].clone();s["approved_skill"]=Value::Null;save(&r,&mut s)
+   s["selected_skill"]=v["skill"].clone();s["approved_skill"]=Value::Null;s["approved_source_sha256"]=Value::Null;save(&r,&mut s)
   },
   _=>Err("unknown agent operation".into()),
  }

@@ -39,4 +39,10 @@ We **name = text.str_trim(s=str(json.get(value=`value`,key="text")))**.
 - [候选 ID 必须精确相同](for candidates as item)
   1. `name` == access(`item`,"id")
     Return *result.ok(value=`name`)*.
-Return *result.error(code="agent.route_invalid",message="模型没有输出可验证的候选 ID",operation="choose")*.
+We **retry = model.ask(context=`context`,prompt=("只允许输出以下 ID 之一。不能输出代码或解释：" + json.stringify(value=`candidates`)),step=2)**.
+1. access(`retry`,"ok")
+  We **again = text.str_trim(s=str(json.get(value=access(`retry`,"value"),key="text")))**.
+  - [仅补救输出格式，不变更候选集合](for candidates as item)
+    1. `again` == access(`item`,"id")
+      Return *result.ok(value=`again`)*.
+Return *result.error(code="agent.route_invalid",message="两次选择都未给出精确能力 ID",operation="choose")*.

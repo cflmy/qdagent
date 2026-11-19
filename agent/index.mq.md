@@ -31,6 +31,16 @@ We **saved = session.status(context=`context`)**.
   Return *[会话读取失败不伪造结果](table.put(in=None,at="status",value="failed"))*.
 We **state = access(`saved`,"value")**.
 We **pending = json.get(value=`state`,key="pending")**.
+1. json.get(value=`state`,key="phase") == "complete"
+  We **previous_answer = json.get(value=`state`,key="answer")**.
+  We **previous_status = json.get(value=`state`,key="status")**.
+  `completed` =
+  
+  | answer | status |
+  |---|---|
+  | `previous_answer` | `previous_status` |
+  
+  Return *`completed`*.
 1. `pending`
   `waiting` =
   
@@ -67,6 +77,37 @@ We **choice = decision.choose(context=`context`,goal=`goal`,candidates=access(`c
   
   Return *`unrouted`*.
 We **selected = access(`choice`,"value")**.
+1. json.get(value=`state`,key="approved_skill")
+  We **selected = json.get(value=`state`,key="approved_skill")**.
+We **spec = catalog.resolve(context=`context`,skill=`selected`)**.
+1. not access(`spec`,"ok")
+  `missing` =
+  
+  | answer | status |
+  |---|---|
+  | "选中的能力不可用；未执行操作。" | "incomplete" |
+  
+  Return *`missing`*.
+We **meta = access(`spec`,"value")**.
+We **effects = access(`meta`,"effects")**.
+1. (`effects` == "external" or `effects` == "write") and json.get(value=`state`,key="approved_skill") != `selected`
+  We **requested = session.propose(context=`context`,skill=`selected`,question="本次操作会读取外部服务或修改资源。确认批准本次效果？")**.
+  1. not access(`requested`,"ok")
+    `blocked` =
+    
+    | answer | status |
+    |---|---|
+    | "无法保存待确认状态，未执行操作。" | "incomplete" |
+    
+    Return *`blocked`*.
+  We **question = json.get(value=access(`requested`,"value"),key="pending")**.
+  `waiting_approval` =
+  
+  | answer | status | pending |
+  |---|---|---|
+  | "执行该能力之前，需要明确批准。" | "waiting_user" | `question` |
+  
+  Return *`waiting_approval`*.
 We **receipt = executor.call(context=`context`,skill=`selected`,goal=`goal`)**.
 1. not access(`receipt`,"ok")
   We **code = json.get(value=access(`receipt`,"error"),key="code")**.
@@ -87,11 +128,12 @@ We **receipt = executor.call(context=`context`,skill=`selected`,goal=`goal`)**.
   
   Return *`failed`*.
 We **actual = access(`receipt`,"value")**.
-We **final = session.finish(context=`context`,status="succeeded",answer=str(`actual`),skill=`selected`)**.
+We **answer = str(json.get(value=`actual`,key="result"))**.
+We **saved_final = session.finish(context=`context`,status="succeeded",answer=`answer`,skill=`selected`)**.
 `output` =
   
 | answer | status |
 |---|---|
-| `actual` | "succeeded" |
+| `answer` | "succeeded" |
 
 Return *`output`*.

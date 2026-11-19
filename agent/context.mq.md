@@ -17,7 +17,7 @@ import:
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | goal | text | 当前任务目标 |
-| candidates | list | 最多五条真实能力摘要 |
+| candidates | list | 少量已安装能力摘要（当前数量由目录投影限定） |
 
 Use `goal`, `candidates`。
 
