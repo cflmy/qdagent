@@ -58,8 +58,11 @@ else:
             report(str(entry.relative_to(ROOT)), "unknown or missing agent_effects")
         if not re.search(r"(?m)^## run\s*$", source):
             report(str(entry.relative_to(ROOT)), "missing callable run")
-        if "    + `context`" not in source or "    + `goal`" not in source:
-            report(str(entry.relative_to(ROOT)), "run must declare context and goal")
+        run = source.split("## run", 1)[-1].split("## ", 1)[0]
+        if re.search(r"(?m)^    \+ `context`|^    \+ `goal`", run):
+            report(str(entry.relative_to(ROOT)), "SKILL run must use zero explicit input/context arguments")
+        if re.search(r"(?m)\bmodel\.ask\([^\n]*(prompt|messages|sources)=", source):
+            report(str(entry.relative_to(ROOT)), "a model cannot receive arbitrary extra context")
 
 # Imports are inspected structurally in source headers only, not by searching
 # human narrative. Marqdo's official parser remains the language authority.
@@ -85,4 +88,17 @@ if errors:
     for error in errors:
         print(" - " + error, file=sys.stderr)
     sys.exit(1)
-print("V3 architecture boundary checks passed (static only; no compilation performed).")
+# This rule applies to internal framework documents as well as SKILL entrypoints.
+for folder in ("agent", "skills", "workflows"):
+    for doc in (ROOT / folder).rglob("*.mq.md"):
+        body = doc.read_text(encoding="utf-8")
+        if re.search(r"(?m)^    \+ `context`\s*$", body):
+            report(str(doc.relative_to(ROOT)), "generic context arguments are forbidden")
+        if re.search(r"(?m)model\.ask\([^\n]*(prompt|messages|sources)=", body):
+            report(str(doc.relative_to(ROOT)), "extra model prompt sources are forbidden")
+if errors:
+    print("Architecture violations:", file=sys.stderr)
+    for error in errors:
+        print(" - " + error, file=sys.stderr)
+    sys.exit(1)
+print("V3 three-source architecture boundary checks passed (static only).")
