@@ -40,7 +40,6 @@ services:
       - qdagent-data:/app/data
     tmpfs:
       - /tmp:uid=10001,gid=10001,mode=1777,size=256m
-      - /app/pages/data:uid=10001,gid=10001,mode=0700,size=16m
     secrets:
       - source: paddleocr_token
         target: /run/paddleocr_token

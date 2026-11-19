@@ -1,0 +1,48 @@
+name: Capability Agent V3
+
+on:
+  workflow_dispatch:
+
+jobs:
+  marqdo-documents:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Marqdo 2.9.1 CLI
+        run: |
+          curl -fL https://github.com/cflmy/marqdo/releases/download/v2.9.1/marqdo-2.9.1-x86_64-unknown-linux-gnu.zip -o /tmp/marqdo.zip
+          unzip -q /tmp/marqdo.zip -d /tmp/marqdo-release
+          mkdir -p "$HOME/.local/bin"
+          find /tmp/marqdo-release -name marqdo -type f -exec cp {} "$HOME/.local/bin/marqdo" \;
+          chmod +x "$HOME/.local/bin/marqdo"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Validate actual native capability source
+        run: bash deploy/check-document-runtime.sh
+  native-abi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Acquire pinned Marqdo source
+        run: git clone --depth 1 --branch v2.9.1 https://github.com/cflmy/marqdo.git ../marqdo
+      - name: Compile the V3 ABI
+        run: cargo check --manifest-path ext/qdagent/native/Cargo.toml --locked --lib
+  go-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+      - name: Compile the authenticated task host
+        run: cd server && go build ./...
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Compile the actual workspace UI
+        run: cd frontend && npm ci && npm run build
