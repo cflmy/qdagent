@@ -31,7 +31,6 @@ Return *io.native(operation="runtime_search",payload=table.put(in=None,at="query
 
 Use `url`。
 
-We **actor = table.put(in=`context`,at="role",value="research")**.
 Return *io.native(operation="runtime_browser_open",payload=table.put(in=None,at="url",value=`url`))*.
 
 ## run

@@ -81,7 +81,7 @@ We **candidates = catalog.discover()**.
   | "能力目录不可用，未执行任何工具。" | "incomplete" |
   
   Return *`unavailable`*.
-We **choice = session.status(context=`context`)**.
+We **choice = session.status()**.
 1. json.get(value=`state`,key="approved_skill")
   We **choice = table.put(in=None,at="ok",value=True)**.
   We **choice = table.put(in=`choice`,at="value",value=json.get(value=`state`,key="approved_skill"))**.

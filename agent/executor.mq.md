@@ -12,14 +12,12 @@ import:
 
 ## call
     + `skill`
-    + `goal`
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | skill | text | 已验证的能力 ID |
-| goal | text | 当前用户目标 |
 
-Use `skill`, `goal`。
+Use `skill`。
 
 We **payload = table.put(in=None,at="skill",value=`skill`)**.
-Return *io.native(operation="agent_skill_call",payload=table.put(in=`payload`,at="goal",value=`goal`))*.
+Return *io.native(operation="agent_skill_call",payload=`payload`)*.
