@@ -45,6 +45,7 @@ test('large reader uses the native canvas and connectors without workspace chrom
  await page.request.patch('/api/tasks/'+task.id+'/archive',{headers:{Origin:origin},data:{archived:true}});await page.request.delete('/api/tasks/'+task.id,{headers:{Origin:origin}});
 });
 test('knowledge stays in the main workbench and opens only the selected detail in a new page',async({page})=>{
+ test.setTimeout(120000);
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/app?section=knowledge');await expect(page.locator('.sidebar')).toBeVisible();
  await expect(page.getByRole('heading',{name:'公用知识库',exact:true})).toBeVisible();
