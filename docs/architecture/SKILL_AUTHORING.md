@@ -1,74 +1,50 @@
-# 新增 SKILL：无 context、无 prompt、纯 Marqdo
+# 新增 SKILL 与自主上下文（设计规范）
 
-## 最小能力
+先阅读 [CONTEXT_SOVEREIGNTY.md](CONTEXT_SOVEREIGNTY.md) 和仓库根 [AGENTS.md](../../AGENTS.md)。
 
-新增文件 `skills/hello/index.mq.md`：
+## 新增业务能力
 
-```markdown
----
-markup: occlusion
-title: 简单回答
-description: 使用 Marqdo 文稿直接解释用户的请求
-agent_effects: model
-import:
-  model: ../../agent/model.mq.md
-  json: lib/json.mq.md
----
+建立 `skills/<slug>/index.mq.md`，声明可读 `description`、真实 `agent_effects` 与明确的 `## run` 函数。通过 `scripts/sync_capabilities.py` 从实际源码生成根文稿的能力目录章节，运行时再次核验已安装 SKILL ID 与源码摘要。**新增一个能力不需要修改通用根的业务分支。**
 
-# main
+当前分支的 `run()` 无需接收大型身份 `context` 参数；模型调用从真实会话读取当前输入和记忆。以后也不应把上下文工作集重新做成每层都必须传递的大 Map。
 
-你当前负责简洁、准确地回应用户问题。不要自称使用未调用的工具。
+## SKILL 如何获取更多信息？
 
-## run
+领域 SKILL 先用自身文稿和默认小工作集完成能做的事；缺乏信息时，由模型提出**具体的上下文读取意图**。后续应通过 `agent/context/` 的 Marqdo 语义接口（尚未实现）完成：
 
-We **answer = model.ask(role="chat")**.
-1. not access(`answer`,"ok")
-  Return *`answer`*.
-Return *json.get(value=access(`answer`,"value"),key="text")*.
+```text
+context.inspect(symbol_or_ref, depth)
+context.read(ref, scope, budget)
+context.expand(ref, dependency_or_caller)
+context.pin(ref, until)
+context.release(ref)
 ```
 
-`run` 不需要 `context`，也不需要 `goal`；模型自动看到用户输入、唯一记忆及**此 SKILL 文稿本身**。
+这些是**设计中的签名，不是已发布的 Marqdo API**。真正的源码定位优先复用 Marqdo 的 parser、`ext/ai/context.scope` 与知识编译器。模型提出的路径/锚点需经合法来源解析和宿主权限过滤，不能变成任意文件或网络执行授权。
 
-## 怎么接通（没有手工工具注册）
+## 一个具体场景
 
-1. 新建 `skills/<slug>/index.mq.md`，slug 只能使用小写字母、数字和连字符；写一行真实 `description`、明确 `agent_effects: read|model|compute|external|write`，暴露无参数 `## run`。
-2. 执行 `python3 scripts/sync_capabilities.py`：从源码生成 `agent/index.mq.md` 内的能力目录章节。**这是根文稿的一部分，不是额外的模型 Prompt。**
-3. 运行时根的 `catalog.discover()` 从实际源码解析得到可用候选；Marqdo `decision.choose` 读取根文稿内的能力列表，选择 ID，随后核验它确实存在。
-4. 如需外部访问或写入，Marqdo `session.propose` 请求用户确认，并由宿主保存单次源码绑定的授权。
-5. `executor.call(skill=...)` 只执行已安装文稿的 `run()`；领域内部继续组合 `ext/`、`lib/` 或自己的 `workflows/`。
+用户要求：“修复 Marqdo 知识编译器中的后置条件组合。”
 
-无需修改根路由业务代码、Go 工具表、前端导航、JSON Schema 或模型工具描述。
+1. 当前 `skills/code/index.mq.md` 作为执行文稿启动。用户目标和相关记忆可以作为默认基底；
+2. 智能体发现缺少 `compose` 函数契约，提出 `context.request(scope=function, ref=...)`；
+3. Marqdo 返回精确函数及源码摘要；模型阅读后决定是否继续获取所调用函数的后置条件或一条失败证据；
+4. `context.pin` 暂留当前必要函数，`context.release` 清掉无关候选；
+5. 代码或证明仍由真实 Marqdo 函数执行，产出可验证来源和收据；重要事实经审查后才沉淀到记忆。
 
-## 纯数据能力怎么获取用户输入？
+不是把整个 `marqdo/`、全部工具定义或历史会话一次性塞给模型。**上下文应当是可执行的选择，而非固定模板。**
 
-直接在 SKILL 文稿里调用：
+## 文件应该放在哪里？
 
-```marqdo
-We **incoming = io.input()**.
-1. not access(`incoming`,"ok")
-  Return *`incoming`*.
-We **goal = access(`incoming`,"value")**.
-```
+| 内容 | 建议路径 |
+|---|---|
+| 通用上下文选择策略、工作集生命周期 | `agent/context/`（目标设计） |
+| 具体学科的上下文策略、提示协议 | `skills/<domain>/` |
+| 独立步骤、并发和来源检查点 | `workflows/<domain>/` |
+| 稳定的源解析、知识寻址与证据函数 | 现有 Marqdo `ext/`、`lib/` |
+| 真实权限、进程、文件锁、模型网络传输 | `ext/qdagent/native/` 与 Go |
+| 模型可读的长期记忆 | 工作区 `memory.mq.md`（受控写入） |
 
-其中 `io` import `../../agent/io.mq.md`。这是 Marqdo 读取受信本轮输入的函数，**不是接收外部 context**。
+## 验收理念
 
-## 多阶段任务/专业算法放在哪里？
-
-- 领域入口：`skills/<slug>/index.mq.md`；
-- 当前 SKILL 的辅助可寻址函数：`skills/<slug>/*.mq.md`；
-- 独立可恢复工作流：`workflows/<domain>/*.mq.md`，由该 SKILL 导入；
-- 可跨技能复用的领域扩展：`ext/<domain>/*.mq.md`；
-- 纯函数：`lib/*.mq.md`；
-- 确实需要原生访问文件锁、隔离浏览器等：`ext/qdagent/native/`。这不是增加一个新 Agent Loop。
-
-要写代码、研究资料、分析实验，可以让这些可读文稿自己决定调用函数和保存证据。不得再为每个函数拼接系统提示、全局工具列表或者历史对话。
-
-## 代码约束与验证
-
-```sh
-python3 scripts/sync_capabilities.py
-python3 scripts/check_architecture.py
-bash deploy/check-document-runtime.sh
-```
-
-最后的命令需要 Marqdo CLI。上述检查不替代真实模型实验、效果权限和生产安全验收。当前分支尚未执行这些测试。
+重点不是每轮永远只有三份文本，而是**默认只读必要信息，扩展由模型提出、由 Marqdo 执行，来源可核对，历史与权限绝不自动灌入**。后续实施要比较 token 消耗、读取精度、是否重复请求、来源过期与多 SKILL 连续性。本轮只定设计，不声称实现或验收通过。

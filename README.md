@@ -1,35 +1,22 @@
-# 求道智能体 · Marqdo 三源文稿智能体
+# 求道智能体 · Marqdo Native Context-Sovereign Agent
 
-这是一个探索性、**以 Marqdo 本身为智能体主体**的框架。它不再在每个 Marqdo 函数间传递 `context` 大字典，也不调用另一个外部 Agent 框架生成提示词。
+求道是以 **Marqdo 可执行文稿为智能体主体**的探索性框架：模型认知上下文由 Marqdo 选择和管理，外部框架只负责身份、权限、进程与传输。
 
-## 最重要的一条约束
+**新架构的核心不是“永远只用三份上下文”，而是“默认三份极小启动，智能体根据任务自主选择更多具体上下文”。**
 
-每次模型请求只包含：
+初始视图通常包含当前用户输入、相关记忆、正在执行的 Marqdo 文稿。需要更多信息时，智能体在 Marqdo 中主动选择源码函数、知识锚点、证明依赖、测试收据或外部来源，按照精确作用域和预算读取，不由 Go/Python/Rust 自动拼进模型消息。宿主仍独立执行权限、可信来源与副作用核验。
 
-1. 当前用户输入；
-2. 唯一的 `memory.mq.md` 持久记忆文档；
-3. 当前执行的 Marqdo 文稿（根或被选中的 SKILL）。
+## 未来开发先看
 
-没有其他模型可见文本。角色、身份、权限、配额、工具审批和任务 ID 只能存于受信宿主**传输元数据**，不属于模型上下文。
+- **[自主细粒度上下文架构](docs/architecture/CONTEXT_SOVEREIGNTY.md)**：完整设计，作用域、来源、生命周期、动态选择、记忆与并发；
+- [设计理由](docs/architecture/DECISIONS.md)：为什么不是外部 Agent Loop、不是硬编码三源上限；
+- [AGENTS 开发者规范](AGENTS.md)：模块职责与禁止事项；
+- [SKILL 开发指南](docs/architecture/SKILL_AUTHORING.md)：扩展能力与上下文接口的设计方式。
 
-## 目录
+## 架构归属
 
-| 目录 | 唯一责任 |
-|---|---|
-| `agent/index.mq.md` | 唯一根文稿，分发、授权与收据 |
-| `agent/model.mq.md` | 三源模型调用；不接受任意 prompt/messages/sources |
-| `agent/io.mq.md` | 从受信宿主隐式获取输入及资源操作 |
-| `agent/session.mq.md` | 会话事实和用户授权 |
-| `agent/memory.mq.md` | 唯一跨轮 Markdown 记忆投影 |
-| `skills/<slug>/index.mq.md` | 直接可执行的无参数 `run()` SKILL |
-| `workflows/` | 仅复杂任务使用的 Marqdo 可恢复工作流 |
-| `ext/` 和 `lib/` | 可复用 Marqdo 执行、知识和领域库 |
-| `server/`、`worker/`、`frontend/` | 认证/任务/网络传输/真实状态 UI，非 Agent Loop |
+`agent/` 负责通用 Marqdo 智能体，拟新增 `agent/context/` 负责自主上下文；`skills/` 负责领域能力；`workflows/` 仅编排真正的复杂任务；`ext/`、`lib/` 提供语言级可复用原语；Rust/Go/worker 只承担不可由 Marqdo 安全管理的资源和传输能力；frontend 呈现真实执行、证据与用户确认。
 
-新增 SKILL 后只需 `python3 scripts/sync_capabilities.py`，更新**当前根文稿本身**的可见能力列表；不创建另一条工具提示或手工注册表。调用端运行时会再次对照实际已安装源文稿核验 ID、来源与效果权限。
+## 实验代码状态
 
-阅读 [设计决策与理由](docs/architecture/DECISIONS.md)、[SKILL 开发与接通](docs/architecture/SKILL_AUTHORING.md) 和 [必须遵守的规范](AGENTS.md)。
-
-## 当前分支状态
-
-本分支仍是破坏兼容性的架构实验。已改写 Marqdo 主链与三源传输协议，**没有运行编译、真实模型或端到端验收，也未合并 master**。记忆已作为真实工作区文稿保留且默认只读，但自动学习/可靠写回仍未实现。实际接通与稳定性需要后续验证。
+当前分支已经有 context-free 函数及固定三源传输的**过渡性代码**，但**尚未实现这份设计要求的动态上下文工作集与自主读取协议**。此次只修订架构，不实施代码迁移、编译、测试或发布，也未合并主分支。以架构文档为目标契约，切勿把旧三源限制当作最终方案。
