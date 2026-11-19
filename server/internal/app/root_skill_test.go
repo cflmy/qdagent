@@ -695,4 +695,32 @@ func TestRealModelMultiStageWhenAvailable(t *testing.T) {
 		units = len(list)
 	}
 	t.Logf("MODEL_STAGE2 model=%s phase=%s revision=%v units=%d delivery_status=%v", model, final["phase"], final["revision"], units, final["delivery_status"])
+	if os.Getenv("QDAGENT_TEST_STAGE3") != "1" || final["phase"] == "complete" {
+		return
+	}
+	// A real user continuation drives the implementation stage forward; the run
+	// may end at review (waiting for acceptance) or fail honestly.
+	continueBody, _ := json.Marshal(map[string]any{"question": "继续当前根 SKILL 阶段，处理尚未完成的程序和验证。", "model": "builtin-local"})
+	got = request(s, http.MethodPost, "/api/tasks/"+task.ID+"/runs", string(continueBody))
+	if got.Code != 200 && got.Code != 202 {
+		t.Fatalf("continuation rejected: %d %s", got.Code, got.Body.String())
+	}
+	waitIdle("implement run")
+	after3, err := s.supervisor.workflow.snapshot(task.ID)
+	if err != nil || after3 == nil {
+		t.Fatalf("state unavailable after implement: %v", err)
+	}
+	ready, failed := 0, 0
+	if list, ok := after3["units"].([]any); ok {
+		for _, raw := range list {
+			unit, _ := raw.(map[string]any)
+			switch unit["status"] {
+			case "ready":
+				ready++
+			case "failed":
+				failed++
+			}
+		}
+	}
+	t.Logf("MODEL_STAGE3 model=%s phase=%s revision=%v units=%d ready=%d failed=%d delivery_status=%v", model, after3["phase"], after3["revision"], len(after3["units"].([]any)), ready, failed, after3["delivery_status"])
 }
