@@ -29,8 +29,8 @@ We **revision = io.native(context=`context`,operation="agent_source_revision",pa
 1. not access(`revision`,"ok")
   Return *`revision`*.
 We **source_revision = access(`revision`,"value")**.
-We **run_id = access(`context`,"task_id")**.
-We **opened = workflow.open(id=`run_id`,steps=`steps`,source_revision=`source_revision`,session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))**.
+We **run_id = access(`context`,"id")**.
+We **opened = workflow.open(id=`run_id`,steps=`steps`,source_revision=`source_revision`,session_id=access(`context`,"id"),principal_ref=access(`context`,"owner"))**.
 1. not json.get(value=`opened`,key="ok")
   Return *`opened`*.
 `pending_workflow` =
@@ -53,7 +53,7 @@ Use `context`。
 We **revision = io.native(context=`context`,operation="agent_source_revision",payload=table.put(in=None,at="path",value="workflows/software-development/index.mq.md"))**.
 1. not access(`revision`,"ok")
   Return *`revision`*.
-Return *workflow.tick(id=access(`context`,"task_id"),source_revision=access(`revision`,"value"),session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.
+Return *workflow.tick(id=access(`context`,"id"),source_revision=access(`revision`,"value"),session_id=access(`context`,"id"),principal_ref=access(`context`,"owner"))*.
 
 ## draft
     + `context`

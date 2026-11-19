@@ -17,7 +17,7 @@ fn context(v:&Value)->Result<&Value,String>{
  let raw=fs::read(path).map_err(|_|"agent.actor.attestation_unavailable")?;
  if raw.len()>65536{return Err("agent.actor.attestation_too_large".into())}
  let verified:Value=serde_json::from_slice(&raw).map_err(|_|"agent.actor.invalid_attestation")?;
- for field in ["root","project","workspace","owner","task_id"]{
+ for field in ["root","project","workspace","owner","id"]{
   let expected=verified[field].as_str().ok_or_else(||format!("agent.actor.missing_{field}"))?;
   if c[field].as_str()!=Some(expected){return Err(format!("agent.actor.identity_mismatch:{field}"))}
  }
