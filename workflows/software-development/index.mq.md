@@ -7,6 +7,7 @@ import:
   table: lib/table.mq.md
   json: lib/json.mq.md
   io: ../../agent/io.mq.md
+  author: author.mq.md
   result: lib/result.mq.md
 ---
 
@@ -53,3 +54,29 @@ We **revision = io.native(context=`context`,operation="agent_source_revision",pa
 1. not access(`revision`,"ok")
   Return *`revision`*.
 Return *workflow.tick(id=access(`context`,"task_id"),source_revision=access(`revision`,"value"),session_id=access(`context`,"task_id"),principal_ref=access(`context`,"owner"))*.
+
+## draft
+    + `context`
+    + `contract`
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| context | map | 当前业务开发身份 |
+| contract | text | 已审阅的函数边界 |
+
+Use `context`, `contract`。
+
+Return *author.propose(context=`context`,contract=`contract`)*.
+
+## check
+    + `context`
+    + `source`
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| context | map | 可信工程 |
+| source | text | 实际需要核验的 Marqdo 草稿 |
+
+Use `context`, `source`。
+
+Return *author.inspect(context=`context`,source=`source`)*.

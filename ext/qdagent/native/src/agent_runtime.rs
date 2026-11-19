@@ -35,6 +35,12 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
  match v["operation"].as_str().ok_or("operation missing")?{
   "agent_catalog_list"=>catalog::catalog(c),
   "agent_catalog_resolve"=>catalog::skill(c,v["skill"].as_str().ok_or("skill required")?),
+  "agent_source_check"=>{
+   let source=v["source"].as_str().ok_or("Marqdo source required")?;
+   if source.len()>65536{return Err("agent.source.too_large".into())}
+   let module=marqdo::load::parse_source_auto(source).map_err(|e|format!("agent.source.compiler_diagnostic: {e}"))?;
+   Ok(json!({"valid":true,"source_sha256":digest(source.as_bytes()),"functions":module.functions.iter().map(|f|f.name.clone()).collect::<Vec<_>>()}))
+  },
   "agent_source_revision"=>{
    let rel=v["path"].as_str().ok_or("relative source required")?;
    if !rel.starts_with("workflows/")||!rel.ends_with(".mq.md")||rel.split('/').any(|s|s==".."||s=="."||s.is_empty()){

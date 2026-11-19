@@ -6,6 +6,7 @@ agent_effects: compute
 import:
   quantum: ext/quantum/index.mq.md
   result: lib/result.mq.md
+  text: lib/text.mq.md
 ---
 
 量子模拟的数值输出来自原生扩展，不靠 LLM 口述计算。实际硬件的保真度与模拟结果严格区分；插件模拟结果不是对任意真实硬件实验的证据。这里展示一个稳定且可验证的 Bell 态计算入口，更多电路计算按量子扩展真实签名逐层展开。
@@ -21,4 +22,6 @@ import:
 
 Use `context`, `goal`。
 
+1. not text.contains(text=`goal`,sub="贝尔") and not text.contains(text=`goal`,sub="Bell") and not text.contains(text=`goal`,sub="bell")
+  Return *result.error(code="quantum.scope",message="当前量子 SKILL 只支持 Bell 态真实仿真；请进入受控电路专业函数处理其他问题",operation="run")*.
 Return *[执行 Marqdo 量子插件的真实贝尔态分析](quantum.bell_analysis())*.
