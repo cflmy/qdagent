@@ -9,7 +9,7 @@ mod catalog;
 mod execute;
 
 fn digest(s:&[u8])->String{format!("{:x}",Sha256::digest(s))}
-fn context(v:&Value)->Result<&Value,String>{
+pub(super) fn trusted_context(v:&Value)->Result<&Value,String>{
  let c=v["context"].as_object().map(|_|&v["context"]).ok_or("agent trusted context required".to_string())?;
  // The caller may supply a context map, but it never establishes authority.
  // Only the Go host writes this actor attestation for a specific run/call.
@@ -44,7 +44,7 @@ fn save(r:&Path,s:&mut Value)->Result<Value,String>{
  super::atomic(&state_path(r),&raw)?;Ok(s.clone())
 }
 pub fn dispatch(v:&Value)->Result<Value,String>{
- let c=context(v)?;
+ let c=trusted_context(v)?;
  match v["operation"].as_str().ok_or("operation missing")?{
   "agent_catalog_list"=>catalog::catalog(c),
   "agent_catalog_resolve"=>catalog::skill(c,v["skill"].as_str().ok_or("skill required")?),

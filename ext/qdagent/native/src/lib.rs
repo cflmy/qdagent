@@ -3,7 +3,6 @@
 use std::{ffi::c_char, fs, path::{Path,PathBuf},process::{Command,Stdio},time::{SystemTime,UNIX_EPOCH,Duration}};
 use serde_json::{json,Value};
 use marqdo_plugin_sdk::*;
-mod root_skill;
 mod agent_runtime;
 mod document_bundle;
 mod runtime;
@@ -104,7 +103,6 @@ fn dispatch(v:&Value)->Result<Value,String>{
  if v["operation"].as_str().is_some_and(|op|op.starts_with("agent_")){return agent_runtime::dispatch(v)}
  if v["operation"]=="document_view"{return document_bundle::view(v)}
  if v["operation"].as_str().is_some_and(|op|op.starts_with("runtime_")){return runtime::dispatch(v)}
- if v["operation"].as_str().is_some_and(|op|op.starts_with("root_")){return root_skill::dispatch(v)}
  if v["operation"]=="call"{return invocation(v)}
  let r=root(v)?;
  if v["operation"]=="control"{return control(&r,v)}
