@@ -675,4 +675,24 @@ func TestRealModelMultiStageWhenAvailable(t *testing.T) {
 		t.Fatalf("state unavailable after resume: %v", err)
 	}
 	t.Logf("MODEL_STAGE model=%s phase=%s revision=%v has_outline=%v", model, after["phase"], after["revision"], after["outline_sha256"] != nil)
+	if os.Getenv("QDAGENT_TEST_STAGE2") != "1" || after["phase"] != "outline" {
+		return
+	}
+	// Confirm the reviewed outline as the user and let the host resume into the
+	// refinement stage, where function sections are actually produced.
+	respond, _ = json.Marshal(map[string]any{"revision": after["revision"], "action": "confirm_outline", "model": "builtin-local"})
+	got = request(s, http.MethodPost, "/api/tasks/"+task.ID+"/workflow/respond", string(respond))
+	if got.Code != 200 {
+		t.Fatalf("confirm_outline rejected: %d %s", got.Code, got.Body.String())
+	}
+	waitIdle("refine run")
+	final, err := s.supervisor.workflow.snapshot(task.ID)
+	if err != nil || final == nil {
+		t.Fatalf("state unavailable after refine: %v", err)
+	}
+	units := 0
+	if list, ok := final["units"].([]any); ok {
+		units = len(list)
+	}
+	t.Logf("MODEL_STAGE2 model=%s phase=%s revision=%v units=%d delivery_status=%v", model, final["phase"], final["revision"], units, final["delivery_status"])
 }
