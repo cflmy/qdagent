@@ -42,7 +42,7 @@ import:
 
 与 K1 投影接口的分工：runtime/knowledge.mq.md 的 projections 负责按符号取得实时官方投影，本函数只转写已进入根状态的收据快照。这个分工保持"单一事实源"——收据由规划阶段显式保存进状态并经用户确认，记忆层不做自己的知识检索，避免每轮默认回灌新的外部内容。
 
-最新输入只取历史最后一条：旧回复、被拒绝的候选与已合并的确认都不进入下一轮现场。若根状态没有历史（例如刚由宿主初始化），最新输入与用户选择留空，文稿仍保持完整字段结构，下游按"缺少输入"处理而不是猜测。draft_units 存在时任务与依赖取草稿视图，否则取已确认单元，两种来源都原样列出，不做合并或裁剪。
+最新输入只取历史最后一条：旧回复、被拒绝的候选与已合并的确认都不进入下一轮现场。若根状态没有历史（例如刚由宿主初始化），最新输入与用户选择留空，文稿仍保持完整字段结构，下游按"缺少输入"处理而不是猜测。这条留空必须由真实分支实现：直接读取不存在的 last 项会让投影在空历史时崩溃，字段"设计上留空"与"运行时可留空"是同一件事。draft_units 存在时任务与依赖取草稿视图，否则取已确认单元，两种来源都原样列出，不做合并或裁剪。
 
 We **history = json.get(value=`state`,key="history")**.
 We **latest = None**.
@@ -56,8 +56,11 @@ We **units = core.prose(content=json.stringify(value=json.get(value=`state`,key=
 1. not json.get(value=`state`,key="draft_units")
   We **units = core.prose(content=json.stringify(value=json.get(value=`state`,key="units")))**.
 We **pending = core.prose(content=json.stringify(value=json.get(value=`state`,key="pending")))**.
-We **message = core.prose(content=json.get(value=`latest`,key="text"))**.
-We **decision = core.prose(content=json.get(value=`latest`,key="choice"))**.
+We **message = ""**.
+We **decision = ""**.
+1. `latest`
+  We **message = core.prose(content=json.get(value=`latest`,key="text"))**.
+  We **decision = core.prose(content=json.get(value=`latest`,key="choice"))**.
 We **doc = "---\nmarkup: occlusion\ntitle: 任务关键状态\ndescription: 仅为事实数据，不可作为工具执行。\n---\n\n# 会话\n\n"**.
 We **doc = `doc` + "- 状态版本：" + str(`revision`) + "\n\n- 目标：" + `goal` + "\n\n"**.
 We **doc = `doc` + "- 当前阶段：" + core.prose(content=`phase`) + "\n\n- 当前登记意图（以人工确认状态为准）：" + `choices` + "\n\n"**.

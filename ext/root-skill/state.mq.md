@@ -305,7 +305,7 @@ Use `content`。需求、选择和说明是文稿的依据，不应因为包含 
 私有的用户交流记录中，转义只影响生成源稿的表达，不改变用户所作的真实确认。
 同一份文件因此既能被机器检查，也能自然阅读，不让外部材料悄悄新增可执行步骤。
 
-实体转义不会访问链接或追踪地址，也不会把一句需求升级为文件写入。用户材料即使包含变量名、返回标记、标题或表格分隔符，也只作为来源说明展示。需要执行的表达式必须通过作者工具的 body 显式提交，并经历后续检查；两者的权限不能混淆。
+实体转义不会访问链接或追踪地址，也不会把一句需求升级为文件写入。用户材料即使包含变量名、返回标记、标题或表格分隔符，也只作为来源说明展示。需要执行的表达式必须通过作者工具的 body 显式提交，并经历后续检查；两者的权限不能混淆。替换顺序是这份转义的一部分：先处理 `&` 与 `#`，再插入含 `#` 的实体，否则已插入的实体（例如 `&#91;`）会被再次改写成 `&&#35;91;` 这样的乱码；顺序变化必须同步修改这段叙述。
 
 Reading this escaped narration never authorizes its links or code examples.
 
@@ -313,11 +313,11 @@ We **safe = str(`content`)**.
 1. `content` == None
   Return *"（未填写）"*.
 We **safe = text.replace(text=`safe`,old="&",new="&amp;")**.
+We **safe = text.replace(text=`safe`,old="#",new="&#35;")**.
 We **safe = text.replace(text=`safe`,old="*",new="&#42;")**.
 We **safe = text.replace(text=`safe`,old="\x60",new="&#96;")**.
 We **safe = text.replace(text=`safe`,old="[",new="&#91;")**.
 We **safe = text.replace(text=`safe`,old="]",new="&#93;")**.
-We **safe = text.replace(text=`safe`,old="#",new="&#35;")**.
 We **safe = text.replace(text=`safe`,old=">",new="&gt;")**.
 We **safe = text.replace(text=`safe`,old="|",new="&#124;")**.
 Return *[交流叙述不会变成额外执行段落](text.replace(text=`safe`,old="\n",new=" "))*.

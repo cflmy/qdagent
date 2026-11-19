@@ -16,6 +16,8 @@ import:
 
 state 由 json.parse 构造，字段与真实根状态一致：revision、phase、goal、history、intent_tasks 与 pending 都来自 state.mq.md 的真实保存结构。断言只检查文本包含与排除，不解析内部格式，因此任何等价的投影实现都能通过；真正的执行证据由 sync 的 ABI 原子写负责，本金样不重复那份验证。本段同时固定向后兼容：状态没有知识收据时，"知识证据"一节必须整体缺席，而不是渲染空占位或提示行。这个缺席断言与六轮历史排除一起，保证旧任务在 K3 上线后投影逐字节稳定，已交付任务不会因为实现升级而在现场多出任何段落，也不会在每轮注入中悄悄多消耗模型预算。
 
+主段还负责把两段契约接进同一次运行：`marqdo run` 只执行 `## main`，因此证据段与转义段必须由主段显式调用并断言返回值，否则分段只是文档结构、永远不会被执行。这一接线本身是回归点：新增分段时必须同时更新主段，否则断言形同虚设；同理，删除分段时必须同步删除调用，避免主段引用不存在的函数导致整次运行失败。接线与断言的版本必须一起演进，这一点在评审时比断言内容更容易被忽略，因为未接线的分段在文档里看起来完全正常，只有运行结果才会暴露它从未执行。
+
 运行方式与验收边界：`marqdo run tests/small-model-memory.mq.md --emit-result`，返回值必须逐字为 small-model-memory-projection-ok。这份金样不验证 token 预算、真实 Web 多轮恢复或 1B 模型成功率——那些属于 rollout 文档 G3/G6 关口的后续实测；静态契约由 tests/test_small_model_contract.py 另行把守。
 
 **state = > json.parse text="{\"revision\":7,\"phase\":\"intent\",\"goal\":\"设计求道小模型\",\"history\":[{\"id\":\"h0\",\"text\":\"旧历史不再回放\"},{\"id\":\"h1\",\"text\":\"最新用户要求简化上下文\"}],\"intent_tasks\":[{\"id\":\"research\",\"mode\":\"research\"}],\"pending\":null}"**.
@@ -28,6 +30,10 @@ We **_ = test.assert(condition=`good`,message="missing goal")**.
 We **_ = test.assert(condition=`recent`,message="missing latest input")**.
 We **_ = test.assert(condition=(not `leaked`),message="old history leaked")**.
 We **_ = test.assert(condition=(not `absent`),message="evidence section must stay absent without receipts")**.
+We **evidence_ok = evidence()**.
+We **escaping_ok = escaping()**.
+We **_ = test.assert(condition=`evidence_ok`,message="evidence contract section must pass")**.
+We **_ = test.assert(condition=`escaping_ok`,message="escaping contract section must pass")**.
 Return *"small-model-memory-projection-ok"*.
 
 ## evidence
@@ -67,3 +73,25 @@ We **_ = test.assert(condition=`hint`,message="overflow must be explicit, not si
 We **_ = test.assert(condition=`six`,message="six receipts stay within the bound")**.
 We **_ = test.assert(condition=(not `seventh`),message="only six receipts may be projected")**.
 Return *"memory-evidence-contract-ok"*.
+
+## escaping
+
+转义顺序是本段的主题：用户目标里出现 `[`、`#`、`&` 这类会触发 Markdown 或执行语义的字符时，投影必须把它们变成可读实体，且只转义一次。曾出现过的缺陷是 `#` 在实体插入之后才替换，于是一个方括号会变成 `&&#35;91;` 这样的乱码，真实模型看到的现场无法阅读。
+
+断言只检查三件事：结果里没有双重转义标记、方括号作为实体可读地出现、用户自己的 `&` 恰好被转义一次。`&` 先被转义保证用户文本无法注入新的实体；`#` 紧随其后保证后续插入的实体不再被改写。顺序变化必须同步修改本段叙述与断言，避免实现与文档分叉。
+
+为什么这条对小型模型特别重要：它们无法从乱码中恢复出"任务与依赖为空"这一事实，会把 `&&#35;91;` 当成未知符号并尝试猜测，浪费轮次。修复后现场显示 `&#91;&#93;`，读起来是"转义后的方括号"，与"有内容"有明确区别。投影层不因此改变语义，它只是让空白保持可读。
+
+本段只用 render 的公开输入，不读取文件系统，也不依赖真实模型；因此它是纯函数回归，可以在任何环境运行。转义实现若被替换成 HTML 库，必须仍然满足这三条断言，否则视为语义变化。
+
+夹具里的目标包含三种字符（方括号、井号、与号），它们分别覆盖"结构标记""实体前缀""实体自身"三种风险：方括号会被当作链接或列表写法，井号会被当作标题或实体起点，与号会把后续文本变成实体。三种同时出现时若顺序错误，最容易暴露双重转义，因此本段把它们放在同一个目标里而不是拆成三条独立用例。
+
+**hostile = > json.parse text="{\"revision\":10,\"phase\":\"intent\",\"goal\":\"[测试] #1 & 目标\",\"history\":[],\"pending\":null}"**.
+**escaped = > memory.render state=`hostile`**.
+We **no_double = not text.contains(text=`escaped`,sub="&&#35;")**.
+We **entity = text.contains(text=`escaped`,sub="&#91;测试&#93;")**.
+We **amp = text.contains(text=`escaped`,sub="&amp;")**.
+We **_ = test.assert(condition=`no_double`,message="entities must never be double-escaped")**.
+We **_ = test.assert(condition=`entity`,message="active markers must stay readable entities")**.
+We **_ = test.assert(condition=`amp`,message="user ampersands must be escaped exactly once")**.
+Return *"memory-escaping-ok"*.
