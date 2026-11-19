@@ -5,6 +5,9 @@ use std::{fs,io::Write,path::{Path,PathBuf},process::{Command,Stdio},time::{Dura
 use serde_json::{json,Value};
 use sha2::{Digest,Sha256};
 
+mod catalog;
+mod execute;
+
 fn digest(s:&[u8])->String{format!("{:x}",Sha256::digest(s))}
 fn context(v:&Value)->Result<&Value,String>{v["context"].as_object().map(|_|&v["context"]).ok_or("agent trusted context required".into())}
 fn project(c:&Value)->Result<PathBuf,String>{
@@ -27,112 +30,11 @@ fn save(r:&Path,s:&mut Value)->Result<Value,String>{
  let raw=s.to_string();if raw.len()>1024*1024{return Err("agent session exceeds one MiB".into())}
  super::atomic(&state_path(r),&raw)?;Ok(s.clone())
 }
-fn valid_slug(s:&str)->bool{!s.is_empty()&&s.len()<=48&&s.bytes().all(|b|b.is_ascii_lowercase()||b.is_ascii_digit()||b==b'-')&&!s.starts_with('-')&&!s.ends_with('-')}
-fn scalar(src:&str,key:&str)->Option<String>{
- let front=src.strip_prefix("---\n")?.split("\n---").next()?;
- for line in front.lines(){
-  if let Some(v)=line.strip_prefix(key).and_then(|s|s.strip_prefix(':')){
-   let value=v.trim().trim_matches('"').to_string();
-   if value.len()<=240&&!value.contains('\r')&&!value.contains('\n'){return Some(value)}
-  }
- }
- None
-}
-fn skill(c:&Value,id:&str)->Result<Value,String>{
- if !valid_slug(id){return Err("agent.catalog.invalid_id".into())}
- let project=project(c)?;
- let base=project.join("skills").canonicalize().map_err(|e|e.to_string())?;
- let path=base.join(id).join("index.mq.md").canonicalize().map_err(|_|"agent.catalog.unknown_skill".to_string())?;
- if !path.starts_with(&base)||!path.is_file(){return Err("agent.catalog.path_escape".into())}
- let source=fs::read_to_string(&path).map_err(|e|e.to_string())?;
- if source.len()>128*1024{return Err("agent.catalog.source_budget".into())}
- // The official Marqdo parser, not our string heuristics, determines callable exports.
- let module=marqdo::load::parse_source_auto(&source).map_err(|e|format!("agent.catalog.parse: {e}"))?;
- if !module.functions.iter().any(|f|f.name=="run"){return Err("agent.catalog.no_run".into())}
- let purpose=scalar(&source,"description").ok_or("agent.catalog.description_required")?;
- let effects=scalar(&source,"agent_effects").unwrap_or("model".into());
- if !matches!(effects.as_str(),"read"|"model"|"compute"|"external"|"write"){return Err("agent.catalog.invalid_effects".into())}
- Ok(json!({"id":id,"description":purpose,"effects":effects,"sha256":digest(source.as_bytes()),"path":path.to_string_lossy()}))
-}
-fn catalog(c:&Value)->Result<Value,String>{
- let base=project(c)?.join("skills");let mut out=vec![];
- for entry in fs::read_dir(base).map_err(|e|e.to_string())?{
-  let entry=entry.map_err(|e|e.to_string())?;
-  if !entry.file_type().map_err(|e|e.to_string())?.is_dir(){continue}
-  let name=entry.file_name().to_string_lossy().to_string();
-  if !valid_slug(&name){continue}
-  if let Ok(v)=skill(c,&name){out.push(json!({"id":name,"description":v["description"],"effects":v["effects"],"sha256":v["sha256"]}));}
- }
- out.sort_by(|a,b|a["id"].as_str().cmp(&b["id"].as_str()));
- if out.len()>64{return Err("agent.catalog.too_many".into())}
- Ok(json!(out))
-}
-fn call(c:&Value,v:&Value)->Result<Value,String>{
- let name=v["skill"].as_str().ok_or("skill id required")?;
- let spec=skill(c,name)?;
- let root=root(c)?;
- let state={let _lock=super::lifecycle(&root)?;read(&root)?};
- let effects=spec["effects"].as_str().unwrap_or("read");
- if effects=="external"||effects=="write"{
-  if state["approved_skill"]!=name||state["approved_source_sha256"]!=spec["sha256"]||state["phase"]!="ready"{return Err("agent.approval_required".into())}
- }
- let source=Path::new(spec["path"].as_str().ok_or("installed path missing")?);
- let grants=match effects{
-  "read"=>"fs.read",
-  "model"=>"plugin,fs.read,process.exec,environment.read",
-  "compute"=>"plugin,fs.read,process.exec,environment.read",
-  "external"=>"plugin,fs.read,process.exec,environment.read,network.read",
-  "write"=>"plugin,fs.read,fs.write,process.exec,environment.read,network.read,network.write",
-  _=>return Err("unknown effects".into()),
- };
- let mut command=Command::new("marqdo");
- command.arg("call").arg(source).arg("run").args(["--args-json","-","--fs-root"])
-  .arg(c["workspace"].as_str().ok_or("workspace required")?)
-  .args(["--effects",grants,"--json"])
-  .current_dir(c["workspace"].as_str().unwrap())
-  .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
- let mut child=command.spawn().map_err(|e|e.to_string())?;
- let params=json!({"context":c,"goal":v["goal"]}).to_string();
- child.stdin.take().ok_or("skill stdin missing")?.write_all(params.as_bytes()).map_err(|e|e.to_string())?;
- // Read both pipes concurrently. A large child output must never deadlock a
- // parent that is polling its process status.
- use std::io::Read;
- let stdout=child.stdout.take().ok_or("skill stdout missing")?;
- let stderr=child.stderr.take().ok_or("skill stderr missing")?;
- let captured=std::thread::spawn(move||{
-  let mut data=Vec::new();let _=stdout.take(4*1024*1024+1).read_to_end(&mut data);data
- });
- let errors=std::thread::spawn(move||{
-  let mut data=Vec::new();let _=stderr.take(65537).read_to_end(&mut data);data
- });
- let start=Instant::now();
- let status=loop{
-  if let Some(status)=child.try_wait().map_err(|e|e.to_string())?{break status}
-  if start.elapsed()>Duration::from_secs(240){let _=child.kill();let _=child.wait();return Err("agent.skill.timeout".into())}
-  std::thread::sleep(Duration::from_millis(30));
- };
- let output=captured.join().map_err(|_|"skill stdout reader failed")?;
- let diagnostic=errors.join().map_err(|_|"skill stderr reader failed")?;
- if output.len()>4*1024*1024||diagnostic.len()>65536{return Err("agent.skill.output_budget".into())}
- if !status.success(){return Err(format!("agent.skill.failed: {}",String::from_utf8_lossy(&diagnostic).chars().take(500).collect::<String>()))}
- let envelope:Value=serde_json::from_slice(&output).map_err(|_|"agent.skill.invalid_marqdo_result")?;
- if envelope["ok"]!=true{return Err(format!("agent.skill.marqdo_error: {}",envelope["error"]))}
- if envelope["result"]["ok"]==false{return Err(format!("agent.skill.domain_failure: {}",envelope["result"]["error"]))}
- let value=if envelope["result"]["ok"]==true && !envelope["result"]["value"].is_null(){&envelope["result"]["value"]}else{&envelope["result"]};
- let observed=value["status"].as_str().unwrap_or("");
- let status=if matches!(observed,"waiting_model"|"waiting_input"|"needs_source_read"|"draft_needs_compiler_review"|"workflow_waiting_model"|"incomplete"|"blocked"|"uncertain"){
-  "incomplete"
- }else{"succeeded"};
- if digest(&fs::read(source).map_err(|e|e.to_string())?)!=spec["sha256"].as_str().unwrap_or(""){
-  return Err("agent.skill.source_changed_after_execution".into())
- }
- Ok(json!({"status":status,"result":envelope["result"],"skill":name,"source_sha256":spec["sha256"],"evidence":"marqdo_call"}))
-}
 pub fn dispatch(v:&Value)->Result<Value,String>{
  let c=context(v)?;
  match v["operation"].as_str().ok_or("operation missing")?{
-  "agent_catalog_list"=>catalog(c),
-  "agent_catalog_resolve"=>skill(c,v["skill"].as_str().ok_or("skill required")?),
+  "agent_catalog_list"=>catalog::catalog(c),
+  "agent_catalog_resolve"=>catalog::skill(c,v["skill"].as_str().ok_or("skill required")?),
   "agent_source_revision"=>{
    let rel=v["path"].as_str().ok_or("relative source required")?;
    if !rel.starts_with("workflows/")||!rel.ends_with(".mq.md")||rel.split('/').any(|s|s==".."||s=="."||s.is_empty()){
@@ -144,7 +46,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
    if !file.starts_with(base)||!file.is_file(){return Err("agent.source.outside_project".into())}
    Ok(json!(digest(&fs::read(file).map_err(|e|e.to_string())?)))
   },
-  "agent_skill_call"=>call(c,v),
+  "agent_skill_call"=>execute::call(c,v),
   "agent_session_read"=>{let r=root(c)?;let _lock=super::lifecycle(&r)?;read(&r)},
   "agent_memory_sync"=>{
    let r=root(c)?;let _lock=super::lifecycle(&r)?;let s=read(&r)?;
@@ -172,7 +74,7 @@ pub fn dispatch(v:&Value)->Result<Value,String>{
   },
   "agent_session_propose"=>{
    let name=v["skill"].as_str().ok_or("skill required")?;
-   let spec=skill(c,name)?;
+   let spec=catalog::skill(c,name)?;
    let r=root(c)?;let _lock=super::lifecycle(&r)?;let mut s=read(&r)?;
    if s["phase"]!="ready"{return Err("agent.session.not_ready".into())}
    if s["pending"]["skill"].as_str()==Some(name){return Ok(s)}
